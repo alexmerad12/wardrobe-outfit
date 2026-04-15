@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { readData } from "@/lib/server-storage";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import {
@@ -15,43 +15,23 @@ export async function POST(request: NextRequest) {
       occasion: Occasion;
     };
 
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const data = await readData();
+    const items = data.items;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Fetch all user's clothing items
-    const { data: items } = await supabase
-      .from("clothing_items")
-      .select("*")
-      .eq("user_id", user.id);
-
-    if (!items || items.length < 3) {
+    if (items.length < 3) {
       return NextResponse.json({
         suggestions: [],
         message: "Add at least 3 items to get outfit suggestions",
       });
     }
 
-    // Fetch user preferences for location
-    const { data: prefs } = await supabase
-      .from("user_preferences")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
     // Get weather data
     let weather: WeatherData | null = null;
     try {
-      const location = prefs?.location;
+      const location = data.preferences?.location;
       if (location?.lat && location?.lng) {
         weather = await getWeather(location.lat, location.lng);
       } else {
-        // Default fallback
         weather = await getWeather(48.8566, 2.3522);
       }
     } catch {
@@ -67,17 +47,9 @@ export async function POST(request: NextRequest) {
       season: currentSeason,
     };
 
-    // Filter items by context
-    const filteredItems = filterItemsByContext(
-      items as ClothingItem[],
-      context
-    );
-
-    // Generate outfit candidates
+    const filteredItems = filterItemsByContext(items as ClothingItem[], context);
     const candidates = generateOutfitCandidates(filteredItems, context, 3);
 
-    // Add basic reasoning (AI stylist layer will enhance this in Phase 3)
-    const moodPrefs = MOOD_COLOR_PREFERENCES[mood];
     const suggestions = candidates.map((candidate) => ({
       ...candidate,
       reasoning: generateBasicReasoning(candidate, mood, occasion, weather),
@@ -101,14 +73,12 @@ function generateBasicReasoning(
 ): string {
   const parts: string[] = [];
 
-  // Color harmony comment
   if (candidate.color_harmony !== "none" && candidate.color_harmony !== "too-many-colors") {
     parts.push(
       `This outfit uses a ${candidate.color_harmony} color scheme for a cohesive look.`
     );
   }
 
-  // Weather comment
   if (weather) {
     if (weather.temp < 10) {
       parts.push("Layered up for the cold weather.");
@@ -117,7 +87,6 @@ function generateBasicReasoning(
     }
   }
 
-  // Mood comment
   const moodComments: Record<Mood, string> = {
     energized: "Bright picks to match your energy!",
     confident: "Sharp and polished to own the day.",

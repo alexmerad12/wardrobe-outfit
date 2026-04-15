@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase";
 import type { OutfitLog } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,18 +25,17 @@ export default function CalendarPage() {
 
   useEffect(() => {
     async function fetchLogs() {
-      const supabase = createClient();
       const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
       const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${daysInMonth}`;
 
-      const { data } = await supabase
-        .from("outfit_log")
-        .select("*")
-        .gte("worn_date", startDate)
-        .lte("worn_date", endDate)
-        .order("worn_date");
-
-      setLogs((data as OutfitLog[]) ?? []);
+      try {
+        const res = await fetch(`/api/logs?start=${startDate}&end=${endDate}`);
+        if (res.ok) {
+          setLogs(await res.json());
+        }
+      } catch (err) {
+        console.error("Failed to fetch logs:", err);
+      }
     }
     fetchLogs();
   }, [year, month, daysInMonth]);
@@ -95,12 +93,10 @@ export default function CalendarPage() {
 
           {/* Calendar days */}
           <div className="grid grid-cols-7 gap-0.5">
-            {/* Empty cells for days before the 1st */}
             {Array.from({ length: firstDay }).map((_, i) => (
               <div key={`empty-${i}`} className="aspect-square" />
             ))}
 
-            {/* Days of the month */}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const log = getLogForDay(day);

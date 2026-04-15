@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
 import type { ClothingItem, Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ALL_CATEGORIES: (Category | "all")[] = [
@@ -28,14 +27,17 @@ export default function WardrobePage() {
 
   useEffect(() => {
     async function fetchItems() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("clothing_items")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      setItems((data as ClothingItem[]) ?? []);
-      setLoading(false);
+      try {
+        const res = await fetch("/api/items");
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch items:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchItems();
   }, []);

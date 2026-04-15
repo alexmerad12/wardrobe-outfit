@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase";
 import type { ClothingItem } from "@/lib/types";
 import {
   CATEGORY_LABELS,
@@ -29,34 +28,36 @@ export default function ItemDetailPage() {
 
   useEffect(() => {
     async function fetchItem() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("clothing_items")
-        .select("*")
-        .eq("id", params.id)
-        .single();
-
-      setItem(data as ClothingItem);
-      setLoading(false);
+      try {
+        const res = await fetch(`/api/items/${params.id}`);
+        if (res.ok) {
+          setItem(await res.json());
+        }
+      } catch (err) {
+        console.error("Failed to fetch item:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchItem();
   }, [params.id]);
 
   async function toggleFavorite() {
     if (!item) return;
-    const supabase = createClient();
     const newFav = !item.is_favorite;
-    await supabase
-      .from("clothing_items")
-      .update({ is_favorite: newFav })
-      .eq("id", item.id);
-    setItem({ ...item, is_favorite: newFav });
+    const res = await fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_favorite: newFav }),
+    });
+    if (res.ok) {
+      setItem({ ...item, is_favorite: newFav });
+    }
   }
 
   async function deleteItem() {
     if (!item || !confirm("Delete this item from your wardrobe?")) return;
-    const supabase = createClient();
-    await supabase.from("clothing_items").delete().eq("id", item.id);
+    await fetch(`/api/items/${item.id}`, { method: "DELETE" });
     router.push("/wardrobe");
   }
 

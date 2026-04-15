@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
 import type { Outfit, ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Heart, Plus, Sparkles } from "lucide-react";
+import { Heart, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function OutfitsPage() {
@@ -18,31 +16,30 @@ export default function OutfitsPage() {
 
   useEffect(() => {
     async function fetchOutfits() {
-      const supabase = createClient();
+      try {
+        const [outfitRes, itemRes] = await Promise.all([
+          fetch("/api/outfits"),
+          fetch("/api/items"),
+        ]);
 
-      const [{ data: outfitData }, { data: itemData }] = await Promise.all([
-        supabase
-          .from("outfits")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase.from("clothing_items").select("*"),
-      ]);
+        const items = outfitRes.ok ? ((await itemRes.json()) as ClothingItem[]) : [];
+        setAllItems(items);
 
-      const items = (itemData as ClothingItem[]) ?? [];
-      setAllItems(items);
+        const outfitData = outfitRes.ok ? ((await outfitRes.json()) as Outfit[]) : [];
 
-      // Resolve items for each outfit
-      const resolvedOutfits = ((outfitData as Outfit[]) ?? []).map(
-        (outfit) => ({
+        const resolvedOutfits = outfitData.map((outfit) => ({
           ...outfit,
           items: outfit.item_ids
             .map((id) => items.find((item) => item.id === id))
             .filter(Boolean) as ClothingItem[],
-        })
-      );
+        }));
 
-      setOutfits(resolvedOutfits);
-      setLoading(false);
+        setOutfits(resolvedOutfits);
+      } catch (err) {
+        console.error("Failed to fetch outfits:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchOutfits();
   }, []);
@@ -97,7 +94,7 @@ export default function OutfitsPage() {
               <CardContent className="p-0">
                 {/* Mini grid of items */}
                 <div className="grid grid-cols-2 gap-0.5 aspect-square">
-                  {(outfit.items ?? []).slice(0, 4).map((item, i) => (
+                  {(outfit.items ?? []).slice(0, 4).map((item) => (
                     <div
                       key={item.id}
                       className="relative overflow-hidden bg-muted/30"
@@ -111,7 +108,6 @@ export default function OutfitsPage() {
                       />
                     </div>
                   ))}
-                  {/* Fill empty slots */}
                   {Array.from({
                     length: Math.max(0, 4 - (outfit.items?.length ?? 0)),
                   }).map((_, i) => (

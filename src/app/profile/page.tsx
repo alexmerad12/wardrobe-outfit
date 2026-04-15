@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,12 +13,10 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity, UserPreferences } from "@/lib/types";
-import { LogOut, MapPin, Thermometer, Loader2 } from "lucide-react";
+import type { TemperatureSensitivity } from "@/lib/types";
+import { MapPin, Thermometer, Loader2 } from "lucide-react";
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
   const [city, setCity] = useState("");
   const [tempSensitivity, setTempSensitivity] =
     useState<TemperatureSensitivity>("normal");
@@ -30,72 +26,57 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function loadProfile() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const [prefsRes, itemsRes, outfitsRes] = await Promise.all([
+          fetch("/api/preferences"),
+          fetch("/api/items"),
+          fetch("/api/outfits"),
+        ]);
 
-      if (!user) {
-        router.push("/login");
-        return;
+        if (prefsRes.ok) {
+          const prefs = await prefsRes.json();
+          if (prefs) {
+            setCity(prefs.location?.city ?? "");
+            setTempSensitivity(prefs.temperature_sensitivity ?? "normal");
+          }
+        }
+
+        if (itemsRes.ok) {
+          const items = await itemsRes.json();
+          setItemCount(items.length);
+        }
+
+        if (outfitsRes.ok) {
+          const outfits = await outfitsRes.json();
+          setOutfitCount(outfits.length);
+        }
+      } catch (err) {
+        console.error("Failed to load profile:", err);
       }
-
-      setEmail(user.email ?? "");
-
-      // Load preferences
-      const { data: prefs } = await supabase
-        .from("user_preferences")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (prefs) {
-        setCity((prefs as UserPreferences).location?.city ?? "");
-        setTempSensitivity(
-          (prefs as UserPreferences).temperature_sensitivity ?? "normal"
-        );
-      }
-
-      // Load counts
-      const { count: items } = await supabase
-        .from("clothing_items")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      const { count: outfits } = await supabase
-        .from("outfits")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      setItemCount(items ?? 0);
-      setOutfitCount(outfits ?? 0);
     }
     loadProfile();
-  }, [router]);
+  }, []);
 
   async function handleSave() {
     setSaving(true);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    await supabase.from("user_preferences").upsert({
-      user_id: user.id,
-      location: city ? { city, lat: 0, lng: 0 } : null,
-      temperature_sensitivity: tempSensitivity,
-    });
-
-    setSaving(false);
-  }
-
-  async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    try {
+      await fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          location: city ? { city, lat: 0, lng: 0 } : null,
+          temperature_sensitivity: tempSensitivity,
+          preferred_styles: [],
+          favorite_colors: [],
+          avoided_colors: [],
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save preferences:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -124,14 +105,6 @@ export default function ProfilePage() {
           <CardTitle className="text-base">Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Email (read-only) */}
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input value={email} disabled />
-          </div>
-
-          <Separator />
-
           {/* Location */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
@@ -144,6 +117,8 @@ export default function ProfilePage() {
               onChange={(e) => setCity(e.target.value)}
             />
           </div>
+
+          <Separator />
 
           {/* Temperature sensitivity */}
           <div className="space-y-2">
@@ -184,16 +159,6 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
-
-      {/* Sign out */}
-      <Button
-        variant="outline"
-        className="w-full mt-4 text-destructive hover:text-destructive"
-        onClick={handleSignOut}
-      >
-        <LogOut className="mr-2 h-4 w-4" />
-        Sign Out
-      </Button>
     </div>
   );
 }

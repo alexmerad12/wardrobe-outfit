@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase";
 import type {
   Category,
   Subcategory,
@@ -24,7 +23,7 @@ import {
   SEASON_LABELS,
   OCCASION_LABELS,
 } from "@/lib/types";
-import { isNeutralColor, hexToHSL, getColorName } from "@/lib/color-engine";
+import { hexToHSL } from "@/lib/color-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Upload, ArrowLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -102,41 +100,30 @@ export default function AddItemPage() {
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Upload image via API
+      const formData = new FormData();
+      formData.append("file", imageFile);
 
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-      // Upload image
-      const fileExt = imageFile.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      if (!uploadRes.ok) throw new Error("Image upload failed");
+      const { url: imageUrl } = await uploadRes.json();
 
-      const { error: uploadError } = await supabase.storage
-        .from("clothing-images")
-        .upload(fileName, imageFile);
-
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("clothing-images").getPublicUrl(fileName);
-
-      // Extract a simple color from the image (basic approach)
-      // In Phase 2, we'll use node-vibrant for proper extraction
+      // Basic color placeholder
       const colors = [{ hex: "#888888", name: "Gray", percentage: 100 }];
       const dominant_color_hsl = hexToHSL("#888888");
 
-      // Save item
-      const { error: insertError } = await supabase
-        .from("clothing_items")
-        .insert({
-          user_id: user.id,
-          image_url: publicUrl,
+      // Save item via API
+      const itemRes = await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          image_url: imageUrl,
+          thumbnail_url: null,
           name,
           category,
           subcategory: subcategory || null,
@@ -152,9 +139,11 @@ export default function AddItemPage() {
           warmth_rating: warmthRating,
           rain_appropriate: rainAppropriate,
           brand: brand || null,
-        });
+          is_favorite: false,
+        }),
+      });
 
-      if (insertError) throw insertError;
+      if (!itemRes.ok) throw new Error("Failed to save item");
 
       router.push("/wardrobe");
     } catch (err) {
