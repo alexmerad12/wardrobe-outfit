@@ -10,6 +10,7 @@ import type {
   Material,
   Fit,
   Length,
+  WaistStyle,
   Formality,
   Season,
   Occasion,
@@ -19,6 +20,7 @@ import {
   SUBCATEGORY_OPTIONS,
   PATTERN_LABELS,
   LENGTH_LABELS,
+  WAIST_STYLE_LABELS,
   MATERIAL_LABELS,
   FIT_LABELS,
   FORMALITY_LABELS,
@@ -55,6 +57,8 @@ export default function AddItemPage() {
   const [materials, setMaterials] = useState<Material[]>(["cotton"]);
   const [fit, setFit] = useState<Fit>("regular");
   const [length, setLength] = useState<Length>("regular");
+  const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
+  const [beltCompatible, setBeltCompatible] = useState(false);
   const [formality, setFormality] = useState<Formality>("casual");
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -201,6 +205,8 @@ export default function AddItemPage() {
           material: materials,
           fit,
           length: ["top", "bottom", "dress", "outerwear"].includes(category) ? length : null,
+          waist_style: ["top", "bottom", "dress", "outerwear"].includes(category) ? waistStyle : null,
+          belt_compatible: beltCompatible,
           formality,
           seasons,
           occasions,
@@ -418,6 +424,49 @@ export default function AddItemPage() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Waist style - only for tops, bottoms, dresses, outerwear */}
+        {category && ["top", "bottom", "dress", "outerwear"].includes(category) && (
+          <div className="space-y-2">
+            <Label>Waist</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {(Object.entries(WAIST_STYLE_LABELS) as [WaistStyle, string][]).map(([w, label]) => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => setWaistStyle(waistStyle === w ? null : w)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    waistStyle === w
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Belt compatible toggle */}
+        {category && ["top", "bottom", "dress", "outerwear"].includes(category) && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setBeltCompatible(!beltCompatible)}
+              className={cn(
+                "h-5 w-5 rounded border-2 transition-colors",
+                beltCompatible
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground/30"
+              )}
+            />
+            <Label className="cursor-pointer" onClick={() => setBeltCompatible(!beltCompatible)}>
+              Works with a belt
+            </Label>
           </div>
         )}
 

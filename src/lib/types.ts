@@ -28,6 +28,8 @@ export type Fit = "slim" | "regular" | "loose" | "oversized";
 
 export type Length = "cropped" | "regular" | "long" | "extra-long";
 
+export type WaistStyle = "elastic" | "fitted" | "relaxed" | "belted";
+
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
 export type Season = "spring" | "summer" | "fall" | "winter";
@@ -73,6 +75,8 @@ export interface ClothingItem {
   material: Material | Material[];
   fit: Fit;
   length: Length | null;
+  waist_style: WaistStyle | null;
+  belt_compatible: boolean;
   formality: Formality;
   seasons: Season[];
   occasions: Occasion[];
@@ -206,6 +210,13 @@ export const LENGTH_LABELS: Record<Length, string> = {
   regular: "Regular",
   long: "Long",
   "extra-long": "Tunic / Extra Long",
+};
+
+export const WAIST_STYLE_LABELS: Record<WaistStyle, string> = {
+  elastic: "Elastic",
+  fitted: "Fitted",
+  relaxed: "Relaxed",
+  belted: "Belted",
 };
 
 export const MATERIAL_LABELS: Record<Material, string> = {

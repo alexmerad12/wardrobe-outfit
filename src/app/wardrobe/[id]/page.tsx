@@ -8,6 +8,7 @@ import {
   CATEGORY_LABELS,
   FIT_LABELS,
   LENGTH_LABELS,
+  WAIST_STYLE_LABELS,
   MATERIAL_LABELS,
   PATTERN_LABELS,
   FORMALITY_LABELS,
@@ -174,6 +175,17 @@ export default function ItemDetailPage() {
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground mb-0.5">Length</p>
               <p className="text-sm font-medium">{LENGTH_LABELS[item.length]}</p>
+            </CardContent>
+          </Card>
+        )}
+        {item.waist_style && (
+          <Card>
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground mb-0.5">Waist</p>
+              <p className="text-sm font-medium">
+                {WAIST_STYLE_LABELS[item.waist_style]}
+                {item.belt_compatible && " · Belt-friendly"}
+              </p>
             </CardContent>
           </Card>
         )}
