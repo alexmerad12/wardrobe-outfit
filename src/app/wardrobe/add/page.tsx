@@ -70,6 +70,10 @@ export default function AddItemPage() {
   const [detectedColors, setDetectedColors] = useState<
     { hex: string; name: string; percentage: number }[]
   >([]);
+  const [manualColors, setManualColors] = useState<
+    { hex: string; name: string; percentage: number }[]
+  >([]);
+  const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
   const [detectingColors, setDetectingColors] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -181,9 +185,10 @@ export default function AddItemPage() {
       if (!uploadRes.ok) throw new Error("Image upload failed");
       const { url: imageUrl } = await uploadRes.json();
 
-      // Use detected colors or fallback
-      const colors = detectedColors.length > 0
-        ? detectedColors
+      // Manual colors first, then detected, fallback to gray
+      const allColors = [...manualColors, ...detectedColors];
+      const colors = allColors.length > 0
+        ? allColors
         : [{ hex: "#888888", name: "Gray", percentage: 100 }];
       const dominantHex = colors[0].hex;
       const dominant_color_hsl = hexToHSL(dominantHex);
@@ -295,34 +300,152 @@ export default function AddItemPage() {
           />
         </div>
 
-        {/* Detected colors */}
-        {(detectedColors.length > 0 || detectingColors) && (
-          <div className="space-y-2">
-            <Label>Detected Colors</Label>
+        {/* Colors */}
+        {(detectedColors.length > 0 || detectingColors || manualColors.length > 0) && (
+          <div className="space-y-3">
+            <Label>Colors</Label>
             {detectingColors ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Analyzing colors...
               </div>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {detectedColors.map((color, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1"
-                  >
-                    <span
-                      className="h-4 w-4 rounded-full border border-border"
-                      style={{ backgroundColor: color.hex }}
-                    />
-                    <span className="text-xs font-medium">{color.name}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {color.percentage}%
-                    </span>
+              <>
+                {/* Detected colors with remove button */}
+                {detectedColors.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">Auto-detected</p>
+                    <div className="flex flex-wrap gap-2">
+                      {detectedColors.map((color, i) => (
+                        <div
+                          key={`detected-${i}`}
+                          className="flex items-center gap-1.5 rounded-full border px-2.5 py-1"
+                        >
+                          <span
+                            className="h-4 w-4 rounded-full border border-border"
+                            style={{ backgroundColor: color.hex }}
+                          />
+                          <span className="text-xs font-medium">{color.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setDetectedColors((prev) => prev.filter((_, j) => j !== i))}
+                            className="text-muted-foreground hover:text-destructive text-xs ml-0.5"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* Manual colors */}
+                {manualColors.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">Manual</p>
+                    <div className="flex flex-wrap gap-2">
+                      {manualColors.map((color, i) => (
+                        <div
+                          key={`manual-${i}`}
+                          className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1"
+                        >
+                          <span
+                            className="h-4 w-4 rounded-full border border-border"
+                            style={{ backgroundColor: color.hex }}
+                          />
+                          <span className="text-xs font-medium">{color.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
+                            className="text-muted-foreground hover:text-destructive text-xs ml-0.5"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add color manually */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={colorPickerValue}
+                    onChange={(e) => setColorPickerValue(e.target.value)}
+                    className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setManualColors((prev) => [
+                        ...prev,
+                        { hex: colorPickerValue, name: getColorName(colorPickerValue), percentage: 0 },
+                      ]);
+                    }}
+                  >
+                    Add color
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {getColorName(colorPickerValue)}
+                  </span>
+                </div>
+              </>
             )}
+          </div>
+        )}
+
+        {/* Add color if no image yet */}
+        {!imagePreview && detectedColors.length === 0 && (
+          <div className="space-y-2">
+            <Label>Colors</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {manualColors.map((color, i) => (
+                <div
+                  key={`manual-${i}`}
+                  className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1"
+                >
+                  <span
+                    className="h-4 w-4 rounded-full border border-border"
+                    style={{ backgroundColor: color.hex }}
+                  />
+                  <span className="text-xs font-medium">{color.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-muted-foreground hover:text-destructive text-xs ml-0.5"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={colorPickerValue}
+                onChange={(e) => setColorPickerValue(e.target.value)}
+                className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setManualColors((prev) => [
+                    ...prev,
+                    { hex: colorPickerValue, name: getColorName(colorPickerValue), percentage: 0 },
+                  ]);
+                }}
+              >
+                Add color
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {getColorName(colorPickerValue)}
+              </span>
+            </div>
           </div>
         )}
 
