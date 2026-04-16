@@ -294,15 +294,9 @@ export default function ItemDetailPage() {
               ))}
             </div>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input type="color" value={colorPickerValue} onChange={(e) => setColorPickerValue(e.target.value)} className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0" />
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditColors((p) => [...p, { hex: colorPickerValue, name: getColorName(colorPickerValue), percentage: 0 }])}>
-                  Add custom
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
-                  {showColorPalette ? "Hide palette" : "Color palette"}
-                </Button>
-              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
+                {showColorPalette ? "Hide palette" : "Color palette"}
+              </Button>
               {showColorPalette && (
                 <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
                   {FASHION_COLORS.map((group) => (
