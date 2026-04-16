@@ -172,7 +172,9 @@ export default function ItemDetailPage() {
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground mb-0.5">Material</p>
             <p className="text-sm font-medium">
-              {MATERIAL_LABELS[item.material]}
+              {Array.isArray(item.material)
+                ? item.material.map((m) => MATERIAL_LABELS[m]).join(", ")
+                : MATERIAL_LABELS[item.material]}
             </p>
           </CardContent>
         </Card>
@@ -180,7 +182,9 @@ export default function ItemDetailPage() {
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground mb-0.5">Pattern</p>
             <p className="text-sm font-medium">
-              {PATTERN_LABELS[item.pattern]}
+              {Array.isArray(item.pattern)
+                ? item.pattern.map((p) => PATTERN_LABELS[p]).join(", ")
+                : PATTERN_LABELS[item.pattern]}
             </p>
           </CardContent>
         </Card>

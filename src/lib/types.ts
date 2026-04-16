@@ -20,7 +20,7 @@ export type Subcategory =
   // Accessories
   | "belt" | "scarf" | "hat" | "jewelry" | "sunglasses" | "watch";
 
-export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "abstract" | "other";
+export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "abstract" | "embroidery" | "other";
 
 export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "linen" | "knit" | "satin" | "velvet" | "other";
 
@@ -67,8 +67,8 @@ export interface ClothingItem {
   colors: ExtractedColor[];
   dominant_color_hsl: HSLColor | null;
   is_neutral: boolean;
-  pattern: Pattern;
-  material: Material;
+  pattern: Pattern | Pattern[];
+  material: Material | Material[];
   fit: Fit;
   formality: Formality;
   seasons: Season[];
@@ -220,6 +220,7 @@ export const PATTERN_LABELS: Record<Pattern, string> = {
   graphic: "Graphic / Print",
   "polka-dot": "Polka Dot",
   abstract: "Abstract",
+  embroidery: "Embroidery",
   other: "Other",
 };
 

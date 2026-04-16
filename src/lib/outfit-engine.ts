@@ -77,7 +77,8 @@ export function filterItemsByContext(
         let score = 0;
         if (item.fit === "oversized") score += 3;
         if (item.fit === "loose") score += 2;
-        if (["cotton", "knit", "wool"].includes(item.material)) score += 1;
+        const mats = Array.isArray(item.material) ? item.material : [item.material];
+        if (mats.some((m) => ["cotton", "knit", "wool"].includes(m))) score += 1;
         return score;
       };
       return comfyScore(b) - comfyScore(a);

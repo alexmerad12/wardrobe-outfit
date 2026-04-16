@@ -6,7 +6,7 @@ import type { ClothingItem, Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Trash2, X, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ALL_CATEGORIES: (Category | "all")[] = [
@@ -24,6 +24,9 @@ export default function WardrobePage() {
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category | "all">("all");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchItems() {
@@ -42,6 +45,40 @@ export default function WardrobePage() {
     fetchItems();
   }, []);
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Delete ${selected.size} item${selected.size > 1 ? "s" : ""}?`)) return;
+
+    setDeleting(true);
+    try {
+      await Promise.all(
+        Array.from(selected).map((id) =>
+          fetch(`/api/items/${id}`, { method: "DELETE" })
+        )
+      );
+      setItems((prev) => prev.filter((item) => !selected.has(item.id)));
+      exitSelectMode();
+    } catch (err) {
+      console.error("Failed to delete items:", err);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const filteredItems =
     activeCategory === "all"
       ? items
@@ -57,12 +94,45 @@ export default function WardrobePage() {
             {items.length} {items.length === 1 ? "item" : "items"}
           </p>
         </div>
-        <Link href="/wardrobe/add">
-          <Button size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Add
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          {selectMode ? (
+            <>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1.5"
+                disabled={selected.size === 0 || deleting}
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete {selected.size > 0 ? `(${selected.size})` : ""}
+              </Button>
+              <Button size="sm" variant="outline" onClick={exitSelectMode}>
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              {items.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setSelectMode(true)}
+                >
+                  <CheckSquare className="h-4 w-4" />
+                  Select
+                </Button>
+              )}
+              <Link href="/wardrobe/add">
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Category filters */}
@@ -109,7 +179,13 @@ export default function WardrobePage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {filteredItems.map((item) => (
-            <ClothingCard key={item.id} item={item} />
+            <ClothingCard
+              key={item.id}
+              item={item}
+              selectMode={selectMode}
+              isSelected={selected.has(item.id)}
+              onToggleSelect={() => toggleSelect(item.id)}
+            />
           ))}
         </div>
       )}

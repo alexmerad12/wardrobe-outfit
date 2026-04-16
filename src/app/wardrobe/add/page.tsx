@@ -23,7 +23,7 @@ import {
   SEASON_LABELS,
   OCCASION_LABELS,
 } from "@/lib/types";
-import { hexToHSL } from "@/lib/color-engine";
+import { hexToHSL, isNeutralColor, getColorName } from "@/lib/color-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Camera, Upload, ArrowLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,8 +49,8 @@ export default function AddItemPage() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<Category | "">("");
   const [subcategory, setSubcategory] = useState<Subcategory | "">("");
-  const [pattern, setPattern] = useState<Pattern>("solid");
-  const [material, setMaterial] = useState<Material>("cotton");
+  const [patterns, setPatterns] = useState<Pattern[]>(["solid"]);
+  const [materials, setMaterials] = useState<Material[]>(["cotton"]);
   const [fit, setFit] = useState<Fit>("regular");
   const [formality, setFormality] = useState<Formality>("casual");
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -60,8 +59,54 @@ export default function AddItemPage() {
   const [rainAppropriate, setRainAppropriate] = useState(false);
   const [brand, setBrand] = useState("");
 
+  const [detectedColors, setDetectedColors] = useState<
+    { hex: string; name: string; percentage: number }[]
+  >([]);
+  const [detectingColors, setDetectingColors] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function extractColorsFromImage(dataUrl: string) {
+    setDetectingColors(true);
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const size = 64; // sample at low res for speed
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, size, size);
+      const data = ctx.getImageData(0, 0, size, size).data;
+
+      // Count colors by bucketing into 16-step bins
+      const buckets: Record<string, number> = {};
+      const totalPixels = size * size;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = Math.round(data[i] / 32) * 32;
+        const g = Math.round(data[i + 1] / 32) * 32;
+        const b = Math.round(data[i + 2] / 32) * 32;
+        const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+        buckets[hex] = (buckets[hex] || 0) + 1;
+      }
+
+      // Sort by frequency, take top 5
+      const sorted = Object.entries(buckets)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      const colors = sorted.map(([hex, count]) => ({
+        hex,
+        name: getColorName(hex),
+        percentage: Math.round((count / totalPixels) * 100),
+      }));
+
+      setDetectedColors(colors);
+      setDetectingColors(false);
+    };
+    img.src = dataUrl;
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -69,8 +114,24 @@ export default function AddItemPage() {
 
     setImageFile(file);
     const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setImagePreview(dataUrl);
+      extractColorsFromImage(dataUrl);
+    };
     reader.readAsDataURL(file);
+  }
+
+  function togglePattern(p: Pattern) {
+    setPatterns((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    );
+  }
+
+  function toggleMaterial(m: Material) {
+    setMaterials((prev) =>
+      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
+    );
   }
 
   function toggleSeason(season: Season) {
@@ -112,9 +173,12 @@ export default function AddItemPage() {
       if (!uploadRes.ok) throw new Error("Image upload failed");
       const { url: imageUrl } = await uploadRes.json();
 
-      // Basic color placeholder
-      const colors = [{ hex: "#888888", name: "Gray", percentage: 100 }];
-      const dominant_color_hsl = hexToHSL("#888888");
+      // Use detected colors or fallback
+      const colors = detectedColors.length > 0
+        ? detectedColors
+        : [{ hex: "#888888", name: "Gray", percentage: 100 }];
+      const dominantHex = colors[0].hex;
+      const dominant_color_hsl = hexToHSL(dominantHex);
 
       // Save item via API
       const itemRes = await fetch("/api/items", {
@@ -129,9 +193,9 @@ export default function AddItemPage() {
           subcategory: subcategory || null,
           colors,
           dominant_color_hsl,
-          is_neutral: true,
-          pattern,
-          material,
+          is_neutral: isNeutralColor(dominantHex),
+          pattern: patterns,
+          material: materials,
           fit,
           formality,
           seasons,
@@ -214,11 +278,41 @@ export default function AddItemPage() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={handleImageChange}
           />
         </div>
+
+        {/* Detected colors */}
+        {(detectedColors.length > 0 || detectingColors) && (
+          <div className="space-y-2">
+            <Label>Detected Colors</Label>
+            {detectingColors ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Analyzing colors...
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {detectedColors.map((color, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1"
+                  >
+                    <span
+                      className="h-4 w-4 rounded-full border border-border"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                    <span className="text-xs font-medium">{color.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {color.percentage}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Name */}
         <div className="space-y-2">
@@ -301,46 +395,50 @@ export default function AddItemPage() {
 
         {/* Material */}
         <div className="space-y-2">
-          <Label>Material</Label>
-          <Select
-            value={material}
-            onValueChange={(v) => setMaterial(v as Material)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.entries(MATERIAL_LABELS) as [Material, string][]).map(
-                ([m, label]) => (
-                  <SelectItem key={m} value={m}>
-                    {label}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
+          <Label>Material (select all that apply)</Label>
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(MATERIAL_LABELS) as [Material, string][]).map(
+              ([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => toggleMaterial(m)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    materials.includes(m)
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
         </div>
 
         {/* Pattern */}
         <div className="space-y-2">
-          <Label>Pattern</Label>
-          <Select
-            value={pattern}
-            onValueChange={(v) => setPattern(v as Pattern)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.entries(PATTERN_LABELS) as [Pattern, string][]).map(
-                ([p, label]) => (
-                  <SelectItem key={p} value={p}>
-                    {label}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
+          <Label>Pattern (select all that apply)</Label>
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(PATTERN_LABELS) as [Pattern, string][]).map(
+              ([p, label]) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => togglePattern(p)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    patterns.includes(p)
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
         </div>
 
         {/* Formality */}
