@@ -7,6 +7,7 @@ import type { ClothingItem } from "@/lib/types";
 import {
   CATEGORY_LABELS,
   FIT_LABELS,
+  LENGTH_LABELS,
   MATERIAL_LABELS,
   PATTERN_LABELS,
   FORMALITY_LABELS,
@@ -168,6 +169,14 @@ export default function ItemDetailPage() {
             <p className="text-sm font-medium">{FIT_LABELS[item.fit]}</p>
           </CardContent>
         </Card>
+        {item.length && (
+          <Card>
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground mb-0.5">Length</p>
+              <p className="text-sm font-medium">{LENGTH_LABELS[item.length]}</p>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground mb-0.5">Material</p>

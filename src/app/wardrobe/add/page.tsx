@@ -9,6 +9,7 @@ import type {
   Pattern,
   Material,
   Fit,
+  Length,
   Formality,
   Season,
   Occasion,
@@ -17,6 +18,7 @@ import {
   CATEGORY_LABELS,
   SUBCATEGORY_OPTIONS,
   PATTERN_LABELS,
+  LENGTH_LABELS,
   MATERIAL_LABELS,
   FIT_LABELS,
   FORMALITY_LABELS,
@@ -52,6 +54,7 @@ export default function AddItemPage() {
   const [patterns, setPatterns] = useState<Pattern[]>(["solid"]);
   const [materials, setMaterials] = useState<Material[]>(["cotton"]);
   const [fit, setFit] = useState<Fit>("regular");
+  const [length, setLength] = useState<Length>("regular");
   const [formality, setFormality] = useState<Formality>("casual");
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -197,6 +200,7 @@ export default function AddItemPage() {
           pattern: patterns,
           material: materials,
           fit,
+          length: ["top", "bottom", "dress", "outerwear"].includes(category) ? length : null,
           formality,
           seasons,
           occasions,
@@ -392,6 +396,30 @@ export default function AddItemPage() {
             ))}
           </div>
         </div>
+
+        {/* Length - only for tops, bottoms, dresses, outerwear */}
+        {category && ["top", "bottom", "dress", "outerwear"].includes(category) && (
+          <div className="space-y-2">
+            <Label>Length</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {(Object.entries(LENGTH_LABELS) as [Length, string][]).map(([l, label]) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLength(l)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    length === l
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Material */}
         <div className="space-y-2">

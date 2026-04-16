@@ -26,6 +26,8 @@ export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "lea
 
 export type Fit = "slim" | "regular" | "loose" | "oversized";
 
+export type Length = "cropped" | "regular" | "long" | "extra-long";
+
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
 export type Season = "spring" | "summer" | "fall" | "winter";
@@ -70,6 +72,7 @@ export interface ClothingItem {
   pattern: Pattern | Pattern[];
   material: Material | Material[];
   fit: Fit;
+  length: Length | null;
   formality: Formality;
   seasons: Season[];
   occasions: Occasion[];
@@ -196,6 +199,13 @@ export const FIT_LABELS: Record<Fit, string> = {
   regular: "Regular",
   loose: "Loose",
   oversized: "Oversized",
+};
+
+export const LENGTH_LABELS: Record<Length, string> = {
+  cropped: "Cropped",
+  regular: "Regular",
+  long: "Long",
+  "extra-long": "Tunic / Extra Long",
 };
 
 export const MATERIAL_LABELS: Record<Material, string> = {
