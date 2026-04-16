@@ -27,6 +27,7 @@ import {
   SEASON_LABELS,
   OCCASION_LABELS,
 } from "@/lib/types";
+import { upload } from "@vercel/blob/client";
 import { hexToHSL, isNeutralColor, getColorName } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
@@ -175,20 +176,16 @@ export default function AddItemPage() {
     setError(null);
 
     try {
-      // Upload image via API
-      const formData = new FormData();
-      formData.append("file", imageFile);
-
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json().catch(() => ({}));
-        throw new Error(err.error || "Image upload failed");
-      }
-      const { url: imageUrl } = await uploadRes.json();
+      // Upload image directly to Vercel Blob (client-side upload)
+      const blob = await upload(
+        `clothing/${Date.now()}-${imageFile.name}`,
+        imageFile,
+        {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+        }
+      );
+      const imageUrl = blob.url;
 
       // Manual colors first, then detected, fallback to gray
       const allColors = [...manualColors, ...detectedColors];
