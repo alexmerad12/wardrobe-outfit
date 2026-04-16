@@ -16,6 +16,7 @@ import type {
   ShoeHeight,
   HeelType,
   BeltPosition,
+  MetalFinish,
   Formality,
   Season,
   Occasion,
@@ -31,6 +32,7 @@ import {
   SHOE_HEIGHT_LABELS,
   HEEL_TYPE_LABELS,
   BELT_POSITION_LABELS,
+  METAL_FINISH_LABELS,
   MATERIAL_LABELS,
   FIT_LABELS,
   FORMALITY_LABELS,
@@ -77,6 +79,7 @@ export default function AddItemPage() {
   const [shoeHeight, setShoeHeight] = useState<ShoeHeight>("low");
   const [heelType, setHeelType] = useState<HeelType>("flat");
   const [beltPosition, setBeltPosition] = useState<BeltPosition>("waist");
+  const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -261,6 +264,7 @@ export default function AddItemPage() {
           shoe_height: showShoeFields ? shoeHeight : null,
           heel_type: showShoeFields ? heelType : null,
           belt_position: showBeltPosition ? beltPosition : null,
+          metal_finish: ["shoes", "accessory"].includes(category) ? metalFinish : null,
           formality: formalities,
           seasons,
           occasions,
@@ -773,6 +777,30 @@ export default function AddItemPage() {
                   className={cn(
                     "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     beltPosition === b
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Metal Finish - shoes & accessories */}
+        {category && ["shoes", "accessory"].includes(category) && (
+          <div className="space-y-2">
+            <Label>Metal Finish</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(METAL_FINISH_LABELS) as [MetalFinish, string][]).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMetalFinish(metalFinish === m ? null : m)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    metalFinish === m
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
                   )}

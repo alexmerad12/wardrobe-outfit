@@ -1,12 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readData } from "@/lib/server-storage";
+import Anthropic from "@anthropic-ai/sdk";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
-import {
-  filterItemsByContext,
-  generateOutfitCandidates,
-  MOOD_COLOR_PREFERENCES,
-} from "@/lib/outfit-engine";
+import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+
+const anthropic = new Anthropic();
+
+function describeItem(item: ClothingItem): string {
+  const parts: string[] = [`[${item.id}]`, item.name];
+  parts.push(`(${item.category}${item.subcategory ? "/" + item.subcategory : ""})`);
+
+  const colors = item.colors.map((c) => c.name).join(", ");
+  if (colors) parts.push(`Colors: ${colors}`);
+
+  if (item.fit) parts.push(`Fit: ${item.fit}`);
+  if (item.bottom_fit) parts.push(`Bottom fit: ${item.bottom_fit}`);
+  if (item.length) parts.push(`Length: ${item.length}`);
+  if (item.waist_height) parts.push(`Waist: ${item.waist_height}`);
+  if (item.waist_style) parts.push(`Waist style: ${item.waist_style}`);
+  if (item.shoe_height) parts.push(`Height: ${item.shoe_height}`);
+  if (item.heel_type) parts.push(`Heel: ${item.heel_type}`);
+  if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
+  if (item.is_layering_piece) parts.push("(layering piece)");
+
+  const mats = Array.isArray(item.material) ? item.material : [item.material];
+  parts.push(`Material: ${mats.join(", ")}`);
+
+  const pats = Array.isArray(item.pattern) ? item.pattern : [item.pattern];
+  parts.push(`Pattern: ${pats.join(", ")}`);
+
+  const formalities = Array.isArray(item.formality) ? item.formality : [item.formality];
+  parts.push(`Formality: ${formalities.join(", ")}`);
+
+  if (item.seasons.length) parts.push(`Seasons: ${item.seasons.join(", ")}`);
+  if (item.occasions.length) parts.push(`Occasions: ${item.occasions.join(", ")}`);
+  parts.push(`Warmth: ${item.warmth_rating}/5`);
+  if (item.rain_appropriate) parts.push("Rain-proof");
+  if (item.brand) parts.push(`Brand: ${item.brand}`);
+
+  return parts.join(" | ");
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +59,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get weather data
+    // Get weather
     let weather: WeatherData | null = null;
     try {
       const location = data.preferences?.location;
@@ -35,25 +69,116 @@ export async function POST(request: NextRequest) {
         weather = await getWeather(48.8566, 2.3522);
       }
     } catch {
-      // Weather fetch failed, proceed without it
+      // proceed without weather
     }
 
     const currentSeason = getSeasonFromMonth(new Date().getMonth() + 1);
 
-    const context = {
-      weather,
-      mood,
-      occasion,
-      season: currentSeason,
-    };
+    // Get favorited outfits for learning
+    const favorites = data.outfits
+      .filter((o) => o.is_favorite)
+      .map((o) => {
+        const outfitItems = o.item_ids
+          .map((id) => items.find((i) => i.id === id))
+          .filter(Boolean) as ClothingItem[];
+        return {
+          items: outfitItems.map((i) => `${i.name} (${i.category})`).join(" + "),
+          mood: o.mood,
+          occasion: o.occasions[0] ?? null,
+          weather_temp: o.weather_temp,
+          source: o.source,
+        };
+      })
+      .filter((f) => f.items.length > 0);
 
-    const filteredItems = filterItemsByContext(items as ClothingItem[], context);
-    const candidates = generateOutfitCandidates(filteredItems, context, 3);
+    // Build the wardrobe description
+    const wardrobeList = items.map(describeItem).join("\n");
 
-    const suggestions = candidates.map((candidate) => ({
-      ...candidate,
-      reasoning: generateBasicReasoning(candidate, mood, occasion, weather),
-    }));
+    const weatherDesc = weather
+      ? `${weather.temp}°C, feels like ${weather.feels_like}°C. ${weather.condition}. Humidity: ${weather.humidity}%, wind: ${weather.wind_speed}km/h, rain chance: ${weather.precipitation_probability}%.`
+      : "Weather data unavailable.";
+
+    const moodInfo = MOOD_CONFIG[mood];
+    const occasionLabel = OCCASION_LABELS[occasion];
+
+    const favoritesSection = favorites.length > 0
+      ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}`).join("\n")}`
+      : "";
+
+    const prompt = `You are Yav, an expert personal stylist AI. You combine fashion knowledge, current trends, and timeless style principles to create outfits. You understand color theory, texture pairing, proportions, layering, and how to dress for different occasions and moods.
+
+WARDROBE:
+${wardrobeList}
+
+WEATHER: ${weatherDesc}
+SEASON: ${currentSeason}
+MOOD: ${moodInfo.emoji} ${moodInfo.label} - ${moodInfo.description}
+OCCASION: ${occasionLabel}
+${favoritesSection}
+
+Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.
+
+STYLING PRINCIPLES:
+- Mix textures (e.g., denim with knit, leather with cotton)
+- Balance proportions (fitted top with wider bottom, or vice versa)
+- Consider color harmony but don't be boring - monochromatic looks, complementary accents, and tonal dressing all work
+- Match metal finishes on accessories when possible (silver with silver, gold with gold)
+- Layer thoughtfully - items marked as "layering piece" go over base layers
+- Match warmth ratings to the weather
+- Respect the occasion's formality level
+- Consider the mood - bold moods get statement pieces, cozy moods get soft textures
+- Learn from the user's favorites - if they tend toward certain combinations or styles, lean into that
+- Think like a real stylist: unexpected but intentional pairings are better than safe/boring ones
+- Include shoes and accessories when available - they complete the look
+
+Respond with ONLY valid JSON in this exact format:
+[
+  {
+    "item_ids": ["id1", "id2", "id3"],
+    "reasoning": "2-3 sentences explaining the styling choices like a personal stylist would",
+    "name": "A short creative name for this look"
+  }
+]
+
+Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
+
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    // Parse response
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+
+    if (!jsonMatch) {
+      return NextResponse.json({ suggestions: [], message: "Failed to parse AI response" });
+    }
+
+    const aiSuggestions = JSON.parse(jsonMatch[0]) as {
+      item_ids: string[];
+      reasoning: string;
+      name: string;
+    }[];
+
+    // Resolve items and build response
+    const suggestions = aiSuggestions.map((s) => {
+      const outfitItems = s.item_ids
+        .map((id) => items.find((i) => i.id === id))
+        .filter(Boolean) as ClothingItem[];
+
+      return {
+        items: outfitItems,
+        score: 1,
+        reasoning: s.reasoning,
+        color_harmony: "ai-styled",
+        mood_match: mood,
+        name: s.name,
+        weather_temp: weather?.temp ?? null,
+        weather_condition: weather?.condition ?? null,
+      };
+    });
 
     return NextResponse.json({ suggestions });
   } catch (error) {
@@ -63,42 +188,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function generateBasicReasoning(
-  candidate: ReturnType<typeof generateOutfitCandidates>[0],
-  mood: Mood,
-  occasion: Occasion,
-  weather: WeatherData | null
-): string {
-  const parts: string[] = [];
-
-  if (candidate.color_harmony !== "none" && candidate.color_harmony !== "too-many-colors") {
-    parts.push(
-      `This outfit uses a ${candidate.color_harmony} color scheme for a cohesive look.`
-    );
-  }
-
-  if (weather) {
-    if (weather.temp < 10) {
-      parts.push("Layered up for the cold weather.");
-    } else if (weather.temp > 25) {
-      parts.push("Light and breathable for the warm day.");
-    }
-  }
-
-  const moodComments: Record<Mood, string> = {
-    energized: "Bright picks to match your energy!",
-    confident: "Sharp and polished to own the day.",
-    playful: "Fun mix to express your creative side.",
-    cozy: "Soft and comfy for a cozy vibe.",
-    chill: "Relaxed and easy — no effort needed.",
-    bold: "A statement look that turns heads.",
-    period: "Maximum comfort without sacrificing style.",
-    sad: "Something gentle to lift your spirits.",
-  };
-
-  parts.push(moodComments[mood]);
-
-  return parts.join(" ");
 }

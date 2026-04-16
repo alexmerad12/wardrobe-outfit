@@ -5,20 +5,30 @@ import { Button } from "@/components/ui/button";
 import { WeatherWidget } from "@/components/weather-widget";
 import { MoodPicker } from "@/components/mood-picker";
 import { OutfitCard } from "@/components/outfit-card";
-import type { Mood, Occasion, OutfitSuggestion } from "@/lib/types";
+import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
 import { Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+
+interface AISuggestion {
+  items: ClothingItem[];
+  reasoning: string;
+  name: string;
+  mood_match: Mood;
+  weather_temp: number | null;
+  weather_condition: string | null;
+}
 
 export default function SuggestPage() {
   const router = useRouter();
   const [mood, setMood] = useState<Mood | null>(null);
   const [occasion, setOccasion] = useState<Occasion | null>(null);
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<OutfitSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [step, setStep] = useState<"mood" | "occasion" | "results">("mood");
+  const [saving, setSaving] = useState(false);
 
   async function generateSuggestions() {
     setLoading(true);
@@ -40,6 +50,35 @@ export default function SuggestPage() {
       console.error("Failed to generate suggestions:", err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveFavorite(suggestion: AISuggestion) {
+    setSaving(true);
+    try {
+      await fetch("/api/outfits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          name: suggestion.name,
+          item_ids: suggestion.items.map((i) => i.id),
+          occasions: occasion ? [occasion] : [],
+          seasons: [],
+          rating: null,
+          is_favorite: true,
+          mood: mood,
+          weather_temp: suggestion.weather_temp,
+          weather_condition: suggestion.weather_condition,
+          ai_reasoning: suggestion.reasoning,
+          source: "ai",
+        }),
+      });
+      handleNext();
+    } catch (err) {
+      console.error("Failed to save:", err);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -140,12 +179,12 @@ export default function SuggestPage() {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Styling...
+                  Yav is styling...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Get Outfits
+                  Style Me
                 </>
               )}
             </Button>
@@ -157,16 +196,12 @@ export default function SuggestPage() {
       {step === "results" && suggestions.length > 0 && (
         <div className="space-y-4">
           <OutfitCard
-            suggestion={suggestions[currentIndex]}
+            items={suggestions[currentIndex].items}
+            reasoning={suggestions[currentIndex].reasoning}
+            name={suggestions[currentIndex].name}
+            saving={saving}
             onSkip={handleNext}
-            onSave={() => {
-              // TODO: save outfit to database
-              handleNext();
-            }}
-            onLove={() => {
-              // TODO: save as loved
-              handleNext();
-            }}
+            onSave={() => saveFavorite(suggestions[currentIndex])}
           />
 
           {currentIndex >= suggestions.length - 1 && (
@@ -189,7 +224,7 @@ export default function SuggestPage() {
             Not enough items in your wardrobe to suggest outfits.
           </p>
           <p className="text-sm text-muted-foreground">
-            Add at least 5 items to get started!
+            Add at least 3 items to get started!
           </p>
           <Button
             variant="outline"

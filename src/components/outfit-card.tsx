@@ -1,25 +1,31 @@
 "use client";
 
 import Image from "next/image";
-import type { OutfitSuggestion } from "@/lib/types";
+import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Save, RotateCcw } from "lucide-react";
+import { Heart, RotateCcw } from "lucide-react";
 
 interface OutfitCardProps {
-  suggestion: OutfitSuggestion;
+  items: ClothingItem[];
+  reasoning: string;
+  name?: string;
   onSave?: () => void;
-  onLove?: () => void;
   onSkip?: () => void;
+  saving?: boolean;
 }
 
-export function OutfitCard({ suggestion, onSave, onLove, onSkip }: OutfitCardProps) {
+export function OutfitCard({ items, reasoning, name, onSave, onSkip, saving }: OutfitCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
+        {name && (
+          <h3 className="font-semibold text-sm mb-3">{name}</h3>
+        )}
+
         {/* Outfit items grid */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {suggestion.items.map((item) => (
+          {items.map((item) => (
             <div
               key={item.id}
               className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
@@ -39,17 +45,9 @@ export function OutfitCard({ suggestion, onSave, onLove, onSkip }: OutfitCardPro
         </div>
 
         {/* Styling note */}
-        <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
-          {suggestion.reasoning}
+        <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+          {reasoning}
         </p>
-
-        {/* Color harmony badge */}
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs text-muted-foreground">Color harmony:</span>
-          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary capitalize">
-            {suggestion.color_harmony}
-          </span>
-        </div>
 
         {/* Action buttons */}
         <div className="flex gap-2">
@@ -60,24 +58,16 @@ export function OutfitCard({ suggestion, onSave, onLove, onSkip }: OutfitCardPro
             onClick={onSkip}
           >
             <RotateCcw className="mr-1.5 h-4 w-4" />
-            Skip
+            Next
           </Button>
           <Button
-            variant="outline"
             size="sm"
             className="flex-1"
             onClick={onSave}
-          >
-            <Save className="mr-1.5 h-4 w-4" />
-            Save
-          </Button>
-          <Button
-            size="sm"
-            className="flex-1"
-            onClick={onLove}
+            disabled={saving}
           >
             <Heart className="mr-1.5 h-4 w-4" />
-            Love it
+            {saving ? "Saving..." : "Favorite"}
           </Button>
         </div>
       </CardContent>

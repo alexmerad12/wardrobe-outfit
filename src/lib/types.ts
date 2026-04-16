@@ -40,11 +40,13 @@ export type HeelType = "flat" | "low-heel" | "mid-heel" | "high-heel" | "platfor
 
 export type BeltPosition = "waist" | "hips" | "both";
 
+export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none";
+
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
 export type Season = "spring" | "summer" | "fall" | "winter";
 
-export type Occasion = "work" | "casual" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal";
+export type Occasion = "work" | "casual" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home" | "errands";
 
 export type Mood = "energized" | "confident" | "playful" | "cozy" | "chill" | "bold" | "period" | "sad";
 
@@ -93,6 +95,7 @@ export interface ClothingItem {
   is_layering_piece: boolean;
   shoe_height: ShoeHeight | null;
   heel_type: HeelType | null;
+  metal_finish: MetalFinish | null;
   formality: Formality | Formality[];
   seasons: Season[];
   occasions: Occasion[];
@@ -114,6 +117,11 @@ export interface Outfit {
   seasons: Season[];
   rating: number | null; // 1-5
   is_favorite: boolean;
+  mood: Mood | null;
+  weather_temp: number | null;
+  weather_condition: string | null;
+  ai_reasoning: string | null;
+  source: "ai" | "manual";
   created_at: string;
   // Joined data (not in DB)
   items?: ClothingItem[];
@@ -199,6 +207,8 @@ export const MOOD_CONFIG: Record<Mood, { emoji: string; label: string; descripti
 export const OCCASION_LABELS: Record<Occasion, string> = {
   work: "Work",
   casual: "Casual",
+  "at-home": "At Home",
+  errands: "Errands",
   date: "Date Night",
   sport: "Sport",
   outdoor: "Outdoor",
@@ -273,6 +283,20 @@ export const BELT_POSITION_LABELS: Record<BeltPosition, string> = {
   waist: "Waist",
   hips: "Hips",
   both: "Both",
+};
+
+export const METAL_FINISH_LABELS: Record<MetalFinish, string> = {
+  silver: "Silver",
+  gold: "Gold",
+  "rose-gold": "Rose Gold",
+  chrome: "Chrome",
+  "matte-silver": "Matte Silver",
+  "matte-gold": "Matte Gold",
+  brass: "Brass",
+  bronze: "Bronze",
+  gunmetal: "Gunmetal",
+  mixed: "Mixed Metals",
+  none: "None",
 };
 
 export const MATERIAL_LABELS: Record<Material, string> = {

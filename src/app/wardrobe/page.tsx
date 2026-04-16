@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ClothingItem, Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, X, CheckSquare } from "lucide-react";
+import { Plus, Trash2, X, CheckSquare, Combine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ALL_CATEGORIES: (Category | "all")[] = [
@@ -27,6 +28,8 @@ export default function WardrobePage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [creatingOutfit, setCreatingOutfit] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchItems() {
@@ -79,6 +82,39 @@ export default function WardrobePage() {
     }
   }
 
+  async function handleCreateOutfit() {
+    if (selected.size < 2) return;
+    setCreatingOutfit(true);
+    try {
+      const res = await fetch("/api/outfits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          name: null,
+          item_ids: Array.from(selected),
+          occasions: [],
+          seasons: [],
+          rating: null,
+          is_favorite: true,
+          mood: null,
+          weather_temp: null,
+          weather_condition: null,
+          ai_reasoning: null,
+          source: "manual",
+        }),
+      });
+      if (res.ok) {
+        exitSelectMode();
+        router.push("/outfits");
+      }
+    } catch (err) {
+      console.error("Failed to create outfit:", err);
+    } finally {
+      setCreatingOutfit(false);
+    }
+  }
+
   const filteredItems =
     activeCategory === "all"
       ? items
@@ -99,13 +135,22 @@ export default function WardrobePage() {
             <>
               <Button
                 size="sm"
+                className="gap-1.5"
+                disabled={selected.size < 2 || creatingOutfit}
+                onClick={handleCreateOutfit}
+              >
+                <Combine className="h-4 w-4" />
+                Outfit {selected.size > 1 ? `(${selected.size})` : ""}
+              </Button>
+              <Button
+                size="sm"
                 variant="destructive"
                 className="gap-1.5"
                 disabled={selected.size === 0 || deleting}
                 onClick={handleBulkDelete}
               >
                 <Trash2 className="h-4 w-4" />
-                Delete {selected.size > 0 ? `(${selected.size})` : ""}
+                {selected.size > 0 ? selected.size.toString() : ""}
               </Button>
               <Button size="sm" variant="outline" onClick={exitSelectMode}>
                 <X className="h-4 w-4" />

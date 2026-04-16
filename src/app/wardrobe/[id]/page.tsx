@@ -17,6 +17,7 @@ import type {
   ShoeHeight,
   HeelType,
   BeltPosition,
+  MetalFinish,
   Formality,
   Season,
   Occasion,
@@ -32,6 +33,7 @@ import {
   SHOE_HEIGHT_LABELS,
   HEEL_TYPE_LABELS,
   BELT_POSITION_LABELS,
+  METAL_FINISH_LABELS,
   MATERIAL_LABELS,
   PATTERN_LABELS,
   FORMALITY_LABELS,
@@ -87,6 +89,7 @@ export default function ItemDetailPage() {
   const [editShoeHeight, setEditShoeHeight] = useState<ShoeHeight>("low");
   const [editHeelType, setEditHeelType] = useState<HeelType>("flat");
   const [editBeltPosition, setEditBeltPosition] = useState<BeltPosition>("waist");
+  const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editPatterns, setEditPatterns] = useState<Pattern[]>([]);
   const [editMaterials, setEditMaterials] = useState<Material[]>([]);
   const [editFormalities, setEditFormalities] = useState<Formality[]>(["casual"]);
@@ -130,6 +133,7 @@ export default function ItemDetailPage() {
     setEditShoeHeight(item.shoe_height ?? "low");
     setEditHeelType(item.heel_type ?? "flat");
     setEditBeltPosition(item.belt_position ?? "waist");
+    setEditMetalFinish(item.metal_finish ?? null);
     setEditPatterns(Array.isArray(item.pattern) ? item.pattern : [item.pattern]);
     setEditMaterials(Array.isArray(item.material) ? item.material : [item.material]);
     // Backwards compat: formality may be a single string on old items
@@ -189,6 +193,7 @@ export default function ItemDetailPage() {
           shoe_height: editShowShoeFields ? editShoeHeight : null,
           heel_type: editShowShoeFields ? editHeelType : null,
           belt_position: editShowBeltPosition ? editBeltPosition : null,
+          metal_finish: ["shoes", "accessory"].includes(editCategory) ? editMetalFinish : null,
           pattern: editPatterns,
           material: editMaterials,
           formality: editFormalities,
@@ -497,6 +502,18 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Metal Finish - shoes and accessories */}
+          {["shoes", "accessory"].includes(editCategory) && (
+            <div className="space-y-1">
+              <Label>Metal Finish</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(METAL_FINISH_LABELS) as [MetalFinish, string][]).map(([m, label]) => (
+                  <button key={m} type="button" onClick={() => setEditMetalFinish(editMetalFinish === m ? null : m)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Material */}
           <div className="space-y-1">
             <Label>Material</Label>
@@ -675,6 +692,15 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Belt Position</p>
                   <p className="text-sm font-medium">{BELT_POSITION_LABELS[item.belt_position]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Metal Finish - shoes and accessories */}
+            {item.metal_finish && item.metal_finish !== "none" && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Metal Finish</p>
+                  <p className="text-sm font-medium">{METAL_FINISH_LABELS[item.metal_finish]}</p>
                 </CardContent>
               </Card>
             )}
