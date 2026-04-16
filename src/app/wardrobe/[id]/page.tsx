@@ -29,6 +29,7 @@ import {
   OCCASION_LABELS,
 } from "@/lib/types";
 import { getColorName } from "@/lib/color-engine";
+import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +82,7 @@ export default function ItemDetailPage() {
   const [editBrand, setEditBrand] = useState("");
   const [editColors, setEditColors] = useState<{ hex: string; name: string; percentage: number }[]>([]);
   const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
+  const [showColorPalette, setShowColorPalette] = useState(false);
 
   useEffect(() => {
     async function fetchItem() {
@@ -291,12 +293,30 @@ export default function ItemDetailPage() {
                 </div>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <input type="color" value={colorPickerValue} onChange={(e) => setColorPickerValue(e.target.value)} className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0" />
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditColors((p) => [...p, { hex: colorPickerValue, name: getColorName(colorPickerValue), percentage: 0 }])}>
-                Add color
-              </Button>
-              <span className="text-xs text-muted-foreground">{getColorName(colorPickerValue)}</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input type="color" value={colorPickerValue} onChange={(e) => setColorPickerValue(e.target.value)} className="h-8 w-8 cursor-pointer rounded border-0 bg-transparent p-0" />
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditColors((p) => [...p, { hex: colorPickerValue, name: getColorName(colorPickerValue), percentage: 0 }])}>
+                  Add custom
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
+                  {showColorPalette ? "Hide palette" : "Color palette"}
+                </Button>
+              </div>
+              {showColorPalette && (
+                <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
+                  {FASHION_COLORS.map((group) => (
+                    <div key={group.group}>
+                      <p className="text-[10px] font-medium text-muted-foreground mb-1">{group.group}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.colors.map((c) => (
+                          <button key={c.hex + c.name} type="button" title={c.name} onClick={() => setEditColors((p) => [...p, { hex: c.hex, name: c.name, percentage: 0 }])} className="h-7 w-7 rounded-full border border-border hover:ring-2 hover:ring-primary transition-all" style={{ backgroundColor: c.hex }} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
