@@ -77,6 +77,7 @@ export interface ClothingItem {
   length: Length | null;
   waist_style: WaistStyle | null;
   belt_compatible: boolean;
+  is_layering_piece: boolean;
   formality: Formality;
   seasons: Season[];
   occasions: Occasion[];

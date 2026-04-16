@@ -138,6 +138,9 @@ export default function ItemDetailPage() {
         {item.brand && (
           <span className="text-sm text-muted-foreground">{item.brand}</span>
         )}
+        {item.is_layering_piece && (
+          <Badge variant="outline" className="text-[10px]">Layering piece</Badge>
+        )}
       </div>
 
       {/* Colors */}

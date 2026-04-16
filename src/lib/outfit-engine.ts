@@ -132,20 +132,38 @@ export function generateOutfitCandidates(
   const groups = groupByCategory(items);
   const candidates: OutfitSuggestion[] = [];
 
-  const tops = shuffleArray(groups["top"] ?? []);
+  const allTops = groups["top"] ?? [];
+  const baseTops = shuffleArray(allTops.filter((t) => !t.is_layering_piece));
+  const layeringTops = shuffleArray(allTops.filter((t) => t.is_layering_piece));
   const bottoms = shuffleArray(groups["bottom"] ?? []);
   const dresses = shuffleArray(groups["dress"] ?? []);
   const shoes = shuffleArray(groups["shoes"] ?? []);
   const outerwear = groups["outerwear"] ?? [];
+  // Layering outerwear (vests, cardigans marked as outerwear + layering)
+  const layeringOuterwear = outerwear.filter((o) => o.is_layering_piece);
+  const heavyOuterwear = outerwear.filter((o) => !o.is_layering_piece);
+  const allLayeringPieces = [...layeringTops, ...layeringOuterwear];
   const accessories = groups["accessory"] ?? [];
   const bags = groups["bag"] ?? [];
 
   const needsOuterwear =
     context.weather && context.weather.temp < 15;
+  // Suggest layering when it's mildly cool or cold
+  const suggestLayering =
+    context.weather && context.weather.temp < 20 && allLayeringPieces.length > 0;
 
   // Generate top + bottom combinations
-  for (let i = 0; i < Math.min(count, tops.length); i++) {
-    const outfitItems: ClothingItem[] = [tops[i]];
+  const tops = baseTops.length > 0 ? baseTops : shuffleArray(allTops);
+  for (let i = 0; i < Math.min(count, Math.max(tops.length, 1)); i++) {
+    const outfitItems: ClothingItem[] = [];
+
+    if (tops[i]) outfitItems.push(tops[i]);
+
+    // Add a layering piece sometimes (every other outfit, or always when cold)
+    if (suggestLayering && (needsOuterwear || i % 2 === 0)) {
+      const layer = pickRandom(allLayeringPieces);
+      if (layer && layer.id !== tops[i]?.id) outfitItems.push(layer);
+    }
 
     // Pick a bottom
     const bottom = bottoms[i % bottoms.length];
@@ -155,9 +173,9 @@ export function generateOutfitCandidates(
     const shoe = pickRandom(shoes);
     if (shoe) outfitItems.push(shoe);
 
-    // Add outerwear if cold
+    // Add heavy outerwear if cold
     if (needsOuterwear) {
-      const outer = pickRandom(outerwear);
+      const outer = pickRandom(heavyOuterwear);
       if (outer) outfitItems.push(outer);
     }
 
@@ -186,11 +204,17 @@ export function generateOutfitCandidates(
   for (const dress of dresses.slice(0, 2)) {
     const outfitItems: ClothingItem[] = [dress];
 
+    // Layer over a dress (cardigan, vest, etc.)
+    if (suggestLayering) {
+      const layer = pickRandom(allLayeringPieces);
+      if (layer) outfitItems.push(layer);
+    }
+
     const shoe = pickRandom(shoes);
     if (shoe) outfitItems.push(shoe);
 
     if (needsOuterwear) {
-      const outer = pickRandom(outerwear);
+      const outer = pickRandom(heavyOuterwear);
       if (outer) outfitItems.push(outer);
     }
 

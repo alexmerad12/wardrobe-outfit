@@ -59,6 +59,7 @@ export default function AddItemPage() {
   const [length, setLength] = useState<Length>("regular");
   const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
   const [beltCompatible, setBeltCompatible] = useState(false);
+  const [isLayeringPiece, setIsLayeringPiece] = useState(false);
   const [formality, setFormality] = useState<Formality>("casual");
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -207,6 +208,7 @@ export default function AddItemPage() {
           length: ["top", "bottom", "dress", "outerwear"].includes(category) ? length : null,
           waist_style: ["top", "bottom", "dress", "outerwear"].includes(category) ? waistStyle : null,
           belt_compatible: beltCompatible,
+          is_layering_piece: isLayeringPiece,
           formality,
           seasons,
           occasions,
@@ -467,6 +469,30 @@ export default function AddItemPage() {
             <Label className="cursor-pointer" onClick={() => setBeltCompatible(!beltCompatible)}>
               Works with a belt
             </Label>
+          </div>
+        )}
+
+        {/* Layering piece toggle - for tops and outerwear */}
+        {category && ["top", "outerwear"].includes(category) && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsLayeringPiece(!isLayeringPiece)}
+              className={cn(
+                "h-5 w-5 rounded border-2 transition-colors",
+                isLayeringPiece
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground/30"
+              )}
+            />
+            <div>
+              <Label className="cursor-pointer" onClick={() => setIsLayeringPiece(!isLayeringPiece)}>
+                Layering piece
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Worn over another top (vest, cardigan, open shirt...)
+              </p>
+            </div>
           </div>
         )}
 
