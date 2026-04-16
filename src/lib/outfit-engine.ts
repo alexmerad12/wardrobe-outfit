@@ -75,8 +75,8 @@ export function filterItemsByContext(
     filtered.sort((a, b) => {
       const comfyScore = (item: ClothingItem) => {
         let score = 0;
-        if (item.fit === "oversized") score += 3;
-        if (item.fit === "loose") score += 2;
+        if (item.fit === "oversized" || item.bottom_fit === "wide-leg") score += 3;
+        if (item.fit === "loose" || item.bottom_fit === "straight" || item.bottom_fit === "flared") score += 2;
         const mats = Array.isArray(item.material) ? item.material : [item.material];
         if (mats.some((m) => ["cotton", "knit", "wool"].includes(m))) score += 1;
         return score;

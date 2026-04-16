@@ -22,13 +22,23 @@ export type Subcategory =
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embroidery" | "other";
 
-export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "linen" | "knit" | "satin" | "velvet" | "other";
+export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "suede" | "patent-leather" | "linen" | "knit" | "satin" | "velvet" | "canvas" | "mesh" | "fur-shearling" | "rubber" | "nylon" | "other";
 
 export type Fit = "slim" | "regular" | "loose" | "oversized";
+
+export type BottomFit = "skinny" | "slim" | "straight" | "regular" | "wide-leg" | "flared" | "bootcut" | "tapered";
 
 export type Length = "cropped" | "regular" | "long" | "extra-long";
 
 export type WaistStyle = "elastic" | "fitted" | "relaxed" | "belted";
+
+export type WaistHeight = "high" | "mid" | "low";
+
+export type ShoeHeight = "low" | "ankle" | "mid" | "knee" | "over-knee";
+
+export type HeelType = "flat" | "low-heel" | "mid-heel" | "high-heel" | "platform" | "wedge";
+
+export type BeltPosition = "waist" | "hips" | "both";
 
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
@@ -73,12 +83,17 @@ export interface ClothingItem {
   is_neutral: boolean;
   pattern: Pattern | Pattern[];
   material: Material | Material[];
-  fit: Fit;
+  fit: Fit | null;
+  bottom_fit: BottomFit | null;
   length: Length | null;
   waist_style: WaistStyle | null;
+  waist_height: WaistHeight | null;
   belt_compatible: boolean;
+  belt_position: BeltPosition | null;
   is_layering_piece: boolean;
-  formality: Formality;
+  shoe_height: ShoeHeight | null;
+  heel_type: HeelType | null;
+  formality: Formality | Formality[];
   seasons: Season[];
   occasions: Occasion[];
   warmth_rating: number; // 1-5
@@ -206,6 +221,17 @@ export const FIT_LABELS: Record<Fit, string> = {
   oversized: "Oversized",
 };
 
+export const BOTTOM_FIT_LABELS: Record<BottomFit, string> = {
+  skinny: "Skinny",
+  slim: "Slim",
+  straight: "Straight",
+  regular: "Regular",
+  tapered: "Tapered",
+  "wide-leg": "Wide Leg",
+  flared: "Flared",
+  bootcut: "Bootcut",
+};
+
 export const LENGTH_LABELS: Record<Length, string> = {
   cropped: "Cropped",
   regular: "Regular",
@@ -220,6 +246,35 @@ export const WAIST_STYLE_LABELS: Record<WaistStyle, string> = {
   belted: "Belted",
 };
 
+export const WAIST_HEIGHT_LABELS: Record<WaistHeight, string> = {
+  high: "High Waist",
+  mid: "Mid Waist",
+  low: "Low Waist",
+};
+
+export const SHOE_HEIGHT_LABELS: Record<ShoeHeight, string> = {
+  low: "Low",
+  ankle: "Ankle",
+  mid: "Mid-Calf",
+  knee: "Knee-High",
+  "over-knee": "Over-Knee",
+};
+
+export const HEEL_TYPE_LABELS: Record<HeelType, string> = {
+  flat: "Flat",
+  "low-heel": "Low Heel",
+  "mid-heel": "Mid Heel",
+  "high-heel": "High Heel",
+  platform: "Platform",
+  wedge: "Wedge",
+};
+
+export const BELT_POSITION_LABELS: Record<BeltPosition, string> = {
+  waist: "Waist",
+  hips: "Hips",
+  both: "Both",
+};
+
 export const MATERIAL_LABELS: Record<Material, string> = {
   cotton: "Cotton",
   denim: "Denim",
@@ -227,10 +282,17 @@ export const MATERIAL_LABELS: Record<Material, string> = {
   silk: "Silk",
   polyester: "Polyester",
   leather: "Leather",
+  suede: "Suede",
+  "patent-leather": "Patent Leather",
   linen: "Linen",
   knit: "Knit",
   satin: "Satin",
   velvet: "Velvet",
+  canvas: "Canvas",
+  mesh: "Mesh",
+  "fur-shearling": "Fur / Shearling",
+  rubber: "Rubber",
+  nylon: "Nylon",
   other: "Other",
 };
 

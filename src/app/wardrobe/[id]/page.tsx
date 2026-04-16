@@ -10,8 +10,13 @@ import type {
   Pattern,
   Material,
   Fit,
+  BottomFit,
   Length,
   WaistStyle,
+  WaistHeight,
+  ShoeHeight,
+  HeelType,
+  BeltPosition,
   Formality,
   Season,
   Occasion,
@@ -20,8 +25,13 @@ import {
   CATEGORY_LABELS,
   SUBCATEGORY_OPTIONS,
   FIT_LABELS,
+  BOTTOM_FIT_LABELS,
   LENGTH_LABELS,
   WAIST_STYLE_LABELS,
+  WAIST_HEIGHT_LABELS,
+  SHOE_HEIGHT_LABELS,
+  HEEL_TYPE_LABELS,
+  BELT_POSITION_LABELS,
   MATERIAL_LABELS,
   PATTERN_LABELS,
   FORMALITY_LABELS,
@@ -68,13 +78,18 @@ export default function ItemDetailPage() {
   const [editCategory, setEditCategory] = useState<Category>("top");
   const [editSubcategory, setEditSubcategory] = useState<Subcategory | "">("");
   const [editFit, setEditFit] = useState<Fit>("regular");
+  const [editBottomFit, setEditBottomFit] = useState<BottomFit>("regular");
   const [editLength, setEditLength] = useState<Length | null>(null);
   const [editWaistStyle, setEditWaistStyle] = useState<WaistStyle | null>(null);
+  const [editWaistHeight, setEditWaistHeight] = useState<WaistHeight>("mid");
   const [editBeltCompatible, setEditBeltCompatible] = useState(false);
   const [editLayering, setEditLayering] = useState(false);
+  const [editShoeHeight, setEditShoeHeight] = useState<ShoeHeight>("low");
+  const [editHeelType, setEditHeelType] = useState<HeelType>("flat");
+  const [editBeltPosition, setEditBeltPosition] = useState<BeltPosition>("waist");
   const [editPatterns, setEditPatterns] = useState<Pattern[]>([]);
   const [editMaterials, setEditMaterials] = useState<Material[]>([]);
-  const [editFormality, setEditFormality] = useState<Formality>("casual");
+  const [editFormalities, setEditFormalities] = useState<Formality[]>(["casual"]);
   const [editSeasons, setEditSeasons] = useState<Season[]>([]);
   const [editOccasions, setEditOccasions] = useState<Occasion[]>([]);
   const [editWarmth, setEditWarmth] = useState(3);
@@ -105,14 +120,24 @@ export default function ItemDetailPage() {
     setEditName(item.name);
     setEditCategory(item.category);
     setEditSubcategory(item.subcategory ?? "");
-    setEditFit(item.fit);
+    setEditFit(item.fit ?? "regular");
+    setEditBottomFit(item.bottom_fit ?? "regular");
     setEditLength(item.length ?? null);
     setEditWaistStyle(item.waist_style ?? null);
+    setEditWaistHeight(item.waist_height ?? "mid");
     setEditBeltCompatible(item.belt_compatible ?? false);
     setEditLayering(item.is_layering_piece ?? false);
+    setEditShoeHeight(item.shoe_height ?? "low");
+    setEditHeelType(item.heel_type ?? "flat");
+    setEditBeltPosition(item.belt_position ?? "waist");
     setEditPatterns(Array.isArray(item.pattern) ? item.pattern : [item.pattern]);
     setEditMaterials(Array.isArray(item.material) ? item.material : [item.material]);
-    setEditFormality(item.formality);
+    // Backwards compat: formality may be a single string on old items
+    setEditFormalities(
+      Array.isArray(item.formality)
+        ? item.formality
+        : [item.formality]
+    );
     setEditSeasons(item.seasons);
     setEditOccasions(item.occasions);
     setEditWarmth(item.warmth_rating);
@@ -121,6 +146,27 @@ export default function ItemDetailPage() {
     setEditColors([...item.colors]);
     setEditing(true);
   }
+
+  // Helper booleans for EDIT mode visibility
+  const editIsJeansTrousers = ["jeans", "trousers"].includes(editSubcategory);
+  const editShowGenericFit =
+    editCategory === "top" ||
+    editCategory === "dress" ||
+    editCategory === "outerwear" ||
+    (editCategory === "bottom" && !editIsJeansTrousers);
+  const editShowBottomFit = editCategory === "bottom" && editIsJeansTrousers;
+  const editShowLength = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
+  const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
+  const editShowWaistHeight = editCategory === "bottom" && editIsJeansTrousers;
+  const editShowBeltCompatible = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
+  const editShowLayeringPiece = editCategory === "top" || editCategory === "outerwear";
+  const editShowShoeFields = editCategory === "shoes";
+  const editShowBeltPosition = editCategory === "accessory" && editSubcategory === "belt";
+  const editShowWarmth =
+    !!editCategory &&
+    editCategory !== "shoes" &&
+    editCategory !== "accessory" &&
+    editCategory !== "bag";
 
   async function saveEdit() {
     if (!item) return;
@@ -133,17 +179,22 @@ export default function ItemDetailPage() {
           name: editName,
           category: editCategory,
           subcategory: editSubcategory || null,
-          fit: editFit,
-          length: ["top", "bottom", "dress", "outerwear"].includes(editCategory) ? editLength : null,
-          waist_style: ["top", "bottom", "dress", "outerwear"].includes(editCategory) ? editWaistStyle : null,
+          fit: editShowGenericFit ? editFit : null,
+          bottom_fit: editShowBottomFit ? editBottomFit : null,
+          length: editShowLength ? editLength : null,
+          waist_style: editShowWaistStyle ? editWaistStyle : null,
+          waist_height: editShowWaistHeight ? editWaistHeight : null,
           belt_compatible: editBeltCompatible,
           is_layering_piece: editLayering,
+          shoe_height: editShowShoeFields ? editShoeHeight : null,
+          heel_type: editShowShoeFields ? editHeelType : null,
+          belt_position: editShowBeltPosition ? editBeltPosition : null,
           pattern: editPatterns,
           material: editMaterials,
-          formality: editFormality,
+          formality: editFormalities,
           seasons: editSeasons,
           occasions: editOccasions,
-          warmth_rating: editWarmth,
+          warmth_rating: editShowWarmth ? editWarmth : 3,
           rain_appropriate: editRain,
           brand: editBrand || null,
           colors: editColors,
@@ -205,9 +256,29 @@ export default function ItemDetailPage() {
     );
   }
 
+  // Helper booleans for VIEW mode visibility
+  const viewIsJeansTrousers = ["jeans", "trousers"].includes(item.subcategory ?? "");
+  const viewShowGenericFit =
+    item.category === "top" ||
+    item.category === "dress" ||
+    item.category === "outerwear" ||
+    (item.category === "bottom" && !viewIsJeansTrousers);
+  const viewShowBottomFit = item.category === "bottom" && viewIsJeansTrousers;
+  const viewShowShoeFields = item.category === "shoes";
+  const viewShowBeltPosition = item.category === "accessory" && item.subcategory === "belt";
+  const viewShowWarmth =
+    item.category !== "shoes" &&
+    item.category !== "accessory" &&
+    item.category !== "bag";
+
   const subcatOptions = editCategory in SUBCATEGORY_OPTIONS
     ? SUBCATEGORY_OPTIONS[editCategory as Category]
     : [];
+
+  // Format formality for view mode (handle both single string and array)
+  const formalityDisplay = Array.isArray(item.formality)
+    ? item.formality.map((f) => FORMALITY_LABELS[f]).join(", ")
+    : FORMALITY_LABELS[item.formality];
 
   return (
     <div className="mx-auto max-w-md px-4 pt-4 pb-8">
@@ -314,18 +385,32 @@ export default function ItemDetailPage() {
             </div>
           </div>
 
-          {/* Fit */}
-          <div className="space-y-1">
-            <Label>Fit</Label>
-            <div className="grid grid-cols-4 gap-2">
-              {(Object.entries(FIT_LABELS) as [Fit, string][]).map(([f, label]) => (
-                <button key={f} type="button" onClick={() => setEditFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
-              ))}
+          {/* Generic Fit - tops, dresses, outerwear, non-jeans/trousers bottoms */}
+          {editShowGenericFit && (
+            <div className="space-y-1">
+              <Label>Fit</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {(Object.entries(FIT_LABELS) as [Fit, string][]).map(([f, label]) => (
+                  <button key={f} type="button" onClick={() => setEditFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Bottom Fit - jeans and trousers only */}
+          {editShowBottomFit && (
+            <div className="space-y-1">
+              <Label>Fit</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {(Object.entries(BOTTOM_FIT_LABELS) as [BottomFit, string][]).map(([f, label]) => (
+                  <button key={f} type="button" onClick={() => setEditBottomFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBottomFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Length */}
-          {["top", "bottom", "dress", "outerwear"].includes(editCategory) && (
+          {editShowLength && (
             <div className="space-y-1">
               <Label>Length</Label>
               <div className="grid grid-cols-4 gap-2">
@@ -336,8 +421,20 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Waist */}
-          {["top", "bottom", "dress", "outerwear"].includes(editCategory) && (
+          {/* Waist Height - jeans and trousers only */}
+          {editShowWaistHeight && (
+            <div className="space-y-1">
+              <Label>Waist Height</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(WAIST_HEIGHT_LABELS) as [WaistHeight, string][]).map(([w, label]) => (
+                  <button key={w} type="button" onClick={() => setEditWaistHeight(w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistHeight === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Waist Style */}
+          {editShowWaistStyle && (
             <div className="space-y-1">
               <Label>Waist</Label>
               <div className="grid grid-cols-4 gap-2">
@@ -348,19 +445,55 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Toggles row */}
-          {["top", "bottom", "dress", "outerwear"].includes(editCategory) && (
+          {/* Belt compatible + layering toggles */}
+          {editShowBeltCompatible && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setEditBeltCompatible(!editBeltCompatible)} className={cn("h-5 w-5 rounded border-2 transition-colors", editBeltCompatible ? "border-primary bg-primary" : "border-muted-foreground/30")} />
                 <Label className="cursor-pointer" onClick={() => setEditBeltCompatible(!editBeltCompatible)}>Works with a belt</Label>
               </div>
-              {["top", "outerwear"].includes(editCategory) && (
+              {editShowLayeringPiece && (
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => setEditLayering(!editLayering)} className={cn("h-5 w-5 rounded border-2 transition-colors", editLayering ? "border-primary bg-primary" : "border-muted-foreground/30")} />
                   <Label className="cursor-pointer" onClick={() => setEditLayering(!editLayering)}>Layering piece</Label>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Shoe Height - shoes only */}
+          {editShowShoeFields && (
+            <div className="space-y-1">
+              <Label>Shoe Height</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(SHOE_HEIGHT_LABELS) as [ShoeHeight, string][]).map(([h, label]) => (
+                  <button key={h} type="button" onClick={() => setEditShoeHeight(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editShoeHeight === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Heel Type - shoes only */}
+          {editShowShoeFields && (
+            <div className="space-y-1">
+              <Label>Heel Type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(HEEL_TYPE_LABELS) as [HeelType, string][]).map(([h, label]) => (
+                  <button key={h} type="button" onClick={() => setEditHeelType(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editHeelType === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Belt Position - belt subcategory only */}
+          {editShowBeltPosition && (
+            <div className="space-y-1">
+              <Label>Belt Position</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(BELT_POSITION_LABELS) as [BeltPosition, string][]).map(([b, label]) => (
+                  <button key={b} type="button" onClick={() => setEditBeltPosition(b)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBeltPosition === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -384,17 +517,14 @@ export default function ItemDetailPage() {
             </div>
           </div>
 
-          {/* Formality */}
+          {/* Formality - multi-select toggle buttons */}
           <div className="space-y-1">
             <Label>Formality</Label>
-            <Select value={editFormality} onValueChange={(v) => setEditFormality(v as Formality)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(Object.entries(FORMALITY_LABELS) as [Formality, string][]).map(([f, label]) => (
-                  <SelectItem key={f} value={f}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(FORMALITY_LABELS) as [Formality, string][]).map(([f, label]) => (
+                <button key={f} type="button" onClick={() => setEditFormalities(toggleArr(editFormalities, f))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editFormalities.includes(f) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              ))}
+            </div>
           </div>
 
           {/* Seasons */}
@@ -417,15 +547,17 @@ export default function ItemDetailPage() {
             </div>
           </div>
 
-          {/* Warmth */}
-          <div className="space-y-1">
-            <Label>Warmth</Label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" onClick={() => setEditWarmth(n)} className={cn("flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors", editWarmth === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{n}</button>
-              ))}
+          {/* Warmth - hidden for shoes, accessories, bags */}
+          {editShowWarmth && (
+            <div className="space-y-1">
+              <Label>Warmth</Label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button key={n} type="button" onClick={() => setEditWarmth(n)} className={cn("flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors", editWarmth === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{n}</button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Rain + Brand */}
           <div className="flex items-center gap-3">
@@ -473,17 +605,38 @@ export default function ItemDetailPage() {
 
           {/* Details grid */}
           <div className="grid grid-cols-2 gap-3">
-            <Card>
-              <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Fit</p>
-                <p className="text-sm font-medium">{FIT_LABELS[item.fit]}</p>
-              </CardContent>
-            </Card>
+            {/* Generic Fit - tops, dresses, outerwear, non-jeans/trousers bottoms */}
+            {viewShowGenericFit && item.fit && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Fit</p>
+                  <p className="text-sm font-medium">{FIT_LABELS[item.fit]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Bottom Fit - jeans/trousers */}
+            {viewShowBottomFit && item.bottom_fit && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Fit</p>
+                  <p className="text-sm font-medium">{BOTTOM_FIT_LABELS[item.bottom_fit]}</p>
+                </CardContent>
+              </Card>
+            )}
             {item.length && (
               <Card>
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Length</p>
                   <p className="text-sm font-medium">{LENGTH_LABELS[item.length]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Waist Height - jeans/trousers */}
+            {viewIsJeansTrousers && item.waist_height && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Waist Height</p>
+                  <p className="text-sm font-medium">{WAIST_HEIGHT_LABELS[item.waist_height]}</p>
                 </CardContent>
               </Card>
             )}
@@ -493,8 +646,35 @@ export default function ItemDetailPage() {
                   <p className="text-xs text-muted-foreground mb-0.5">Waist</p>
                   <p className="text-sm font-medium">
                     {WAIST_STYLE_LABELS[item.waist_style]}
-                    {item.belt_compatible && " · Belt-friendly"}
+                    {item.belt_compatible && " \u00b7 Belt-friendly"}
                   </p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Shoe Height - shoes only */}
+            {viewShowShoeFields && item.shoe_height && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Shoe Height</p>
+                  <p className="text-sm font-medium">{SHOE_HEIGHT_LABELS[item.shoe_height]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Heel Type - shoes only */}
+            {viewShowShoeFields && item.heel_type && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Heel Type</p>
+                  <p className="text-sm font-medium">{HEEL_TYPE_LABELS[item.heel_type]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Belt Position - belt subcategory only */}
+            {viewShowBeltPosition && item.belt_position && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Belt Position</p>
+                  <p className="text-sm font-medium">{BELT_POSITION_LABELS[item.belt_position]}</p>
                 </CardContent>
               </Card>
             )}
@@ -517,22 +697,24 @@ export default function ItemDetailPage() {
             <Card>
               <CardContent className="p-3">
                 <p className="text-xs text-muted-foreground mb-0.5">Formality</p>
-                <p className="text-sm font-medium">{FORMALITY_LABELS[item.formality]}</p>
+                <p className="text-sm font-medium">{formalityDisplay}</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Warmth & Rain */}
+          {/* Warmth & Rain - warmth hidden for shoes, accessories, bags */}
           <div className="flex gap-3 mt-3">
-            <Card className="flex-1">
-              <CardContent className="p-3 flex items-center gap-2">
-                <Thermometer className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Warmth</p>
-                  <p className="text-sm font-medium">{item.warmth_rating}/5</p>
-                </div>
-              </CardContent>
-            </Card>
+            {viewShowWarmth && (
+              <Card className="flex-1">
+                <CardContent className="p-3 flex items-center gap-2">
+                  <Thermometer className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Warmth</p>
+                    <p className="text-sm font-medium">{item.warmth_rating}/5</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <Card className="flex-1">
               <CardContent className="p-3 flex items-center gap-2">
                 <Droplets className="h-4 w-4 text-muted-foreground" />

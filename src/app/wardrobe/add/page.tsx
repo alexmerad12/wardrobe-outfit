@@ -9,8 +9,13 @@ import type {
   Pattern,
   Material,
   Fit,
+  BottomFit,
   Length,
   WaistStyle,
+  WaistHeight,
+  ShoeHeight,
+  HeelType,
+  BeltPosition,
   Formality,
   Season,
   Occasion,
@@ -21,6 +26,11 @@ import {
   PATTERN_LABELS,
   LENGTH_LABELS,
   WAIST_STYLE_LABELS,
+  WAIST_HEIGHT_LABELS,
+  BOTTOM_FIT_LABELS,
+  SHOE_HEIGHT_LABELS,
+  HEEL_TYPE_LABELS,
+  BELT_POSITION_LABELS,
   MATERIAL_LABELS,
   FIT_LABELS,
   FORMALITY_LABELS,
@@ -58,11 +68,16 @@ export default function AddItemPage() {
   const [patterns, setPatterns] = useState<Pattern[]>(["solid"]);
   const [materials, setMaterials] = useState<Material[]>(["cotton"]);
   const [fit, setFit] = useState<Fit>("regular");
+  const [bottomFit, setBottomFit] = useState<BottomFit>("regular");
   const [length, setLength] = useState<Length>("regular");
   const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
+  const [waistHeight, setWaistHeight] = useState<WaistHeight>("mid");
   const [beltCompatible, setBeltCompatible] = useState(false);
   const [isLayeringPiece, setIsLayeringPiece] = useState(false);
-  const [formality, setFormality] = useState<Formality>("casual");
+  const [shoeHeight, setShoeHeight] = useState<ShoeHeight>("low");
+  const [heelType, setHeelType] = useState<HeelType>("flat");
+  const [beltPosition, setBeltPosition] = useState<BeltPosition>("waist");
+  const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [warmthRating, setWarmthRating] = useState(3);
@@ -75,12 +90,36 @@ export default function AddItemPage() {
   const [manualColors, setManualColors] = useState<
     { hex: string; name: string; percentage: number }[]
   >([]);
-  const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
   const [showColorPalette, setShowColorPalette] = useState(false);
   const [detectingColors, setDetectingColors] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Helpers for category-specific logic
+  const isJeansTrousers = ["jeans", "trousers"].includes(subcategory);
+  const showGenericFit =
+    category === "top" ||
+    category === "dress" ||
+    category === "outerwear" ||
+    (category === "bottom" && !isJeansTrousers);
+  const showBottomFit = category === "bottom" && isJeansTrousers;
+  const showLength = ["top", "bottom", "dress", "outerwear"].includes(category as string);
+  const showWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(category as string);
+  const showWaistHeight = category === "bottom" && isJeansTrousers;
+  const showBeltCompatible =
+    category === "top" ||
+    category === "bottom" ||
+    category === "dress" ||
+    category === "outerwear";
+  const showLayeringPiece = category === "top" || category === "outerwear";
+  const showShoeFields = category === "shoes";
+  const showBeltPosition = category === "accessory" && subcategory === "belt";
+  const showWarmth =
+    !!category &&
+    category !== "shoes" &&
+    category !== "accessory" &&
+    category !== "bag";
 
   function extractColorsFromImage(dataUrl: string) {
     setDetectingColors(true);
@@ -88,14 +127,13 @@ export default function AddItemPage() {
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      const size = 64; // sample at low res for speed
+      const size = 64;
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, size, size);
       const data = ctx.getImageData(0, 0, size, size).data;
 
-      // Count colors by bucketing into 16-step bins
       const buckets: Record<string, number> = {};
       const totalPixels = size * size;
       for (let i = 0; i < data.length; i += 4) {
@@ -106,7 +144,6 @@ export default function AddItemPage() {
         buckets[hex] = (buckets[hex] || 0) + 1;
       }
 
-      // Sort by frequency, take top 5
       const sorted = Object.entries(buckets)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
@@ -149,6 +186,12 @@ export default function AddItemPage() {
     );
   }
 
+  function toggleFormality(f: Formality) {
+    setFormalities((prev) =>
+      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
+    );
+  }
+
   function toggleSeason(season: Season) {
     setSeasons((prev) =>
       prev.includes(season)
@@ -176,7 +219,6 @@ export default function AddItemPage() {
     setError(null);
 
     try {
-      // Upload image directly to Vercel Blob (client-side upload)
       const blob = await upload(
         `clothing/${Date.now()}-${imageFile.name}`,
         imageFile,
@@ -187,7 +229,6 @@ export default function AddItemPage() {
       );
       const imageUrl = blob.url;
 
-      // Manual colors first, then detected, fallback to gray
       const allColors = [...manualColors, ...detectedColors];
       const colors = allColors.length > 0
         ? allColors
@@ -195,7 +236,6 @@ export default function AddItemPage() {
       const dominantHex = colors[0].hex;
       const dominant_color_hsl = hexToHSL(dominantHex);
 
-      // Save item via API
       const itemRes = await fetch("/api/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -211,15 +251,20 @@ export default function AddItemPage() {
           is_neutral: isNeutralColor(dominantHex),
           pattern: patterns,
           material: materials,
-          fit,
-          length: ["top", "bottom", "dress", "outerwear"].includes(category) ? length : null,
-          waist_style: ["top", "bottom", "dress", "outerwear"].includes(category) ? waistStyle : null,
+          fit: showGenericFit ? fit : null,
+          bottom_fit: showBottomFit ? bottomFit : null,
+          length: showLength ? length : null,
+          waist_style: showWaistStyle ? waistStyle : null,
+          waist_height: showWaistHeight ? waistHeight : null,
           belt_compatible: beltCompatible,
           is_layering_piece: isLayeringPiece,
-          formality,
+          shoe_height: showShoeFields ? shoeHeight : null,
+          heel_type: showShoeFields ? heelType : null,
+          belt_position: showBeltPosition ? beltPosition : null,
+          formality: formalities,
           seasons,
           occasions,
-          warmth_rating: warmthRating,
+          warmth_rating: showWarmth ? warmthRating : 3,
           rain_appropriate: rainAppropriate,
           brand: brand || null,
           is_favorite: false,
@@ -302,7 +347,7 @@ export default function AddItemPage() {
           />
         </div>
 
-        {/* Colors */}
+        {/* Colors (when image is present or colors detected) */}
         {(detectedColors.length > 0 || detectingColors || manualColors.length > 0) && (
           <div className="space-y-3">
             <Label>Colors</Label>
@@ -313,7 +358,6 @@ export default function AddItemPage() {
               </div>
             ) : (
               <>
-                {/* Detected colors with remove button */}
                 {detectedColors.length > 0 && (
                   <div>
                     <p className="text-xs text-muted-foreground mb-1.5">Auto-detected</p>
@@ -341,7 +385,6 @@ export default function AddItemPage() {
                   </div>
                 )}
 
-                {/* Manual colors */}
                 {manualColors.length > 0 && (
                   <div>
                     <p className="text-xs text-muted-foreground mb-1.5">Manual</p>
@@ -369,7 +412,6 @@ export default function AddItemPage() {
                   </div>
                 )}
 
-                {/* Add color manually */}
                 <div className="space-y-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
                     {showColorPalette ? "Hide palette" : "Color palette"}
@@ -403,7 +445,7 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Add color if no image yet */}
+        {/* Colors (when no image yet) */}
         {!imagePreview && detectedColors.length === 0 && (
           <div className="space-y-2">
             <Label>Colors</Label>
@@ -507,30 +549,56 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Fit */}
-        <div className="space-y-2">
-          <Label>How does it fit?</Label>
-          <div className="grid grid-cols-4 gap-2">
-            {(Object.entries(FIT_LABELS) as [Fit, string][]).map(([f, label]) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFit(f)}
-                className={cn(
-                  "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
-                  fit === f
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted"
-                )}
-              >
-                {label}
-              </button>
-            ))}
+        {/* Generic Fit - tops, dresses, outerwear, non-jeans/trousers bottoms */}
+        {category && showGenericFit && (
+          <div className="space-y-2">
+            <Label>How does it fit?</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {(Object.entries(FIT_LABELS) as [Fit, string][]).map(([f, label]) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFit(f)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    fit === f
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Length - only for tops, bottoms, dresses, outerwear */}
-        {category && ["top", "bottom", "dress", "outerwear"].includes(category) && (
+        {/* Bottom Fit - jeans and trousers only */}
+        {category && showBottomFit && (
+          <div className="space-y-2">
+            <Label>How does it fit?</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {(Object.entries(BOTTOM_FIT_LABELS) as [BottomFit, string][]).map(([f, label]) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setBottomFit(f)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    bottomFit === f
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Length - tops, bottoms, dresses, outerwear */}
+        {category && showLength && (
           <div className="space-y-2">
             <Label>Length</Label>
             <div className="grid grid-cols-4 gap-2">
@@ -553,8 +621,32 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Waist style - only for tops, bottoms, dresses, outerwear */}
-        {category && ["top", "bottom", "dress", "outerwear"].includes(category) && (
+        {/* Waist Height - jeans and trousers only */}
+        {category && showWaistHeight && (
+          <div className="space-y-2">
+            <Label>Waist Height</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.entries(WAIST_HEIGHT_LABELS) as [WaistHeight, string][]).map(([w, label]) => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => setWaistHeight(w)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    waistHeight === w
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Waist Style - tops, bottoms, dresses, outerwear */}
+        {category && showWaistStyle && (
           <div className="space-y-2">
             <Label>Waist</Label>
             <div className="grid grid-cols-4 gap-2">
@@ -577,8 +669,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Belt compatible toggle */}
-        {category && ["top", "bottom", "dress", "outerwear"].includes(category) && (
+        {/* Belt compatible toggle - tops, bottoms, dresses, outerwear */}
+        {category && showBeltCompatible && (
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -596,8 +688,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Layering piece toggle - for tops and outerwear */}
-        {category && ["top", "outerwear"].includes(category) && (
+        {/* Layering piece toggle - tops and outerwear */}
+        {category && showLayeringPiece && (
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -616,6 +708,78 @@ export default function AddItemPage() {
               <p className="text-xs text-muted-foreground">
                 Worn over another top (vest, cardigan, open shirt...)
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Shoe Height - shoes only */}
+        {category && showShoeFields && (
+          <div className="space-y-2">
+            <Label>Shoe Height</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.entries(SHOE_HEIGHT_LABELS) as [ShoeHeight, string][]).map(([h, label]) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setShoeHeight(h)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    shoeHeight === h
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Heel Type - shoes only */}
+        {category && showShoeFields && (
+          <div className="space-y-2">
+            <Label>Heel Type</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.entries(HEEL_TYPE_LABELS) as [HeelType, string][]).map(([h, label]) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setHeelType(h)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    heelType === h
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Belt Position - belt subcategory only */}
+        {category && showBeltPosition && (
+          <div className="space-y-2">
+            <Label>Belt Position</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.entries(BELT_POSITION_LABELS) as [BeltPosition, string][]).map(([b, label]) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setBeltPosition(b)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    beltPosition === b
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -668,26 +832,28 @@ export default function AddItemPage() {
           </div>
         </div>
 
-        {/* Formality */}
+        {/* Formality - multi-select toggle buttons */}
         <div className="space-y-2">
-          <Label>Formality</Label>
-          <Select
-            value={formality}
-            onValueChange={(v) => setFormality(v as Formality)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.entries(FORMALITY_LABELS) as [Formality, string][]).map(
-                ([f, label]) => (
-                  <SelectItem key={f} value={f}>
-                    {label}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
+          <Label>Formality (select all that apply)</Label>
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(FORMALITY_LABELS) as [Formality, string][]).map(
+              ([f, label]) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => toggleFormality(f)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    formalities.includes(f)
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
         </div>
 
         {/* Seasons */}
@@ -738,27 +904,29 @@ export default function AddItemPage() {
           </div>
         </div>
 
-        {/* Warmth Rating */}
-        <div className="space-y-2">
-          <Label>Warmth (1 = very light, 5 = heavy winter)</Label>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setWarmthRating(n)}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors",
-                  warmthRating === n
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted"
-                )}
-              >
-                {n}
-              </button>
-            ))}
+        {/* Warmth Rating - hidden for shoes, accessories, bags */}
+        {category && showWarmth && (
+          <div className="space-y-2">
+            <Label>Warmth (1 = very light, 5 = heavy winter)</Label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setWarmthRating(n)}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors",
+                    warmthRating === n
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Rain appropriate */}
         <div className="flex items-center gap-3">
