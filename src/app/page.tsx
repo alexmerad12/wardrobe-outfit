@@ -6,14 +6,22 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherWidget } from "@/components/weather-widget";
-import { Sparkles, Plus, Shirt } from "lucide-react";
-import type { ClothingItem } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Plus, Shirt, Heart, Trash2, ChevronDown, ChevronUp, Thermometer } from "lucide-react";
+import type { ClothingItem, Mood, Occasion } from "@/lib/types";
+import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface TodayOutfit {
   outfit_id: string;
   item_ids: string[];
   name: string | null;
   reasoning: string | null;
+  mood: string | null;
+  occasion: string | null;
+  weather_temp: number | null;
+  weather_condition: string | null;
+  is_favorite: boolean;
   date: string;
 }
 
@@ -21,6 +29,7 @@ export default function HomePage() {
   const [todayOutfit, setTodayOutfit] = useState<TodayOutfit | null>(null);
   const [todayItems, setTodayItems] = useState<ClothingItem[]>([]);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
+  const [todayExpanded, setTodayExpanded] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -62,6 +71,24 @@ export default function HomePage() {
     load();
   }, []);
 
+  async function toggleTodayFavorite() {
+    if (!todayOutfit) return;
+    const newFav = !todayOutfit.is_favorite;
+    await fetch("/api/today", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_favorite: newFav }),
+    });
+    setTodayOutfit({ ...todayOutfit, is_favorite: newFav });
+  }
+
+  async function clearTodayOutfit() {
+    if (!confirm("Remove today's outfit?")) return;
+    await fetch("/api/today", { method: "DELETE" });
+    setTodayOutfit(null);
+    setTodayItems([]);
+  }
+
   const greeting = (() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning!";
@@ -92,11 +119,18 @@ export default function HomePage() {
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-3">Today&apos;s Outfit</h2>
-          <Card>
+          <Card className="cursor-pointer" onClick={() => setTodayExpanded(!todayExpanded)}>
             <CardContent className="p-3">
-              {todayOutfit.name && (
-                <p className="font-medium text-sm mb-2">{todayOutfit.name}</p>
-              )}
+              <div className="flex items-center justify-between mb-2">
+                {todayOutfit.name && (
+                  <p className="font-medium text-sm">{todayOutfit.name}</p>
+                )}
+                {todayExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {todayItems.map((item) => (
                   <div key={item.id} className="relative h-20 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30">
@@ -104,10 +138,67 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-              {todayOutfit.reasoning && (
-                <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                  {todayOutfit.reasoning}
-                </p>
+
+              {todayExpanded && (
+                <div className="mt-3 pt-3 border-t space-y-3">
+                  {/* Context badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
+                      <Badge variant="secondary" className="text-xs gap-0.5">
+                        {MOOD_CONFIG[todayOutfit.mood as Mood].emoji} {MOOD_CONFIG[todayOutfit.mood as Mood].label}
+                      </Badge>
+                    )}
+                    {todayOutfit.occasion && OCCASION_LABELS[todayOutfit.occasion as Occasion] && (
+                      <Badge variant="outline" className="text-xs">
+                        {OCCASION_LABELS[todayOutfit.occasion as Occasion]}
+                      </Badge>
+                    )}
+                    {todayOutfit.weather_temp !== null && todayOutfit.weather_temp !== undefined && (
+                      <Badge variant="outline" className="text-xs gap-0.5">
+                        <Thermometer className="h-3 w-3" />
+                        {todayOutfit.weather_temp}°C {todayOutfit.weather_condition || ""}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* AI reasoning */}
+                  {todayOutfit.reasoning && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {todayOutfit.reasoning}
+                    </p>
+                  )}
+
+                  {/* Item names */}
+                  <div className="flex flex-wrap gap-1">
+                    {todayItems.map((item) => (
+                      <Badge key={item.id} variant="secondary" className="text-[10px]">
+                        {item.name}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 gap-1.5"
+                      onClick={toggleTodayFavorite}
+                    >
+                      <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
+                      {todayOutfit.is_favorite ? "Favorited" : "Favorite"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-destructive"
+                      onClick={clearTodayOutfit}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

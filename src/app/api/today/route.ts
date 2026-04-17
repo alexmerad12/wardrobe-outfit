@@ -39,6 +39,11 @@ export async function POST(request: NextRequest) {
       item_ids: body.item_ids,
       name: body.name || null,
       reasoning: body.reasoning || null,
+      mood: body.mood || null,
+      occasion: body.occasion || null,
+      weather_temp: body.weather_temp ?? null,
+      weather_condition: body.weather_condition || null,
+      is_favorite: body.is_favorite ?? true,
       date: today,
     };
 
@@ -47,6 +52,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data.today_outfit);
   } catch (error) {
     console.error("Failed to set today's outfit:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const updates = await request.json();
+    const data = await readData();
+
+    if (!data.today_outfit) {
+      return NextResponse.json({ error: "No today outfit" }, { status: 404 });
+    }
+
+    data.today_outfit = { ...data.today_outfit, ...updates };
+    await writeData(data);
+
+    return NextResponse.json(data.today_outfit);
+  } catch (error) {
+    console.error("Failed to update today's outfit:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    const data = await readData();
+    if (data.today_outfit) {
+      if (!data.recent_outfits) data.recent_outfits = [];
+      data.recent_outfits.unshift(data.today_outfit);
+      data.recent_outfits = data.recent_outfits.slice(0, 14);
+      data.today_outfit = null;
+      await writeData(data);
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to clear today's outfit:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

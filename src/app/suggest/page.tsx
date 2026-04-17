@@ -135,6 +135,11 @@ export default function SuggestPage() {
           item_ids: suggestion.items.map((i) => i.id),
           name: suggestion.name,
           reasoning: suggestion.reasoning,
+          mood,
+          occasion,
+          weather_temp: suggestion.weather_temp,
+          weather_condition: suggestion.weather_condition,
+          is_favorite: true,
         }),
       });
 

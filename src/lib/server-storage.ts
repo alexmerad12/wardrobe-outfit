@@ -13,6 +13,11 @@ export interface TodayOutfit {
   item_ids: string[];
   name: string | null;
   reasoning: string | null;
+  mood: string | null;
+  occasion: string | null;
+  weather_temp: number | null;
+  weather_condition: string | null;
+  is_favorite: boolean;
   date: string; // YYYY-MM-DD
 }
 
