@@ -29,6 +29,7 @@ export default function HomePage() {
   const [todayOutfit, setTodayOutfit] = useState<TodayOutfit | null>(null);
   const [todayItems, setTodayItems] = useState<ClothingItem[]>([]);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
+  const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -79,6 +80,52 @@ export default function HomePage() {
       body: JSON.stringify({ is_favorite: newFav }),
     });
     setTodayOutfit({ ...todayOutfit, is_favorite: newFav });
+  }
+
+  async function wearRecentToday(outfit: TodayOutfit & { items: ClothingItem[] }) {
+    await fetch("/api/today", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        item_ids: outfit.item_ids,
+        name: outfit.name,
+        reasoning: outfit.reasoning,
+        mood: outfit.mood,
+        occasion: outfit.occasion,
+        weather_temp: outfit.weather_temp,
+        weather_condition: outfit.weather_condition,
+        is_favorite: outfit.is_favorite ?? false,
+      }),
+    });
+    setTodayOutfit({
+      ...outfit,
+      date: new Date().toISOString().split("T")[0],
+    });
+    setTodayItems(outfit.items);
+    setExpandedRecent(null);
+  }
+
+  async function favoriteRecent(outfit: TodayOutfit & { items: ClothingItem[] }) {
+    await fetch("/api/outfits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: "default",
+        name: outfit.name,
+        item_ids: outfit.item_ids,
+        occasions: outfit.occasion ? [outfit.occasion] : [],
+        seasons: [],
+        rating: null,
+        is_favorite: true,
+        mood: outfit.mood,
+        weather_temp: outfit.weather_temp,
+        weather_condition: outfit.weather_condition,
+        ai_reasoning: outfit.reasoning,
+        source: "ai",
+      }),
+    });
+    // Visual feedback - briefly update the outfit
+    setExpandedRecent(null);
   }
 
   async function clearTodayOutfit() {
@@ -229,31 +276,95 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {recentOutfits.slice(0, 7).map((outfit) => (
-              <Card key={outfit.date} className="overflow-hidden">
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    {outfit.name && (
-                      <p className="text-xs font-medium">{outfit.name}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-1.5">
-                    {outfit.items.slice(0, 5).map((item) => (
-                      <div key={item.id} className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden bg-muted/30">
-                        <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="56px" />
+            {recentOutfits.slice(0, 7).map((outfit) => {
+              const isExpanded = expandedRecent === outfit.date;
+              return (
+                <Card
+                  key={outfit.date}
+                  className="overflow-hidden cursor-pointer"
+                  onClick={() => setExpandedRecent(isExpanded ? null : outfit.date)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                      {outfit.name && (
+                        <p className="text-xs font-medium">{outfit.name}</p>
+                      )}
+                    </div>
+
+                    {isExpanded ? (
+                      <>
+                        {/* Bigger photos */}
+                        <div className="grid grid-cols-3 gap-1.5 mb-3">
+                          {outfit.items.map((item) => (
+                            <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted/30">
+                              <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="120px" />
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
+                                <p className="text-[10px] text-white truncate">{item.name}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Context badges */}
+                        {(outfit.mood || outfit.occasion || outfit.weather_temp !== null) && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (
+                              <Badge variant="secondary" className="text-[10px] gap-0.5">
+                                {MOOD_CONFIG[outfit.mood as Mood].emoji} {MOOD_CONFIG[outfit.mood as Mood].label}
+                              </Badge>
+                            )}
+                            {outfit.occasion && OCCASION_LABELS[outfit.occasion as Occasion] && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {OCCASION_LABELS[outfit.occasion as Occasion]}
+                              </Badge>
+                            )}
+                            {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
+                              <Badge variant="outline" className="text-[10px] gap-0.5">
+                                <Thermometer className="h-2.5 w-2.5" />
+                                {outfit.weather_temp}°C
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
+                        {outfit.reasoning && (
+                          <p className="text-xs text-muted-foreground italic mb-3">
+                            &ldquo;{outfit.reasoning}&rdquo;
+                          </p>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => favoriteRecent(outfit)}>
+                            <Heart className="h-4 w-4" />
+                            Favorite
+                          </Button>
+                          <Button size="sm" className="flex-1 gap-1.5" onClick={() => wearRecentToday(outfit)}>
+                            <Shirt className="h-4 w-4" />
+                            Wear Today
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex gap-1.5">
+                        {outfit.items.slice(0, 5).map((item) => (
+                          <div key={item.id} className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden bg-muted/30">
+                            <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="56px" />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import type { Outfit, ClothingItem, Mood, Occasion } from "@/lib/types";
@@ -8,7 +9,7 @@ import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Sparkles, Trash2, Thermometer } from "lucide-react";
+import { Heart, Sparkles, Trash2, Thermometer, Shirt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function FavoritesPage() {
@@ -17,6 +18,7 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchFavorites() {
@@ -50,6 +52,24 @@ export default function FavoritesPage() {
     }
     fetchFavorites();
   }, []);
+
+  async function wearFavoriteToday(outfit: Outfit) {
+    await fetch("/api/today", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        item_ids: outfit.item_ids,
+        name: outfit.name,
+        reasoning: outfit.ai_reasoning,
+        mood: outfit.mood,
+        occasion: outfit.occasions[0] ?? null,
+        weather_temp: outfit.weather_temp,
+        weather_condition: outfit.weather_condition,
+        is_favorite: true,
+      }),
+    });
+    router.push("/");
+  }
 
   async function removeFavorite(outfitId: string) {
     // Unfavorite (keeps the outfit but removes from favorites view)
@@ -194,7 +214,15 @@ export default function FavoritesPage() {
                         </p>
                       )}
 
-                      <div onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          className="flex-1 gap-1.5"
+                          onClick={() => wearFavoriteToday(outfit)}
+                        >
+                          <Shirt className="h-4 w-4" />
+                          Wear Today
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -202,7 +230,7 @@ export default function FavoritesPage() {
                           onClick={() => removeFavorite(outfit.id)}
                         >
                           <Trash2 className="h-4 w-4" />
-                          Remove from favorites
+                          Remove
                         </Button>
                       </div>
                     </div>
