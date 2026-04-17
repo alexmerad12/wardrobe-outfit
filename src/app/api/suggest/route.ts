@@ -132,14 +132,19 @@ STYLING PRINCIPLES:
 - Think like a real stylist: unexpected but intentional pairings are better than safe/boring ones
 - Include shoes and accessories when available - they complete the look
 
+Also analyze the wardrobe for any gaps - staple pieces that are missing and would significantly improve outfit options (e.g. a neutral belt, white sneakers, a blazer, a basic white tee). Only mention a gap if it's genuinely useful, not just to fill space. If the wardrobe is well-rounded, don't suggest anything.
+
 Respond with ONLY valid JSON in this exact format:
-[
-  {
-    "item_ids": ["id1", "id2", "id3"],
-    "reasoning": "2-3 sentences explaining the styling choices like a personal stylist would",
-    "name": "A short creative name for this look"
-  }
-]
+{
+  "outfits": [
+    {
+      "item_ids": ["id1", "id2", "id3"],
+      "reasoning": "2-3 sentences explaining the styling choices like a personal stylist would",
+      "name": "A short creative name for this look"
+    }
+  ],
+  "wardrobe_gap": "One sentence suggesting a staple piece to add, or null if the wardrobe is complete"
+}
 
 Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
 
@@ -151,17 +156,18 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
 
     // Parse response
     const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
       return NextResponse.json({ suggestions: [], message: "Failed to parse AI response" });
     }
 
-    const aiSuggestions = JSON.parse(jsonMatch[0]) as {
-      item_ids: string[];
-      reasoning: string;
-      name: string;
-    }[];
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      outfits: { item_ids: string[]; reasoning: string; name: string }[];
+      wardrobe_gap: string | null;
+    };
+
+    const aiSuggestions = parsed.outfits;
 
     // Resolve items and build response
     const suggestions = aiSuggestions.map((s) => {
@@ -181,7 +187,10 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
       };
     });
 
-    return NextResponse.json({ suggestions });
+    return NextResponse.json({
+      suggestions,
+      wardrobe_gap: parsed.wardrobe_gap ?? null,
+    });
   } catch (error) {
     console.error("Suggestion error:", error);
     return NextResponse.json(

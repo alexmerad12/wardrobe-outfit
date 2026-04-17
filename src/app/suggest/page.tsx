@@ -31,6 +31,7 @@ export default function SuggestPage() {
   const [saving, setSaving] = useState(false);
   const [styleWishes, setStyleWishes] = useState<string[]>([]);
   const [customWish, setCustomWish] = useState("");
+  const [wardrobeGap, setWardrobeGap] = useState<string | null>(null);
 
   const STYLE_PRESETS = [
     "Dress day",
@@ -65,6 +66,7 @@ export default function SuggestPage() {
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data.suggestions);
+        setWardrobeGap(data.wardrobe_gap ?? null);
         setCurrentIndex(0);
         setStep("results");
       }
@@ -326,6 +328,14 @@ export default function SuggestPage() {
               <Button variant="outline" onClick={handleStartOver}>
                 Start Over
               </Button>
+            </div>
+          )}
+
+          {/* Wardrobe gap suggestion from AI */}
+          {wardrobeGap && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mt-2">
+              <p className="text-xs font-semibold text-amber-800 mb-1">Stylist tip</p>
+              <p className="text-sm text-amber-700">{wardrobeGap}</p>
             </div>
           )}
         </div>

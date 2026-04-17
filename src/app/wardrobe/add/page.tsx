@@ -62,6 +62,7 @@ export default function AddItemPage() {
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [removingBg, setRemovingBg] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -165,6 +166,28 @@ export default function AddItemPage() {
       setDetectingColors(false);
     };
     img.src = dataUrl;
+  }
+
+  async function handleRemoveBackground() {
+    if (!imageFile) return;
+    setRemovingBg(true);
+    try {
+      const { removeBackground } = await import("@imgly/background-removal");
+      const blob = await removeBackground(imageFile);
+      const file = new File([blob], imageFile.name, { type: "image/png" });
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setImagePreview(dataUrl);
+        extractColorsFromImage(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Background removal failed:", err);
+    } finally {
+      setRemovingBg(false);
+    }
   }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -354,6 +377,27 @@ export default function AddItemPage() {
             onChange={handleImageChange}
           />
         </div>
+
+        {/* Remove background button */}
+        {imagePreview && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={handleRemoveBackground}
+            disabled={removingBg}
+          >
+            {removingBg ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Removing background... (this may take a moment)
+              </>
+            ) : (
+              "Remove background"
+            )}
+          </Button>
+        )}
 
         {/* Colors (when image is present or colors detected) */}
         {(detectedColors.length > 0 || detectingColors || manualColors.length > 0) && (
