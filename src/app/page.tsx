@@ -135,6 +135,9 @@ export default function HomePage() {
 
               {/* Mood / Occasion / Weather row */}
               <div className="flex flex-wrap gap-2">
+                {!todayOutfit.mood && !todayOutfit.occasion && (todayOutfit.weather_temp === null || todayOutfit.weather_temp === undefined) && (
+                  <p className="text-xs text-muted-foreground italic">Tap &quot;Wear Today&quot; on a new suggestion to see mood &amp; occasion here</p>
+                )}
                 {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
                     <span className="text-base">{MOOD_CONFIG[todayOutfit.mood as Mood].emoji}</span>

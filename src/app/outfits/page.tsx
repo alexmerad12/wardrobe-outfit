@@ -229,9 +229,17 @@ export default function FavoritesPage() {
                       )}
                     </div>
                     <div className="p-3">
-                      <p className="font-medium text-sm">
-                        {outfit.name || "Saved Outfit"}
-                      </p>
+                      <div className="flex items-start justify-between">
+                        <p className="font-medium text-sm">
+                          {outfit.name || "Saved Outfit"}
+                        </p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeFavorite(outfit.id); }}
+                          className="text-muted-foreground hover:text-destructive p-0.5 -mt-0.5"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
                         {outfit.mood && (
                           <Badge variant="secondary" className="text-[10px] gap-0.5">
