@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity } from "@/lib/types";
+import type { TemperatureSensitivity, ClothingItem } from "@/lib/types";
+import { CATEGORY_LABELS } from "@/lib/types";
 import { MapPin, Thermometer, Loader2 } from "lucide-react";
 
 interface CityResult {
@@ -33,6 +35,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
+  const [allItems, setAllItems] = useState<ClothingItem[]>([]);
 
   // City search
   const [cityQuery, setCityQuery] = useState("");
@@ -65,6 +68,7 @@ export default function ProfilePage() {
         if (itemsRes.ok) {
           const items = await itemsRes.json();
           setItemCount(items.length);
+          setAllItems(items);
         }
 
         if (outfitsRes.ok) {
@@ -88,6 +92,59 @@ export default function ProfilePage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // ---------- Computed stats ----------
+
+  const colorDistribution = useMemo(() => {
+    const counts: Record<string, { name: string; hex: string; count: number }> = {};
+    for (const item of allItems) {
+      for (const color of item.colors ?? []) {
+        const key = color.name.toLowerCase();
+        if (!counts[key]) {
+          counts[key] = { name: color.name, hex: color.hex, count: 0 };
+        }
+        counts[key].count++;
+      }
+    }
+    return Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [allItems]);
+
+  const categoryBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of allItems) {
+      counts[item.category] = (counts[item.category] ?? 0) + 1;
+    }
+    return Object.entries(CATEGORY_LABELS)
+      .map(([key, label]) => ({ key, label, count: counts[key] ?? 0 }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [allItems]);
+
+  const mostWornItems = useMemo(() => {
+    return [...allItems]
+      .filter((item) => item.times_worn > 0)
+      .sort((a, b) => b.times_worn - a.times_worn)
+      .slice(0, 5);
+  }, [allItems]);
+
+  const leastWornItems = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return allItems
+      .filter((item) => {
+        if (item.times_worn !== 0) return false;
+        const created = new Date(item.created_at);
+        return created < sevenDaysAgo;
+      })
+      .slice(0, 3);
+  }, [allItems]);
+
+  const maxColorCount = colorDistribution.length > 0 ? colorDistribution[0].count : 1;
+  const maxCategoryCount = categoryBreakdown.length > 0 ? categoryBreakdown[0].count : 1;
+
+  // ---------- Handlers ----------
 
   function handleCityInput(value: string) {
     setCityQuery(value);
@@ -174,6 +231,131 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Wardrobe Insights */}
+      {allItems.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base">Wardrobe Insights</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Color Distribution */}
+            {colorDistribution.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Top Colors</p>
+                <div className="space-y-1.5">
+                  {colorDistribution.map((color) => (
+                    <div key={color.name} className="flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 rounded-full flex-shrink-0 border border-border"
+                        style={{ backgroundColor: color.hex }}
+                      />
+                      <span className="text-sm w-20 truncate">{color.name}</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-foreground/20"
+                          style={{
+                            width: `${(color.count / maxColorCount) * 100}%`,
+                            backgroundColor: color.hex,
+                            opacity: 0.7,
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground w-6 text-right">
+                        {color.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {colorDistribution.length > 0 && categoryBreakdown.length > 0 && <Separator />}
+
+            {/* Category Breakdown */}
+            {categoryBreakdown.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Categories</p>
+                <div className="space-y-1.5">
+                  {categoryBreakdown.map((cat) => (
+                    <div key={cat.key} className="flex items-center gap-2">
+                      <span className="text-sm w-24 truncate">{cat.label}</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary/60"
+                          style={{
+                            width: `${(cat.count / maxCategoryCount) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground w-6 text-right">
+                        {cat.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(colorDistribution.length > 0 || categoryBreakdown.length > 0) &&
+              mostWornItems.length > 0 && <Separator />}
+
+            {/* Most Worn Items */}
+            {mostWornItems.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Most Worn</p>
+                <div className="space-y-2">
+                  {mostWornItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                        <Image
+                          src={item.thumbnail_url ?? item.image_url}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                      <span className="text-sm flex-1 truncate">{item.name}</span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {item.times_worn}x worn
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mostWornItems.length > 0 && leastWornItems.length > 0 && <Separator />}
+
+            {/* Least Worn Items */}
+            {leastWornItems.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Forgotten Pieces</p>
+                <div className="space-y-2">
+                  {leastWornItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                        <Image
+                          src={item.thumbnail_url ?? item.image_url}
+                          alt={item.name}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                      <span className="text-sm flex-1 truncate">{item.name}</span>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        Never worn
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Settings */}
       <Card>

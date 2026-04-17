@@ -42,6 +42,10 @@ export type BeltPosition = "waist" | "hips" | "both";
 
 export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none";
 
+export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "off-shoulder" | "collared" | "henley" | "cowl" | "other";
+
+export type SleeveLength = "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
+
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
 export type Season = "spring" | "summer" | "fall" | "winter";
@@ -83,6 +87,8 @@ export interface ClothingItem {
   colors: ExtractedColor[];
   dominant_color_hsl: HSLColor | null;
   is_neutral: boolean;
+  neckline: Neckline | null;
+  sleeve_length: SleeveLength | null;
   pattern: Pattern | Pattern[];
   material: Material | Material[];
   fit: Fit | null;
@@ -297,6 +303,32 @@ export const METAL_FINISH_LABELS: Record<MetalFinish, string> = {
   gunmetal: "Gunmetal",
   mixed: "Mixed Metals",
   none: "None",
+};
+
+export const NECKLINE_LABELS: Record<Neckline, string> = {
+  crew: "Crew Neck",
+  "v-neck": "V-Neck",
+  scoop: "Scoop Neck",
+  square: "Square Neck",
+  boat: "Boat Neck",
+  turtleneck: "Turtleneck",
+  "mock-neck": "Mock Neck",
+  halter: "Halter",
+  "off-shoulder": "Off Shoulder",
+  collared: "Collared",
+  henley: "Henley",
+  cowl: "Cowl Neck",
+  other: "Other",
+};
+
+export const SLEEVE_LENGTH_LABELS: Record<SleeveLength, string> = {
+  sleeveless: "Sleeveless",
+  cap: "Cap Sleeve",
+  short: "Short Sleeve",
+  elbow: "Elbow",
+  "three-quarter": "3/4 Sleeve",
+  long: "Long Sleeve",
+  other: "Other",
 };
 
 export const MATERIAL_LABELS: Record<Material, string> = {

@@ -22,6 +22,8 @@ import type {
   Formality,
   Season,
   Occasion,
+  Neckline,
+  SleeveLength,
 } from "@/lib/types";
 import {
   CATEGORY_LABELS,
@@ -35,6 +37,8 @@ import {
   HEEL_TYPE_LABELS,
   BELT_POSITION_LABELS,
   METAL_FINISH_LABELS,
+  NECKLINE_LABELS,
+  SLEEVE_LENGTH_LABELS,
   MATERIAL_LABELS,
   PATTERN_LABELS,
   FORMALITY_LABELS,
@@ -97,6 +101,8 @@ export default function ItemDetailPage() {
   const [editHeelType, setEditHeelType] = useState<HeelType>("flat");
   const [editBeltPosition, setEditBeltPosition] = useState<BeltPosition>("waist");
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
+  const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
+  const [editSleeveLength, setEditSleeveLength] = useState<SleeveLength | null>(null);
   const [editPatterns, setEditPatterns] = useState<Pattern[]>([]);
   const [editMaterials, setEditMaterials] = useState<Material[]>([]);
   const [editFormalities, setEditFormalities] = useState<Formality[]>(["casual"]);
@@ -141,6 +147,8 @@ export default function ItemDetailPage() {
     setEditHeelType(item.heel_type ?? "flat");
     setEditBeltPosition(item.belt_position ?? "waist");
     setEditMetalFinish(item.metal_finish ?? null);
+    setEditNeckline(item.neckline ?? null);
+    setEditSleeveLength(item.sleeve_length ?? null);
     setEditPatterns(Array.isArray(item.pattern) ? item.pattern : [item.pattern]);
     setEditMaterials(Array.isArray(item.material) ? item.material : [item.material]);
     // Backwards compat: formality may be a single string on old items
@@ -215,6 +223,8 @@ export default function ItemDetailPage() {
           heel_type: editShowShoeFields ? editHeelType : null,
           belt_position: editShowBeltPosition ? editBeltPosition : null,
           metal_finish: ["shoes", "accessory"].includes(editCategory) ? editMetalFinish : null,
+          neckline: ["top", "dress", "outerwear"].includes(editCategory) ? editNeckline : null,
+          sleeve_length: ["top", "dress", "outerwear"].includes(editCategory) ? editSleeveLength : null,
           pattern: editPatterns,
           material: editMaterials,
           formality: editFormalities,
@@ -605,6 +615,30 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Neckline - tops, dresses, outerwear */}
+          {["top", "dress", "outerwear"].includes(editCategory) && (
+            <div className="space-y-1">
+              <Label>Neckline</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(NECKLINE_LABELS) as [Neckline, string][]).map(([n, label]) => (
+                  <button key={n} type="button" onClick={() => setEditNeckline(editNeckline === n ? null : n)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editNeckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sleeve Length - tops, dresses, outerwear */}
+          {["top", "dress", "outerwear"].includes(editCategory) && (
+            <div className="space-y-1">
+              <Label>Sleeve Length</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(SLEEVE_LENGTH_LABELS) as [SleeveLength, string][]).map(([s, label]) => (
+                  <button key={s} type="button" onClick={() => setEditSleeveLength(editSleeveLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Material */}
           <div className="space-y-1">
             <Label>Material</Label>
@@ -792,6 +826,22 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Metal Finish</p>
                   <p className="text-sm font-medium">{METAL_FINISH_LABELS[item.metal_finish]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {item.neckline && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Neckline</p>
+                  <p className="text-sm font-medium">{NECKLINE_LABELS[item.neckline]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {item.sleeve_length && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Sleeves</p>
+                  <p className="text-sm font-medium">{SLEEVE_LENGTH_LABELS[item.sleeve_length]}</p>
                 </CardContent>
               </Card>
             )}
