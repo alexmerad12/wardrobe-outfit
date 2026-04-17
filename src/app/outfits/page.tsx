@@ -238,6 +238,12 @@ export default function FavoritesPage() {
                             {MOOD_CONFIG[outfit.mood]?.emoji} {MOOD_CONFIG[outfit.mood]?.label}
                           </Badge>
                         )}
+                        {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
+                          <Badge variant="outline" className="text-[10px] gap-0.5">
+                            <Thermometer className="h-2.5 w-2.5" />
+                            {outfit.weather_temp}°C
+                          </Badge>
+                        )}
                         {outfit.occasions.slice(0, 2).map((o) => (
                           <Badge key={o} variant="outline" className="text-[10px]">
                             {OCCASION_LABELS[o]}

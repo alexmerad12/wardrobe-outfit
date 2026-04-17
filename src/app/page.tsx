@@ -118,88 +118,83 @@ export default function HomePage() {
       {/* Today's Outfit */}
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-3">Today&apos;s Outfit</h2>
-          <Card className="cursor-pointer" onClick={() => setTodayExpanded(!todayExpanded)}>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-2">
-                {todayOutfit.name && (
-                  <p className="font-medium text-sm">{todayOutfit.name}</p>
-                )}
-                {todayExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Today&apos;s Outfit</h2>
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={toggleTodayFavorite}>
+                <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={clearTodayOutfit}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <Card
+            className="overflow-hidden cursor-pointer"
+            onClick={() => setTodayExpanded(!todayExpanded)}
+          >
+            <CardContent className="p-0">
+              {/* Image grid - always visible */}
+              <div className={cn(
+                "grid gap-0.5",
+                todayItems.length <= 2 ? "grid-cols-2" : todayItems.length <= 4 ? "grid-cols-2" : "grid-cols-3"
+              )}>
                 {todayItems.map((item) => (
-                  <div key={item.id} className="relative h-20 w-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30">
-                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="80px" />
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "relative overflow-hidden bg-muted/30",
+                      todayExpanded ? "aspect-square" : "h-24"
+                    )}
+                  >
+                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="160px" />
+                    {todayExpanded && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
+                        <p className="text-[11px] text-white truncate">{item.name}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
 
-              {todayExpanded && (
-                <div className="mt-3 pt-3 border-t space-y-3">
-                  {/* Context badges */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
-                      <Badge variant="secondary" className="text-xs gap-0.5">
-                        {MOOD_CONFIG[todayOutfit.mood as Mood].emoji} {MOOD_CONFIG[todayOutfit.mood as Mood].label}
-                      </Badge>
-                    )}
-                    {todayOutfit.occasion && OCCASION_LABELS[todayOutfit.occasion as Occasion] && (
-                      <Badge variant="outline" className="text-xs">
-                        {OCCASION_LABELS[todayOutfit.occasion as Occasion]}
-                      </Badge>
-                    )}
-                    {todayOutfit.weather_temp !== null && todayOutfit.weather_temp !== undefined && (
-                      <Badge variant="outline" className="text-xs gap-0.5">
-                        <Thermometer className="h-3 w-3" />
-                        {todayOutfit.weather_temp}°C {todayOutfit.weather_condition || ""}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* AI reasoning */}
-                  {todayOutfit.reasoning && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {todayOutfit.reasoning}
-                    </p>
+              {/* Info section */}
+              <div className="p-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-sm">{todayOutfit.name || "Today's Look"}</p>
+                  {todayExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   )}
-
-                  {/* Item names */}
-                  <div className="flex flex-wrap gap-1">
-                    {todayItems.map((item) => (
-                      <Badge key={item.id} variant="secondary" className="text-[10px]">
-                        {item.name}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 gap-1.5"
-                      onClick={toggleTodayFavorite}
-                    >
-                      <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
-                      {todayOutfit.is_favorite ? "Favorited" : "Favorite"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-destructive"
-                      onClick={clearTodayOutfit}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Remove
-                    </Button>
-                  </div>
                 </div>
-              )}
+
+                {/* Context badges - always visible */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
+                    <Badge variant="secondary" className="text-[10px] gap-0.5">
+                      {MOOD_CONFIG[todayOutfit.mood as Mood].emoji} {MOOD_CONFIG[todayOutfit.mood as Mood].label}
+                    </Badge>
+                  )}
+                  {todayOutfit.occasion && OCCASION_LABELS[todayOutfit.occasion as Occasion] && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {OCCASION_LABELS[todayOutfit.occasion as Occasion]}
+                    </Badge>
+                  )}
+                  {todayOutfit.weather_temp !== null && todayOutfit.weather_temp !== undefined && (
+                    <Badge variant="outline" className="text-[10px] gap-0.5">
+                      <Thermometer className="h-2.5 w-2.5" />
+                      {todayOutfit.weather_temp}°C
+                    </Badge>
+                  )}
+                </div>
+
+                {/* AI reasoning - expanded only */}
+                {todayExpanded && todayOutfit.reasoning && (
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-2">
+                    {todayOutfit.reasoning}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
