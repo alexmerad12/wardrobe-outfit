@@ -16,6 +16,7 @@ export default function FavoritesPage() {
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchFavorites() {
@@ -132,32 +133,102 @@ export default function FavoritesPage() {
               return outfit.occasions.includes(activeFilter as Occasion);
             })
             .map((outfit) => (
-            <Card key={outfit.id} className="overflow-hidden">
+            <Card
+              key={outfit.id}
+              className="overflow-hidden cursor-pointer"
+              onClick={() => setExpandedId(expandedId === outfit.id ? null : outfit.id)}
+            >
               <CardContent className="p-0">
-                {/* Item images row */}
-                <div className="flex h-28 gap-0.5">
-                  {(outfit.items ?? []).slice(0, 5).map((item) => (
-                    <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
-                      <Image
-                        src={item.image_url}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        sizes="120px"
-                      />
+                {expandedId === outfit.id ? (
+                  /* ===== EXPANDED VIEW ===== */
+                  <div>
+                    {/* Large item images grid */}
+                    <div className="grid grid-cols-2 gap-1 p-1">
+                      {(outfit.items ?? []).map((item) => (
+                        <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted/30">
+                          <Image
+                            src={item.image_url}
+                            alt={item.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 50vw, 250px"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                            <p className="text-xs text-white truncate">{item.name}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {(outfit.items?.length ?? 0) === 0 && (
-                    <div className="flex-1 bg-muted/20 flex items-center justify-center">
-                      <p className="text-xs text-muted-foreground">No items</p>
-                    </div>
-                  )}
-                </div>
 
-                {/* Info */}
-                <div className="p-3">
-                  <div className="flex items-start justify-between">
-                    <div>
+                    {/* Details */}
+                    <div className="p-3 space-y-3">
+                      <p className="font-medium text-sm">
+                        {outfit.name || "Saved Outfit"}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {outfit.mood && (
+                          <Badge variant="secondary" className="text-xs gap-0.5">
+                            {MOOD_CONFIG[outfit.mood]?.emoji} {MOOD_CONFIG[outfit.mood]?.label}
+                          </Badge>
+                        )}
+                        {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
+                          <Badge variant="outline" className="text-xs gap-0.5">
+                            <Thermometer className="h-3 w-3" />
+                            {outfit.weather_temp}°C {outfit.weather_condition || ""}
+                          </Badge>
+                        )}
+                        {outfit.occasions.map((o) => (
+                          <Badge key={o} variant="outline" className="text-xs">
+                            {OCCASION_LABELS[o]}
+                          </Badge>
+                        ))}
+                        {outfit.source === "manual" && (
+                          <Badge variant="outline" className="text-xs">Custom</Badge>
+                        )}
+                      </div>
+
+                      {outfit.ai_reasoning && (
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {outfit.ai_reasoning}
+                        </p>
+                      )}
+
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-destructive"
+                          onClick={() => removeFavorite(outfit.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Remove from favorites
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ===== COLLAPSED VIEW ===== */
+                  <>
+                    <div className="flex h-28 gap-0.5">
+                      {(outfit.items ?? []).slice(0, 5).map((item) => (
+                        <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                          <Image
+                            src={item.image_url}
+                            alt={item.name}
+                            fill
+                            className="object-cover"
+                            sizes="120px"
+                          />
+                        </div>
+                      ))}
+                      {(outfit.items?.length ?? 0) === 0 && (
+                        <div className="flex-1 bg-muted/20 flex items-center justify-center">
+                          <p className="text-xs text-muted-foreground">No items</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3">
                       <p className="font-medium text-sm">
                         {outfit.name || "Saved Outfit"}
                       </p>
@@ -165,12 +236,6 @@ export default function FavoritesPage() {
                         {outfit.mood && (
                           <Badge variant="secondary" className="text-[10px] gap-0.5">
                             {MOOD_CONFIG[outfit.mood]?.emoji} {MOOD_CONFIG[outfit.mood]?.label}
-                          </Badge>
-                        )}
-                        {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
-                          <Badge variant="outline" className="text-[10px] gap-0.5">
-                            <Thermometer className="h-2.5 w-2.5" />
-                            {outfit.weather_temp}°C
                           </Badge>
                         )}
                         {outfit.occasions.slice(0, 2).map((o) => (
@@ -182,20 +247,9 @@ export default function FavoritesPage() {
                           <Badge variant="outline" className="text-[10px]">Custom</Badge>
                         )}
                       </div>
-                      {outfit.ai_reasoning && (
-                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
-                          {outfit.ai_reasoning}
-                        </p>
-                      )}
                     </div>
-                    <button
-                      onClick={() => removeFavorite(outfit.id)}
-                      className="text-muted-foreground hover:text-destructive p-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           ))}
