@@ -27,17 +27,39 @@ export default function SuggestPage() {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [step, setStep] = useState<"mood" | "occasion" | "results">("mood");
+  const [step, setStep] = useState<"mood" | "style" | "occasion" | "results">("mood");
   const [saving, setSaving] = useState(false);
+  const [styleWishes, setStyleWishes] = useState<string[]>([]);
+  const [customWish, setCustomWish] = useState("");
+
+  const STYLE_PRESETS = [
+    "Dress day",
+    "Colorful vibes",
+    "All black",
+    "Comfy layers",
+    "Monochrome",
+    "Statement piece",
+    "Minimalist",
+    "Mix patterns",
+  ];
+
+  function toggleStyleWish(wish: string) {
+    setStyleWishes((prev) =>
+      prev.includes(wish) ? prev.filter((w) => w !== wish) : [...prev, wish]
+    );
+  }
 
   async function generateSuggestions() {
     setLoading(true);
 
     try {
+      const allWishes = [...styleWishes];
+      if (customWish.trim()) allWishes.push(customWish.trim());
+
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, occasion }),
+        body: JSON.stringify({ mood, occasion, styleWishes: allWishes }),
       });
 
       if (res.ok) {
@@ -82,6 +104,48 @@ export default function SuggestPage() {
     }
   }
 
+  async function wearToday(suggestion: AISuggestion) {
+    setSaving(true);
+    try {
+      // Save as favorite too
+      await fetch("/api/outfits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          name: suggestion.name,
+          item_ids: suggestion.items.map((i) => i.id),
+          occasions: occasion ? [occasion] : [],
+          seasons: [],
+          rating: null,
+          is_favorite: true,
+          mood,
+          weather_temp: suggestion.weather_temp,
+          weather_condition: suggestion.weather_condition,
+          ai_reasoning: suggestion.reasoning,
+          source: "ai",
+        }),
+      });
+
+      // Set as today's outfit
+      await fetch("/api/today", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_ids: suggestion.items.map((i) => i.id),
+          name: suggestion.name,
+          reasoning: suggestion.reasoning,
+        }),
+      });
+
+      router.push("/");
+    } catch (err) {
+      console.error("Failed to set today:", err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function handleNext() {
     if (currentIndex < suggestions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
@@ -106,6 +170,7 @@ export default function SuggestPage() {
           <h1 className="text-xl font-bold">What to Wear</h1>
           <p className="text-sm text-muted-foreground">
             {step === "mood" && "How are you feeling today?"}
+            {step === "style" && "Any styling preferences?"}
             {step === "occasion" && "What's the occasion?"}
             {step === "results" && `Suggestion ${currentIndex + 1} of ${suggestions.length}`}
           </p>
@@ -129,14 +194,57 @@ export default function SuggestPage() {
           <Button
             className="w-full h-12"
             disabled={!mood}
-            onClick={() => setStep("occasion")}
+            onClick={() => setStep("style")}
           >
             Next
           </Button>
         </div>
       )}
 
-      {/* Step 2: Occasion selection */}
+      {/* Step 2: Style wishes (optional) */}
+      {step === "style" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-base font-semibold mb-1">
+              Any styling direction?
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">Optional - tap any that apply</p>
+            <div className="flex flex-wrap gap-2">
+              {STYLE_PRESETS.map((wish) => (
+                <button
+                  key={wish}
+                  onClick={() => toggleStyleWish(wish)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    styleWishes.includes(wish)
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {wish}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="Or type your own... (e.g. 'I want to wear my red boots')"
+              value={customWish}
+              onChange={(e) => setCustomWish(e.target.value)}
+              className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1 h-12" onClick={() => setStep("mood")}>
+              Back
+            </Button>
+            <Button className="flex-1 h-12" onClick={() => setStep("occasion")}>
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Occasion selection */}
       {step === "occasion" && (
         <div className="space-y-6">
           <div>
@@ -167,7 +275,7 @@ export default function SuggestPage() {
             <Button
               variant="outline"
               className="flex-1 h-12"
-              onClick={() => setStep("mood")}
+              onClick={() => setStep("style")}
             >
               Back
             </Button>
@@ -202,6 +310,7 @@ export default function SuggestPage() {
             saving={saving}
             onSkip={handleNext}
             onSave={() => saveFavorite(suggestions[currentIndex])}
+            onWearToday={() => wearToday(suggestions[currentIndex])}
           />
 
           {currentIndex >= suggestions.length - 1 && (

@@ -4,18 +4,19 @@ import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, RotateCcw } from "lucide-react";
+import { Heart, RotateCcw, Shirt } from "lucide-react";
 
 interface OutfitCardProps {
   items: ClothingItem[];
   reasoning: string;
   name?: string;
   onSave?: () => void;
+  onWearToday?: () => void;
   onSkip?: () => void;
   saving?: boolean;
 }
 
-export function OutfitCard({ items, reasoning, name, onSave, onSkip, saving }: OutfitCardProps) {
+export function OutfitCard({ items, reasoning, name, onSave, onWearToday, onSkip, saving }: OutfitCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -61,13 +62,23 @@ export function OutfitCard({ items, reasoning, name, onSave, onSkip, saving }: O
             Next
           </Button>
           <Button
+            variant="outline"
             size="sm"
             className="flex-1"
             onClick={onSave}
             disabled={saving}
           >
             <Heart className="mr-1.5 h-4 w-4" />
-            {saving ? "Saving..." : "Favorite"}
+            Favorite
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={onWearToday}
+            disabled={saving}
+          >
+            <Shirt className="mr-1.5 h-4 w-4" />
+            Wear Today
           </Button>
         </div>
       </CardContent>

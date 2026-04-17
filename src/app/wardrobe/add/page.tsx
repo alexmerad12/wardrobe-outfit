@@ -135,14 +135,18 @@ export default function AddItemPage() {
       canvas.height = size;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, size, size);
-      const data = ctx.getImageData(0, 0, size, size).data;
+
+      // Sample center 60% only to avoid background colors (door, wall, etc.)
+      const margin = Math.round(size * 0.2);
+      const innerSize = size - margin * 2;
+      const centerData = ctx.getImageData(margin, margin, innerSize, innerSize).data;
 
       const buckets: Record<string, number> = {};
-      const totalPixels = size * size;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = Math.round(data[i] / 32) * 32;
-        const g = Math.round(data[i + 1] / 32) * 32;
-        const b = Math.round(data[i + 2] / 32) * 32;
+      const totalPixels = innerSize * innerSize;
+      for (let i = 0; i < centerData.length; i += 4) {
+        const r = Math.round(centerData[i] / 32) * 32;
+        const g = Math.round(centerData[i + 1] / 32) * 32;
+        const b = Math.round(centerData[i + 2] / 32) * 32;
         const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
         buckets[hex] = (buckets[hex] || 0) + 1;
       }

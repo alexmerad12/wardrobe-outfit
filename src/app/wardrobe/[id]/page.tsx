@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import { upload } from "@vercel/blob/client";
 import type {
   ClothingItem,
   Category,
@@ -64,6 +65,7 @@ import {
   Pencil,
   Loader2,
   X,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +76,10 @@ export default function ItemDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
   const [editName, setEditName] = useState("");
@@ -176,10 +182,24 @@ export default function ItemDetailPage() {
     if (!item) return;
     setSaving(true);
     try {
+      // Upload new image if changed
+      let imageUrl = item.image_url;
+      if (newImageFile) {
+        setUploadingImage(true);
+        const blob = await upload(
+          `clothing/${Date.now()}-${newImageFile.name}`,
+          newImageFile,
+          { access: "public", handleUploadUrl: "/api/upload" }
+        );
+        imageUrl = blob.url;
+        setUploadingImage(false);
+      }
+
       const res = await fetch(`/api/items/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          image_url: imageUrl,
           name: editName,
           category: editCategory,
           subcategory: editSubcategory || null,
@@ -208,6 +228,8 @@ export default function ItemDetailPage() {
       if (res.ok) {
         setItem(await res.json());
         setEditing(false);
+        setNewImageFile(null);
+        setNewImagePreview(null);
       }
     } catch (err) {
       console.error("Failed to save:", err);
@@ -317,7 +339,31 @@ export default function ItemDetailPage() {
 
       {/* Image */}
       <div className="relative aspect-square overflow-hidden rounded-xl bg-muted/30 mb-4">
-        <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="(max-width: 448px) 100vw, 448px" priority />
+        <Image src={newImagePreview || item.image_url} alt={item.name} fill className="object-cover" sizes="(max-width: 448px) 100vw, 448px" priority />
+        {editing && (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
+          >
+            <Camera className="h-8 w-8 text-white mb-1" />
+            <span className="text-sm font-medium text-white">Change photo</span>
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            setNewImageFile(file);
+            const reader = new FileReader();
+            reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
+            reader.readAsDataURL(file);
+          }}
+        />
       </div>
 
       {editing ? (

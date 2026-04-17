@@ -8,11 +8,21 @@ import type {
 
 const KV_KEY = "wardrobe-data";
 
+export interface TodayOutfit {
+  outfit_id: string;
+  item_ids: string[];
+  name: string | null;
+  reasoning: string | null;
+  date: string; // YYYY-MM-DD
+}
+
 export interface AppData {
   items: ClothingItem[];
   outfits: Outfit[];
   logs: OutfitLog[];
   preferences: UserPreferences | null;
+  today_outfit: TodayOutfit | null;
+  recent_outfits: TodayOutfit[];
 }
 
 function getDefaultData(): AppData {
@@ -21,6 +31,8 @@ function getDefaultData(): AppData {
     outfits: [],
     logs: [],
     preferences: null,
+    today_outfit: null,
+    recent_outfits: [],
   };
 }
 
