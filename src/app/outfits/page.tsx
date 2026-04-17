@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { Outfit, ClothingItem, Mood } from "@/lib/types";
+import type { Outfit, ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ export default function FavoritesPage() {
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
 
   useEffect(() => {
     async function fetchFavorites() {
@@ -76,6 +77,32 @@ export default function FavoritesPage() {
         </Link>
       </div>
 
+      {/* Occasion filter tabs */}
+      {!loading && outfits.length > 0 && (
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "custom", label: "Custom" },
+              ...Object.entries(OCCASION_LABELS).map(([key, label]) => ({ key, label })),
+            ] as { key: string; label: string }[]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveFilter(key as Occasion | "all" | "custom")}
+              className={cn(
+                "whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                activeFilter === key
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="grid gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -98,7 +125,13 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {outfits.map((outfit) => (
+          {outfits
+            .filter((outfit) => {
+              if (activeFilter === "all") return true;
+              if (activeFilter === "custom") return outfit.source === "manual";
+              return outfit.occasions.includes(activeFilter as Occasion);
+            })
+            .map((outfit) => (
             <Card key={outfit.id} className="overflow-hidden">
               <CardContent className="p-0">
                 {/* Item images row */}
