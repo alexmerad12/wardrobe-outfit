@@ -56,20 +56,20 @@ export function OutfitCard({ items, reasoning, name, onSave, onWearToday, onSkip
             variant="outline"
             size="sm"
             className="flex-1"
-            onClick={onSkip}
-          >
-            <RotateCcw className="mr-1.5 h-4 w-4" />
-            Next
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
             onClick={onSave}
             disabled={saving}
           >
             <Heart className="mr-1.5 h-4 w-4" />
             Favorite
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={onSkip}
+          >
+            <RotateCcw className="mr-1.5 h-4 w-4" />
+            Next
           </Button>
           <Button
             size="sm"
