@@ -44,7 +44,7 @@ export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-si
 
 export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "off-shoulder" | "collared" | "henley" | "cowl" | "other";
 
-export type SleeveLength = "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
+export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
 
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
@@ -323,6 +323,10 @@ export const NECKLINE_LABELS: Record<Neckline, string> = {
 };
 
 export const SLEEVE_LENGTH_LABELS: Record<SleeveLength, string> = {
+  strapless: "Strapless",
+  spaghetti: "Spaghetti Strap",
+  "thin-strap": "Thin Strap",
+  "wide-strap": "Wide Strap",
   sleeveless: "Sleeveless",
   cap: "Cap Sleeve",
   short: "Short Sleeve",
