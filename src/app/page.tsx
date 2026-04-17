@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherWidget } from "@/components/weather-widget";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Shirt, Heart, Trash2, ChevronDown, ChevronUp, Thermometer } from "lucide-react";
+import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,6 @@ export default function HomePage() {
   const [todayOutfit, setTodayOutfit] = useState<TodayOutfit | null>(null);
   const [todayItems, setTodayItems] = useState<ClothingItem[]>([]);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
-  const [todayExpanded, setTodayExpanded] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -118,83 +117,71 @@ export default function HomePage() {
       {/* Today's Outfit */}
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Today&apos;s Outfit</h2>
-            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={toggleTodayFavorite}>
-                <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
-              </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={clearTodayOutfit}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          <Card
-            className="overflow-hidden cursor-pointer"
-            onClick={() => setTodayExpanded(!todayExpanded)}
-          >
-            <CardContent className="p-0">
-              {/* Image grid - always visible */}
-              <div className={cn(
-                "grid gap-0.5",
-                todayItems.length <= 2 ? "grid-cols-2" : todayItems.length <= 4 ? "grid-cols-2" : "grid-cols-3"
-              )}>
+          <h2 className="text-lg font-semibold mb-3">Today&apos;s Outfit</h2>
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 space-y-4">
+              {/* Outfit name */}
+              <div className="flex items-center justify-between">
+                <p className="font-semibold">{todayOutfit.name || "Today's Look"}</p>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={toggleTodayFavorite}>
+                    <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={clearTodayOutfit}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Mood / Occasion / Weather row */}
+              <div className="flex flex-wrap gap-2">
+                {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
+                    <span className="text-base">{MOOD_CONFIG[todayOutfit.mood as Mood].emoji}</span>
+                    <div>
+                      <p className="text-xs font-medium leading-tight">{MOOD_CONFIG[todayOutfit.mood as Mood].label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">Mood</p>
+                    </div>
+                  </div>
+                )}
+                {todayOutfit.occasion && OCCASION_LABELS[todayOutfit.occasion as Occasion] && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
+                    <Sparkles className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs font-medium leading-tight">{OCCASION_LABELS[todayOutfit.occasion as Occasion]}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">Occasion</p>
+                    </div>
+                  </div>
+                )}
+                {todayOutfit.weather_temp !== null && todayOutfit.weather_temp !== undefined && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
+                    <Thermometer className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs font-medium leading-tight">{todayOutfit.weather_temp}°C</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{todayOutfit.weather_condition || "Weather"}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Item photos - horizontal scroll, square aspect ratio */}
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 {todayItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "relative overflow-hidden bg-muted/30",
-                      todayExpanded ? "aspect-square" : "h-24"
-                    )}
-                  >
-                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="160px" />
-                    {todayExpanded && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
-                        <p className="text-[11px] text-white truncate">{item.name}</p>
-                      </div>
-                    )}
+                  <div key={item.id} className="flex-shrink-0 w-28">
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30">
+                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1 truncate text-center">{item.name}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Info section */}
-              <div className="p-3">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{todayOutfit.name || "Today's Look"}</p>
-                  {todayExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-
-                {/* Context badges - always visible */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
-                    <Badge variant="secondary" className="text-[10px] gap-0.5">
-                      {MOOD_CONFIG[todayOutfit.mood as Mood].emoji} {MOOD_CONFIG[todayOutfit.mood as Mood].label}
-                    </Badge>
-                  )}
-                  {todayOutfit.occasion && OCCASION_LABELS[todayOutfit.occasion as Occasion] && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {OCCASION_LABELS[todayOutfit.occasion as Occasion]}
-                    </Badge>
-                  )}
-                  {todayOutfit.weather_temp !== null && todayOutfit.weather_temp !== undefined && (
-                    <Badge variant="outline" className="text-[10px] gap-0.5">
-                      <Thermometer className="h-2.5 w-2.5" />
-                      {todayOutfit.weather_temp}°C
-                    </Badge>
-                  )}
-                </div>
-
-                {/* AI reasoning - expanded only */}
-                {todayExpanded && todayOutfit.reasoning && (
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-2">
-                    {todayOutfit.reasoning}
-                  </p>
-                )}
-              </div>
+              {/* AI reasoning */}
+              {todayOutfit.reasoning && (
+                <p className="text-xs text-muted-foreground leading-relaxed italic">
+                  &ldquo;{todayOutfit.reasoning}&rdquo;
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
