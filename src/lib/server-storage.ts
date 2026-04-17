@@ -21,6 +21,22 @@ export interface TodayOutfit {
   date: string; // YYYY-MM-DD
 }
 
+export interface SavedTrip {
+  id: string;
+  destination: string;
+  lat: number;
+  lng: number;
+  start_date: string;
+  end_date: string;
+  occasions: string;
+  notes: string;
+  packing_item_ids: string[];
+  weather_summary: string | null;
+  packing_tips: string | null;
+  outfit_suggestions: { day: string; item_ids: string[]; note: string }[];
+  created_at: string;
+}
+
 export interface AppData {
   items: ClothingItem[];
   outfits: Outfit[];
@@ -28,6 +44,7 @@ export interface AppData {
   preferences: UserPreferences | null;
   today_outfit: TodayOutfit | null;
   recent_outfits: TodayOutfit[];
+  trips: SavedTrip[];
 }
 
 function getDefaultData(): AppData {
@@ -38,6 +55,7 @@ function getDefaultData(): AppData {
     preferences: null,
     today_outfit: null,
     recent_outfits: [],
+    trips: [],
   };
 }
 
