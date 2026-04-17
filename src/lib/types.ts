@@ -111,6 +111,7 @@ export interface ClothingItem {
   times_worn: number;
   last_worn_date: string | null;
   is_favorite: boolean;
+  is_stored: boolean;
   created_at: string;
 }
 

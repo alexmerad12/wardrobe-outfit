@@ -7,10 +7,10 @@ import type { ClothingItem, Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, X, CheckSquare, Combine } from "lucide-react";
+import { Plus, Trash2, X, CheckSquare, Combine, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ALL_CATEGORIES: (Category | "all")[] = [
+const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
   "all",
   "top",
   "bottom",
@@ -19,12 +19,13 @@ const ALL_CATEGORIES: (Category | "all")[] = [
   "shoes",
   "bag",
   "accessory",
+  "stored",
 ];
 
 export default function WardrobePage() {
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<Category | "all">("all");
+  const [activeCategory, setActiveCategory] = useState<Category | "all" | "stored">("all");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -115,10 +116,36 @@ export default function WardrobePage() {
     }
   }
 
+  async function handleBulkStore(store: boolean) {
+    try {
+      await Promise.all(
+        Array.from(selected).map((id) =>
+          fetch(`/api/items/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_stored: store }),
+          })
+        )
+      );
+      setItems((prev) =>
+        prev.map((item) =>
+          selected.has(item.id) ? { ...item, is_stored: store } : item
+        )
+      );
+      exitSelectMode();
+    } catch (err) {
+      console.error("Failed to store items:", err);
+    }
+  }
+
+  const storedCount = items.filter((i) => i.is_stored).length;
+
   const filteredItems =
-    activeCategory === "all"
-      ? items
-      : items.filter((item) => item.category === activeCategory);
+    activeCategory === "stored"
+      ? items.filter((item) => item.is_stored)
+      : activeCategory === "all"
+      ? items.filter((item) => !item.is_stored)
+      : items.filter((item) => item.category === activeCategory && !item.is_stored);
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
@@ -127,7 +154,7 @@ export default function WardrobePage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Wardrobe</h1>
           <p className="text-sm text-muted-foreground">
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? "item" : "items"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -140,7 +167,17 @@ export default function WardrobePage() {
                 onClick={handleCreateOutfit}
               >
                 <Combine className="h-4 w-4" />
-                Outfit {selected.size > 1 ? `(${selected.size})` : ""}
+                Outfit
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1.5"
+                disabled={selected.size === 0}
+                onClick={() => handleBulkStore(activeCategory !== "stored")}
+              >
+                <Archive className="h-4 w-4" />
+                {activeCategory === "stored" ? "Unstore" : "Store"}
               </Button>
               <Button
                 size="sm"
@@ -150,7 +187,6 @@ export default function WardrobePage() {
                 onClick={handleBulkDelete}
               >
                 <Trash2 className="h-4 w-4" />
-                {selected.size > 0 ? selected.size.toString() : ""}
               </Button>
               <Button size="sm" variant="outline" onClick={exitSelectMode}>
                 <X className="h-4 w-4" />
@@ -193,7 +229,7 @@ export default function WardrobePage() {
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            {cat === "all" ? "All" : CATEGORY_LABELS[cat]}
+            {cat === "all" ? "All" : cat === "stored" ? `Stored${storedCount > 0 ? ` (${storedCount})` : ""}` : CATEGORY_LABELS[cat as Category]}
           </button>
         ))}
       </div>

@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
     const { destination, lat, lng, startDate, endDate, occasions, notes } = await request.json();
 
     const data = await readData();
-    const items = data.items;
+    // Exclude stored items
+    const items = data.items.filter((i) => !i.is_stored);
 
     if (items.length < 3) {
       return NextResponse.json({ error: "Add more items to your wardrobe first" }, { status: 400 });

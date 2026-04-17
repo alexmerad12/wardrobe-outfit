@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
     };
 
     const data = await readData();
-    const items = data.items;
+    // Exclude stored items - they're packed away
+    const items = data.items.filter((i) => !i.is_stored);
 
     if (items.length < 3) {
       return NextResponse.json({

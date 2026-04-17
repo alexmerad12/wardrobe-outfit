@@ -25,7 +25,8 @@ export function ClothingCard({
     <div
       className={cn(
         "group relative overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md",
-        isSelected && "ring-2 ring-primary"
+        isSelected && "ring-2 ring-primary",
+        item.is_stored && "opacity-60"
       )}
     >
       {/* Image */}
