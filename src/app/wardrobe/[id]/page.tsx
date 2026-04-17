@@ -79,6 +79,7 @@ export default function ItemDetailPage() {
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
@@ -261,6 +262,29 @@ export default function ItemDetailPage() {
     router.push("/wardrobe");
   }
 
+  async function handleRemoveBackground() {
+    // Works on either the new image or the current item image
+    const sourceUrl = newImagePreview || item?.image_url;
+    if (!sourceUrl) return;
+    setRemovingBg(true);
+    try {
+      const { removeBackground } = await import("@imgly/background-removal");
+      // Fetch the image as a blob
+      const response = await fetch(sourceUrl);
+      const imageBlob = await response.blob();
+      const resultBlob = await removeBackground(imageBlob);
+      const file = new File([resultBlob], "bg-removed.png", { type: "image/png" });
+      setNewImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Background removal failed:", err);
+    } finally {
+      setRemovingBg(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="mx-auto max-w-md px-4 pt-4">
@@ -365,6 +389,27 @@ export default function ItemDetailPage() {
           }}
         />
       </div>
+
+      {/* Remove background button - edit mode */}
+      {editing && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full mb-4"
+          onClick={handleRemoveBackground}
+          disabled={removingBg}
+        >
+          {removingBg ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Removing background...
+            </>
+          ) : (
+            "Remove background"
+          )}
+        </Button>
+      )}
 
       {editing ? (
         /* ==================== EDIT MODE ==================== */
