@@ -121,6 +121,13 @@ ${favoritesSection}
 
 Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
 
+HARD RULES - never break these:
+- A DRESS is a complete garment. NEVER pair a dress with pants, jeans, shorts, skirts, or any bottom. A dress goes with shoes, optional outerwear/layering, and accessories only.
+- NEVER combine two items from the same category (e.g., two tops, two bottoms, two dresses) UNLESS one is marked as a "layering piece" that goes OVER the other.
+- A JUMPSUIT is also a complete garment - do not add bottoms.
+- Only include a "layering piece" TOP over a base top when layering makes sense (vest over shirt, cardigan over tee, open shirt over tank).
+- An outfit needs exactly ONE base (either a dress/jumpsuit, OR a top+bottom combo). Not both.
+
 STYLING PRINCIPLES:
 - Mix textures (e.g., denim with knit, leather with cotton)
 - Balance proportions (fitted top with wider bottom, or vice versa)
