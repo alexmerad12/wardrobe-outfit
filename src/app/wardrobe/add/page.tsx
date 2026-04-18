@@ -138,7 +138,7 @@ export default function AddItemPage() {
     category === "outerwear" ||
     (category === "bottom" && !isJeansTrousers);
   const showBottomFit = category === "bottom" && isJeansTrousers;
-  const showLength = ["top", "bottom", "dress", "outerwear"].includes(category as string);
+  const showLength = ["top", "bottom", "outerwear"].includes(category as string);
   const showWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(category as string);
   const showWaistHeight = category === "bottom" && isJeansTrousers;
   const showBeltCompatible =

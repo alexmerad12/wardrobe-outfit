@@ -121,12 +121,22 @@ ${favoritesSection}
 
 Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
 
-HARD RULES - never break these:
-- A DRESS is a complete garment. NEVER pair a dress with pants, jeans, shorts, skirts, or any bottom. A dress goes with shoes, optional outerwear/layering, and accessories only.
-- NEVER combine two items from the same category (e.g., two tops, two bottoms, two dresses) UNLESS one is marked as a "layering piece" that goes OVER the other.
-- A JUMPSUIT is also a complete garment - do not add bottoms.
-- Only include a "layering piece" TOP over a base top when layering makes sense (vest over shirt, cardigan over tee, open shirt over tank).
-- An outfit needs exactly ONE base (either a dress/jumpsuit, OR a top+bottom combo). Not both.
+⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
+
+1. DRESSES ARE WORN ALONE AS THE FULL OUTFIT BASE.
+   - If an outfit contains an item from the "dress" category (mini-dress, midi-dress, maxi-dress, jumpsuit), it MUST NOT contain ANY item from the "bottom" category (no jeans, no trousers, no shorts, no skirts, no leggings, no sweatpants - NOTHING).
+   - Check every outfit you generate: if dress is in it, bottom MUST NOT be in it. This is non-negotiable.
+   - A dress + shoes + (optional) outerwear/layering + (optional) accessory is the full valid structure.
+
+2. ONE BASE PER OUTFIT:
+   - Each outfit must have exactly ONE foundation - either a single dress/jumpsuit OR a top+bottom pair. Never both.
+
+3. NO DUPLICATES FROM SAME CATEGORY:
+   - Don't include two tops, two bottoms, or two dresses in one outfit.
+   - EXCEPTION: One "layering piece" can go over a base top (vest over shirt, cardigan over tee, open shirt over tank). Only one layering piece per outfit.
+
+4. CATEGORY CHECK:
+   - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item.
 
 STYLING PRINCIPLES:
 - Mix textures (e.g., denim with knit, leather with cotton)
@@ -180,9 +190,15 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
 
     // Resolve items and build response
     const suggestions = aiSuggestions.map((s) => {
-      const outfitItems = s.item_ids
+      let outfitItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
+
+      // Safety net: if the outfit has a dress/jumpsuit, strip out any bottoms
+      const hasDress = outfitItems.some((i) => i.category === "dress");
+      if (hasDress) {
+        outfitItems = outfitItems.filter((i) => i.category !== "bottom");
+      }
 
       return {
         items: outfitItems,

@@ -175,7 +175,7 @@ export default function ItemDetailPage() {
     editCategory === "outerwear" ||
     (editCategory === "bottom" && !editIsJeansTrousers);
   const editShowBottomFit = editCategory === "bottom" && editIsJeansTrousers;
-  const editShowLength = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
+  const editShowLength = ["top", "bottom", "outerwear"].includes(editCategory);
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowWaistHeight = editCategory === "bottom" && editIsJeansTrousers;
   const editShowBeltCompatible = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
