@@ -50,7 +50,7 @@ export type Formality = "very-casual" | "casual" | "smart-casual" | "business-ca
 
 export type Season = "spring" | "summer" | "fall" | "winter";
 
-export type Occasion = "work" | "casual" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home" | "errands";
+export type Occasion = "work" | "casual" | "brunch" | "dinner-out" | "hangout" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home" | "errands";
 
 export type Mood = "energized" | "confident" | "playful" | "cozy" | "chill" | "bold" | "period" | "sad";
 
@@ -214,6 +214,9 @@ export const MOOD_CONFIG: Record<Mood, { emoji: string; label: string; descripti
 export const OCCASION_LABELS: Record<Occasion, string> = {
   work: "Work",
   casual: "Casual",
+  brunch: "Brunch",
+  "dinner-out": "Dinner Out",
+  hangout: "Hangout",
   "at-home": "At Home",
   errands: "Errands",
   date: "Date Night",
