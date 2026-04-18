@@ -44,10 +44,11 @@ function describeItem(item: ClothingItem): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { mood, occasion, styleWishes = [] } = (await request.json()) as {
+    const { mood, occasion, styleWishes = [], anchorItemId = null } = (await request.json()) as {
       mood: Mood;
       occasion: Occasion;
       styleWishes?: string[];
+      anchorItemId?: string | null;
     };
 
     const data = await readData();
@@ -115,10 +116,10 @@ ${wardrobeList}
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
 MOOD: ${moodInfo.emoji} ${moodInfo.label} - ${moodInfo.description}
-OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}
+OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: The user specifically wants to wear the item with id [${anchorItemId}]. EVERY outfit MUST include this item. Build each look around it.` : ""}
 ${favoritesSection}
 
-Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}
+Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
 
 STYLING PRINCIPLES:
 - Mix textures (e.g., denim with knit, leather with cotton)

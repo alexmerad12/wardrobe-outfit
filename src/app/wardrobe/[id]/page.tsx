@@ -70,6 +70,7 @@ import {
   Loader2,
   X,
   Camera,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -399,6 +400,18 @@ export default function ItemDetailPage() {
           }}
         />
       </div>
+
+      {/* Outfit with this - view mode */}
+      {!editing && (
+        <Button
+          type="button"
+          className="w-full mb-4 gap-2"
+          onClick={() => router.push(`/suggest?item=${item.id}`)}
+        >
+          <Sparkles className="h-4 w-4" />
+          Outfit with this
+        </Button>
+      )}
 
       {/* Remove background button - edit mode */}
       {editing && (

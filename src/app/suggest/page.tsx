@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { WeatherWidget } from "@/components/weather-widget";
 import { MoodPicker } from "@/components/mood-picker";
 import { OutfitCard } from "@/components/outfit-card";
 import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
-import { Sparkles, Loader2, ArrowLeft } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface AISuggestion {
   items: ClothingItem[];
@@ -21,7 +22,18 @@ interface AISuggestion {
 }
 
 export default function SuggestPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-md px-4 pt-6"><Loader2 className="h-5 w-5 animate-spin" /></div>}>
+      <SuggestContent />
+    </Suspense>
+  );
+}
+
+function SuggestContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const anchorItemId = searchParams.get("item");
+
   const [mood, setMood] = useState<Mood | null>(null);
   const [occasion, setOccasion] = useState<Occasion | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,6 +44,16 @@ export default function SuggestPage() {
   const [styleWishes, setStyleWishes] = useState<string[]>([]);
   const [customWish, setCustomWish] = useState("");
   const [wardrobeGap, setWardrobeGap] = useState<string | null>(null);
+  const [anchorItem, setAnchorItem] = useState<ClothingItem | null>(null);
+
+  // Load the anchor item if one was passed
+  useEffect(() => {
+    if (!anchorItemId) return;
+    fetch(`/api/items/${anchorItemId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then(setAnchorItem)
+      .catch(() => {});
+  }, [anchorItemId]);
 
   const STYLE_PRESETS = [
     "Dress day",
@@ -60,7 +82,7 @@ export default function SuggestPage() {
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, occasion, styleWishes: allWishes }),
+        body: JSON.stringify({ mood, occasion, styleWishes: allWishes, anchorItemId }),
       });
 
       if (res.ok) {
@@ -183,6 +205,22 @@ export default function SuggestPage() {
           </p>
         </div>
       </div>
+
+      {/* Anchor item banner */}
+      {anchorItem && (
+        <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 p-3 mb-4">
+          <div className="relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30">
+            <Image src={anchorItem.image_url} alt={anchorItem.name} fill className="object-cover" sizes="56px" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+              <Pin className="h-3 w-3" />
+              Styling around this item
+            </p>
+            <p className="text-sm font-medium truncate">{anchorItem.name}</p>
+          </div>
+        </div>
+      )}
 
       {/* Weather context */}
       <div className="mb-6">
