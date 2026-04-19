@@ -22,7 +22,7 @@ export type Subcategory =
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embroidery" | "other";
 
-export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "faux-leather" | "suede" | "faux-suede" | "patent-leather" | "linen" | "knit" | "satin" | "velvet" | "corduroy" | "canvas" | "mesh" | "fur-shearling" | "faux-fur" | "rubber" | "nylon" | "other";
+export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "faux-leather" | "suede" | "faux-suede" | "patent-leather" | "linen" | "knit" | "satin" | "velvet" | "corduroy" | "canvas" | "mesh" | "sheer" | "lace" | "tulle" | "chiffon" | "fur-shearling" | "faux-fur" | "rubber" | "nylon" | "other";
 
 export type Fit = "slim" | "regular" | "loose" | "oversized";
 
@@ -427,6 +427,10 @@ export const MATERIAL_LABELS: Record<Material, string> = {
   corduroy: "Corduroy",
   canvas: "Canvas",
   mesh: "Mesh",
+  sheer: "Sheer",
+  lace: "Lace",
+  tulle: "Tulle",
+  chiffon: "Chiffon",
   "fur-shearling": "Fur / Shearling",
   "faux-fur": "Faux Fur",
   rubber: "Rubber",
