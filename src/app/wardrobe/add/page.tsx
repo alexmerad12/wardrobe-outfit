@@ -189,9 +189,12 @@ export default function AddItemPage() {
   const showSleeveLength =
     ["top", "dress", "outerwear"].includes(category as string) &&
     subcategory !== "tank-top";
+  // Closure: only for tops/outerwear where there's an actual opening,
+  // and for dresses (wrap dress, button-up, zipper, etc.)
   const showClosure =
-    ["top", "dress", "outerwear"].includes(category as string) &&
-    subcategory !== "tank-top";
+    category === "dress" ||
+    category === "outerwear" ||
+    (category === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(subcategory));
 
   function extractColorsFromImage(dataUrl: string) {
     setDetectingColors(true);

@@ -211,8 +211,9 @@ export default function ItemDetailPage() {
     ["top", "dress", "outerwear"].includes(editCategory) &&
     editSubcategory !== "tank-top";
   const editShowClosure =
-    ["top", "dress", "outerwear"].includes(editCategory) &&
-    editSubcategory !== "tank-top";
+    editCategory === "dress" ||
+    editCategory === "outerwear" ||
+    (editCategory === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(editSubcategory));
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowWaistHeight = editCategory === "bottom" && editIsJeansTrousers;
   const editShowWaistClosure =
