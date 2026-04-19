@@ -46,6 +46,8 @@ export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtle
 
 export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
 
+export type Closure = "pullover" | "full-button" | "partial-button" | "zipper" | "wrap-tie" | "snap" | "hook-eye" | "open-drape" | "other";
+
 export type Formality = "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal";
 
 export type Season = "spring" | "summer" | "fall" | "winter";
@@ -89,6 +91,7 @@ export interface ClothingItem {
   is_neutral: boolean;
   neckline: Neckline | null;
   sleeve_length: SleeveLength | null;
+  closure: Closure | null;
   pattern: Pattern | Pattern[];
   material: Material | Material[];
   fit: Fit | null;
@@ -336,6 +339,18 @@ export const SLEEVE_LENGTH_LABELS: Record<SleeveLength, string> = {
   elbow: "Elbow",
   "three-quarter": "3/4 Sleeve",
   long: "Long Sleeve",
+  other: "Other",
+};
+
+export const CLOSURE_LABELS: Record<Closure, string> = {
+  pullover: "Pullover (no closure)",
+  "full-button": "Full Button-up",
+  "partial-button": "Partial Buttons",
+  zipper: "Zipper",
+  "wrap-tie": "Wrap / Tie",
+  snap: "Snap",
+  "hook-eye": "Hook & Eye",
+  "open-drape": "Open / Drape",
   other: "Other",
 };
 

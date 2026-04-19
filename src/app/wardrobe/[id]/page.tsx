@@ -24,6 +24,7 @@ import type {
   Occasion,
   Neckline,
   SleeveLength,
+  Closure,
 } from "@/lib/types";
 import {
   CATEGORY_LABELS,
@@ -39,6 +40,7 @@ import {
   METAL_FINISH_LABELS,
   NECKLINE_LABELS,
   SLEEVE_LENGTH_LABELS,
+  CLOSURE_LABELS,
   MATERIAL_LABELS,
   PATTERN_LABELS,
   FORMALITY_LABELS,
@@ -104,6 +106,7 @@ export default function ItemDetailPage() {
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
   const [editSleeveLength, setEditSleeveLength] = useState<SleeveLength | null>(null);
+  const [editClosure, setEditClosure] = useState<Closure | null>(null);
   const [editPatterns, setEditPatterns] = useState<Pattern[]>([]);
   const [editMaterials, setEditMaterials] = useState<Material[]>([]);
   const [editFormalities, setEditFormalities] = useState<Formality[]>(["casual"]);
@@ -150,6 +153,7 @@ export default function ItemDetailPage() {
     setEditMetalFinish(item.metal_finish ?? null);
     setEditNeckline(item.neckline ?? null);
     setEditSleeveLength(item.sleeve_length ?? null);
+    setEditClosure(item.closure ?? null);
     setEditPatterns(Array.isArray(item.pattern) ? item.pattern : [item.pattern]);
     setEditMaterials(Array.isArray(item.material) ? item.material : [item.material]);
     // Backwards compat: formality may be a single string on old items
@@ -184,6 +188,9 @@ export default function ItemDetailPage() {
     editSubcategory !== "hoodie" &&
     editSubcategory !== "cardigan";
   const editShowSleeveLength =
+    ["top", "dress", "outerwear"].includes(editCategory) &&
+    editSubcategory !== "tank-top";
+  const editShowClosure =
     ["top", "dress", "outerwear"].includes(editCategory) &&
     editSubcategory !== "tank-top";
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
@@ -236,6 +243,7 @@ export default function ItemDetailPage() {
           metal_finish: ["shoes", "accessory"].includes(editCategory) ? editMetalFinish : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
+          closure: editShowClosure ? editClosure : null,
           pattern: editPatterns,
           material: editMaterials,
           formality: editFormalities,
@@ -662,6 +670,18 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Closure */}
+          {editShowClosure && (
+            <div className="space-y-1">
+              <Label>Closure</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(CLOSURE_LABELS) as [Closure, string][]).map(([c, label]) => (
+                  <button key={c} type="button" onClick={() => setEditClosure(editClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Material */}
           <div className="space-y-1">
             <Label>Material</Label>
@@ -865,6 +885,14 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Sleeves</p>
                   <p className="text-sm font-medium">{SLEEVE_LENGTH_LABELS[item.sleeve_length]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {item.closure && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Closure</p>
+                  <p className="text-sm font-medium">{CLOSURE_LABELS[item.closure]}</p>
                 </CardContent>
               </Card>
             )}

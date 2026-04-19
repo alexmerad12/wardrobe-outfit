@@ -22,6 +22,9 @@ function describeItem(item: ClothingItem): string {
   if (item.shoe_height) parts.push(`Height: ${item.shoe_height}`);
   if (item.heel_type) parts.push(`Heel: ${item.heel_type}`);
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
+  if (item.neckline) parts.push(`Neckline: ${item.neckline}`);
+  if (item.sleeve_length) parts.push(`Sleeves: ${item.sleeve_length}`);
+  if (item.closure) parts.push(`Closure: ${item.closure}`);
   if (item.is_layering_piece) parts.push("(layering piece)");
 
   const mats = Array.isArray(item.material) ? item.material : [item.material];

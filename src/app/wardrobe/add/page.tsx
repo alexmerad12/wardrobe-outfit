@@ -20,6 +20,7 @@ import type {
   MetalFinish,
   Neckline,
   SleeveLength,
+  Closure,
   Formality,
   Season,
   Occasion,
@@ -38,6 +39,7 @@ import {
   METAL_FINISH_LABELS,
   NECKLINE_LABELS,
   SLEEVE_LENGTH_LABELS,
+  CLOSURE_LABELS,
   MATERIAL_LABELS,
   FIT_LABELS,
   FORMALITY_LABELS,
@@ -78,6 +80,7 @@ export default function AddItemPage() {
   const [fit, setFit] = useState<Fit>("regular");
   const [neckline, setNeckline] = useState<Neckline | null>(null);
   const [sleeveLength, setSleeveLength] = useState<SleeveLength | null>(null);
+  const [closure, setClosure] = useState<Closure | null>(null);
   const [bottomFit, setBottomFit] = useState<BottomFit>("regular");
   const [length, setLength] = useState<Length>("regular");
   const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
@@ -165,6 +168,9 @@ export default function AddItemPage() {
     subcategory !== "cardigan";
   // Sleeve length: hide for tank tops (always straps/sleeveless by nature)
   const showSleeveLength =
+    ["top", "dress", "outerwear"].includes(category as string) &&
+    subcategory !== "tank-top";
+  const showClosure =
     ["top", "dress", "outerwear"].includes(category as string) &&
     subcategory !== "tank-top";
 
@@ -336,6 +342,7 @@ export default function AddItemPage() {
           belt_position: showBeltPosition ? beltPosition : null,
           neckline: showNeckline ? neckline : null,
           sleeve_length: showSleeveLength ? sleeveLength : null,
+          closure: showClosure ? closure : null,
           metal_finish: ["shoes", "accessory"].includes(category) ? metalFinish : null,
           formality: formalities,
           seasons,
@@ -709,6 +716,18 @@ export default function AddItemPage() {
             <div className="flex flex-wrap gap-2">
               {(Object.entries(SLEEVE_LENGTH_LABELS) as [SleeveLength, string][]).map(([s, label]) => (
                 <button key={s} type="button" onClick={() => setSleeveLength(sleeveLength === s ? null : s)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", sleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Closure - tops, dresses, outerwear */}
+        {showClosure && (
+          <div className="space-y-2">
+            <Label>Closure</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(CLOSURE_LABELS) as [Closure, string][]).map(([c, label]) => (
+                <button key={c} type="button" onClick={() => setClosure(closure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", closure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
               ))}
             </div>
           </div>
