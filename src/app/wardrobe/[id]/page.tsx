@@ -126,6 +126,7 @@ export default function ItemDetailPage() {
   const [editOccasions, setEditOccasions] = useState<Occasion[]>([]);
   const [editWarmth, setEditWarmth] = useState(3);
   const [editRain, setEditRain] = useState(false);
+  const [editStored, setEditStored] = useState(false);
   const [editBrand, setEditBrand] = useState("");
   const [editColors, setEditColors] = useState<{ hex: string; name: string; percentage: number }[]>([]);
   const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
@@ -182,6 +183,7 @@ export default function ItemDetailPage() {
     setEditOccasions(item.occasions);
     setEditWarmth(item.warmth_rating);
     setEditRain(item.rain_appropriate);
+    setEditStored(item.is_stored ?? false);
     setEditBrand(item.brand ?? "");
     setEditColors([...item.colors]);
     setEditing(true);
@@ -276,6 +278,7 @@ export default function ItemDetailPage() {
           occasions: editOccasions,
           warmth_rating: editShowWarmth ? editWarmth : 3,
           rain_appropriate: editRain,
+          is_stored: editStored,
           brand: editBrand || null,
           colors: editColors,
         }),
@@ -821,6 +824,15 @@ export default function ItemDetailPage() {
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setEditRain(!editRain)} className={cn("h-5 w-5 rounded border-2 transition-colors", editRain ? "border-primary bg-primary" : "border-muted-foreground/30")} />
             <Label className="cursor-pointer" onClick={() => setEditRain(!editRain)}>Rain appropriate</Label>
+          </div>
+
+          {/* Stored */}
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setEditStored(!editStored)} className={cn("h-5 w-5 rounded border-2 transition-colors", editStored ? "border-primary bg-primary" : "border-muted-foreground/30")} />
+            <div>
+              <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>Stored</Label>
+              <p className="text-xs text-muted-foreground">Packed away — excluded from outfit suggestions</p>
+            </div>
           </div>
 
           <div className="space-y-1">
