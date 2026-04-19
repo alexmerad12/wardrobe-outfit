@@ -17,9 +17,9 @@ export function StylistLoader({ className, size = "md", label = "Yav is styling"
   const [entering, setEntering] = useState(true);
 
   useEffect(() => {
-    // Cycle: visible ~270ms, fade out ~120ms, swap
-    const cycleMs = 390;
-    const fadeOutAt = 270;
+    // Cycle: visible ~310ms, fade out ~140ms, swap
+    const cycleMs = 450;
+    const fadeOutAt = 310;
 
     const fadeOut = setTimeout(() => setEntering(false), fadeOutAt);
     const swap = setTimeout(() => {
@@ -41,16 +41,16 @@ export function StylistLoader({ className, size = "md", label = "Yav is styling"
       <Icon
         className={cn(
           iconSize,
-          "transition-all duration-120 ease-in-out",
+          "transition-all duration-150 ease-in-out",
           entering ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-12"
         )}
       />
       <span className="text-sm inline-flex items-baseline">
         {label}
         <span className="inline-flex ml-0.5">
-          <span className="animate-[fade_1.2s_ease-in-out_infinite]">.</span>
-          <span className="animate-[fade_1.2s_ease-in-out_infinite] [animation-delay:0.2s]">.</span>
-          <span className="animate-[fade_1.2s_ease-in-out_infinite] [animation-delay:0.4s]">.</span>
+          <span className="animate-[fade_1.5s_ease-in-out_infinite]">.</span>
+          <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.25s]">.</span>
+          <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.5s]">.</span>
         </span>
       </span>
     </div>
