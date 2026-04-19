@@ -54,7 +54,7 @@ import {
   SEASON_LABELS,
   OCCASION_LABELS,
 } from "@/lib/types";
-import { upload } from "@vercel/blob/client";
+import { createClient } from "@/lib/supabase/client";
 import { hexToHSL, isNeutralColor, getColorName } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
@@ -126,6 +126,11 @@ export default function AddItemPage() {
   const [existingItems, setExistingItems] = useState<ClothingItem[]>([]);
   useEffect(() => {
     fetch("/api/items").then((r) => r.ok ? r.json() : []).then(setExistingItems).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Warm up the bg-removal WASM model so first click feels instant
+    import("@imgly/background-removal").catch(() => {});
   }, []);
 
   const similarItems = useMemo(() => {
@@ -367,15 +372,32 @@ export default function AddItemPage() {
     setError(null);
 
     try {
-      const blob = await upload(
-        `clothing/${Date.now()}-${imageFile.name}`,
-        imageFile,
-        {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-        }
-      );
-      const imageUrl = blob.url;
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setError("You must be signed in to add items.");
+        setSaving(false);
+        return;
+      }
+
+      const safeName = imageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${user.id}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("clothing-images")
+        .upload(path, imageFile, { contentType: imageFile.type });
+
+      if (uploadError) {
+        setError(`Upload failed: ${uploadError.message}`);
+        setSaving(false);
+        return;
+      }
+
+      const { data: publicUrl } = supabase.storage
+        .from("clothing-images")
+        .getPublicUrl(path);
+      const imageUrl = publicUrl.publicUrl;
 
       const allColors = [...manualColors, ...detectedColors];
       const colors = allColors.length > 0

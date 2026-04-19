@@ -1,40 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData, writeData } from "@/lib/server-storage";
-import type { OutfitLog } from "@/lib/types";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function GET(request: NextRequest) {
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
+
   const { searchParams } = new URL(request.url);
   const startDate = searchParams.get("start");
   const endDate = searchParams.get("end");
 
-  const data = await readData();
-  let logs = data.logs;
+  let query = supabase
+    .from("outfit_log")
+    .select("*")
+    .order("worn_date", { ascending: false });
 
   if (startDate && endDate) {
-    logs = logs.filter(
-      (l) => l.worn_date >= startDate && l.worn_date <= endDate
-    );
+    query = query.gte("worn_date", startDate).lte("worn_date", endDate);
   }
 
-  return NextResponse.json(logs);
+  const { data, error } = await query;
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = (await request.json()) as Omit<OutfitLog, "id">;
-    const data = await readData();
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
-    const newLog: OutfitLog = {
-      ...body,
-      id: crypto.randomUUID(),
-    };
+  const body = await request.json();
+  delete body.id;
+  delete body.user_id;
+  delete body.created_at;
 
-    data.logs.push(newLog);
-    await writeData(data);
+  const { data, error } = await supabase
+    .from("outfit_log")
+    .insert({ ...body, user_id: userId })
+    .select()
+    .single();
 
-    return NextResponse.json(newLog, { status: 201 });
-  } catch (error) {
-    console.error("Failed to create log:", error);
-    return NextResponse.json({ error: "Failed to create log" }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  return NextResponse.json(data, { status: 201 });
 }

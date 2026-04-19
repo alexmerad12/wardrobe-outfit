@@ -2,10 +2,66 @@
 
 import { useEffect, useState } from "react";
 import type { WeatherData } from "@/lib/types";
-import { getWeather } from "@/lib/weather";
 import { Droplets, Wind } from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
+
+const COORDS_KEY = "wx:coords:v1";
+const DATA_KEY_PREFIX = "wx:data:v1:";
+const COORDS_TTL_MS = 24 * 60 * 60 * 1000;
+const DATA_TTL_MS = 15 * 60 * 1000;
+const FALLBACK_LAT = 48.8566;
+const FALLBACK_LNG = 2.3522;
+
+type Coords = { lat: number; lng: number };
+
+function roundCoord(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+function readCachedCoords(): Coords | null {
+  try {
+    const raw = localStorage.getItem(COORDS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { lat: number; lng: number; ts: number };
+    if (Date.now() - parsed.ts > COORDS_TTL_MS) return null;
+    return { lat: parsed.lat, lng: parsed.lng };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCoords(coords: Coords) {
+  try {
+    localStorage.setItem(COORDS_KEY, JSON.stringify({ ...coords, ts: Date.now() }));
+  } catch {}
+}
+
+function readCachedData(coords: Coords): WeatherData | null {
+  try {
+    const key = `${DATA_KEY_PREFIX}${roundCoord(coords.lat)},${roundCoord(coords.lng)}`;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: WeatherData; ts: number };
+    if (Date.now() - parsed.ts > DATA_TTL_MS) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedData(coords: Coords, data: WeatherData) {
+  try {
+    const key = `${DATA_KEY_PREFIX}${roundCoord(coords.lat)},${roundCoord(coords.lng)}`;
+    sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
+
+async function fetchWeatherFromApi(coords: Coords): Promise<WeatherData> {
+  const res = await fetch(`/api/weather?lat=${coords.lat}&lng=${coords.lng}`);
+  if (!res.ok) throw new Error("Failed to fetch weather");
+  return (await res.json()) as WeatherData;
+}
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -14,41 +70,58 @@ export function WeatherWidget() {
   const unit = useTemperatureUnit();
 
   useEffect(() => {
-    async function fetchWeather() {
-      try {
-        if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              try {
-                const data = await getWeather(
-                  position.coords.latitude,
-                  position.coords.longitude
-                );
-                setWeather(data);
-              } catch {
-                setError("Couldn't fetch weather");
-              } finally {
-                setLoading(false);
-              }
-            },
-            () => {
-              getWeather(48.8566, 2.3522)
-                .then(setWeather)
-                .catch(() => setError("Couldn't fetch weather"))
-                .finally(() => setLoading(false));
-            }
-          );
-        } else {
+    let cancelled = false;
+
+    async function loadForCoords(coords: Coords, fromCache: boolean) {
+      const cached = readCachedData(coords);
+      if (cached) {
+        if (!cancelled) {
+          setWeather(cached);
           setLoading(false);
-          setError("Location not supported");
         }
+        return;
+      }
+      try {
+        const data = await fetchWeatherFromApi(coords);
+        if (cancelled) return;
+        writeCachedData(coords, data);
+        setWeather(data);
       } catch {
-        setLoading(false);
-        setError("Couldn't fetch weather");
+        if (!cancelled && !fromCache) setError("Couldn't fetch weather");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
-    fetchWeather();
+    const cachedCoords = readCachedCoords();
+    if (cachedCoords) {
+      // Fast path: skip the geolocation prompt entirely
+      loadForCoords(cachedCoords, true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!("geolocation" in navigator)) {
+      setLoading(false);
+      setError("Location not supported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+        writeCachedCoords(coords);
+        loadForCoords(coords, false);
+      },
+      () => {
+        loadForCoords({ lat: FALLBACK_LAT, lng: FALLBACK_LNG }, false);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {

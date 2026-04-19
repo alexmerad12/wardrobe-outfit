@@ -1,34 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData, writeData } from "@/lib/server-storage";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
   const { id } = await params;
-  const updates = await request.json();
-  const data = await readData();
 
-  const index = data.outfits.findIndex((o) => o.id === id);
-  if (index === -1) {
+  const updates = await request.json();
+  delete updates.id;
+  delete updates.user_id;
+  delete updates.created_at;
+
+  const { data, error } = await supabase
+    .from("outfits")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data) {
     return NextResponse.json({ error: "Outfit not found" }, { status: 404 });
   }
-
-  data.outfits[index] = { ...data.outfits[index], ...updates };
-  await writeData(data);
-
-  return NextResponse.json(data.outfits[index]);
+  return NextResponse.json(data);
 }
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
   const { id } = await params;
-  const data = await readData();
 
-  data.outfits = data.outfits.filter((o) => o.id !== id);
-  await writeData(data);
+  const { error } = await supabase.from("outfits").delete().eq("id", id);
 
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

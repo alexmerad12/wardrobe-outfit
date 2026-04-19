@@ -1,31 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData, writeData } from "@/lib/server-storage";
-import type { ClothingItem } from "@/lib/types";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function GET() {
-  const data = await readData();
-  return NextResponse.json(data.items);
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
+
+  const { data, error } = await supabase
+    .from("clothing_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const item = (await request.json()) as Omit<ClothingItem, "id" | "created_at" | "times_worn" | "last_worn_date">;
-    const data = await readData();
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
-    const newItem: ClothingItem = {
-      ...item,
-      id: crypto.randomUUID(),
-      times_worn: 0,
-      last_worn_date: null,
-      created_at: new Date().toISOString(),
-    };
+  const body = await request.json();
+  // Strip client-provided fields that the server owns
+  delete body.id;
+  delete body.user_id;
+  delete body.created_at;
+  delete body.times_worn;
+  delete body.last_worn_date;
 
-    data.items.unshift(newItem);
-    await writeData(data);
+  const { data, error } = await supabase
+    .from("clothing_items")
+    .insert({ ...body, user_id: userId, times_worn: 0, last_worn_date: null })
+    .select()
+    .single();
 
-    return NextResponse.json(newItem, { status: 201 });
-  } catch (error) {
-    console.error("Failed to create item:", error);
-    return NextResponse.json({ error: "Failed to create item" }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  return NextResponse.json(data, { status: 201 });
 }

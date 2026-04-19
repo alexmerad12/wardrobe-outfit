@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData } from "@/lib/server-storage";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ClothingItem } from "@/lib/types";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 const anthropic = new Anthropic();
 
@@ -21,18 +21,28 @@ function describeItem(item: ClothingItem): string {
 }
 
 export async function POST(request: NextRequest) {
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
+
   try {
     const { destination, lat, lng, startDate, endDate, occasions, notes } = await request.json();
 
-    const data = await readData();
-    // Exclude stored items
-    const items = data.items.filter((i) => !i.is_stored);
+    const { data: allItems, error } = await supabase
+      .from("clothing_items")
+      .select("*")
+      .eq("is_stored", false);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const items = (allItems ?? []) as ClothingItem[];
 
     if (items.length < 3) {
       return NextResponse.json({ error: "Add more items to your wardrobe first" }, { status: 400 });
     }
 
-    // Get weather for destination
     let weatherInfo = "Weather data unavailable.";
     try {
       const start = new Date(startDate);
@@ -40,7 +50,6 @@ export async function POST(request: NextRequest) {
       const daysUntilTrip = Math.round((start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
       if (daysUntilTrip <= 10 && daysUntilTrip >= 0) {
-        // Use forecast for trips within 10 days
         const forecastRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&start_date=${startDate}&end_date=${endDate}&timezone=auto`
         );
@@ -53,7 +62,6 @@ export async function POST(request: NextRequest) {
           weatherInfo = `Forecast: ${temps}`;
         }
       } else {
-        // Use historical averages for trips further out
         const month = start.getMonth() + 1;
         const historicalRes = await fetch(
           `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lng}&start_date=${start.getFullYear() - 1}-${String(month).padStart(2, "0")}-01&end_date=${start.getFullYear() - 1}-${String(month).padStart(2, "0")}-28&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&models=EC_Earth3P_HR`
@@ -77,10 +85,12 @@ export async function POST(request: NextRequest) {
 
     const wardrobeList = items.map(describeItem).join("\n");
 
-    const prompt = `You are Yav, an expert personal stylist and travel packing advisor. Create a smart packing list from the user's wardrobe for their trip.
+    const cachedPrefix = `You are Yav, an expert personal stylist and travel packing advisor. Create a smart packing list from the user's wardrobe for their trip.
 
 WARDROBE:
-${wardrobeList}
+${wardrobeList}`;
+
+    const dynamicSuffix = `
 
 TRIP DETAILS:
 - Destination: ${destination}
@@ -123,7 +133,15 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
+            { type: "text", text: dynamicSuffix },
+          ],
+        },
+      ],
     });
 
     const text = message.content[0].type === "text" ? message.content[0].text : "";
@@ -135,7 +153,6 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Resolve items
     const packingList = (parsed.packing_list ?? []).map((p: { item_id: string; reason: string }) => ({
       item: items.find((i) => i.id === p.item_id),
       reason: p.reason,

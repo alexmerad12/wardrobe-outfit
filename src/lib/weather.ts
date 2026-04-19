@@ -28,9 +28,12 @@ const WEATHER_CODES: Record<number, { condition: string; icon: string }> = {
 };
 
 export async function getWeather(lat: number, lng: number): Promise<WeatherData> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=precipitation_probability_max,uv_index_max&timezone=auto`;
+  // Round to 2 decimals (~1.1 km precision) so nearby users share the cache key
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLng = Math.round(lng * 100) / 100;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${roundedLat}&longitude=${roundedLng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=precipitation_probability_max,uv_index_max&timezone=auto`;
 
-  const response = await fetch(url);
+  const response = await fetch(url, { next: { revalidate: 1800 } });
   if (!response.ok) {
     throw new Error("Failed to fetch weather data");
   }

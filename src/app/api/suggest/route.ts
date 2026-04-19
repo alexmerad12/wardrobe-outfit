@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData } from "@/lib/server-storage";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 const anthropic = new Anthropic();
 
@@ -50,6 +50,10 @@ function describeItem(item: ClothingItem): string {
 }
 
 export async function POST(request: NextRequest) {
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
+
   try {
     const { mood, occasion, styleWishes = [], anchorItemId = null } = (await request.json()) as {
       mood: Mood;
@@ -58,9 +62,24 @@ export async function POST(request: NextRequest) {
       anchorItemId?: string | null;
     };
 
-    const data = await readData();
-    // Exclude stored items - they're packed away
-    const items = data.items.filter((i) => !i.is_stored);
+    const [itemsRes, prefsRes, outfitsRes] = await Promise.all([
+      supabase.from("clothing_items").select("*").eq("is_stored", false),
+      supabase.from("user_preferences").select("*").eq("user_id", userId).maybeSingle(),
+      supabase
+        .from("outfits")
+        .select("*")
+        .eq("is_favorite", true)
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
+
+    if (itemsRes.error) {
+      return NextResponse.json({ error: itemsRes.error.message }, { status: 500 });
+    }
+
+    const items = (itemsRes.data ?? []) as ClothingItem[];
+    const prefs = prefsRes.data;
+    const favoriteOutfits = outfitsRes.data ?? [];
 
     if (items.length < 3) {
       return NextResponse.json({
@@ -69,10 +88,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get weather
     let weather: WeatherData | null = null;
     try {
-      const location = data.preferences?.location;
+      const location = prefs?.location;
       if (location?.lat && location?.lng) {
         weather = await getWeather(location.lat, location.lng);
       } else {
@@ -84,24 +102,21 @@ export async function POST(request: NextRequest) {
 
     const currentSeason = getSeasonFromMonth(new Date().getMonth() + 1);
 
-    // Get favorited outfits for learning
-    const favorites = data.outfits
-      .filter((o) => o.is_favorite)
+    const favorites = favoriteOutfits
       .map((o) => {
-        const outfitItems = o.item_ids
-          .map((id) => items.find((i) => i.id === id))
+        const outfitItems = (o.item_ids as string[])
+          .map((id: string) => items.find((i) => i.id === id))
           .filter(Boolean) as ClothingItem[];
         return {
           items: outfitItems.map((i) => `${i.name} (${i.category})`).join(" + "),
           mood: o.mood,
-          occasion: o.occasions[0] ?? null,
+          occasion: o.occasions?.[0] ?? null,
           weather_temp: o.weather_temp,
           source: o.source,
         };
       })
       .filter((f) => f.items.length > 0);
 
-    // Build the wardrobe description
     const wardrobeList = items.map(describeItem).join("\n");
 
     const weatherDesc = weather
@@ -115,16 +130,17 @@ export async function POST(request: NextRequest) {
       ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}`).join("\n")}`
       : "";
 
-    const prompt = `You are Yav, an expert personal stylist AI. You combine fashion knowledge, current trends, and timeless style principles to create outfits. You understand color theory, texture pairing, proportions, layering, and how to dress for different occasions and moods.
+    const cachedPrefix = `You are Yav, an expert personal stylist AI. You combine fashion knowledge, current trends, and timeless style principles to create outfits. You understand color theory, texture pairing, proportions, layering, and how to dress for different occasions and moods.
 
 WARDROBE:
-${wardrobeList}
+${wardrobeList}${favoritesSection}`;
+
+    const dynamicSuffix = `
 
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
 MOOD: ${moodInfo.emoji} ${moodInfo.label} - ${moodInfo.description}
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: The user specifically wants to wear the item with id [${anchorItemId}]. EVERY outfit MUST include this item. Build each look around it.` : ""}
-${favoritesSection}
 
 Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
 
@@ -177,10 +193,17 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
+            { type: "text", text: dynamicSuffix },
+          ],
+        },
+      ],
     });
 
-    // Parse response
     const text = message.content[0].type === "text" ? message.content[0].text : "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
@@ -193,15 +216,11 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
       wardrobe_gap: string | null;
     };
 
-    const aiSuggestions = parsed.outfits;
-
-    // Resolve items and build response
-    const suggestions = aiSuggestions.map((s) => {
+    const suggestions = parsed.outfits.map((s) => {
       let outfitItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
 
-      // Safety net: if the outfit has a dress/jumpsuit, strip out any bottoms
       const hasDress = outfitItems.some((i) => i.category === "dress");
       if (hasDress) {
         outfitItems = outfitItems.filter((i) => i.category !== "bottom");

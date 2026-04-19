@@ -16,8 +16,14 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Hide nav on auth pages
-  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
+  // Hide nav on auth + legal pages
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/privacy") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/auth")
+  ) {
     return null;
   }
 

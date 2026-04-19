@@ -1,40 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData, writeData } from "@/lib/server-storage";
-import type { SavedTrip } from "@/lib/server-storage";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function GET() {
-  const data = await readData();
-  return NextResponse.json(data.trips ?? []);
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
+
+  const { data, error } = await supabase
+    .from("trips")
+    .select("*")
+    .order("start_date", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const data = await readData();
-    if (!data.trips) data.trips = [];
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
-    const trip: SavedTrip = {
-      id: crypto.randomUUID(),
-      destination: body.destination,
-      lat: body.lat,
-      lng: body.lng,
-      start_date: body.start_date,
-      end_date: body.end_date,
-      occasions: body.occasions || "",
-      notes: body.notes || "",
-      packing_item_ids: body.packing_item_ids ?? [],
-      weather_summary: body.weather_summary ?? null,
-      packing_tips: body.packing_tips ?? null,
-      outfit_suggestions: body.outfit_suggestions ?? [],
-      created_at: new Date().toISOString(),
-    };
+  const body = await request.json();
+  delete body.id;
+  delete body.user_id;
+  delete body.created_at;
 
-    data.trips.unshift(trip);
-    await writeData(data);
+  const { data, error } = await supabase
+    .from("trips")
+    .insert({ ...body, user_id: userId })
+    .select()
+    .single();
 
-    return NextResponse.json(trip, { status: 201 });
-  } catch (error) {
-    console.error("Failed to save trip:", error);
-    return NextResponse.json({ error: "Failed to save trip" }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  return NextResponse.json(data, { status: 201 });
 }

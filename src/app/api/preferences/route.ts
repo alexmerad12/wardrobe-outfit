@@ -1,22 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData, writeData } from "@/lib/server-storage";
-import type { UserPreferences } from "@/lib/types";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function GET() {
-  const data = await readData();
-  return NextResponse.json(data.preferences);
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const prefs = (await request.json()) as UserPreferences;
-    const data = await readData();
-    data.preferences = prefs;
-    await writeData(data);
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
-    return NextResponse.json(prefs);
-  } catch (error) {
-    console.error("Failed to save preferences:", error);
-    return NextResponse.json({ error: "Failed to save preferences" }, { status: 500 });
+  const body = await request.json();
+  delete body.user_id;
+
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .upsert({ ...body, user_id: userId }, { onConflict: "user_id" })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  return NextResponse.json(data);
 }

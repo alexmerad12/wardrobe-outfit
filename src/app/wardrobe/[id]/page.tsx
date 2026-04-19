@@ -148,6 +148,11 @@ export default function ItemDetailPage() {
     fetchItem();
   }, [params.id]);
 
+  useEffect(() => {
+    // Warm up the bg-removal WASM model so first click feels instant
+    import("@imgly/background-removal").catch(() => {});
+  }, []);
+
   function startEditing() {
     if (!item) return;
     setEditName(item.name);

@@ -1,29 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readData, writeData } from "@/lib/server-storage";
-import type { Outfit } from "@/lib/types";
+import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function GET() {
-  const data = await readData();
-  return NextResponse.json(data.outfits);
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase } = ctx;
+
+  const { data, error } = await supabase
+    .from("outfits")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = (await request.json()) as Omit<Outfit, "id" | "created_at">;
-    const data = await readData();
+  const ctx = await requireUser();
+  if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
-    const newOutfit: Outfit = {
-      ...body,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-    };
+  const body = await request.json();
+  delete body.id;
+  delete body.user_id;
+  delete body.created_at;
 
-    data.outfits.unshift(newOutfit);
-    await writeData(data);
+  const { data, error } = await supabase
+    .from("outfits")
+    .insert({ ...body, user_id: userId })
+    .select()
+    .single();
 
-    return NextResponse.json(newOutfit, { status: 201 });
-  } catch (error) {
-    console.error("Failed to create outfit:", error);
-    return NextResponse.json({ error: "Failed to create outfit" }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  return NextResponse.json(data, { status: 201 });
 }

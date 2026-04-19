@@ -135,6 +135,19 @@ export default function PackingPage() {
 
   async function generatePackingList() {
     if (!destination || !startDate || !endDate) return;
+
+    // If an identical trip was already saved, skip the AI call and open it.
+    const existing = savedTrips.find(
+      (t) =>
+        t.destination === destination &&
+        t.start_date === startDate &&
+        t.end_date === endDate
+    );
+    if (existing) {
+      setViewingTrip(existing);
+      return;
+    }
+
     setLoading(true);
     setSaved(false);
 
