@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, RotateCcw, Shirt } from "lucide-react";
+import { Heart, Shirt, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface OutfitCardProps {
   items: ClothingItem[];
@@ -12,11 +12,25 @@ interface OutfitCardProps {
   name?: string;
   onSave?: () => void;
   onWearToday?: () => void;
-  onSkip?: () => void;
+  onNext?: () => void;
+  onPrev?: () => void;
+  canNext?: boolean;
+  canPrev?: boolean;
   saving?: boolean;
 }
 
-export function OutfitCard({ items, reasoning, name, onSave, onWearToday, onSkip, saving }: OutfitCardProps) {
+export function OutfitCard({
+  items,
+  reasoning,
+  name,
+  onSave,
+  onWearToday,
+  onNext,
+  onPrev,
+  canNext = true,
+  canPrev = false,
+  saving,
+}: OutfitCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -50,8 +64,8 @@ export function OutfitCard({ items, reasoning, name, onSave, onWearToday, onSkip
           {reasoning}
         </p>
 
-        {/* Action buttons */}
-        <div className="flex gap-2">
+        {/* Primary actions */}
+        <div className="flex gap-2 mb-2">
           <Button
             variant="outline"
             size="sm"
@@ -63,15 +77,6 @@ export function OutfitCard({ items, reasoning, name, onSave, onWearToday, onSkip
             Favorite
           </Button>
           <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={onSkip}
-          >
-            <RotateCcw className="mr-1.5 h-4 w-4" />
-            Next
-          </Button>
-          <Button
             size="sm"
             className="flex-1"
             onClick={onWearToday}
@@ -79,6 +84,30 @@ export function OutfitCard({ items, reasoning, name, onSave, onWearToday, onSkip
           >
             <Shirt className="mr-1.5 h-4 w-4" />
             Wear Today
+          </Button>
+        </div>
+
+        {/* Browse navigation */}
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1"
+            onClick={onPrev}
+            disabled={!canPrev}
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Previous
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1"
+            onClick={onNext}
+            disabled={!canNext}
+          >
+            Next
+            <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
       </CardContent>

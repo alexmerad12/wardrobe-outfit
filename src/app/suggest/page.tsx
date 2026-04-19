@@ -346,7 +346,10 @@ function SuggestContent() {
             reasoning={suggestions[currentIndex].reasoning}
             name={suggestions[currentIndex].name}
             saving={saving}
-            onSkip={handleNext}
+            onNext={handleNext}
+            onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+            canNext={currentIndex < suggestions.length - 1}
+            canPrev={currentIndex > 0}
             onSave={() => saveFavorite(suggestions[currentIndex])}
             onWearToday={() => wearToday(suggestions[currentIndex])}
           />
