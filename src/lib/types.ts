@@ -14,7 +14,7 @@ export type Subcategory =
   // Outerwear
   | "jacket" | "coat" | "blazer" | "vest" | "windbreaker" | "puffer" | "bomber" | "denim-jacket" | "leather-jacket" | "trench-coat" | "peacoat" | "parka"
   // Shoes
-  | "sneakers" | "boots" | "combat-boots" | "western-boots" | "chelsea-boots" | "ankle-boots" | "knee-boots" | "heels" | "sandals" | "flats" | "loafers" | "mules"
+  | "sneakers" | "boots" | "combat-boots" | "western-boots" | "chelsea-boots" | "ankle-boots" | "knee-boots" | "heels" | "sandals" | "flats" | "ballet-flats" | "loafers" | "mules" | "espadrilles"
   // Bags
   | "handbag" | "backpack" | "tote" | "clutch" | "crossbody"
   // Accessories
@@ -510,8 +510,10 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "heels", label: "Heels" },
     { value: "sandals", label: "Sandals" },
     { value: "flats", label: "Flats" },
+    { value: "ballet-flats", label: "Ballet Flats" },
     { value: "loafers", label: "Loafers" },
     { value: "mules", label: "Mules" },
+    { value: "espadrilles", label: "Espadrilles" },
   ],
   bag: [
     { value: "handbag", label: "Handbag" },
