@@ -58,13 +58,8 @@ function SuggestContent() {
 
   const STYLE_PRESETS = [
     "Dress day",
-    "Colorful vibes",
-    "All black",
-    "Comfy layers",
-    "Monochrome",
-    "Statement piece",
-    "Minimalist",
     "Mix patterns",
+    "All black",
   ];
 
   function toggleStyleWish(wish: string) {
