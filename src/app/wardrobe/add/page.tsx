@@ -138,7 +138,11 @@ export default function AddItemPage() {
     category === "outerwear" ||
     (category === "bottom" && !isJeansTrousers);
   const showBottomFit = category === "bottom" && isJeansTrousers;
-  const showLength = ["top", "bottom", "outerwear"].includes(category as string);
+  // Length: hide for shorts (short by definition) and crop-tops (cropped by definition)
+  const showLength =
+    ["top", "bottom", "outerwear"].includes(category as string) &&
+    subcategory !== "shorts" &&
+    subcategory !== "crop-top";
   const showWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(category as string);
   const showWaistHeight = category === "bottom" && isJeansTrousers;
   const showBeltCompatible =
@@ -154,6 +158,15 @@ export default function AddItemPage() {
     category !== "shoes" &&
     category !== "accessory" &&
     category !== "bag";
+  // Neckline: hide for hoodies (hooded) and cardigans (open front)
+  const showNeckline =
+    ["top", "dress", "outerwear"].includes(category as string) &&
+    subcategory !== "hoodie" &&
+    subcategory !== "cardigan";
+  // Sleeve length: hide for tank tops (always straps/sleeveless by nature)
+  const showSleeveLength =
+    ["top", "dress", "outerwear"].includes(category as string) &&
+    subcategory !== "tank-top";
 
   function extractColorsFromImage(dataUrl: string) {
     setDetectingColors(true);
@@ -321,8 +334,8 @@ export default function AddItemPage() {
           shoe_height: showShoeFields ? shoeHeight : null,
           heel_type: showShoeFields ? heelType : null,
           belt_position: showBeltPosition ? beltPosition : null,
-          neckline: ["top", "dress", "outerwear"].includes(category) ? neckline : null,
-          sleeve_length: ["top", "dress", "outerwear"].includes(category) ? sleeveLength : null,
+          neckline: showNeckline ? neckline : null,
+          sleeve_length: showSleeveLength ? sleeveLength : null,
           metal_finish: ["shoes", "accessory"].includes(category) ? metalFinish : null,
           formality: formalities,
           seasons,
@@ -677,8 +690,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Neckline - tops, dresses, outerwear */}
-        {category && ["top", "dress", "outerwear"].includes(category) && (
+        {/* Neckline - tops, dresses, outerwear (hidden for hoodies, cardigans) */}
+        {showNeckline && (
           <div className="space-y-2">
             <Label>Neckline</Label>
             <div className="flex flex-wrap gap-2">
@@ -689,8 +702,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Sleeve Length - tops, dresses, outerwear */}
-        {category && ["top", "dress", "outerwear"].includes(category) && (
+        {/* Sleeve Length - tops, dresses, outerwear (hidden for tank tops) */}
+        {showSleeveLength && (
           <div className="space-y-2">
             <Label>Sleeve Length</Label>
             <div className="flex flex-wrap gap-2">

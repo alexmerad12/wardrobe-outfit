@@ -175,7 +175,17 @@ export default function ItemDetailPage() {
     editCategory === "outerwear" ||
     (editCategory === "bottom" && !editIsJeansTrousers);
   const editShowBottomFit = editCategory === "bottom" && editIsJeansTrousers;
-  const editShowLength = ["top", "bottom", "outerwear"].includes(editCategory);
+  const editShowLength =
+    ["top", "bottom", "outerwear"].includes(editCategory) &&
+    editSubcategory !== "shorts" &&
+    editSubcategory !== "crop-top";
+  const editShowNeckline =
+    ["top", "dress", "outerwear"].includes(editCategory) &&
+    editSubcategory !== "hoodie" &&
+    editSubcategory !== "cardigan";
+  const editShowSleeveLength =
+    ["top", "dress", "outerwear"].includes(editCategory) &&
+    editSubcategory !== "tank-top";
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowWaistHeight = editCategory === "bottom" && editIsJeansTrousers;
   const editShowBeltCompatible = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
@@ -224,8 +234,8 @@ export default function ItemDetailPage() {
           heel_type: editShowShoeFields ? editHeelType : null,
           belt_position: editShowBeltPosition ? editBeltPosition : null,
           metal_finish: ["shoes", "accessory"].includes(editCategory) ? editMetalFinish : null,
-          neckline: ["top", "dress", "outerwear"].includes(editCategory) ? editNeckline : null,
-          sleeve_length: ["top", "dress", "outerwear"].includes(editCategory) ? editSleeveLength : null,
+          neckline: editShowNeckline ? editNeckline : null,
+          sleeve_length: editShowSleeveLength ? editSleeveLength : null,
           pattern: editPatterns,
           material: editMaterials,
           formality: editFormalities,
@@ -628,8 +638,8 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Neckline - tops, dresses, outerwear */}
-          {["top", "dress", "outerwear"].includes(editCategory) && (
+          {/* Neckline - hidden for hoodies, cardigans */}
+          {editShowNeckline && (
             <div className="space-y-1">
               <Label>Neckline</Label>
               <div className="flex flex-wrap gap-2">
@@ -640,8 +650,8 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Sleeve Length - tops, dresses, outerwear */}
-          {["top", "dress", "outerwear"].includes(editCategory) && (
+          {/* Sleeve Length - hidden for tank tops */}
+          {editShowSleeveLength && (
             <div className="space-y-1">
               <Label>Sleeve Length</Label>
               <div className="flex flex-wrap gap-2">
