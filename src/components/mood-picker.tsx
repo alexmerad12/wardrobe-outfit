@@ -3,32 +3,63 @@
 import type { Mood } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  Zap,
+  Crown,
+  Palette,
+  Cloud,
+  Leaf,
+  Flame,
+  Moon,
+  Heart,
+  type LucideIcon,
+} from "lucide-react";
 
 interface MoodPickerProps {
   selected: Mood | null;
   onChange: (mood: Mood) => void;
 }
 
+const MOOD_ICONS: Record<Mood, LucideIcon> = {
+  energized: Zap,
+  confident: Crown,
+  playful: Palette,
+  cozy: Cloud,
+  chill: Leaf,
+  bold: Flame,
+  period: Moon,
+  sad: Heart,
+};
+
 const MOODS = Object.entries(MOOD_CONFIG) as [Mood, (typeof MOOD_CONFIG)[Mood]][];
 
 export function MoodPicker({ selected, onChange }: MoodPickerProps) {
   return (
     <div className="grid grid-cols-4 gap-2">
-      {MOODS.map(([mood, config]) => (
-        <button
-          key={mood}
-          onClick={() => onChange(mood)}
-          className={cn(
-            "flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 transition-all hover:scale-105",
-            selected === mood
-              ? "border-primary bg-primary/5 shadow-sm"
-              : "border-transparent bg-muted/50 hover:bg-muted"
-          )}
-        >
-          <span className="text-2xl">{config.emoji}</span>
-          <span className="text-xs font-medium">{config.label}</span>
-        </button>
-      ))}
+      {MOODS.map(([mood, config]) => {
+        const Icon = MOOD_ICONS[mood];
+        const isSelected = selected === mood;
+        return (
+          <button
+            key={mood}
+            onClick={() => onChange(mood)}
+            className={cn(
+              "flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 transition-all hover:scale-105",
+              isSelected
+                ? "border-primary bg-primary/5 shadow-sm"
+                : "border-transparent bg-muted/50 hover:bg-muted"
+            )}
+          >
+            <Icon
+              className={cn(
+                "h-6 w-6 transition-colors",
+                isSelected ? "text-primary" : "text-muted-foreground"
+              )}
+            />
+            <span className="text-xs font-medium">{config.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
