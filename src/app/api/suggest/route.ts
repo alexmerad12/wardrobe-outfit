@@ -20,6 +20,7 @@ function describeItem(item: ClothingItem): string {
   if (item.pants_length) parts.push(`Pant length: ${item.pants_length}`);
   if (item.waist_height) parts.push(`Waist: ${item.waist_height}`);
   if (item.waist_style) parts.push(`Waist style: ${item.waist_style}`);
+  if (item.waist_closure) parts.push(`Waist closure: ${item.waist_closure}`);
   if (item.shoe_height) parts.push(`Height: ${item.shoe_height}`);
   if (item.heel_type) parts.push(`Heel: ${item.heel_type}`);
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);

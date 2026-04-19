@@ -15,6 +15,7 @@ import type {
   PantsLength,
   WaistStyle,
   WaistHeight,
+  WaistClosure,
   ShoeHeight,
   HeelType,
   BeltPosition,
@@ -34,6 +35,7 @@ import {
   PANTS_LENGTH_LABELS,
   WAIST_STYLE_LABELS,
   WAIST_HEIGHT_LABELS,
+  WAIST_CLOSURE_LABELS,
   BOTTOM_FIT_LABELS,
   SHOE_HEIGHT_LABELS,
   HEEL_TYPE_LABELS,
@@ -88,6 +90,7 @@ export default function AddItemPage() {
   const [pantsLength, setPantsLength] = useState<PantsLength>("full");
   const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
   const [waistHeight, setWaistHeight] = useState<WaistHeight>("mid");
+  const [waistClosure, setWaistClosure] = useState<WaistClosure | null>(null);
   const [beltCompatible, setBeltCompatible] = useState(false);
   const [isLayeringPiece, setIsLayeringPiece] = useState(false);
   const [shoeHeight, setShoeHeight] = useState<ShoeHeight>("low");
@@ -154,6 +157,10 @@ export default function AddItemPage() {
     ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
   const showWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(category as string);
   const showWaistHeight = category === "bottom" && isJeansTrousers;
+  // Waist Closure: for all pants (jeans, trousers, leggings, sweatpants)
+  const showWaistClosure =
+    category === "bottom" &&
+    ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
   const showBeltCompatible =
     category === "top" ||
     category === "bottom" ||
@@ -342,6 +349,7 @@ export default function AddItemPage() {
           pants_length: showPantsLength ? pantsLength : null,
           waist_style: showWaistStyle ? waistStyle : null,
           waist_height: showWaistHeight ? waistHeight : null,
+          waist_closure: showWaistClosure ? waistClosure : null,
           belt_compatible: beltCompatible,
           is_layering_piece: isLayeringPiece,
           shoe_height: showShoeFields ? shoeHeight : null,
@@ -825,6 +833,30 @@ export default function AddItemPage() {
                   className={cn(
                     "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     waistHeight === w
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Waist Closure - pants only */}
+        {showWaistClosure && (
+          <div className="space-y-2">
+            <Label>Waist Closure</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(WAIST_CLOSURE_LABELS) as [WaistClosure, string][]).map(([c, label]) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setWaistClosure(waistClosure === c ? null : c)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    waistClosure === c
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
                   )}

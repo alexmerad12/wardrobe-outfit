@@ -22,7 +22,7 @@ export type Subcategory =
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embroidery" | "other";
 
-export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "suede" | "patent-leather" | "linen" | "knit" | "satin" | "velvet" | "canvas" | "mesh" | "fur-shearling" | "rubber" | "nylon" | "other";
+export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "faux-leather" | "suede" | "faux-suede" | "patent-leather" | "linen" | "knit" | "satin" | "velvet" | "corduroy" | "canvas" | "mesh" | "fur-shearling" | "faux-fur" | "rubber" | "nylon" | "other";
 
 export type Fit = "slim" | "regular" | "loose" | "oversized";
 
@@ -36,6 +36,8 @@ export type WaistStyle = "elastic" | "fitted" | "relaxed" | "belted";
 
 export type WaistHeight = "high" | "mid" | "low";
 
+export type WaistClosure = "button-zip" | "elastic" | "drawstring" | "tie" | "hook-eye" | "pull-on" | "side-zip" | "other";
+
 export type ShoeHeight = "low" | "ankle" | "mid" | "knee" | "over-knee";
 
 export type HeelType = "flat" | "low-heel" | "mid-heel" | "high-heel" | "platform" | "wedge";
@@ -44,7 +46,7 @@ export type BeltPosition = "waist" | "hips" | "both";
 
 export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none";
 
-export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "off-shoulder" | "collared" | "henley" | "cowl" | "other";
+export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "collared" | "henley" | "cowl" | "sweetheart" | "other";
 
 export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
 
@@ -102,6 +104,7 @@ export interface ClothingItem {
   pants_length: PantsLength | null;
   waist_style: WaistStyle | null;
   waist_height: WaistHeight | null;
+  waist_closure: WaistClosure | null;
   belt_compatible: boolean;
   belt_position: BeltPosition | null;
   is_layering_piece: boolean;
@@ -286,6 +289,17 @@ export const WAIST_HEIGHT_LABELS: Record<WaistHeight, string> = {
   low: "Low Waist",
 };
 
+export const WAIST_CLOSURE_LABELS: Record<WaistClosure, string> = {
+  "button-zip": "Button & Zip",
+  elastic: "Elastic",
+  drawstring: "Drawstring",
+  tie: "Tie",
+  "hook-eye": "Hook & Eye",
+  "pull-on": "Pull-on",
+  "side-zip": "Side Zip",
+  other: "Other",
+};
+
 export const SHOE_HEIGHT_LABELS: Record<ShoeHeight, string> = {
   low: "Low",
   ankle: "Ankle",
@@ -329,9 +343,11 @@ export const NECKLINE_LABELS: Record<Neckline, string> = {
   scoop: "Scoop Neck",
   square: "Square Neck",
   boat: "Boat Neck",
+  sweetheart: "Sweetheart",
   turtleneck: "Turtleneck",
   "mock-neck": "Mock Neck",
   halter: "Halter",
+  "one-shoulder": "One Shoulder",
   "off-shoulder": "Off Shoulder",
   collared: "Collared",
   henley: "Henley",
@@ -372,15 +388,19 @@ export const MATERIAL_LABELS: Record<Material, string> = {
   silk: "Silk",
   polyester: "Polyester",
   leather: "Leather",
+  "faux-leather": "Faux Leather",
   suede: "Suede",
+  "faux-suede": "Faux Suede",
   "patent-leather": "Patent Leather",
   linen: "Linen",
   knit: "Knit",
   satin: "Satin",
   velvet: "Velvet",
+  corduroy: "Corduroy",
   canvas: "Canvas",
   mesh: "Mesh",
   "fur-shearling": "Fur / Shearling",
+  "faux-fur": "Faux Fur",
   rubber: "Rubber",
   nylon: "Nylon",
   other: "Other",

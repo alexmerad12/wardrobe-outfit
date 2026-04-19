@@ -16,6 +16,7 @@ import type {
   PantsLength,
   WaistStyle,
   WaistHeight,
+  WaistClosure,
   ShoeHeight,
   HeelType,
   BeltPosition,
@@ -36,6 +37,7 @@ import {
   PANTS_LENGTH_LABELS,
   WAIST_STYLE_LABELS,
   WAIST_HEIGHT_LABELS,
+  WAIST_CLOSURE_LABELS,
   SHOE_HEIGHT_LABELS,
   HEEL_TYPE_LABELS,
   BELT_POSITION_LABELS,
@@ -101,6 +103,7 @@ export default function ItemDetailPage() {
   const [editPantsLength, setEditPantsLength] = useState<PantsLength | null>(null);
   const [editWaistStyle, setEditWaistStyle] = useState<WaistStyle | null>(null);
   const [editWaistHeight, setEditWaistHeight] = useState<WaistHeight>("mid");
+  const [editWaistClosure, setEditWaistClosure] = useState<WaistClosure | null>(null);
   const [editBeltCompatible, setEditBeltCompatible] = useState(false);
   const [editLayering, setEditLayering] = useState(false);
   const [editShoeHeight, setEditShoeHeight] = useState<ShoeHeight>("low");
@@ -149,6 +152,7 @@ export default function ItemDetailPage() {
     setEditPantsLength(item.pants_length ?? null);
     setEditWaistStyle(item.waist_style ?? null);
     setEditWaistHeight(item.waist_height ?? "mid");
+    setEditWaistClosure(item.waist_closure ?? null);
     setEditBeltCompatible(item.belt_compatible ?? false);
     setEditLayering(item.is_layering_piece ?? false);
     setEditShoeHeight(item.shoe_height ?? "low");
@@ -201,6 +205,9 @@ export default function ItemDetailPage() {
     editSubcategory !== "tank-top";
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowWaistHeight = editCategory === "bottom" && editIsJeansTrousers;
+  const editShowWaistClosure =
+    editCategory === "bottom" &&
+    ["jeans", "trousers", "leggings", "sweatpants"].includes(editSubcategory);
   const editShowBeltCompatible = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowLayeringPiece = editCategory === "top" || editCategory === "outerwear";
   const editShowShoeFields = editCategory === "shoes";
@@ -242,6 +249,7 @@ export default function ItemDetailPage() {
           pants_length: editShowPantsLength ? editPantsLength : null,
           waist_style: editShowWaistStyle ? editWaistStyle : null,
           waist_height: editShowWaistHeight ? editWaistHeight : null,
+          waist_closure: editShowWaistClosure ? editWaistClosure : null,
           belt_compatible: editBeltCompatible,
           is_layering_piece: editLayering,
           shoe_height: editShowShoeFields ? editShoeHeight : null,
@@ -589,6 +597,18 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Waist Closure - pants only */}
+          {editShowWaistClosure && (
+            <div className="space-y-1">
+              <Label>Waist Closure</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(WAIST_CLOSURE_LABELS) as [WaistClosure, string][]).map(([c, label]) => (
+                  <button key={c} type="button" onClick={() => setEditWaistClosure(editWaistClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editWaistClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Waist Style */}
           {editShowWaistStyle && (
             <div className="space-y-1">
@@ -849,6 +869,14 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Waist Height</p>
                   <p className="text-sm font-medium">{WAIST_HEIGHT_LABELS[item.waist_height]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {item.waist_closure && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Waist Closure</p>
+                  <p className="text-sm font-medium">{WAIST_CLOSURE_LABELS[item.waist_closure]}</p>
                 </CardContent>
               </Card>
             )}
