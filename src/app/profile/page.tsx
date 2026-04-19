@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity, ClothingItem } from "@/lib/types";
+import type { TemperatureSensitivity, TemperatureUnit, ClothingItem } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { MapPin, Thermometer, Loader2 } from "lucide-react";
 
@@ -32,6 +32,7 @@ export default function ProfilePage() {
   const [cityLng, setCityLng] = useState(0);
   const [tempSensitivity, setTempSensitivity] =
     useState<TemperatureSensitivity>("normal");
+  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
   const [saving, setSaving] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
@@ -62,6 +63,7 @@ export default function ProfilePage() {
             setCityLat(prefs.location?.lat ?? 0);
             setCityLng(prefs.location?.lng ?? 0);
             setTempSensitivity(prefs.temperature_sensitivity ?? "normal");
+            setTempUnit(prefs.temperature_unit ?? "auto");
           }
         }
 
@@ -200,6 +202,7 @@ export default function ProfilePage() {
             ? { city, lat: cityLat, lng: cityLng }
             : null,
           temperature_sensitivity: tempSensitivity,
+          temperature_unit: tempUnit,
           preferred_styles: [],
           favorite_colors: [],
           avoided_colors: [],
@@ -431,6 +434,27 @@ export default function ProfilePage() {
                 <SelectItem value="runs-hot">I run hot</SelectItem>
                 <SelectItem value="normal">Normal</SelectItem>
                 <SelectItem value="runs-cold">I run cold</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Temperature unit */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Thermometer className="h-3.5 w-3.5" />
+              Temperature unit
+            </Label>
+            <Select
+              value={tempUnit}
+              onValueChange={(v) => setTempUnit(v as TemperatureUnit)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (based on your region)</SelectItem>
+                <SelectItem value="celsius">Celsius (°C)</SelectItem>
+                <SelectItem value="fahrenheit">Fahrenheit (°F)</SelectItem>
               </SelectContent>
             </Select>
           </div>

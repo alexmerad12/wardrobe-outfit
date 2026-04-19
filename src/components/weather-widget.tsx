@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import type { WeatherData } from "@/lib/types";
 import { getWeather } from "@/lib/weather";
 import { Droplets, Wind } from "lucide-react";
+import { useTemperatureUnit } from "@/lib/use-temperature-unit";
+import { convertTemp } from "@/lib/temperature";
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const unit = useTemperatureUnit();
 
   useEffect(() => {
     async function fetchWeather() {
@@ -82,14 +85,14 @@ export function WeatherWidget() {
         <div>
           <div className="flex items-baseline gap-0.5">
             <span className="text-3xl font-medium tracking-tight leading-none">
-              {weather.temp}°
+              {convertTemp(weather.temp, unit)}°
             </span>
             <span className="text-sm text-muted-foreground">
-              C
+              {unit === "fahrenheit" ? "F" : "C"}
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Feels like {weather.feels_like}°
+            Feels like {convertTemp(weather.feels_like, unit)}°
           </p>
         </div>
         <div className="flex flex-col items-center gap-1">

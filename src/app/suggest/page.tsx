@@ -11,6 +11,7 @@ import { OCCASION_LABELS } from "@/lib/types";
 import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
+import { StylistLoader } from "@/components/stylist-loader";
 
 interface AISuggestion {
   items: ClothingItem[];
@@ -330,10 +331,7 @@ function SuggestContent() {
               onClick={generateSuggestions}
             >
               {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Yav is styling...
-                </>
+                <StylistLoader size="sm" />
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />

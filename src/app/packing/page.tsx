@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StylistLoader } from "@/components/stylist-loader";
 import {
   ArrowLeft,
   Loader2,
@@ -378,7 +379,7 @@ export default function PackingPage() {
             disabled={!destination || !startDate || !endDate || loading}
           >
             {loading ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Yav is packing...</>
+              <StylistLoader size="sm" />
             ) : (
               <><Plane className="h-4 w-4" /> Generate Packing List</>
             )}

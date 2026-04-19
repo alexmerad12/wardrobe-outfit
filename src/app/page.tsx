@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import { useTemperatureUnit } from "@/lib/use-temperature-unit";
+import { convertTemp } from "@/lib/temperature";
 import { cn } from "@/lib/utils";
 
 interface TodayOutfit {
@@ -31,6 +33,7 @@ export default function HomePage() {
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [forgottenItems, setForgottenItems] = useState<ClothingItem[]>([]);
+  const unit = useTemperatureUnit();
 
   useEffect(() => {
     async function load() {
@@ -223,7 +226,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
                     <Thermometer className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-xs font-medium leading-tight">{todayOutfit.weather_temp}°C</p>
+                      <p className="text-xs font-medium leading-tight">{convertTemp(todayOutfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}</p>
                       <p className="text-[10px] text-muted-foreground leading-tight">{todayOutfit.weather_condition || "Weather"}</p>
                     </div>
                   </div>
@@ -373,7 +376,7 @@ export default function HomePage() {
                             {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
                               <Badge variant="outline" className="text-[10px] gap-0.5">
                                 <Thermometer className="h-2.5 w-2.5" />
-                                {outfit.weather_temp}°C
+                                {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}
                               </Badge>
                             )}
                           </div>

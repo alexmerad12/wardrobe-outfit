@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Sparkles, Trash2, Thermometer, Shirt } from "lucide-react";
+import { useTemperatureUnit } from "@/lib/use-temperature-unit";
+import { convertTemp } from "@/lib/temperature";
 import { cn } from "@/lib/utils";
 
 export default function FavoritesPage() {
@@ -18,6 +20,7 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const unit = useTemperatureUnit();
   const router = useRouter();
 
   useEffect(() => {
@@ -195,7 +198,7 @@ export default function FavoritesPage() {
                         {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
                           <Badge variant="outline" className="text-xs gap-0.5">
                             <Thermometer className="h-3 w-3" />
-                            {outfit.weather_temp}°C {outfit.weather_condition || ""}
+                            {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"} {outfit.weather_condition || ""}
                           </Badge>
                         )}
                         {outfit.occasions.map((o) => (
@@ -277,7 +280,7 @@ export default function FavoritesPage() {
                         {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
                           <Badge variant="outline" className="text-[10px] gap-0.5">
                             <Thermometer className="h-2.5 w-2.5" />
-                            {outfit.weather_temp}°C
+                            {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}
                           </Badge>
                         )}
                         {outfit.occasions.slice(0, 2).map((o) => (
