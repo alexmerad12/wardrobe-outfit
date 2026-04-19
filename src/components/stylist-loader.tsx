@@ -17,9 +17,9 @@ export function StylistLoader({ className, size = "md", label = "Yav is styling.
   const [entering, setEntering] = useState(true);
 
   useEffect(() => {
-    // Cycle: visible for 450ms, fade out over 200ms, swap, fade in
-    const cycleMs = 650;
-    const fadeOutAt = 450;
+    // Cycle: visible for 225ms, fade out over 100ms, swap, fade in
+    const cycleMs = 325;
+    const fadeOutAt = 225;
 
     const fadeOut = setTimeout(() => setEntering(false), fadeOutAt);
     const swap = setTimeout(() => {
@@ -41,7 +41,7 @@ export function StylistLoader({ className, size = "md", label = "Yav is styling.
       <Icon
         className={cn(
           iconSize,
-          "transition-all duration-200 ease-in-out",
+          "transition-all duration-100 ease-in-out",
           entering ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-12"
         )}
       />
