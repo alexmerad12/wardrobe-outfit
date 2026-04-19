@@ -10,8 +10,6 @@ const COORDS_KEY = "wx:coords:v1";
 const DATA_KEY_PREFIX = "wx:data:v1:";
 const COORDS_TTL_MS = 24 * 60 * 60 * 1000;
 const DATA_TTL_MS = 15 * 60 * 1000;
-const FALLBACK_LAT = 48.8566;
-const FALLBACK_LNG = 2.3522;
 
 type Coords = { lat: number; lng: number };
 
@@ -57,8 +55,12 @@ function writeCachedData(coords: Coords, data: WeatherData) {
   } catch {}
 }
 
-async function fetchWeatherFromApi(coords: Coords): Promise<WeatherData> {
-  const res = await fetch(`/api/weather?lat=${coords.lat}&lng=${coords.lng}`);
+async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> {
+  // Passing no coords lets the server fall back to IP-based geolocation
+  // so the widget can render something useful before the browser's GPS
+  // prompt resolves.
+  const qs = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : "";
+  const res = await fetch(`/api/weather${qs}`);
   if (!res.ok) throw new Error("Failed to fetch weather");
   return (await res.json()) as WeatherData;
 }
@@ -72,7 +74,7 @@ export function WeatherWidget() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadForCoords(coords: Coords, fromCache: boolean) {
+    async function loadForCoords(coords: Coords) {
       const cached = readCachedData(coords);
       if (cached) {
         if (!cancelled) {
@@ -86,42 +88,55 @@ export function WeatherWidget() {
         if (cancelled) return;
         writeCachedData(coords, data);
         setWeather(data);
+        setLoading(false);
       } catch {
-        if (!cancelled && !fromCache) setError("Couldn't fetch weather");
-      } finally {
-        if (!cancelled) setLoading(false);
+        // Swallow — an earlier IP-based load may already have populated the
+        // widget. Only surface an error if we have nothing to show.
+        if (!cancelled && !weather) setError("Couldn't fetch weather");
+      }
+    }
+
+    async function loadFromIpGeo() {
+      try {
+        const data = await fetchWeatherFromApi(null);
+        if (cancelled || weather) return;
+        setWeather(data);
+        setLoading(false);
+      } catch {
+        if (!cancelled && !weather) setError("Couldn't fetch weather");
       }
     }
 
     const cachedCoords = readCachedCoords();
     if (cachedCoords) {
-      // Fast path: skip the geolocation prompt entirely
-      loadForCoords(cachedCoords, true);
+      // Fast path: we already know the user's precise location.
+      loadForCoords(cachedCoords);
       return () => {
         cancelled = true;
       };
     }
 
-    if (!("geolocation" in navigator)) {
-      setLoading(false);
-      setError("Location not supported");
-      return;
-    }
+    // First visit: render IP-based weather immediately, then upgrade to
+    // precise GPS coords once the user grants permission.
+    loadFromIpGeo();
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-        writeCachedCoords(coords);
-        loadForCoords(coords, false);
-      },
-      () => {
-        loadForCoords({ lat: FALLBACK_LAT, lng: FALLBACK_LNG }, false);
-      }
-    );
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+          writeCachedCoords(coords);
+          loadForCoords(coords);
+        },
+        () => {
+          // Denied or unavailable — keep whatever IP-based data we got.
+        }
+      );
+    }
 
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {

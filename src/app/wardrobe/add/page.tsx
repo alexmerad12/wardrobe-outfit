@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/select";
 import { Camera, Upload, ArrowLeft, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -129,8 +130,8 @@ export default function AddItemPage() {
   }, []);
 
   useEffect(() => {
-    // Warm up the bg-removal WASM model so first click feels instant
-    import("@imgly/background-removal").catch(() => {});
+    // Eagerly fetch the model weights so the first click is instant
+    preloadBgRemoval();
   }, []);
 
   const similarItems = useMemo(() => {
@@ -295,8 +296,7 @@ export default function AddItemPage() {
     if (!imageFile) return;
     setRemovingBg(true);
     try {
-      const { removeBackground } = await import("@imgly/background-removal");
-      const blob = await removeBackground(imageFile);
+      const blob = await removeBg(imageFile);
       const file = new File([blob], imageFile.name, { type: "image/png" });
       setImageFile(file);
       const reader = new FileReader();

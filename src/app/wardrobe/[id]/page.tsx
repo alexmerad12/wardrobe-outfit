@@ -83,6 +83,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 
 export default function ItemDetailPage() {
   const params = useParams();
@@ -149,8 +150,8 @@ export default function ItemDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    // Warm up the bg-removal WASM model so first click feels instant
-    import("@imgly/background-removal").catch(() => {});
+    // Eagerly fetch the model weights so the first click is instant
+    preloadBgRemoval();
   }, []);
 
   function startEditing() {
@@ -331,11 +332,9 @@ export default function ItemDetailPage() {
     if (!sourceUrl) return;
     setRemovingBg(true);
     try {
-      const { removeBackground } = await import("@imgly/background-removal");
-      // Fetch the image as a blob
       const response = await fetch(sourceUrl);
       const imageBlob = await response.blob();
-      const resultBlob = await removeBackground(imageBlob);
+      const resultBlob = await removeBg(imageBlob);
       const file = new File([resultBlob], "bg-removed.png", { type: "image/png" });
       setNewImageFile(file);
       const reader = new FileReader();
