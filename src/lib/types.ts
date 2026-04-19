@@ -234,14 +234,14 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
   casual: "Casual",
   hangout: "Hangout",
   brunch: "Brunch",
+  sport: "Sport",
+  outdoor: "Outdoor",
+  travel: "Travel",
   "dinner-out": "Dinner Out",
   work: "Work",
   date: "Date Night",
   party: "Party",
   formal: "Formal Event",
-  travel: "Travel",
-  sport: "Sport",
-  outdoor: "Outdoor",
 };
 
 export const SEASON_LABELS: Record<Season, string> = {
