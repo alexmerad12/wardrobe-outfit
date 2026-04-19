@@ -14,13 +14,24 @@ interface StylistLoaderProps {
 
 export function StylistLoader({ className, size = "md", label = "Yav is styling..." }: StylistLoaderProps) {
   const [index, setIndex] = useState(0);
+  const [entering, setEntering] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    // Cycle: show icon for 1.6s, fade out for 400ms, swap, fade in
+    const cycleMs = 2000;
+    const fadeOutAt = 1600;
+
+    const fadeOut = setTimeout(() => setEntering(false), fadeOutAt);
+    const swap = setTimeout(() => {
       setIndex((i) => (i + 1) % TOOLS.length);
-    }, 600);
-    return () => clearInterval(interval);
-  }, []);
+      setEntering(true);
+    }, cycleMs);
+
+    return () => {
+      clearTimeout(fadeOut);
+      clearTimeout(swap);
+    };
+  }, [index]);
 
   const Icon = TOOLS[index];
   const iconSize = size === "sm" ? "h-4 w-4" : size === "lg" ? "h-8 w-8" : "h-5 w-5";
@@ -28,10 +39,10 @@ export function StylistLoader({ className, size = "md", label = "Yav is styling.
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <Icon
-        key={index}
         className={cn(
           iconSize,
-          "animate-in fade-in zoom-in-50 duration-300"
+          "transition-all duration-500 ease-in-out",
+          entering ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-12"
         )}
       />
       <span className="text-sm">{label}</span>
