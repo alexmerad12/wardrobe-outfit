@@ -12,9 +12,9 @@ export type Subcategory =
   // Dresses
   | "mini-dress" | "midi-dress" | "maxi-dress" | "jumpsuit"
   // Outerwear
-  | "jacket" | "coat" | "blazer" | "vest" | "windbreaker"
+  | "jacket" | "coat" | "blazer" | "vest" | "windbreaker" | "puffer" | "bomber" | "denim-jacket" | "leather-jacket" | "trench-coat" | "peacoat" | "parka"
   // Shoes
-  | "sneakers" | "boots" | "heels" | "sandals" | "flats" | "loafers"
+  | "sneakers" | "boots" | "combat-boots" | "western-boots" | "chelsea-boots" | "ankle-boots" | "knee-boots" | "heels" | "sandals" | "flats" | "loafers" | "mules"
   // Bags
   | "handbag" | "backpack" | "tote" | "clutch" | "crossbody"
   // Accessories
@@ -37,6 +37,10 @@ export type WaistStyle = "elastic" | "fitted" | "relaxed" | "belted";
 export type WaistHeight = "high" | "mid" | "low";
 
 export type WaistClosure = "button-zip" | "elastic" | "drawstring" | "tie" | "hook-eye" | "pull-on" | "side-zip" | "other";
+
+export type ShoeClosure = "laces" | "velcro" | "slip-on" | "zip" | "buckle" | "elastic" | "strap" | "other";
+
+export type BeltStyle = "plain" | "studded" | "perforated" | "woven" | "braided" | "chain" | "embellished" | "other";
 
 export type ShoeHeight = "low" | "ankle" | "mid" | "knee" | "over-knee";
 
@@ -110,6 +114,8 @@ export interface ClothingItem {
   is_layering_piece: boolean;
   shoe_height: ShoeHeight | null;
   heel_type: HeelType | null;
+  shoe_closure: ShoeClosure | null;
+  belt_style: BeltStyle | null;
   metal_finish: MetalFinish | null;
   formality: Formality | Formality[];
   seasons: Season[];
@@ -317,10 +323,32 @@ export const HEEL_TYPE_LABELS: Record<HeelType, string> = {
   wedge: "Wedge",
 };
 
+export const SHOE_CLOSURE_LABELS: Record<ShoeClosure, string> = {
+  laces: "Laces",
+  velcro: "Velcro",
+  "slip-on": "Slip-on",
+  zip: "Zipper",
+  buckle: "Buckle",
+  elastic: "Elastic",
+  strap: "Strap",
+  other: "Other",
+};
+
 export const BELT_POSITION_LABELS: Record<BeltPosition, string> = {
   waist: "Waist",
   hips: "Hips",
   both: "Both",
+};
+
+export const BELT_STYLE_LABELS: Record<BeltStyle, string> = {
+  plain: "Plain",
+  studded: "Studded",
+  perforated: "Perforated / Cutouts",
+  woven: "Woven",
+  braided: "Braided",
+  chain: "Chain",
+  embellished: "Embellished",
+  other: "Other",
 };
 
 export const METAL_FINISH_LABELS: Record<MetalFinish, string> = {
@@ -458,15 +486,28 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "coat", label: "Coat" },
     { value: "blazer", label: "Blazer" },
     { value: "vest", label: "Vest" },
+    { value: "puffer", label: "Puffer Jacket" },
+    { value: "bomber", label: "Bomber Jacket" },
+    { value: "denim-jacket", label: "Denim Jacket" },
+    { value: "leather-jacket", label: "Leather Jacket" },
+    { value: "trench-coat", label: "Trench Coat" },
+    { value: "peacoat", label: "Peacoat" },
+    { value: "parka", label: "Parka" },
     { value: "windbreaker", label: "Windbreaker" },
   ],
   shoes: [
     { value: "sneakers", label: "Sneakers" },
     { value: "boots", label: "Boots" },
+    { value: "ankle-boots", label: "Ankle Boots" },
+    { value: "combat-boots", label: "Combat Boots" },
+    { value: "western-boots", label: "Western Boots" },
+    { value: "chelsea-boots", label: "Chelsea Boots" },
+    { value: "knee-boots", label: "Knee-High Boots" },
     { value: "heels", label: "Heels" },
     { value: "sandals", label: "Sandals" },
     { value: "flats", label: "Flats" },
     { value: "loafers", label: "Loafers" },
+    { value: "mules", label: "Mules" },
   ],
   bag: [
     { value: "handbag", label: "Handbag" },

@@ -23,6 +23,8 @@ function describeItem(item: ClothingItem): string {
   if (item.waist_closure) parts.push(`Waist closure: ${item.waist_closure}`);
   if (item.shoe_height) parts.push(`Height: ${item.shoe_height}`);
   if (item.heel_type) parts.push(`Heel: ${item.heel_type}`);
+  if (item.shoe_closure) parts.push(`Shoe closure: ${item.shoe_closure}`);
+  if (item.belt_style) parts.push(`Belt style: ${item.belt_style}`);
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
   if (item.neckline) parts.push(`Neckline: ${item.neckline}`);
   if (item.sleeve_length) parts.push(`Sleeves: ${item.sleeve_length}`);

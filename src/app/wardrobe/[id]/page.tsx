@@ -19,7 +19,9 @@ import type {
   WaistClosure,
   ShoeHeight,
   HeelType,
+  ShoeClosure,
   BeltPosition,
+  BeltStyle,
   MetalFinish,
   Formality,
   Season,
@@ -40,7 +42,9 @@ import {
   WAIST_CLOSURE_LABELS,
   SHOE_HEIGHT_LABELS,
   HEEL_TYPE_LABELS,
+  SHOE_CLOSURE_LABELS,
   BELT_POSITION_LABELS,
+  BELT_STYLE_LABELS,
   METAL_FINISH_LABELS,
   NECKLINE_LABELS,
   SLEEVE_LENGTH_LABELS,
@@ -108,6 +112,8 @@ export default function ItemDetailPage() {
   const [editLayering, setEditLayering] = useState(false);
   const [editShoeHeight, setEditShoeHeight] = useState<ShoeHeight>("low");
   const [editHeelType, setEditHeelType] = useState<HeelType>("flat");
+  const [editShoeClosure, setEditShoeClosure] = useState<ShoeClosure | null>(null);
+  const [editBeltStyle, setEditBeltStyle] = useState<BeltStyle | null>(null);
   const [editBeltPosition, setEditBeltPosition] = useState<BeltPosition>("waist");
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
@@ -157,6 +163,8 @@ export default function ItemDetailPage() {
     setEditLayering(item.is_layering_piece ?? false);
     setEditShoeHeight(item.shoe_height ?? "low");
     setEditHeelType(item.heel_type ?? "flat");
+    setEditShoeClosure(item.shoe_closure ?? null);
+    setEditBeltStyle(item.belt_style ?? null);
     setEditBeltPosition(item.belt_position ?? "waist");
     setEditMetalFinish(item.metal_finish ?? null);
     setEditNeckline(item.neckline ?? null);
@@ -254,7 +262,9 @@ export default function ItemDetailPage() {
           is_layering_piece: editLayering,
           shoe_height: editShowShoeFields ? editShoeHeight : null,
           heel_type: editShowShoeFields ? editHeelType : null,
+          shoe_closure: editShowShoeFields ? editShoeClosure : null,
           belt_position: editShowBeltPosition ? editBeltPosition : null,
+          belt_style: editShowBeltPosition ? editBeltStyle : null,
           metal_finish: ["shoes", "accessory"].includes(editCategory) ? editMetalFinish : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
@@ -661,6 +671,30 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Shoe Closure - shoes only */}
+          {editShowShoeFields && (
+            <div className="space-y-1">
+              <Label>Closure</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(SHOE_CLOSURE_LABELS) as [ShoeClosure, string][]).map(([c, label]) => (
+                  <button key={c} type="button" onClick={() => setEditShoeClosure(editShoeClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editShoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Belt Style - belt subcategory only */}
+          {editShowBeltPosition && (
+            <div className="space-y-1">
+              <Label>Belt Style</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.entries(BELT_STYLE_LABELS) as [BeltStyle, string][]).map(([b, label]) => (
+                  <button key={b} type="button" onClick={() => setEditBeltStyle(editBeltStyle === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBeltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Belt Position - belt subcategory only */}
           {editShowBeltPosition && (
             <div className="space-y-1">
@@ -909,12 +943,30 @@ export default function ItemDetailPage() {
                 </CardContent>
               </Card>
             )}
+            {/* Shoe Closure */}
+            {viewShowShoeFields && item.shoe_closure && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Closure</p>
+                  <p className="text-sm font-medium">{SHOE_CLOSURE_LABELS[item.shoe_closure]}</p>
+                </CardContent>
+              </Card>
+            )}
             {/* Belt Position - belt subcategory only */}
             {viewShowBeltPosition && item.belt_position && (
               <Card>
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Belt Position</p>
                   <p className="text-sm font-medium">{BELT_POSITION_LABELS[item.belt_position]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Belt Style */}
+            {viewShowBeltPosition && item.belt_style && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Belt Style</p>
+                  <p className="text-sm font-medium">{BELT_STYLE_LABELS[item.belt_style]}</p>
                 </CardContent>
               </Card>
             )}

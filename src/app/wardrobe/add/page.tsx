@@ -18,7 +18,9 @@ import type {
   WaistClosure,
   ShoeHeight,
   HeelType,
+  ShoeClosure,
   BeltPosition,
+  BeltStyle,
   MetalFinish,
   Neckline,
   SleeveLength,
@@ -39,7 +41,9 @@ import {
   BOTTOM_FIT_LABELS,
   SHOE_HEIGHT_LABELS,
   HEEL_TYPE_LABELS,
+  SHOE_CLOSURE_LABELS,
   BELT_POSITION_LABELS,
+  BELT_STYLE_LABELS,
   METAL_FINISH_LABELS,
   NECKLINE_LABELS,
   SLEEVE_LENGTH_LABELS,
@@ -95,6 +99,8 @@ export default function AddItemPage() {
   const [isLayeringPiece, setIsLayeringPiece] = useState(false);
   const [shoeHeight, setShoeHeight] = useState<ShoeHeight>("low");
   const [heelType, setHeelType] = useState<HeelType>("flat");
+  const [shoeClosure, setShoeClosure] = useState<ShoeClosure | null>(null);
+  const [beltStyle, setBeltStyle] = useState<BeltStyle | null>(null);
   const [beltPosition, setBeltPosition] = useState<BeltPosition>("waist");
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
@@ -199,19 +205,66 @@ export default function AddItemPage() {
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, size, size);
 
-      // Sample center 60% only to avoid background colors (door, wall, etc.)
-      const margin = Math.round(size * 0.2);
+      // Step 1: Sample the 4 corners to detect background color
+      const cornerSize = Math.round(size * 0.12);
+      const corners = [
+        ctx.getImageData(0, 0, cornerSize, cornerSize).data,
+        ctx.getImageData(size - cornerSize, 0, cornerSize, cornerSize).data,
+        ctx.getImageData(0, size - cornerSize, cornerSize, cornerSize).data,
+        ctx.getImageData(size - cornerSize, size - cornerSize, cornerSize, cornerSize).data,
+      ];
+
+      const bgBuckets: Record<string, number> = {};
+      for (const cornerData of corners) {
+        for (let i = 0; i < cornerData.length; i += 4) {
+          const r = Math.round(cornerData[i] / 32) * 32;
+          const g = Math.round(cornerData[i + 1] / 32) * 32;
+          const b = Math.round(cornerData[i + 2] / 32) * 32;
+          const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+          bgBuckets[hex] = (bgBuckets[hex] || 0) + 1;
+        }
+      }
+
+      // Top 3 most common corner colors = background
+      const backgroundColors = new Set(
+        Object.entries(bgBuckets)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([hex]) => hex)
+      );
+
+      // Helper to check if a color is "close enough" to any background color
+      function isBackgroundColor(hex: string): boolean {
+        if (backgroundColors.has(hex)) return true;
+        // Also check if it's within a tight range of any background color
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        for (const bgHex of backgroundColors) {
+          const br = parseInt(bgHex.slice(1, 3), 16);
+          const bg = parseInt(bgHex.slice(3, 5), 16);
+          const bb = parseInt(bgHex.slice(5, 7), 16);
+          const dist = Math.sqrt((r - br) ** 2 + (g - bg) ** 2 + (b - bb) ** 2);
+          if (dist < 40) return true;
+        }
+        return false;
+      }
+
+      // Step 2: Sample center 50% with background filtered out
+      const margin = Math.round(size * 0.25);
       const innerSize = size - margin * 2;
       const centerData = ctx.getImageData(margin, margin, innerSize, innerSize).data;
 
       const buckets: Record<string, number> = {};
-      const totalPixels = innerSize * innerSize;
+      let validPixels = 0;
       for (let i = 0; i < centerData.length; i += 4) {
         const r = Math.round(centerData[i] / 32) * 32;
         const g = Math.round(centerData[i + 1] / 32) * 32;
         const b = Math.round(centerData[i + 2] / 32) * 32;
         const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+        if (isBackgroundColor(hex)) continue;
         buckets[hex] = (buckets[hex] || 0) + 1;
+        validPixels++;
       }
 
       const sorted = Object.entries(buckets)
@@ -221,7 +274,7 @@ export default function AddItemPage() {
       const colors = sorted.map(([hex, count]) => ({
         hex,
         name: getColorName(hex),
-        percentage: Math.round((count / totalPixels) * 100),
+        percentage: validPixels > 0 ? Math.round((count / validPixels) * 100) : 0,
       }));
 
       setDetectedColors(colors);
@@ -354,7 +407,9 @@ export default function AddItemPage() {
           is_layering_piece: isLayeringPiece,
           shoe_height: showShoeFields ? shoeHeight : null,
           heel_type: showShoeFields ? heelType : null,
+          shoe_closure: showShoeFields ? shoeClosure : null,
           belt_position: showBeltPosition ? beltPosition : null,
+          belt_style: showBeltPosition ? beltStyle : null,
           neckline: showNeckline ? neckline : null,
           sleeve_length: showSleeveLength ? sleeveLength : null,
           closure: showClosure ? closure : null,
@@ -978,6 +1033,30 @@ export default function AddItemPage() {
                 >
                   {label}
                 </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Shoe Closure - shoes only */}
+        {category && showShoeFields && (
+          <div className="space-y-2">
+            <Label>Closure</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(SHOE_CLOSURE_LABELS) as [ShoeClosure, string][]).map(([c, label]) => (
+                <button key={c} type="button" onClick={() => setShoeClosure(shoeClosure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", shoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Belt Style - belt subcategory only */}
+        {category && showBeltPosition && (
+          <div className="space-y-2">
+            <Label>Belt Style</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(BELT_STYLE_LABELS) as [BeltStyle, string][]).map(([b, label]) => (
+                <button key={b} type="button" onClick={() => setBeltStyle(beltStyle === b ? null : b)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", beltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
               ))}
             </div>
           </div>
