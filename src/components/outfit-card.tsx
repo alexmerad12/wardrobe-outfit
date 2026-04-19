@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Shirt, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Heart, Shirt, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OutfitCardProps {
@@ -74,15 +74,15 @@ export function OutfitCard({
             size="sm"
             className={cn(
               "flex-1",
-              isFavorited && "bg-red-50 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
+              isFavorited && "border-primary/40 bg-primary/5 text-primary hover:bg-primary/5 hover:text-primary"
             )}
             onClick={onSave}
             disabled={saving || isFavorited}
           >
             {isFavorited ? (
               <>
-                <Check className="mr-1.5 h-4 w-4" />
-                Favorited
+                <Heart className="mr-1.5 h-4 w-4 fill-current" />
+                Saved
               </>
             ) : (
               <>
