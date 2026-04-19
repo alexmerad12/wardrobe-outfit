@@ -650,6 +650,9 @@ export default function AddItemPage() {
           </div>
         )}
 
+        {/* Details - only shown once category is picked */}
+        {category && <>
+
         {/* Generic Fit - tops, dresses, outerwear, non-jeans/trousers bottoms */}
         {category && showGenericFit && (
           <div className="space-y-2">
@@ -1104,6 +1107,8 @@ export default function AddItemPage() {
             onChange={(e) => setBrand(e.target.value)}
           />
         </div>
+
+        </>}
 
         {/* Error */}
         {error && (
