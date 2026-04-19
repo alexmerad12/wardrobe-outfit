@@ -17,6 +17,7 @@ function describeItem(item: ClothingItem): string {
   if (item.fit) parts.push(`Fit: ${item.fit}`);
   if (item.bottom_fit) parts.push(`Bottom fit: ${item.bottom_fit}`);
   if (item.length) parts.push(`Length: ${item.length}`);
+  if (item.pants_length) parts.push(`Pant length: ${item.pants_length}`);
   if (item.waist_height) parts.push(`Waist: ${item.waist_height}`);
   if (item.waist_style) parts.push(`Waist style: ${item.waist_style}`);
   if (item.shoe_height) parts.push(`Height: ${item.shoe_height}`);

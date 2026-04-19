@@ -13,6 +13,7 @@ import type {
   Fit,
   BottomFit,
   Length,
+  PantsLength,
   WaistStyle,
   WaistHeight,
   ShoeHeight,
@@ -32,6 +33,7 @@ import {
   FIT_LABELS,
   BOTTOM_FIT_LABELS,
   LENGTH_LABELS,
+  PANTS_LENGTH_LABELS,
   WAIST_STYLE_LABELS,
   WAIST_HEIGHT_LABELS,
   SHOE_HEIGHT_LABELS,
@@ -96,6 +98,7 @@ export default function ItemDetailPage() {
   const [editFit, setEditFit] = useState<Fit>("regular");
   const [editBottomFit, setEditBottomFit] = useState<BottomFit>("regular");
   const [editLength, setEditLength] = useState<Length | null>(null);
+  const [editPantsLength, setEditPantsLength] = useState<PantsLength | null>(null);
   const [editWaistStyle, setEditWaistStyle] = useState<WaistStyle | null>(null);
   const [editWaistHeight, setEditWaistHeight] = useState<WaistHeight>("mid");
   const [editBeltCompatible, setEditBeltCompatible] = useState(false);
@@ -143,6 +146,7 @@ export default function ItemDetailPage() {
     setEditFit(item.fit ?? "regular");
     setEditBottomFit(item.bottom_fit ?? "regular");
     setEditLength(item.length ?? null);
+    setEditPantsLength(item.pants_length ?? null);
     setEditWaistStyle(item.waist_style ?? null);
     setEditWaistHeight(item.waist_height ?? "mid");
     setEditBeltCompatible(item.belt_compatible ?? false);
@@ -180,9 +184,11 @@ export default function ItemDetailPage() {
     (editCategory === "bottom" && !editIsJeansTrousers);
   const editShowBottomFit = editCategory === "bottom" && editIsJeansTrousers;
   const editShowLength =
-    ["top", "bottom", "outerwear"].includes(editCategory) &&
-    editSubcategory !== "shorts" &&
+    (editCategory === "top" || editCategory === "outerwear") &&
     editSubcategory !== "crop-top";
+  const editShowPantsLength =
+    editCategory === "bottom" &&
+    ["jeans", "trousers", "leggings", "sweatpants"].includes(editSubcategory);
   const editShowNeckline =
     ["top", "dress", "outerwear"].includes(editCategory) &&
     editSubcategory !== "hoodie" &&
@@ -233,6 +239,7 @@ export default function ItemDetailPage() {
           fit: editShowGenericFit ? editFit : null,
           bottom_fit: editShowBottomFit ? editBottomFit : null,
           length: editShowLength ? editLength : null,
+          pants_length: editShowPantsLength ? editPantsLength : null,
           waist_style: editShowWaistStyle ? editWaistStyle : null,
           waist_height: editShowWaistHeight ? editWaistHeight : null,
           belt_compatible: editBeltCompatible,
@@ -558,6 +565,18 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Pants Length - jeans, trousers, leggings, sweatpants */}
+          {editShowPantsLength && (
+            <div className="space-y-1">
+              <Label>Length</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {(Object.entries(PANTS_LENGTH_LABELS) as [PantsLength, string][]).map(([l, label]) => (
+                  <button key={l} type="button" onClick={() => setEditPantsLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editPantsLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Waist Height - jeans and trousers only */}
           {editShowWaistHeight && (
             <div className="space-y-1">
@@ -813,6 +832,14 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Length</p>
                   <p className="text-sm font-medium">{LENGTH_LABELS[item.length]}</p>
+                </CardContent>
+              </Card>
+            )}
+            {item.pants_length && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Length</p>
+                  <p className="text-sm font-medium">{PANTS_LENGTH_LABELS[item.pants_length]}</p>
                 </CardContent>
               </Card>
             )}

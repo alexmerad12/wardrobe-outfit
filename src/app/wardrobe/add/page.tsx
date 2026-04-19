@@ -12,6 +12,7 @@ import type {
   Fit,
   BottomFit,
   Length,
+  PantsLength,
   WaistStyle,
   WaistHeight,
   ShoeHeight,
@@ -30,6 +31,7 @@ import {
   SUBCATEGORY_OPTIONS,
   PATTERN_LABELS,
   LENGTH_LABELS,
+  PANTS_LENGTH_LABELS,
   WAIST_STYLE_LABELS,
   WAIST_HEIGHT_LABELS,
   BOTTOM_FIT_LABELS,
@@ -83,6 +85,7 @@ export default function AddItemPage() {
   const [closure, setClosure] = useState<Closure | null>(null);
   const [bottomFit, setBottomFit] = useState<BottomFit>("regular");
   const [length, setLength] = useState<Length>("regular");
+  const [pantsLength, setPantsLength] = useState<PantsLength>("full");
   const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
   const [waistHeight, setWaistHeight] = useState<WaistHeight>("mid");
   const [beltCompatible, setBeltCompatible] = useState(false);
@@ -141,11 +144,14 @@ export default function AddItemPage() {
     category === "outerwear" ||
     (category === "bottom" && !isJeansTrousers);
   const showBottomFit = category === "bottom" && isJeansTrousers;
-  // Length: hide for shorts (short by definition) and crop-tops (cropped by definition)
+  // Length: for tops and outerwear. Bottoms use pants_length instead (except skirts use generic).
   const showLength =
-    ["top", "bottom", "outerwear"].includes(category as string) &&
-    subcategory !== "shorts" &&
+    (category === "top" || category === "outerwear") &&
     subcategory !== "crop-top";
+  // PantsLength: for jeans, trousers, leggings, sweatpants
+  const showPantsLength =
+    category === "bottom" &&
+    ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
   const showWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(category as string);
   const showWaistHeight = category === "bottom" && isJeansTrousers;
   const showBeltCompatible =
@@ -333,6 +339,7 @@ export default function AddItemPage() {
           fit: showGenericFit ? fit : null,
           bottom_fit: showBottomFit ? bottomFit : null,
           length: showLength ? length : null,
+          pants_length: showPantsLength ? pantsLength : null,
           waist_style: showWaistStyle ? waistStyle : null,
           waist_height: showWaistHeight ? waistHeight : null,
           belt_compatible: beltCompatible,
@@ -770,6 +777,30 @@ export default function AddItemPage() {
                   className={cn(
                     "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     length === l
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pants Length - jeans, trousers, leggings, sweatpants */}
+        {showPantsLength && (
+          <div className="space-y-2">
+            <Label>Length</Label>
+            <div className="grid grid-cols-5 gap-2">
+              {(Object.entries(PANTS_LENGTH_LABELS) as [PantsLength, string][]).map(([l, label]) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setPantsLength(l)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    pantsLength === l
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
                   )}

@@ -30,6 +30,8 @@ export type BottomFit = "skinny" | "slim" | "straight" | "regular" | "wide-leg" 
 
 export type Length = "cropped" | "regular" | "long" | "extra-long";
 
+export type PantsLength = "capri" | "ankle-crop" | "ankle" | "full" | "extra-long";
+
 export type WaistStyle = "elastic" | "fitted" | "relaxed" | "belted";
 
 export type WaistHeight = "high" | "mid" | "low";
@@ -97,6 +99,7 @@ export interface ClothingItem {
   fit: Fit | null;
   bottom_fit: BottomFit | null;
   length: Length | null;
+  pants_length: PantsLength | null;
   waist_style: WaistStyle | null;
   waist_height: WaistHeight | null;
   belt_compatible: boolean;
@@ -260,6 +263,14 @@ export const LENGTH_LABELS: Record<Length, string> = {
   regular: "Regular",
   long: "Long",
   "extra-long": "Tunic / Extra Long",
+};
+
+export const PANTS_LENGTH_LABELS: Record<PantsLength, string> = {
+  capri: "Capri",
+  "ankle-crop": "Ankle Crop",
+  ankle: "Ankle",
+  full: "Full Length",
+  "extra-long": "Extra Long",
 };
 
 export const WAIST_STYLE_LABELS: Record<WaistStyle, string> = {
