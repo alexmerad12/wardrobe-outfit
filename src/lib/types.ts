@@ -60,7 +60,7 @@ export type Formality = "very-casual" | "casual" | "smart-casual" | "business-ca
 
 export type Season = "spring" | "summer" | "fall" | "winter";
 
-export type Occasion = "work" | "casual" | "brunch" | "dinner-out" | "hangout" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home" | "errands";
+export type Occasion = "work" | "casual" | "brunch" | "dinner-out" | "hangout" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home";
 
 export type Mood = "energized" | "confident" | "playful" | "cozy" | "chill" | "bold" | "period" | "sad";
 
@@ -236,7 +236,6 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
   "dinner-out": "Dinner Out",
   hangout: "Hangout",
   "at-home": "At Home",
-  errands: "Errands",
   date: "Date Night",
   sport: "Sport",
   outdoor: "Outdoor",
