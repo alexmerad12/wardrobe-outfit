@@ -230,18 +230,18 @@ export const MOOD_CONFIG: Record<Mood, { emoji: string; label: string; descripti
 };
 
 export const OCCASION_LABELS: Record<Occasion, string> = {
-  work: "Work",
+  "at-home": "At Home",
   casual: "Casual",
+  hangout: "Hangout",
   brunch: "Brunch",
   "dinner-out": "Dinner Out",
-  hangout: "Hangout",
-  "at-home": "At Home",
+  work: "Work",
   date: "Date Night",
-  sport: "Sport",
-  outdoor: "Outdoor",
-  travel: "Travel",
   party: "Party",
   formal: "Formal Event",
+  travel: "Travel",
+  sport: "Sport",
+  outdoor: "Outdoor",
 };
 
 export const SEASON_LABELS: Record<Season, string> = {
