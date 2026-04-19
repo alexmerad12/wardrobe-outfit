@@ -379,7 +379,7 @@ export default function PackingPage() {
             disabled={!destination || !startDate || !endDate || loading}
           >
             {loading ? (
-              <StylistLoader size="sm" />
+              <StylistLoader size="sm" label="Yav is packing..." />
             ) : (
               <><Plane className="h-4 w-4" /> Generate Packing List</>
             )}
