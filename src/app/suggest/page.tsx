@@ -40,6 +40,7 @@ function SuggestContent() {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [favoritedIndices, setFavoritedIndices] = useState<Set<number>>(new Set());
   const [step, setStep] = useState<"mood" | "style" | "occasion" | "results">("mood");
   const [saving, setSaving] = useState(false);
   const [styleWishes, setStyleWishes] = useState<string[]>([]);
@@ -86,6 +87,7 @@ function SuggestContent() {
         setSuggestions(data.suggestions);
         setWardrobeGap(data.wardrobe_gap ?? null);
         setCurrentIndex(0);
+        setFavoritedIndices(new Set());
         setStep("results");
       }
     } catch (err) {
@@ -96,6 +98,8 @@ function SuggestContent() {
   }
 
   async function saveFavorite(suggestion: AISuggestion) {
+    // Guard against double-save on the same suggestion
+    if (favoritedIndices.has(currentIndex) || saving) return;
     setSaving(true);
     try {
       await fetch("/api/outfits", {
@@ -116,7 +120,7 @@ function SuggestContent() {
           source: "ai",
         }),
       });
-      handleNext();
+      setFavoritedIndices((prev) => new Set(prev).add(currentIndex));
     } catch (err) {
       console.error("Failed to save:", err);
     } finally {
@@ -346,6 +350,7 @@ function SuggestContent() {
             reasoning={suggestions[currentIndex].reasoning}
             name={suggestions[currentIndex].name}
             saving={saving}
+            isFavorited={favoritedIndices.has(currentIndex)}
             onNext={handleNext}
             onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             canNext={currentIndex < suggestions.length - 1}

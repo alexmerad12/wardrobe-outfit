@@ -4,7 +4,8 @@ import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Shirt, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Shirt, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OutfitCardProps {
   items: ClothingItem[];
@@ -17,6 +18,7 @@ interface OutfitCardProps {
   canNext?: boolean;
   canPrev?: boolean;
   saving?: boolean;
+  isFavorited?: boolean;
 }
 
 export function OutfitCard({
@@ -30,6 +32,7 @@ export function OutfitCard({
   canNext = true,
   canPrev = false,
   saving,
+  isFavorited = false,
 }: OutfitCardProps) {
   return (
     <Card className="overflow-hidden">
@@ -69,12 +72,24 @@ export function OutfitCard({
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
+            className={cn(
+              "flex-1",
+              isFavorited && "bg-red-50 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
+            )}
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || isFavorited}
           >
-            <Heart className="mr-1.5 h-4 w-4" />
-            Favorite
+            {isFavorited ? (
+              <>
+                <Check className="mr-1.5 h-4 w-4" />
+                Favorited
+              </>
+            ) : (
+              <>
+                <Heart className="mr-1.5 h-4 w-4" />
+                {saving ? "Saving..." : "Favorite"}
+              </>
+            )}
           </Button>
           <Button
             size="sm"
