@@ -45,11 +45,11 @@
   },
   "suggest": {
     "title": "Que porter",
-    "howAreYouFeeling": "Comment te sens-tu aujourd'hui ?",
+    "howAreYouFeeling": "Humeur du jour ?",
     "stylingPreferences": "Des préférences de style ?",
     "whatsTheOccasion": "Quelle est l'occasion ?",
     "suggestionCounter": "Suggestion {current} sur {total}",
-    "howAreYouFeelingShort": "Comment te sens-tu ?",
+    "howAreYouFeelingShort": "Humeur du jour ?",
     "anyDirection": "Un style en tête ?",
     "optional": "Optionnel - tape celles qui s'appliquent",
     "customWishPlaceholder": "Ou écris ton idée... (ex : « Je veux porter mes bottes rouges »)",
