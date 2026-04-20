@@ -71,7 +71,7 @@
   "mood": {
     "energized": { "label": "Énergique", "description": "Vif et audacieux" },
     "confident": { "label": "Confiante", "description": "Net et raffiné" },
-    "playful": { "label": "Espiègle", "description": "Amusant et coloré" },
+    "playful": { "label": "Fun", "description": "Amusant et coloré" },
     "cozy": { "label": "Cocooning", "description": "Doux et chaud" },
     "chill": { "label": "Relax", "description": "Décontractée et facile" },
     "bold": { "label": "Audacieuse", "description": "Pièces remarquables" },
