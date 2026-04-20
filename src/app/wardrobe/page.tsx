@@ -65,6 +65,7 @@ export default function WardrobePage() {
     dismissAllFailed,
     clearReady,
     onItemSaved,
+    onBatchComplete,
   } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -93,34 +94,24 @@ export default function WardrobePage() {
     });
   }, [onItemSaved, refetchItems]);
 
-  // Auto-open the review wizard as soon as a batch finishes. Feels like
-  // the page "pops up" when processing is done — matches the user's
-  // mental model of the flow without forcing them to hunt for a button.
-  // Guarded by a ref so it fires once per completion burst, and skipped
-  // if the user has already navigated away from the wardrobe tab.
-  const autoReviewedRef = useRef(false);
+  // Auto-open the review wizard the moment a batch settles. Subscribes
+  // to the context's batch-complete event, which only reaches listeners
+  // that are currently mounted — so a batch completing while the user
+  // is off on /profile or /suggest doesn't yank them into the wizard
+  // the next time they land on /wardrobe. They see the "Review your N
+  // uploads" button instead and tap when they're ready.
   useEffect(() => {
-    if (pending.length === 0) {
-      // Reset so the next batch can auto-open too.
-      autoReviewedRef.current = false;
-      return;
-    }
-    const settled = pending.every(
-      (p) => p.stage === "ready" || p.stage === "error"
-    );
-    const readyItems = pending.filter(
-      (p) => p.stage === "ready" && p.savedItemId
-    );
-    if (settled && readyItems.length > 0 && !autoReviewedRef.current) {
-      autoReviewedRef.current = true;
-      const firstId = readyItems[0].savedItemId!;
-      const restIds = readyItems.slice(1).map((p) => p.savedItemId!);
-      clearReady();
+    return onBatchComplete((readyIds) => {
+      if (readyIds.length === 0) return;
+      const [firstId, ...restIds] = readyIds;
       const qs = new URLSearchParams({ edit: "1" });
       if (restIds.length > 0) qs.set("next", restIds.join(","));
       router.push(`/wardrobe/${firstId}?${qs.toString()}`);
-    }
-  }, [pending, router, clearReady]);
+      // Dismiss the ready tiles AFTER the nav is queued — order-safe
+      // because router.push has already captured the URL.
+      clearReady();
+    });
+  }, [onBatchComplete, router, clearReady]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {

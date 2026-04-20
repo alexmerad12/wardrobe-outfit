@@ -54,6 +54,12 @@ type ContextValue = {
   clearReady: () => void;
   // Subscribe to "item saved" events — wardrobe grid uses this to refetch.
   onItemSaved: (listener: () => void) => () => void;
+  // Subscribe to "batch finished" — fires exactly once per burst when
+  // every in-flight item has settled (ready or error) AND at least one
+  // is ready. Consumers only receive events that fire while they're
+  // mounted, so a batch that completes while the user is on a different
+  // page is silently missed (no retroactive auto-nav).
+  onBatchComplete: (listener: (readyItemIds: string[]) => void) => () => void;
 };
 
 const Ctx = createContext<ContextValue | null>(null);
@@ -150,6 +156,12 @@ export function PendingUploadsProvider({
   const [items, setItems] = useState<PendingItem[]>([]);
   const kickedOffRef = useRef<Set<string>>(new Set());
   const savedListenersRef = useRef<Set<() => void>>(new Set());
+  const batchCompleteListenersRef = useRef<Set<(ids: string[]) => void>>(
+    new Set()
+  );
+  // Tracks whether the *current* burst has already notified its
+  // listeners. Reset when pending empties so the next batch can fire.
+  const batchCompletedFiredRef = useRef(false);
 
   const notifySaved = useCallback(() => {
     for (const listener of savedListenersRef.current) {
@@ -158,6 +170,16 @@ export function PendingUploadsProvider({
       } catch {}
     }
   }, []);
+
+  const onBatchComplete = useCallback(
+    (listener: (ids: string[]) => void) => {
+      batchCompleteListenersRef.current.add(listener);
+      return () => {
+        batchCompleteListenersRef.current.delete(listener);
+      };
+    },
+    []
+  );
 
   const patchItem = useCallback((id: string, patch: Partial<PendingItem>) => {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -314,6 +336,32 @@ export function PendingUploadsProvider({
     return () => window.removeEventListener("beforeunload", handler);
   }, [items]);
 
+  // Fire the batch-complete event exactly once per burst, the moment
+  // every in-flight item settles. Listeners only receive the event if
+  // they're currently mounted — so a batch completing while the user is
+  // on /profile is silently missed instead of yanking them into the
+  // wizard when they next return to /wardrobe.
+  useEffect(() => {
+    if (items.length === 0) {
+      batchCompletedFiredRef.current = false;
+      return;
+    }
+    const settled = items.every(
+      (i) => i.stage === "ready" || i.stage === "error"
+    );
+    const readyIds = items
+      .filter((i) => i.stage === "ready" && i.savedItemId)
+      .map((i) => i.savedItemId!);
+    if (settled && readyIds.length > 0 && !batchCompletedFiredRef.current) {
+      batchCompletedFiredRef.current = true;
+      for (const listener of batchCompleteListenersRef.current) {
+        try {
+          listener(readyIds);
+        } catch {}
+      }
+    }
+  }, [items]);
+
   // Auto-dismiss "ready" items a while after they complete. Long enough
   // for the user to hit "Review items" while they're still on-screen, short
   // enough that the strip doesn't accumulate forever. Leaves error items
@@ -455,6 +503,7 @@ export function PendingUploadsProvider({
         dismissAllFailed,
         clearReady,
         onItemSaved,
+        onBatchComplete,
       }}
     >
       {children}
