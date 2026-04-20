@@ -59,6 +59,7 @@ export default function WardrobePage() {
     retry,
     dismiss,
     dismissAllFailed,
+    clearReady,
     onItemSaved,
   } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -356,10 +357,16 @@ export default function WardrobePage() {
           when the user is filtering by category) */}
       {activeCategory === "all" && (
         <PendingStrip
-          pending={pending.filter((p) => p.stage !== "ready")}
+          pending={pending}
           onRetry={retry}
           onDismiss={dismiss}
           onDismissAllFailed={dismissAllFailed}
+          onStartReview={(firstId, restIds) => {
+            clearReady();
+            const qs = new URLSearchParams({ edit: "1" });
+            if (restIds.length > 0) qs.set("next", restIds.join(","));
+            router.push(`/wardrobe/${firstId}?${qs.toString()}`);
+          }}
         />
       )}
 
@@ -418,19 +425,30 @@ function PendingStrip({
   onRetry,
   onDismiss,
   onDismissAllFailed,
+  onStartReview,
 }: {
   pending: PendingItem[];
   onRetry: (id: string) => void;
   onDismiss: (id: string) => void;
   onDismissAllFailed: () => void;
+  onStartReview: (firstId: string, restIds: string[]) => void;
 }) {
   const { t } = useLocale();
+  // Ready items are shown separately as a "Review uploads" CTA, not as
+  // tiles in the grid.
+  const readySaved = pending.filter(
+    (p) => p.stage === "ready" && p.savedItemId
+  );
+  const readyIds = readySaved
+    .map((p) => p.savedItemId)
+    .filter((id): id is string => Boolean(id));
+  const inFlight = pending.filter((p) => p.stage !== "ready");
   if (pending.length === 0) return null;
-  const processing = pending.filter((p) => p.stage !== "error").length;
-  const errorCount = pending.length - processing;
-  const visible = pending.slice(0, MAX_INLINE_TILES);
-  const overflow = pending.length - visible.length;
-  const firstError = pending.find((p) => p.stage === "error")?.error;
+  const processing = inFlight.filter((p) => p.stage !== "error").length;
+  const errorCount = inFlight.length - processing;
+  const visible = inFlight.slice(0, MAX_INLINE_TILES);
+  const overflow = inFlight.length - visible.length;
+  const firstError = inFlight.find((p) => p.stage === "error")?.error;
 
   function copyErrors() {
     const failed = pending.filter((p) => p.stage === "error");
@@ -446,43 +464,66 @@ function PendingStrip({
 
   return (
     <div className={cn("mb-4 rounded-xl px-4 py-3", BURGUNDY_BG, "border", BURGUNDY_BORDER)}>
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Sparkles className={cn("h-4 w-4 shrink-0", BURGUNDY_TEXT)} />
-          <span className={cn("text-sm font-medium truncate", BURGUNDY_TEXT)}>
-            {processing > 0
-              ? t(processing === 1 ? "wardrobe.yavIsAdding" : "wardrobe.yavIsAddingPlural", { count: processing })
-              : t("wardrobe.someUploadsNeedAttention")}
-            {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
-          </span>
-        </div>
-        {pending.length > MAX_INLINE_TILES && (
-          <Link
-            href="/wardrobe/bulk"
-            className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
-          >
-            {t("wardrobe.viewAll")}
-          </Link>
-        )}
-      </div>
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-        {visible.map((p) => (
-          <PendingTile
-            key={p.id}
-            item={p}
-            onRetry={() => onRetry(p.id)}
-            onDismiss={() => onDismiss(p.id)}
-          />
-        ))}
-        {overflow > 0 && (
-          <Link
-            href="/wardrobe/bulk"
-            className="relative aspect-square overflow-hidden rounded-lg bg-[#f4d3d9] flex items-center justify-center text-[#7c2d3a] text-xs font-medium"
-          >
-            +{overflow}
-          </Link>
-        )}
-      </div>
+      {/* Review CTA — shown prominently when there are just-saved items
+          waiting to be reviewed. Clicking it steps through each item's
+          edit form one at a time. */}
+      {readyIds.length > 0 && (
+        <button
+          type="button"
+          onClick={() => onStartReview(readyIds[0], readyIds.slice(1))}
+          className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg bg-[#7c2d3a] px-4 py-2.5 text-left text-white shadow-sm hover:bg-[#6b2430] transition-colors"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span className="text-sm font-medium truncate">
+              Review your {readyIds.length} upload{readyIds.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <span className="text-sm shrink-0">→</span>
+        </button>
+      )}
+
+      {inFlight.length > 0 && (
+        <>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className={cn("h-4 w-4 shrink-0", BURGUNDY_TEXT)} />
+              <span className={cn("text-sm font-medium truncate", BURGUNDY_TEXT)}>
+                {processing > 0
+                  ? t(processing === 1 ? "wardrobe.yavIsAdding" : "wardrobe.yavIsAddingPlural", { count: processing })
+                  : t("wardrobe.someUploadsNeedAttention")}
+                {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
+              </span>
+            </div>
+            {inFlight.length > MAX_INLINE_TILES && (
+              <Link
+                href="/wardrobe/bulk"
+                className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
+              >
+                {t("wardrobe.viewAll")}
+              </Link>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            {visible.map((p) => (
+              <PendingTile
+                key={p.id}
+                item={p}
+                onRetry={() => onRetry(p.id)}
+                onDismiss={() => onDismiss(p.id)}
+              />
+            ))}
+            {overflow > 0 && (
+              <Link
+                href="/wardrobe/bulk"
+                className="relative aspect-square overflow-hidden rounded-lg bg-[#f4d3d9] flex items-center justify-center text-[#7c2d3a] text-xs font-medium"
+              >
+                +{overflow}
+              </Link>
+            )}
+          </div>
+        </>
+      )}
       {firstError ? (
         <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-2.5 py-1.5 text-xs text-red-800">
           <div>

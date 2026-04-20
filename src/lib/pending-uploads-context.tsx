@@ -48,6 +48,10 @@ type ContextValue = {
   retry: (id: string) => void;
   dismiss: (id: string) => void;
   dismissAllFailed: () => void;
+  // Clear just the "ready" tiles — used when the user enters the
+  // post-upload review wizard, so the strip doesn't still show items
+  // the user is actively stepping through.
+  clearReady: () => void;
   // Subscribe to "item saved" events — wardrobe grid uses this to refetch.
   onItemSaved: (listener: () => void) => () => void;
 };
@@ -311,8 +315,10 @@ export function PendingUploadsProvider({
     return () => window.removeEventListener("beforeunload", handler);
   }, [items]);
 
-  // Auto-dismiss "ready" items a moment after they complete, so the pending
-  // tray doesn't grow forever after a batch. Leaves error items for retry.
+  // Auto-dismiss "ready" items a while after they complete. Long enough
+  // for the user to hit "Review items" while they're still on-screen, short
+  // enough that the strip doesn't accumulate forever. Leaves error items
+  // for retry.
   useEffect(() => {
     const readyIds = items.filter((i) => i.stage === "ready").map((i) => i.id);
     if (readyIds.length === 0) return;
@@ -324,7 +330,7 @@ export function PendingUploadsProvider({
           return !shouldDrop;
         })
       );
-    }, 4000);
+    }, 60_000);
     return () => clearTimeout(timer);
   }, [items]);
 
@@ -399,6 +405,15 @@ export function PendingUploadsProvider({
     });
   }, []);
 
+  const clearReady = useCallback(() => {
+    setItems((prev) => {
+      for (const i of prev) {
+        if (i.stage === "ready") URL.revokeObjectURL(i.previewUrl);
+      }
+      return prev.filter((i) => i.stage !== "ready");
+    });
+  }, []);
+
   const onItemSaved = useCallback((listener: () => void) => {
     savedListenersRef.current.add(listener);
     return () => {
@@ -408,7 +423,15 @@ export function PendingUploadsProvider({
 
   return (
     <Ctx.Provider
-      value={{ items, addFiles, retry, dismiss, dismissAllFailed, onItemSaved }}
+      value={{
+        items,
+        addFiles,
+        retry,
+        dismiss,
+        dismissAllFailed,
+        clearReady,
+        onItemSaved,
+      }}
     >
       {children}
     </Ctx.Provider>

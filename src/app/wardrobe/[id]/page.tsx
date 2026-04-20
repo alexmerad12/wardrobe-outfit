@@ -69,6 +69,15 @@ export default function ItemDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const shouldAutoEdit = searchParams.get("edit") === "1";
+  // Review wizard: /wardrobe/[id]?edit=1&next=id2,id3,id4 steps the user
+  // through each newly-uploaded item. Save & Next advances to the head of
+  // the list, carrying the rest along.
+  const nextParam = searchParams.get("next") ?? "";
+  const nextIds = nextParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const hasNext = shouldAutoEdit && nextIds.length > 0;
   const [item, setItem] = useState<ClothingItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -286,10 +295,21 @@ export default function ItemDetailPage() {
         }),
       });
       if (res.ok) {
-        setItem(await res.json());
-        setEditing(false);
+        const saved = await res.json();
+        setItem(saved);
         setNewImageFile(null);
         setNewImagePreview(null);
+        // Review wizard: if there are more items queued up for review,
+        // advance to the next one instead of closing edit mode. User can
+        // still exit via the X in the header at any time.
+        if (hasNext) {
+          const [head, ...rest] = nextIds;
+          const qs = new URLSearchParams({ edit: "1" });
+          if (rest.length > 0) qs.set("next", rest.join(","));
+          router.push(`/wardrobe/${head}?${qs.toString()}`);
+          return;
+        }
+        setEditing(false);
       } else {
         const text = await res.text().catch(() => "");
         console.error("[edit] PATCH failed", res.status, text);
@@ -430,11 +450,23 @@ export default function ItemDetailPage() {
           {editing && (
             <Button size="sm" onClick={saveEdit} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              {t("itemDetail.save")}
+              {hasNext ? "Next" : t("itemDetail.save")}
             </Button>
           )}
         </div>
       </div>
+
+      {/* Review wizard progress bar */}
+      {hasNext && editing && (
+        <div className="mb-3 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2 text-xs text-[#7c2d3a]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">Reviewing your upload</span>
+            <span className="text-[#9b4050]/80">
+              {nextIds.length} more to go
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Image */}
       <div className="relative aspect-square overflow-hidden rounded-xl bg-muted/30 mb-4">
@@ -889,7 +921,16 @@ export default function ItemDetailPage() {
           </div>
 
           <Button className="w-full h-12" onClick={saveEdit} disabled={saving}>
-            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("common.saving")}</> : t("itemDetail.saveChanges")}
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t("common.saving")}
+              </>
+            ) : hasNext ? (
+              `Save & Next (${nextIds.length} left)`
+            ) : (
+              t("itemDetail.saveChanges")
+            )}
           </Button>
           {saveError && (
             <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 break-words">
