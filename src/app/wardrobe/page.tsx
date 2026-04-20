@@ -435,7 +435,7 @@ function PendingTile({
           type="button"
           onClick={onRetry}
           className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-950/60 text-white"
-          title="Tap to retry"
+          title={item.error ? `Tap to retry — ${item.error}` : "Tap to retry"}
         >
           <AlertCircle className="h-4 w-4" />
           <span className="text-[10px] font-medium">Retry</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { upload } from "@vercel/blob/client";
 import type {
@@ -67,6 +67,8 @@ export default function ItemDetailPage() {
   const labels = useLabels();
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const shouldAutoEdit = searchParams.get("edit") === "1";
   const [item, setItem] = useState<ClothingItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -133,6 +135,15 @@ export default function ItemDetailPage() {
     // Eagerly fetch the model weights so the first click is instant
     preloadBgRemoval();
   }, []);
+
+  // When arriving from a freshly-processed upload (`?edit=1`), drop straight
+  // into edit mode so users can correct any AI guesses in one tap.
+  useEffect(() => {
+    if (shouldAutoEdit && item && !editing) {
+      startEditing();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoEdit, item]);
 
   function startEditing() {
     if (!item) return;
@@ -446,16 +457,27 @@ export default function ItemDetailPage() {
         />
       </div>
 
-      {/* Outfit with this - view mode */}
+      {/* View-mode actions */}
       {!editing && (
-        <Button
-          type="button"
-          className="w-full mb-4 gap-2"
-          onClick={() => router.push(`/suggest?item=${item.id}`)}
-        >
-          <Sparkles className="h-4 w-4" />
-          {t("itemDetail.outfitWithThis")}
-        </Button>
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            className="gap-2"
+            onClick={() => router.push(`/suggest?item=${item.id}`)}
+          >
+            <Sparkles className="h-4 w-4" />
+            {t("itemDetail.outfitWithThis")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={startEditing}
+          >
+            <Pencil className="h-4 w-4" />
+            Edit details
+          </Button>
+        </div>
       )}
 
       {/* Remove background button - edit mode */}

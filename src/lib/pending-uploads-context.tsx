@@ -12,6 +12,7 @@ import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { createClient } from "@/lib/supabase/client";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
+import { downscaleImage } from "@/lib/image-utils";
 
 // Global background-processing queue for item uploads.
 //
@@ -146,45 +147,73 @@ export function PendingUploadsProvider({
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   }, []);
 
+  const processItemOnce = useCallback(
+    async (item: PendingItem): Promise<void> => {
+      // 1. Downscale FIRST so everything downstream sees a sane-sized image.
+      //    Phone HEICs can be 20 MB+ and blow Claude's 5 MB image limit, on
+      //    top of being slow to upload. Doing this before bg removal also
+      //    gives us a safe fallback image if the ML worker throws.
+      const downscaled = await downscaleImage(item.file, 1600);
+
+      // 2. Background removal in the worker. If it fails, keep going with
+      //    the downscaled original — a decent result beats a blocked save.
+      const cleanedBlob = await removeBg(downscaled).catch(() => downscaled);
+      const cleaned = new File(
+        [cleanedBlob],
+        item.file.name.replace(/\.[^.]+$/, "") + ".png",
+        { type: "image/png" }
+      );
+
+      // 3. Upload + analyze in parallel on the cleaned, downscaled image.
+      const [imageUrl, attrs] = await Promise.all([
+        uploadImage(cleaned),
+        analyzeItem(cleaned).catch(() => ({} as AutoFillResult)),
+      ]);
+
+      // 4. Save to DB.
+      const res = await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildItemPayload(imageUrl, attrs)),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Save failed (${res.status})${text ? `: ${text.slice(0, 80)}` : ""}`);
+      }
+      const saved = (await res.json()) as { id: string };
+
+      patchItem(item.id, {
+        stage: "ready",
+        name: attrs.name ?? "Untitled item",
+        category: attrs.category ?? undefined,
+        savedItemId: saved.id,
+      });
+      notifySaved();
+    },
+    [patchItem, notifySaved]
+  );
+
   const processItem = useCallback(
     async (item: PendingItem) => {
       patchItem(item.id, { stage: "processing" });
       try {
-        const cleanedBlob = await removeBg(item.file).catch(() => item.file);
-        const cleaned = new File(
-          [cleanedBlob],
-          item.file.name.replace(/\.[^.]+$/, "") + ".png",
-          { type: "image/png" }
-        );
-
-        const [imageUrl, attrs] = await Promise.all([
-          uploadImage(cleaned),
-          analyzeItem(cleaned).catch(() => ({} as AutoFillResult)),
-        ]);
-
-        const res = await fetch("/api/items", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildItemPayload(imageUrl, attrs)),
-        });
-        if (!res.ok) throw new Error(`Save failed (${res.status})`);
-        const saved = (await res.json()) as { id: string };
-
-        patchItem(item.id, {
-          stage: "ready",
-          name: attrs.name ?? "Untitled item",
-          category: attrs.category ?? undefined,
-          savedItemId: saved.id,
-        });
-        notifySaved();
-      } catch (err) {
-        patchItem(item.id, {
-          stage: "error",
-          error: err instanceof Error ? err.message : "Failed",
-        });
+        await processItemOnce(item);
+      } catch (firstErr) {
+        // One automatic retry after a short backoff covers most transient
+        // failures: flaky Wi-Fi, a Claude 429, a Supabase 503.
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          await processItemOnce(item);
+        } catch (secondErr) {
+          const err = secondErr instanceof Error ? secondErr : firstErr;
+          patchItem(item.id, {
+            stage: "error",
+            error: err instanceof Error ? err.message : "Upload failed",
+          });
+        }
       }
     },
-    [patchItem, notifySaved]
+    [processItemOnce, patchItem]
   );
 
   // Capacity gate: run up to CONCURRENCY items at a time.
