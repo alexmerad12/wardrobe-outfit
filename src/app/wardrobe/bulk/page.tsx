@@ -18,6 +18,7 @@ import {
   usePendingUploads,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
+import { UploadPreviewImage } from "@/components/upload-preview-image";
 
 export default function BulkUploadPage() {
   const router = useRouter();
@@ -182,8 +183,7 @@ function BulkCard({
 }) {
   const content = (
     <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <UploadPreviewImage
         src={item.previewUrl}
         alt={item.name ?? "Clothing item"}
         className="h-full w-full object-cover"

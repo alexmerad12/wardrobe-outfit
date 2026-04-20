@@ -28,6 +28,7 @@ import {
 import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
 import { usePendingUploads, type PendingItem } from "@/lib/pending-uploads-context";
+import { UploadPreviewImage } from "@/components/upload-preview-image";
 
 const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
   "all",
@@ -424,10 +425,8 @@ function PendingTile({
   const isError = item.stage === "error";
   return (
     <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <UploadPreviewImage
         src={item.previewUrl}
-        alt=""
         className="h-full w-full object-cover opacity-70"
       />
       {isError ? (

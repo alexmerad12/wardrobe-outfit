@@ -155,6 +155,17 @@ export function PendingUploadsProvider({
       //    gives us a safe fallback image if the ML worker throws.
       const downscaled = await downscaleImage(item.file, 1600);
 
+      // If the downscale step produced a different blob (e.g. HEIC → JPEG),
+      // swap the preview URL. Desktop browsers can't render HEIC, so the
+      // original blob URL shows as a broken image until we replace it.
+      if (downscaled !== item.file) {
+        const oldUrl = item.previewUrl;
+        const newUrl = URL.createObjectURL(downscaled);
+        patchItem(item.id, { previewUrl: newUrl });
+        // Give React a tick to swap in the new URL before revoking the old.
+        setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
+      }
+
       // 2. Background removal in the worker. If it fails, keep going with
       //    the downscaled original — a decent result beats a blocked save.
       const cleanedBlob = await removeBg(downscaled).catch(() => downscaled);

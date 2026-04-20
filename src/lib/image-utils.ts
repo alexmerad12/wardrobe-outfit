@@ -13,10 +13,15 @@ export async function downscaleImage(
   source: Blob | File,
   maxDimension = 1600
 ): Promise<Blob> {
+  // HEIC from iPhones is the big offender — desktop browsers won't render
+  // it as an <img>, so even if the file is already small we still want to
+  // transcode it to a format browsers understand.
+  const isOpaqueFormat =
+    source.type === "image/heic" || source.type === "image/heif";
   try {
     const bitmap = await createImageBitmap(source);
     const maxSide = Math.max(bitmap.width, bitmap.height);
-    if (maxSide <= maxDimension) {
+    if (maxSide <= maxDimension && !isOpaqueFormat) {
       bitmap.close();
       return source;
     }
