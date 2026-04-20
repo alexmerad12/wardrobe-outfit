@@ -334,36 +334,39 @@ export function PendingUploadsProvider({
     return () => clearTimeout(timer);
   }, [items]);
 
-  const addFiles = useCallback(
-    (files: FileList | File[]) => {
-      // De-dupe within the current session by filename + size + lastModified.
-      // The same underlying photo picked twice returns an identical key; two
-      // different photos of the same outfit don't. Good enough for
-      // "I accidentally added this twice" without a full content hash.
+  const addFiles = useCallback((files: FileList | File[]) => {
+    // Pre-filter to actual images (accept HEIC by extension even when the
+    // browser doesn't give it a MIME type).
+    const allFiles = Array.from(files).filter(
+      (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name)
+    );
+    // Cap calculation has to happen inside the functional setItems updater
+    // so it sees the latest state — otherwise two file-picker events firing
+    // close together both read a stale `items` closure and both accept 10
+    // files, blowing past the cap.
+    let accepted = 0;
+    let rejected = 0;
+    setItems((prev) => {
       const knownKeys = new Set(
-        items.map((i) => `${i.file.name}:${i.file.size}:${i.file.lastModified}`)
+        prev.map((i) => `${i.file.name}:${i.file.size}:${i.file.lastModified}`)
       );
-      // Enforce MAX_BATCH in-flight: only accept as many as we have capacity
-      // for. Anything past the cap is rejected with a count so the caller
-      // can tell the user.
-      const activeCount = items.filter(
+      const activeCount = prev.filter(
         (i) => i.stage !== "ready" && i.stage !== "error"
       ).length;
       let remainingCapacity = Math.max(0, MAX_BATCH - activeCount);
       const incoming: PendingItem[] = [];
-      let rejected = 0;
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) {
-          continue;
-        }
+      let localAccepted = 0;
+      let localRejected = 0;
+      for (const file of allFiles) {
         const key = `${file.name}:${file.size}:${file.lastModified}`;
         if (knownKeys.has(key)) continue;
         if (remainingCapacity <= 0) {
-          rejected++;
+          localRejected++;
           continue;
         }
         knownKeys.add(key);
         remainingCapacity--;
+        localAccepted++;
         incoming.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
           file,
@@ -371,13 +374,15 @@ export function PendingUploadsProvider({
           stage: "queued",
         });
       }
-      if (incoming.length > 0) {
-        setItems((prev) => [...incoming, ...prev]);
-      }
-      return { accepted: incoming.length, rejected };
-    },
-    [items]
-  );
+      // Strict Mode runs the updater twice; both runs produce the same
+      // output so overwriting accepted/rejected with identical values is
+      // safe. Don't `+=` here — that would double-count.
+      accepted = localAccepted;
+      rejected = localRejected;
+      return incoming.length > 0 ? [...incoming, ...prev] : prev;
+    });
+    return { accepted, rejected };
+  }, []);
 
   const retry = useCallback((id: string) => {
     kickedOffRef.current.delete(id);

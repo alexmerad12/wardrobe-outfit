@@ -363,9 +363,11 @@ export default function WardrobePage() {
           onDismissAllFailed={dismissAllFailed}
           onStartReview={(firstId, restIds) => {
             clearReady();
-            const qs = new URLSearchParams({ edit: "1" });
-            if (restIds.length > 0) qs.set("next", restIds.join(","));
-            router.push(`/wardrobe/${firstId}?${qs.toString()}`);
+            // Review-all-then-save flow: a single page shows every item in
+            // the batch with inline edits, and one Save button at the end
+            // commits them all.
+            const allIds = [firstId, ...restIds].join(",");
+            router.push(`/wardrobe/review?ids=${allIds}`);
           }}
         />
       )}
