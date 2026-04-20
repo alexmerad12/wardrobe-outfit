@@ -13,6 +13,7 @@ import { Heart, Sparkles, Trash2, Thermometer, Shirt } from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
 
 export default function FavoritesPage() {
@@ -228,6 +229,11 @@ export default function FavoritesPage() {
                           <Shirt className="h-4 w-4" />
                           {t("home.wearToday")}
                         </Button>
+                        <ShareOutfitButton
+                          items={outfit.items ?? []}
+                          title={outfit.name || t("favorites.saved")}
+                          variant="outline"
+                        />
                         <Button
                           size="sm"
                           variant="outline"

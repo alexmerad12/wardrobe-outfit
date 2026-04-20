@@ -13,6 +13,7 @@ import { MOOD_CONFIG } from "@/lib/types";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
 
 interface TodayOutfit {
@@ -192,6 +193,12 @@ export default function HomePage() {
               <div className="flex items-center justify-between">
                 <p className="font-semibold">{todayOutfit.name || t("home.todaysLook")}</p>
                 <div className="flex gap-1">
+                  <ShareOutfitButton
+                    items={todayItems}
+                    title={todayOutfit.name || t("share.todaysLook")}
+                    iconOnly
+                    className="h-8 w-8 p-0"
+                  />
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={toggleTodayFavorite}>
                     <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
                   </Button>

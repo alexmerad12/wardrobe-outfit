@@ -63,6 +63,10 @@
     "iosStep3": "Tap Add",
     "desktopInstruction": "In Chrome or Edge, click the install icon in the address bar (or browser menu → Install Closette)."
   },
+  "share": {
+    "outfit": "Share",
+    "todaysLook": "Today's Look"
+  },
   "bulk": {
     "title": "Bulk upload",
     "subtitle": "Upload a batch at once",
