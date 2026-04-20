@@ -29,32 +29,9 @@ import type {
   Season,
   Occasion,
 } from "@/lib/types";
-import {
-  CATEGORY_LABELS,
-  SUBCATEGORY_OPTIONS,
-  PATTERN_LABELS,
-  LENGTH_LABELS,
-  PANTS_LENGTH_LABELS,
-  WAIST_STYLE_LABELS,
-  WAIST_HEIGHT_LABELS,
-  WAIST_CLOSURE_LABELS,
-  BOTTOM_FIT_LABELS,
-  SHOE_HEIGHT_LABELS,
-  HEEL_TYPE_LABELS,
-  SHOE_CLOSURE_LABELS,
-  BELT_POSITION_LABELS,
-  BELT_STYLE_LABELS,
-  METAL_FINISH_LABELS,
-  NECKLINE_LABELS,
-  SLEEVE_LENGTH_LABELS,
-  CLOSURE_LABELS,
-  MATERIAL_LABELS,
-  FIT_LABELS,
-  FORMALITY_LABELS,
-  SEASON_LABELS,
-  OCCASION_LABELS,
-} from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
+import { useLocale } from "@/lib/i18n/use-locale";
+import { useLabels } from "@/lib/i18n/use-labels";
 import { hexToHSL, isNeutralColor, getColorName } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
@@ -74,6 +51,8 @@ import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 export default function AddItemPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLocale();
+  const labels = useLabels();
 
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -375,7 +354,7 @@ export default function AddItemPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!imageFile || !category || !name) {
-      setError("Please add a photo, name, and category");
+      setError(t("addItem.photoRequired"));
       return;
     }
 
@@ -470,8 +449,8 @@ export default function AddItemPage() {
   }
 
   const subcategoryOptions =
-    category && category in SUBCATEGORY_OPTIONS
-      ? SUBCATEGORY_OPTIONS[category as Category]
+    category && category in labels.SUBCATEGORY_OPTIONS
+      ? labels.SUBCATEGORY_OPTIONS[category as Category]
       : [];
 
   return (
@@ -485,7 +464,7 @@ export default function AddItemPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-bold">Add New Item</h1>
+        <h1 className="text-xl font-bold">{t("addItem.title")}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -509,7 +488,7 @@ export default function AddItemPage() {
               />
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity hover:opacity-100">
                 <p className="text-sm font-medium text-white">
-                  Tap to change photo
+                  {t("addItem.tapToChange")}
                 </p>
               </div>
             </div>
@@ -520,10 +499,10 @@ export default function AddItemPage() {
                 <Upload className="h-8 w-8 text-muted-foreground" />
               </div>
               <p className="text-sm font-medium">
-                Take a photo or upload
+                {t("addItem.takePhoto")}
               </p>
               <p className="text-xs text-muted-foreground">
-                Best results with plain background
+                {t("addItem.bestResults")}
               </p>
             </div>
           )}
@@ -549,10 +528,10 @@ export default function AddItemPage() {
             {removingBg ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Removing background... (this may take a moment)
+                {t("addItem.removingBackground")}
               </>
             ) : (
-              "Remove background"
+              t("addItem.removeBackground")
             )}
           </Button>
         )}
@@ -560,17 +539,17 @@ export default function AddItemPage() {
         {/* Colors (when image is present or colors detected) */}
         {(detectedColors.length > 0 || detectingColors || manualColors.length > 0) && (
           <div className="space-y-3">
-            <Label>Colors</Label>
+            <Label>{t("addItem.colors")}</Label>
             {detectingColors ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Analyzing colors...
+                {t("addItem.analyzingColors")}
               </div>
             ) : (
               <>
                 {detectedColors.length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">Auto-detected</p>
+                    <p className="text-xs text-muted-foreground mb-1.5">{t("addItem.detectedColors")}</p>
                     <div className="flex flex-wrap gap-2">
                       {detectedColors.map((color, i) => (
                         <div
@@ -597,7 +576,7 @@ export default function AddItemPage() {
 
                 {manualColors.length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">Manual</p>
+                    <p className="text-xs text-muted-foreground mb-1.5">{t("addItem.manualColors")}</p>
                     <div className="flex flex-wrap gap-2">
                       {manualColors.map((color, i) => (
                         <div
@@ -624,7 +603,7 @@ export default function AddItemPage() {
 
                 <div className="space-y-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
-                    {showColorPalette ? "Hide palette" : "Color palette"}
+                    {showColorPalette ? t("addItem.hidePalette") : t("addItem.colorPalette")}
                   </Button>
                   {showColorPalette && (
                     <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
@@ -658,7 +637,7 @@ export default function AddItemPage() {
         {/* Colors (when no image yet) */}
         {!imagePreview && detectedColors.length === 0 && (
           <div className="space-y-2">
-            <Label>Colors</Label>
+            <Label>{t("addItem.colors")}</Label>
             <div className="flex flex-wrap gap-2 mb-2">
               {manualColors.map((color, i) => (
                 <div
@@ -682,7 +661,7 @@ export default function AddItemPage() {
             </div>
             <div className="space-y-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
-                {showColorPalette ? "Hide palette" : "Color palette"}
+                {showColorPalette ? t("addItem.hidePalette") : t("addItem.colorPalette")}
               </Button>
               {showColorPalette && (
                 <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
@@ -704,10 +683,10 @@ export default function AddItemPage() {
 
         {/* Name */}
         <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
+          <Label htmlFor="name">{t("addItem.name")}</Label>
           <Input
             id="name"
-            placeholder="e.g. Blue denim jacket"
+            placeholder={t("addItem.namePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -717,7 +696,7 @@ export default function AddItemPage() {
         {/* Duplicate warning */}
         {similarItems.length > 0 && (
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-            <p className="text-xs font-semibold text-amber-800 mb-1.5">You have similar items</p>
+            <p className="text-xs font-semibold text-amber-800 mb-1.5">{t("addItem.similar")}</p>
             <div className="flex gap-2">
               {similarItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-1.5">
@@ -733,7 +712,7 @@ export default function AddItemPage() {
 
         {/* Category */}
         <div className="space-y-2">
-          <Label>Category</Label>
+          <Label>{t("addItem.category")}</Label>
           <Select
             value={category}
             onValueChange={(v) => {
@@ -742,12 +721,12 @@ export default function AddItemPage() {
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select category" />
+              <SelectValue placeholder={t("addItem.selectCategory")} />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(CATEGORY_LABELS) as Category[]).map((cat) => (
+              {(Object.keys(labels.CATEGORY) as Category[]).map((cat) => (
                 <SelectItem key={cat} value={cat}>
-                  {CATEGORY_LABELS[cat]}
+                  {labels.CATEGORY[cat]}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -757,13 +736,13 @@ export default function AddItemPage() {
         {/* Subcategory */}
         {subcategoryOptions.length > 0 && (
           <div className="space-y-2">
-            <Label>Type</Label>
+            <Label>{t("addItem.type")}</Label>
             <Select
               value={subcategory}
               onValueChange={(v) => setSubcategory(v as Subcategory)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select type" />
+                <SelectValue placeholder={t("addItem.selectType")} />
               </SelectTrigger>
               <SelectContent>
                 {subcategoryOptions.map((opt) => (
@@ -782,9 +761,9 @@ export default function AddItemPage() {
         {/* Generic Fit - tops, dresses, outerwear, non-jeans/trousers bottoms */}
         {category && showGenericFit && (
           <div className="space-y-2">
-            <Label>How does it fit?</Label>
+            <Label>{t("addItem.howDoesItFit")}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {(Object.entries(FIT_LABELS) as [Fit, string][]).map(([f, label]) => (
+              {(Object.keys(labels.FIT) as Fit[]).map((f) => (
                 <button
                   key={f}
                   type="button"
@@ -796,7 +775,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.FIT[f]}
                 </button>
               ))}
             </div>
@@ -806,10 +785,10 @@ export default function AddItemPage() {
         {/* Neckline - tops, dresses, outerwear (hidden for hoodies, cardigans) */}
         {showNeckline && (
           <div className="space-y-2">
-            <Label>Neckline</Label>
+            <Label>{t("addItem.neckline")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(NECKLINE_LABELS) as [Neckline, string][]).map(([n, label]) => (
-                <button key={n} type="button" onClick={() => setNeckline(neckline === n ? null : n)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", neckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.NECKLINE) as Neckline[]).map((n) => (
+                <button key={n} type="button" onClick={() => setNeckline(neckline === n ? null : n)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", neckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.NECKLINE[n]}</button>
               ))}
             </div>
           </div>
@@ -818,10 +797,10 @@ export default function AddItemPage() {
         {/* Sleeve Length - tops, dresses, outerwear (hidden for tank tops) */}
         {showSleeveLength && (
           <div className="space-y-2">
-            <Label>Sleeve Length</Label>
+            <Label>{t("addItem.sleeveLength")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(SLEEVE_LENGTH_LABELS) as [SleeveLength, string][]).map(([s, label]) => (
-                <button key={s} type="button" onClick={() => setSleeveLength(sleeveLength === s ? null : s)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", sleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.SLEEVE_LENGTH) as SleeveLength[]).map((s) => (
+                <button key={s} type="button" onClick={() => setSleeveLength(sleeveLength === s ? null : s)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", sleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SLEEVE_LENGTH[s]}</button>
               ))}
             </div>
           </div>
@@ -830,10 +809,10 @@ export default function AddItemPage() {
         {/* Closure - tops, dresses, outerwear */}
         {showClosure && (
           <div className="space-y-2">
-            <Label>Closure</Label>
+            <Label>{t("addItem.closure")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(CLOSURE_LABELS) as [Closure, string][]).map(([c, label]) => (
-                <button key={c} type="button" onClick={() => setClosure(closure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", closure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.CLOSURE) as Closure[]).map((c) => (
+                <button key={c} type="button" onClick={() => setClosure(closure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", closure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.CLOSURE[c]}</button>
               ))}
             </div>
           </div>
@@ -842,9 +821,9 @@ export default function AddItemPage() {
         {/* Bottom Fit - jeans and trousers only */}
         {category && showBottomFit && (
           <div className="space-y-2">
-            <Label>How does it fit?</Label>
+            <Label>{t("addItem.howDoesItFit")}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {(Object.entries(BOTTOM_FIT_LABELS) as [BottomFit, string][]).map(([f, label]) => (
+              {(Object.keys(labels.BOTTOM_FIT) as BottomFit[]).map((f) => (
                 <button
                   key={f}
                   type="button"
@@ -856,7 +835,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.BOTTOM_FIT[f]}
                 </button>
               ))}
             </div>
@@ -866,9 +845,9 @@ export default function AddItemPage() {
         {/* Length - tops, bottoms, dresses, outerwear */}
         {category && showLength && (
           <div className="space-y-2">
-            <Label>Length</Label>
+            <Label>{t("addItem.length")}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {(Object.entries(LENGTH_LABELS) as [Length, string][]).map(([l, label]) => (
+              {(Object.keys(labels.LENGTH) as Length[]).map((l) => (
                 <button
                   key={l}
                   type="button"
@@ -880,7 +859,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.LENGTH[l]}
                 </button>
               ))}
             </div>
@@ -890,9 +869,9 @@ export default function AddItemPage() {
         {/* Pants Length - jeans, trousers, leggings, sweatpants */}
         {showPantsLength && (
           <div className="space-y-2">
-            <Label>Length</Label>
+            <Label>{t("addItem.length")}</Label>
             <div className="grid grid-cols-5 gap-2">
-              {(Object.entries(PANTS_LENGTH_LABELS) as [PantsLength, string][]).map(([l, label]) => (
+              {(Object.keys(labels.PANTS_LENGTH) as PantsLength[]).map((l) => (
                 <button
                   key={l}
                   type="button"
@@ -904,7 +883,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.PANTS_LENGTH[l]}
                 </button>
               ))}
             </div>
@@ -914,9 +893,9 @@ export default function AddItemPage() {
         {/* Waist Height - jeans and trousers only */}
         {category && showWaistHeight && (
           <div className="space-y-2">
-            <Label>Waist Height</Label>
+            <Label>{t("addItem.waistHeight")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {(Object.entries(WAIST_HEIGHT_LABELS) as [WaistHeight, string][]).map(([w, label]) => (
+              {(Object.keys(labels.WAIST_HEIGHT) as WaistHeight[]).map((w) => (
                 <button
                   key={w}
                   type="button"
@@ -928,7 +907,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.WAIST_HEIGHT[w]}
                 </button>
               ))}
             </div>
@@ -938,9 +917,9 @@ export default function AddItemPage() {
         {/* Waist Closure - pants only */}
         {showWaistClosure && (
           <div className="space-y-2">
-            <Label>Waist Closure</Label>
+            <Label>{t("addItem.waistClosure")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(WAIST_CLOSURE_LABELS) as [WaistClosure, string][]).map(([c, label]) => (
+              {(Object.keys(labels.WAIST_CLOSURE) as WaistClosure[]).map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -952,7 +931,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.WAIST_CLOSURE[c]}
                 </button>
               ))}
             </div>
@@ -962,9 +941,9 @@ export default function AddItemPage() {
         {/* Waist Style - tops, bottoms, dresses, outerwear */}
         {category && showWaistStyle && (
           <div className="space-y-2">
-            <Label>Waist</Label>
+            <Label>{t("addItem.waist")}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {(Object.entries(WAIST_STYLE_LABELS) as [WaistStyle, string][]).map(([w, label]) => (
+              {(Object.keys(labels.WAIST_STYLE) as WaistStyle[]).map((w) => (
                 <button
                   key={w}
                   type="button"
@@ -976,7 +955,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.WAIST_STYLE[w]}
                 </button>
               ))}
             </div>
@@ -997,7 +976,7 @@ export default function AddItemPage() {
               )}
             />
             <Label className="cursor-pointer" onClick={() => setBeltCompatible(!beltCompatible)}>
-              Works with a belt
+              {t("addItem.worksWithBelt")}
             </Label>
           </div>
         )}
@@ -1017,10 +996,10 @@ export default function AddItemPage() {
             />
             <div>
               <Label className="cursor-pointer" onClick={() => setIsLayeringPiece(!isLayeringPiece)}>
-                Layering piece
+                {t("addItem.layeringPiece")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Worn over another top (vest, cardigan, open shirt...)
+                {t("addItem.layeringHint")}
               </p>
             </div>
           </div>
@@ -1029,9 +1008,9 @@ export default function AddItemPage() {
         {/* Shoe Height - shoes only */}
         {category && showShoeFields && (
           <div className="space-y-2">
-            <Label>Shoe Height</Label>
+            <Label>{t("addItem.shoeHeight")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {(Object.entries(SHOE_HEIGHT_LABELS) as [ShoeHeight, string][]).map(([h, label]) => (
+              {(Object.keys(labels.SHOE_HEIGHT) as ShoeHeight[]).map((h) => (
                 <button
                   key={h}
                   type="button"
@@ -1043,7 +1022,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.SHOE_HEIGHT[h]}
                 </button>
               ))}
             </div>
@@ -1053,9 +1032,9 @@ export default function AddItemPage() {
         {/* Heel Type - shoes only */}
         {category && showShoeFields && (
           <div className="space-y-2">
-            <Label>Heel Type</Label>
+            <Label>{t("addItem.heelType")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {(Object.entries(HEEL_TYPE_LABELS) as [HeelType, string][]).map(([h, label]) => (
+              {(Object.keys(labels.HEEL_TYPE) as HeelType[]).map((h) => (
                 <button
                   key={h}
                   type="button"
@@ -1067,7 +1046,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.HEEL_TYPE[h]}
                 </button>
               ))}
             </div>
@@ -1077,10 +1056,10 @@ export default function AddItemPage() {
         {/* Shoe Closure - shoes only */}
         {category && showShoeFields && (
           <div className="space-y-2">
-            <Label>Closure</Label>
+            <Label>{t("addItem.closure")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(SHOE_CLOSURE_LABELS) as [ShoeClosure, string][]).map(([c, label]) => (
-                <button key={c} type="button" onClick={() => setShoeClosure(shoeClosure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", shoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.SHOE_CLOSURE) as ShoeClosure[]).map((c) => (
+                <button key={c} type="button" onClick={() => setShoeClosure(shoeClosure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", shoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_CLOSURE[c]}</button>
               ))}
             </div>
           </div>
@@ -1089,10 +1068,10 @@ export default function AddItemPage() {
         {/* Belt Style - belt subcategory only */}
         {category && showBeltPosition && (
           <div className="space-y-2">
-            <Label>Belt Style</Label>
+            <Label>{t("addItem.beltStyle")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(BELT_STYLE_LABELS) as [BeltStyle, string][]).map(([b, label]) => (
-                <button key={b} type="button" onClick={() => setBeltStyle(beltStyle === b ? null : b)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", beltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.BELT_STYLE) as BeltStyle[]).map((b) => (
+                <button key={b} type="button" onClick={() => setBeltStyle(beltStyle === b ? null : b)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", beltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_STYLE[b]}</button>
               ))}
             </div>
           </div>
@@ -1101,9 +1080,9 @@ export default function AddItemPage() {
         {/* Belt Position - belt subcategory only */}
         {category && showBeltPosition && (
           <div className="space-y-2">
-            <Label>Belt Position</Label>
+            <Label>{t("addItem.beltPosition")}</Label>
             <div className="grid grid-cols-3 gap-2">
-              {(Object.entries(BELT_POSITION_LABELS) as [BeltPosition, string][]).map(([b, label]) => (
+              {(Object.keys(labels.BELT_POSITION) as BeltPosition[]).map((b) => (
                 <button
                   key={b}
                   type="button"
@@ -1115,7 +1094,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.BELT_POSITION[b]}
                 </button>
               ))}
             </div>
@@ -1125,9 +1104,9 @@ export default function AddItemPage() {
         {/* Metal Finish - shoes & accessories */}
         {category && ["shoes", "accessory"].includes(category) && (
           <div className="space-y-2">
-            <Label>Metal Finish</Label>
+            <Label>{t("addItem.metalFinish")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(METAL_FINISH_LABELS) as [MetalFinish, string][]).map(([m, label]) => (
+              {(Object.keys(labels.METAL_FINISH) as MetalFinish[]).map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -1139,7 +1118,7 @@ export default function AddItemPage() {
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {label}
+                  {labels.METAL_FINISH[m]}
                 </button>
               ))}
             </div>
@@ -1148,128 +1127,118 @@ export default function AddItemPage() {
 
         {/* Material */}
         <div className="space-y-2">
-          <Label>Material (select all that apply)</Label>
+          <Label>{t("addItem.materialSelect")}</Label>
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(MATERIAL_LABELS) as [Material, string][]).map(
-              ([m, label]) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => toggleMaterial(m)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    materials.includes(m)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {label}
-                </button>
-              )
-            )}
+            {(Object.keys(labels.MATERIAL) as Material[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => toggleMaterial(m)}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  materials.includes(m)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
+                )}
+              >
+                {labels.MATERIAL[m]}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Pattern */}
         <div className="space-y-2">
-          <Label>Pattern (select all that apply)</Label>
+          <Label>{t("addItem.patternSelect")}</Label>
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(PATTERN_LABELS) as [Pattern, string][]).map(
-              ([p, label]) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => togglePattern(p)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    patterns.includes(p)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {label}
-                </button>
-              )
-            )}
+            {(Object.keys(labels.PATTERN) as Pattern[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => togglePattern(p)}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  patterns.includes(p)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
+                )}
+              >
+                {labels.PATTERN[p]}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Formality - multi-select toggle buttons */}
         <div className="space-y-2">
-          <Label>Formality (select all that apply)</Label>
+          <Label>{t("addItem.formality")}</Label>
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(FORMALITY_LABELS) as [Formality, string][]).map(
-              ([f, label]) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => toggleFormality(f)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    formalities.includes(f)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {label}
-                </button>
-              )
-            )}
+            {(Object.keys(labels.FORMALITY) as Formality[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => toggleFormality(f)}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  formalities.includes(f)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
+                )}
+              >
+                {labels.FORMALITY[f]}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Seasons */}
         <div className="space-y-2">
-          <Label>Seasons (select all that apply)</Label>
+          <Label>{t("addItem.seasons")}</Label>
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(SEASON_LABELS) as [Season, string][]).map(
-              ([s, label]) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => toggleSeason(s)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    seasons.includes(s)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {label}
-                </button>
-              )
-            )}
+            {(Object.keys(labels.SEASON) as Season[]).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleSeason(s)}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  seasons.includes(s)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
+                )}
+              >
+                {labels.SEASON[s]}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Occasions */}
         <div className="space-y-2">
-          <Label>Occasions (select all that apply)</Label>
+          <Label>{t("addItem.occasions")}</Label>
           <div className="flex flex-wrap gap-2">
-            {(Object.entries(OCCASION_LABELS) as [Occasion, string][]).map(
-              ([o, label]) => (
-                <button
-                  key={o}
-                  type="button"
-                  onClick={() => toggleOccasion(o)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    occasions.includes(o)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {label}
-                </button>
-              )
-            )}
+            {(Object.keys(labels.OCCASION) as Occasion[]).map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => toggleOccasion(o)}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  occasions.includes(o)
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:bg-muted"
+                )}
+              >
+                {labels.OCCASION[o]}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Warmth Rating - hidden for shoes, accessories, bags */}
         {category && showWarmth && (
           <div className="space-y-2">
-            <Label>Warmth (1 = very light, 5 = heavy winter)</Label>
+            <Label>{t("addItem.warmth")}</Label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -1303,16 +1272,16 @@ export default function AddItemPage() {
             )}
           />
           <Label className="cursor-pointer" onClick={() => setRainAppropriate(!rainAppropriate)}>
-            Rain appropriate
+            {t("addItem.rainAppropriate")}
           </Label>
         </div>
 
         {/* Brand (optional) */}
         <div className="space-y-2">
-          <Label htmlFor="brand">Brand (optional)</Label>
+          <Label htmlFor="brand">{t("addItem.brand")}</Label>
           <Input
             id="brand"
-            placeholder="e.g. Zara, Nike"
+            placeholder={t("addItem.brandPlaceholder")}
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
           />
@@ -1336,10 +1305,10 @@ export default function AddItemPage() {
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
+              {t("common.saving")}
             </>
           ) : (
-            "Add to Wardrobe"
+            t("addItem.submit")
           )}
         </Button>
       </form>

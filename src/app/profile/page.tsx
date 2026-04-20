@@ -14,11 +14,12 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity, TemperatureUnit, Language, ClothingItem } from "@/lib/types";
-import { CATEGORY_LABELS } from "@/lib/types";
+import type { TemperatureSensitivity, TemperatureUnit, Language, ClothingItem, Category } from "@/lib/types";
 import { MapPin, Thermometer, Loader2, Languages, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/install-prompt";
+import { useLocale } from "@/lib/i18n/use-locale";
+import { useLabels } from "@/lib/i18n/use-labels";
 
 interface CityResult {
   name: string;
@@ -29,6 +30,8 @@ interface CityResult {
 }
 
 export default function ProfilePage() {
+  const { t } = useLocale();
+  const labels = useLabels();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [city, setCity] = useState("");
@@ -138,11 +141,11 @@ export default function ProfilePage() {
     for (const item of allItems) {
       counts[item.category] = (counts[item.category] ?? 0) + 1;
     }
-    return Object.entries(CATEGORY_LABELS)
-      .map(([key, label]) => ({ key, label, count: counts[key] ?? 0 }))
+    return (Object.keys(labels.CATEGORY) as Category[])
+      .map((key) => ({ key, label: labels.CATEGORY[key], count: counts[key] ?? 0 }))
       .filter((c) => c.count > 0)
       .sort((a, b) => b.count - a.count);
-  }, [allItems]);
+  }, [allItems, labels]);
 
   const mostWornItems = useMemo(() => {
     return [...allItems]
@@ -243,20 +246,20 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-md px-4 pt-6">
-      <h1 className="text-2xl font-bold tracking-tight mb-6">Profile</h1>
+      <h1 className="text-2xl font-bold tracking-tight mb-6">{t("profile.title")}</h1>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold">{itemCount}</p>
-            <p className="text-sm text-muted-foreground">Wardrobe Items</p>
+            <p className="text-sm text-muted-foreground">{t("profile.wardrobeItems")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold">{outfitCount}</p>
-            <p className="text-sm text-muted-foreground">Saved Outfits</p>
+            <p className="text-sm text-muted-foreground">{t("profile.savedOutfits")}</p>
           </CardContent>
         </Card>
       </div>
@@ -265,13 +268,13 @@ export default function ProfilePage() {
       {allItems.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base">Wardrobe Insights</CardTitle>
+            <CardTitle className="text-base">{t("profile.wardrobeInsights")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Color Distribution */}
             {colorDistribution.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Top Colors</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("profile.topColors")}</p>
                 <div className="space-y-1.5">
                   {colorDistribution.map((color) => (
                     <div key={color.name} className="flex items-center gap-2">
@@ -304,7 +307,7 @@ export default function ProfilePage() {
             {/* Category Breakdown */}
             {categoryBreakdown.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Categories</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("profile.categories")}</p>
                 <div className="space-y-1.5">
                   {categoryBreakdown.map((cat) => (
                     <div key={cat.key} className="flex items-center gap-2">
@@ -332,7 +335,7 @@ export default function ProfilePage() {
             {/* Most Worn Items */}
             {mostWornItems.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Most Worn</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("profile.mostWorn")}</p>
                 <div className="space-y-2">
                   {mostWornItems.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
@@ -347,7 +350,7 @@ export default function ProfilePage() {
                       </div>
                       <span className="text-sm flex-1 truncate">{item.name}</span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {item.times_worn}x worn
+                        {t("profile.worn", { count: item.times_worn })}
                       </span>
                     </div>
                   ))}
@@ -360,7 +363,7 @@ export default function ProfilePage() {
             {/* Least Worn Items */}
             {leastWornItems.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Forgotten Pieces</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("profile.forgottenPieces")}</p>
                 <div className="space-y-2">
                   {leastWornItems.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
@@ -375,7 +378,7 @@ export default function ProfilePage() {
                       </div>
                       <span className="text-sm flex-1 truncate">{item.name}</span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        Never worn
+                        {t("profile.neverWorn")}
                       </span>
                     </div>
                   ))}
@@ -389,18 +392,18 @@ export default function ProfilePage() {
       {/* Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Settings</CardTitle>
+          <CardTitle className="text-base">{t("profile.settings")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Location */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5" />
-              City (for weather)
+              {t("profile.city")}
             </Label>
             <div className="relative" ref={dropdownRef}>
               <Input
-                placeholder="Start typing a city..."
+                placeholder={t("profile.cityPlaceholder")}
                 value={cityQuery}
                 onChange={(e) => handleCityInput(e.target.value)}
                 onFocus={() => {
@@ -445,7 +448,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Thermometer className="h-3.5 w-3.5" />
-              Temperature sensitivity
+              {t("profile.tempSensitivity")}
             </Label>
             <Select
               value={tempSensitivity}
@@ -457,9 +460,9 @@ export default function ProfilePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="runs-hot">I run hot</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="runs-cold">I run cold</SelectItem>
+                <SelectItem value="runs-hot">{t("profile.runsHot")}</SelectItem>
+                <SelectItem value="normal">{t("profile.normal")}</SelectItem>
+                <SelectItem value="runs-cold">{t("profile.runsCold")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -468,7 +471,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Thermometer className="h-3.5 w-3.5" />
-              Temperature unit
+              {t("profile.tempUnit")}
             </Label>
             <Select
               value={tempUnit}
@@ -478,9 +481,9 @@ export default function ProfilePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto (based on your region)</SelectItem>
-                <SelectItem value="celsius">Celsius (°C)</SelectItem>
-                <SelectItem value="fahrenheit">Fahrenheit (°F)</SelectItem>
+                <SelectItem value="auto">{t("profile.tempAuto")}</SelectItem>
+                <SelectItem value="celsius">{t("profile.celsius")}</SelectItem>
+                <SelectItem value="fahrenheit">{t("profile.fahrenheit")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -489,7 +492,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Languages className="h-3.5 w-3.5" />
-              Language
+              {t("profile.language")}
             </Label>
             <Select
               value={language}
@@ -499,9 +502,9 @@ export default function ProfilePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto (from device)</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="fr">Français</SelectItem>
+                <SelectItem value="auto">{t("profile.autoLang")}</SelectItem>
+                <SelectItem value="en">{t("profile.english")}</SelectItem>
+                <SelectItem value="fr">{t("profile.french")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -514,10 +517,10 @@ export default function ProfilePage() {
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {t("common.saving")}
               </>
             ) : (
-              "Save Settings"
+              t("profile.saveSettings")
             )}
           </Button>
         </CardContent>
@@ -546,12 +549,12 @@ export default function ProfilePage() {
             {signingOut ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing out...
+                {t("profile.signingOut")}
               </>
             ) : (
               <>
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                {t("profile.signOut")}
               </>
             )}
           </Button>

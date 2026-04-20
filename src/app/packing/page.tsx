@@ -56,7 +56,7 @@ interface SavedTrip {
 
 export default function PackingPage() {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
 
   // Form
   const [destination, setDestination] = useState("");
@@ -246,14 +246,14 @@ export default function PackingPage() {
         </Button>
         <div>
           <h1 className="text-xl font-bold">
-            {viewingTrip ? viewingTrip.destination : "Packing List"}
+            {viewingTrip ? viewingTrip.destination : t("packing.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
             {viewingTrip
               ? `${viewingTrip.start_date} - ${viewingTrip.end_date}`
               : step === "form"
-              ? "Plan your trip"
-              : `${packingList.length} items to pack`}
+              ? t("packing.planTrip")
+              : t("packing.itemsToPack", { count: packingList.length })}
           </p>
         </div>
       </div>
@@ -269,7 +269,7 @@ export default function PackingPage() {
           )}
 
           <div>
-            <h2 className="font-semibold mb-3">Packing list ({resolveItems(viewingTrip.packing_item_ids).length} items)</h2>
+            <h2 className="font-semibold mb-3">{t("packing.packingListCount", { count: resolveItems(viewingTrip.packing_item_ids).length })}</h2>
             <div className="grid grid-cols-3 gap-2">
               {resolveItems(viewingTrip.packing_item_ids).map((item) => (
                 <div key={item.id} className="text-center">
@@ -284,7 +284,7 @@ export default function PackingPage() {
 
           {viewingTrip.outfit_suggestions.length > 0 && (
             <div>
-              <h2 className="font-semibold mb-3">Daily outfits</h2>
+              <h2 className="font-semibold mb-3">{t("packing.dailyOutfits")}</h2>
               <div className="grid gap-3">
                 {viewingTrip.outfit_suggestions.map((day, i) => {
                   const dayItems = resolveItems(day.item_ids);
@@ -321,7 +321,7 @@ export default function PackingPage() {
             onClick={() => deleteTrip(viewingTrip.id)}
           >
             <Trash2 className="h-4 w-4" />
-            Delete trip
+            {t("packing.deleteTrip")}
           </Button>
         </div>
       )}
@@ -333,11 +333,11 @@ export default function PackingPage() {
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5" />
-              Destination
+              {t("packing.destination")}
             </Label>
             <div className="relative" ref={dropdownRef}>
               <Input
-                placeholder="Where are you going?"
+                placeholder={t("packing.destinationPlaceholder")}
                 value={destination}
                 onChange={(e) => handleDestSearch(e.target.value)}
                 onFocus={() => { if (cityResults.length > 0) setShowCityDropdown(true); }}
@@ -367,25 +367,25 @@ export default function PackingPage() {
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>From</Label>
+              <Label>{t("packing.from")}</Label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>To</Label>
+              <Label>{t("packing.to")}</Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
 
           {/* Occasions */}
           <div className="space-y-2">
-            <Label>Planned activities (optional)</Label>
-            <Input placeholder="e.g. sightseeing, dinner, beach" value={occasions} onChange={(e) => setOccasions(e.target.value)} />
+            <Label>{t("packing.plannedActivities")}</Label>
+            <Input placeholder={t("packing.activitiesPlaceholder")} value={occasions} onChange={(e) => setOccasions(e.target.value)} />
           </div>
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label>Anything else? (optional)</Label>
-            <Input placeholder="e.g. pack light, need formal outfit" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Label>{t("packing.anythingElse")}</Label>
+            <Input placeholder={t("packing.notesPlaceholder")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
           <Button
@@ -394,16 +394,16 @@ export default function PackingPage() {
             disabled={!destination || !startDate || !endDate || loading}
           >
             {loading ? (
-              <StylistLoader size="sm" label="Yav is packing..." />
+              <StylistLoader size="sm" label={t("suggest.yavIsPacking")} />
             ) : (
-              <><Plane className="h-4 w-4" /> Generate Packing List</>
+              <><Plane className="h-4 w-4" /> {t("packing.generate")}</>
             )}
           </Button>
 
           {/* Saved trips */}
           {upcomingTrips.length > 0 && (
             <div>
-              <h2 className="font-semibold mb-3">Upcoming trips</h2>
+              <h2 className="font-semibold mb-3">{t("packing.upcomingTrips")}</h2>
               <div className="grid gap-2">
                 {upcomingTrips.map((trip) => (
                   <Card key={trip.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openSavedTrip(trip)}>
@@ -428,7 +428,7 @@ export default function PackingPage() {
 
           {pastTrips.length > 0 && (
             <div>
-              <h2 className="font-semibold mb-3">Past trips</h2>
+              <h2 className="font-semibold mb-3">{t("packing.pastTrips")}</h2>
               <div className="grid gap-2">
                 {pastTrips.map((trip) => (
                   <Card key={trip.id} className="cursor-pointer hover:shadow-md transition-shadow opacity-70" onClick={() => openSavedTrip(trip)}>
@@ -464,7 +464,7 @@ export default function PackingPage() {
           )}
 
           <div>
-            <h2 className="font-semibold mb-3">What to pack</h2>
+            <h2 className="font-semibold mb-3">{t("packing.whatToPack")}</h2>
             <div className="grid gap-2">
               {packingList.map(({ item, reason }) => (
                 <Card key={item.id} className="overflow-hidden">
@@ -486,7 +486,7 @@ export default function PackingPage() {
           {outfitSuggestions.length > 0 && (
             <div>
               <button className="flex items-center gap-2 font-semibold mb-3 w-full" onClick={() => setShowOutfits(!showOutfits)}>
-                Daily outfit plan
+                {t("packing.dailyOutfitPlan")}
                 {showOutfits ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
               {showOutfits && (
@@ -520,7 +520,7 @@ export default function PackingPage() {
 
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => setStep("form")}>
-              Edit trip
+              {t("packing.editTrip")}
             </Button>
             <Button
               className="flex-1 gap-1.5"
@@ -528,11 +528,11 @@ export default function PackingPage() {
               disabled={saved || savingTrip}
             >
               {saved ? (
-                <><Check className="h-4 w-4" /> Saved</>
+                <><Check className="h-4 w-4" /> {t("packing.savedTrip")}</>
               ) : savingTrip ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> {t("packing.savingTrip")}</>
               ) : (
-                <><Plane className="h-4 w-4" /> Save trip</>
+                <><Plane className="h-4 w-4" /> {t("packing.saveTrip")}</>
               )}
             </Button>
           </div>

@@ -30,31 +30,8 @@ import type {
   SleeveLength,
   Closure,
 } from "@/lib/types";
-import {
-  CATEGORY_LABELS,
-  SUBCATEGORY_OPTIONS,
-  FIT_LABELS,
-  BOTTOM_FIT_LABELS,
-  LENGTH_LABELS,
-  PANTS_LENGTH_LABELS,
-  WAIST_STYLE_LABELS,
-  WAIST_HEIGHT_LABELS,
-  WAIST_CLOSURE_LABELS,
-  SHOE_HEIGHT_LABELS,
-  HEEL_TYPE_LABELS,
-  SHOE_CLOSURE_LABELS,
-  BELT_POSITION_LABELS,
-  BELT_STYLE_LABELS,
-  METAL_FINISH_LABELS,
-  NECKLINE_LABELS,
-  SLEEVE_LENGTH_LABELS,
-  CLOSURE_LABELS,
-  MATERIAL_LABELS,
-  PATTERN_LABELS,
-  FORMALITY_LABELS,
-  SEASON_LABELS,
-  OCCASION_LABELS,
-} from "@/lib/types";
+import { useLocale } from "@/lib/i18n/use-locale";
+import { useLabels } from "@/lib/i18n/use-labels";
 import { getColorName } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
@@ -86,6 +63,8 @@ import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 
 export default function ItemDetailPage() {
+  const { t } = useLocale();
+  const labels = useLabels();
   const params = useParams();
   const router = useRouter();
   const [item, setItem] = useState<ClothingItem | null>(null);
@@ -321,7 +300,7 @@ export default function ItemDetailPage() {
   }
 
   async function deleteItem() {
-    if (!item || !confirm("Delete this item from your wardrobe?")) return;
+    if (!item || !confirm(t("itemDetail.deleteConfirm"))) return;
     await fetch(`/api/items/${item.id}`, { method: "DELETE" });
     router.push("/wardrobe");
   }
@@ -369,9 +348,9 @@ export default function ItemDetailPage() {
   if (!item) {
     return (
       <div className="mx-auto max-w-md px-4 pt-4 text-center">
-        <p className="text-muted-foreground">Item not found</p>
+        <p className="text-muted-foreground">{t("itemDetail.itemNotFound")}</p>
         <Button variant="outline" className="mt-4" onClick={() => router.push("/wardrobe")}>
-          Back to Wardrobe
+          {t("itemDetail.backToWardrobe")}
         </Button>
       </div>
     );
@@ -392,14 +371,14 @@ export default function ItemDetailPage() {
     item.category !== "accessory" &&
     item.category !== "bag";
 
-  const subcatOptions = editCategory in SUBCATEGORY_OPTIONS
-    ? SUBCATEGORY_OPTIONS[editCategory as Category]
+  const subcatOptions = editCategory in labels.SUBCATEGORY_OPTIONS
+    ? labels.SUBCATEGORY_OPTIONS[editCategory as Category]
     : [];
 
   // Format formality for view mode (handle both single string and array)
   const formalityDisplay = Array.isArray(item.formality)
-    ? item.formality.map((f) => FORMALITY_LABELS[f]).join(", ")
-    : FORMALITY_LABELS[item.formality];
+    ? item.formality.map((f) => labels.FORMALITY[f]).join(", ")
+    : labels.FORMALITY[item.formality];
 
   return (
     <div className="mx-auto max-w-md px-4 pt-4 pb-8">
@@ -425,7 +404,7 @@ export default function ItemDetailPage() {
           {editing && (
             <Button size="sm" onClick={saveEdit} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Save
+              {t("itemDetail.save")}
             </Button>
           )}
         </div>
@@ -441,7 +420,7 @@ export default function ItemDetailPage() {
             className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
           >
             <Camera className="h-8 w-8 text-white mb-1" />
-            <span className="text-sm font-medium text-white">Change photo</span>
+            <span className="text-sm font-medium text-white">{t("itemDetail.changePhoto")}</span>
           </button>
         )}
         <input
@@ -471,7 +450,7 @@ export default function ItemDetailPage() {
           onClick={() => router.push(`/suggest?item=${item.id}`)}
         >
           <Sparkles className="h-4 w-4" />
-          Outfit with this
+          {t("itemDetail.outfitWithThis")}
         </Button>
       )}
 
@@ -488,10 +467,10 @@ export default function ItemDetailPage() {
           {removingBg ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Removing background...
+              {t("itemDetail.removingBackground")}
             </>
           ) : (
-            "Remove background"
+            t("itemDetail.removeBackground")
           )}
         </Button>
       )}
@@ -501,18 +480,18 @@ export default function ItemDetailPage() {
         <div className="space-y-5">
           {/* Name */}
           <div className="space-y-1">
-            <Label>Name</Label>
+            <Label>{t("addItem.name")}</Label>
             <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
           </div>
 
           {/* Category */}
           <div className="space-y-1">
-            <Label>Category</Label>
+            <Label>{t("addItem.category")}</Label>
             <Select value={editCategory} onValueChange={(v) => { setEditCategory(v as Category); setEditSubcategory(""); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
-                  <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>
+                {(Object.keys(labels.CATEGORY) as Category[]).map((c) => (
+                  <SelectItem key={c} value={c}>{labels.CATEGORY[c]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -521,9 +500,9 @@ export default function ItemDetailPage() {
           {/* Subcategory */}
           {subcatOptions.length > 0 && (
             <div className="space-y-1">
-              <Label>Type</Label>
+              <Label>{t("addItem.type")}</Label>
               <Select value={editSubcategory} onValueChange={(v) => setEditSubcategory(v as Subcategory)}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("addItem.selectType")} /></SelectTrigger>
                 <SelectContent>
                   {subcatOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -535,7 +514,7 @@ export default function ItemDetailPage() {
 
           {/* Colors */}
           <div className="space-y-2">
-            <Label>Colors</Label>
+            <Label>{t("addItem.colors")}</Label>
             <div className="flex flex-wrap gap-2">
               {editColors.map((color, i) => (
                 <div key={i} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1">
@@ -547,7 +526,7 @@ export default function ItemDetailPage() {
             </div>
             <div className="space-y-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
-                {showColorPalette ? "Hide palette" : "Color palette"}
+                {showColorPalette ? t("addItem.hidePalette") : t("addItem.colorPalette")}
               </Button>
               {showColorPalette && (
                 <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
@@ -569,10 +548,10 @@ export default function ItemDetailPage() {
           {/* Generic Fit - tops, dresses, outerwear, non-jeans/trousers bottoms */}
           {editShowGenericFit && (
             <div className="space-y-1">
-              <Label>Fit</Label>
+              <Label>{t("addItem.howDoesItFit")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {(Object.entries(FIT_LABELS) as [Fit, string][]).map(([f, label]) => (
-                  <button key={f} type="button" onClick={() => setEditFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.FIT) as Fit[]).map((f) => (
+                  <button key={f} type="button" onClick={() => setEditFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.FIT[f]}</button>
                 ))}
               </div>
             </div>
@@ -581,10 +560,10 @@ export default function ItemDetailPage() {
           {/* Bottom Fit - jeans and trousers only */}
           {editShowBottomFit && (
             <div className="space-y-1">
-              <Label>Fit</Label>
+              <Label>{t("addItem.howDoesItFit")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {(Object.entries(BOTTOM_FIT_LABELS) as [BottomFit, string][]).map(([f, label]) => (
-                  <button key={f} type="button" onClick={() => setEditBottomFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBottomFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.BOTTOM_FIT) as BottomFit[]).map((f) => (
+                  <button key={f} type="button" onClick={() => setEditBottomFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBottomFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BOTTOM_FIT[f]}</button>
                 ))}
               </div>
             </div>
@@ -593,10 +572,10 @@ export default function ItemDetailPage() {
           {/* Length */}
           {editShowLength && (
             <div className="space-y-1">
-              <Label>Length</Label>
+              <Label>{t("addItem.length")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {(Object.entries(LENGTH_LABELS) as [Length, string][]).map(([l, label]) => (
-                  <button key={l} type="button" onClick={() => setEditLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.LENGTH) as Length[]).map((l) => (
+                  <button key={l} type="button" onClick={() => setEditLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.LENGTH[l]}</button>
                 ))}
               </div>
             </div>
@@ -605,10 +584,10 @@ export default function ItemDetailPage() {
           {/* Pants Length - jeans, trousers, leggings, sweatpants */}
           {editShowPantsLength && (
             <div className="space-y-1">
-              <Label>Length</Label>
+              <Label>{t("addItem.length")}</Label>
               <div className="grid grid-cols-5 gap-2">
-                {(Object.entries(PANTS_LENGTH_LABELS) as [PantsLength, string][]).map(([l, label]) => (
-                  <button key={l} type="button" onClick={() => setEditPantsLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editPantsLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.PANTS_LENGTH) as PantsLength[]).map((l) => (
+                  <button key={l} type="button" onClick={() => setEditPantsLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editPantsLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.PANTS_LENGTH[l]}</button>
                 ))}
               </div>
             </div>
@@ -617,10 +596,10 @@ export default function ItemDetailPage() {
           {/* Waist Height - jeans and trousers only */}
           {editShowWaistHeight && (
             <div className="space-y-1">
-              <Label>Waist Height</Label>
+              <Label>{t("addItem.waistHeight")}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {(Object.entries(WAIST_HEIGHT_LABELS) as [WaistHeight, string][]).map(([w, label]) => (
-                  <button key={w} type="button" onClick={() => setEditWaistHeight(w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistHeight === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.WAIST_HEIGHT) as WaistHeight[]).map((w) => (
+                  <button key={w} type="button" onClick={() => setEditWaistHeight(w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistHeight === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_HEIGHT[w]}</button>
                 ))}
               </div>
             </div>
@@ -629,10 +608,10 @@ export default function ItemDetailPage() {
           {/* Waist Closure - pants only */}
           {editShowWaistClosure && (
             <div className="space-y-1">
-              <Label>Waist Closure</Label>
+              <Label>{t("addItem.waistClosure")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(WAIST_CLOSURE_LABELS) as [WaistClosure, string][]).map(([c, label]) => (
-                  <button key={c} type="button" onClick={() => setEditWaistClosure(editWaistClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editWaistClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.WAIST_CLOSURE) as WaistClosure[]).map((c) => (
+                  <button key={c} type="button" onClick={() => setEditWaistClosure(editWaistClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editWaistClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_CLOSURE[c]}</button>
                 ))}
               </div>
             </div>
@@ -641,10 +620,10 @@ export default function ItemDetailPage() {
           {/* Waist Style */}
           {editShowWaistStyle && (
             <div className="space-y-1">
-              <Label>Waist</Label>
+              <Label>{t("addItem.waist")}</Label>
               <div className="grid grid-cols-4 gap-2">
-                {(Object.entries(WAIST_STYLE_LABELS) as [WaistStyle, string][]).map(([w, label]) => (
-                  <button key={w} type="button" onClick={() => setEditWaistStyle(editWaistStyle === w ? null : w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistStyle === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.WAIST_STYLE) as WaistStyle[]).map((w) => (
+                  <button key={w} type="button" onClick={() => setEditWaistStyle(editWaistStyle === w ? null : w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistStyle === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_STYLE[w]}</button>
                 ))}
               </div>
             </div>
@@ -655,12 +634,12 @@ export default function ItemDetailPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setEditBeltCompatible(!editBeltCompatible)} className={cn("h-5 w-5 rounded border-2 transition-colors", editBeltCompatible ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-                <Label className="cursor-pointer" onClick={() => setEditBeltCompatible(!editBeltCompatible)}>Works with a belt</Label>
+                <Label className="cursor-pointer" onClick={() => setEditBeltCompatible(!editBeltCompatible)}>{t("addItem.worksWithBelt")}</Label>
               </div>
               {editShowLayeringPiece && (
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => setEditLayering(!editLayering)} className={cn("h-5 w-5 rounded border-2 transition-colors", editLayering ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-                  <Label className="cursor-pointer" onClick={() => setEditLayering(!editLayering)}>Layering piece</Label>
+                  <Label className="cursor-pointer" onClick={() => setEditLayering(!editLayering)}>{t("addItem.layeringPiece")}</Label>
                 </div>
               )}
             </div>
@@ -669,10 +648,10 @@ export default function ItemDetailPage() {
           {/* Shoe Height - shoes only */}
           {editShowShoeFields && (
             <div className="space-y-1">
-              <Label>Shoe Height</Label>
+              <Label>{t("addItem.shoeHeight")}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {(Object.entries(SHOE_HEIGHT_LABELS) as [ShoeHeight, string][]).map(([h, label]) => (
-                  <button key={h} type="button" onClick={() => setEditShoeHeight(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editShoeHeight === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.SHOE_HEIGHT) as ShoeHeight[]).map((h) => (
+                  <button key={h} type="button" onClick={() => setEditShoeHeight(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editShoeHeight === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_HEIGHT[h]}</button>
                 ))}
               </div>
             </div>
@@ -681,10 +660,10 @@ export default function ItemDetailPage() {
           {/* Heel Type - shoes only */}
           {editShowShoeFields && (
             <div className="space-y-1">
-              <Label>Heel Type</Label>
+              <Label>{t("addItem.heelType")}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {(Object.entries(HEEL_TYPE_LABELS) as [HeelType, string][]).map(([h, label]) => (
-                  <button key={h} type="button" onClick={() => setEditHeelType(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editHeelType === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.HEEL_TYPE) as HeelType[]).map((h) => (
+                  <button key={h} type="button" onClick={() => setEditHeelType(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editHeelType === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HEEL_TYPE[h]}</button>
                 ))}
               </div>
             </div>
@@ -693,10 +672,10 @@ export default function ItemDetailPage() {
           {/* Shoe Closure - shoes only */}
           {editShowShoeFields && (
             <div className="space-y-1">
-              <Label>Closure</Label>
+              <Label>{t("addItem.closure")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(SHOE_CLOSURE_LABELS) as [ShoeClosure, string][]).map(([c, label]) => (
-                  <button key={c} type="button" onClick={() => setEditShoeClosure(editShoeClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editShoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.SHOE_CLOSURE) as ShoeClosure[]).map((c) => (
+                  <button key={c} type="button" onClick={() => setEditShoeClosure(editShoeClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editShoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_CLOSURE[c]}</button>
                 ))}
               </div>
             </div>
@@ -705,10 +684,10 @@ export default function ItemDetailPage() {
           {/* Belt Style - belt subcategory only */}
           {editShowBeltPosition && (
             <div className="space-y-1">
-              <Label>Belt Style</Label>
+              <Label>{t("addItem.beltStyle")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(BELT_STYLE_LABELS) as [BeltStyle, string][]).map(([b, label]) => (
-                  <button key={b} type="button" onClick={() => setEditBeltStyle(editBeltStyle === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBeltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.BELT_STYLE) as BeltStyle[]).map((b) => (
+                  <button key={b} type="button" onClick={() => setEditBeltStyle(editBeltStyle === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBeltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_STYLE[b]}</button>
                 ))}
               </div>
             </div>
@@ -717,10 +696,10 @@ export default function ItemDetailPage() {
           {/* Belt Position - belt subcategory only */}
           {editShowBeltPosition && (
             <div className="space-y-1">
-              <Label>Belt Position</Label>
+              <Label>{t("addItem.beltPosition")}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {(Object.entries(BELT_POSITION_LABELS) as [BeltPosition, string][]).map(([b, label]) => (
-                  <button key={b} type="button" onClick={() => setEditBeltPosition(b)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBeltPosition === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.BELT_POSITION) as BeltPosition[]).map((b) => (
+                  <button key={b} type="button" onClick={() => setEditBeltPosition(b)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBeltPosition === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_POSITION[b]}</button>
                 ))}
               </div>
             </div>
@@ -729,10 +708,10 @@ export default function ItemDetailPage() {
           {/* Metal Finish - shoes and accessories */}
           {["shoes", "accessory"].includes(editCategory) && (
             <div className="space-y-1">
-              <Label>Metal Finish</Label>
+              <Label>{t("addItem.metalFinish")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(METAL_FINISH_LABELS) as [MetalFinish, string][]).map(([m, label]) => (
-                  <button key={m} type="button" onClick={() => setEditMetalFinish(editMetalFinish === m ? null : m)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.METAL_FINISH) as MetalFinish[]).map((m) => (
+                  <button key={m} type="button" onClick={() => setEditMetalFinish(editMetalFinish === m ? null : m)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.METAL_FINISH[m]}</button>
                 ))}
               </div>
             </div>
@@ -741,10 +720,10 @@ export default function ItemDetailPage() {
           {/* Neckline - hidden for hoodies, cardigans */}
           {editShowNeckline && (
             <div className="space-y-1">
-              <Label>Neckline</Label>
+              <Label>{t("addItem.neckline")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(NECKLINE_LABELS) as [Neckline, string][]).map(([n, label]) => (
-                  <button key={n} type="button" onClick={() => setEditNeckline(editNeckline === n ? null : n)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editNeckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.NECKLINE) as Neckline[]).map((n) => (
+                  <button key={n} type="button" onClick={() => setEditNeckline(editNeckline === n ? null : n)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editNeckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.NECKLINE[n]}</button>
                 ))}
               </div>
             </div>
@@ -753,10 +732,10 @@ export default function ItemDetailPage() {
           {/* Sleeve Length - hidden for tank tops */}
           {editShowSleeveLength && (
             <div className="space-y-1">
-              <Label>Sleeve Length</Label>
+              <Label>{t("addItem.sleeveLength")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(SLEEVE_LENGTH_LABELS) as [SleeveLength, string][]).map(([s, label]) => (
-                  <button key={s} type="button" onClick={() => setEditSleeveLength(editSleeveLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.SLEEVE_LENGTH) as SleeveLength[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditSleeveLength(editSleeveLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SLEEVE_LENGTH[s]}</button>
                 ))}
               </div>
             </div>
@@ -765,10 +744,10 @@ export default function ItemDetailPage() {
           {/* Closure */}
           {editShowClosure && (
             <div className="space-y-1">
-              <Label>Closure</Label>
+              <Label>{t("addItem.closure")}</Label>
               <div className="flex flex-wrap gap-2">
-                {(Object.entries(CLOSURE_LABELS) as [Closure, string][]).map(([c, label]) => (
-                  <button key={c} type="button" onClick={() => setEditClosure(editClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+                {(Object.keys(labels.CLOSURE) as Closure[]).map((c) => (
+                  <button key={c} type="button" onClick={() => setEditClosure(editClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.CLOSURE[c]}</button>
                 ))}
               </div>
             </div>
@@ -776,50 +755,50 @@ export default function ItemDetailPage() {
 
           {/* Material */}
           <div className="space-y-1">
-            <Label>Material</Label>
+            <Label>{t("addItem.materialSelect")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(MATERIAL_LABELS) as [Material, string][]).map(([m, label]) => (
-                <button key={m} type="button" onClick={() => setEditMaterials(toggleArr(editMaterials, m))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMaterials.includes(m) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.MATERIAL) as Material[]).map((m) => (
+                <button key={m} type="button" onClick={() => setEditMaterials(toggleArr(editMaterials, m))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMaterials.includes(m) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.MATERIAL[m]}</button>
               ))}
             </div>
           </div>
 
           {/* Pattern */}
           <div className="space-y-1">
-            <Label>Pattern</Label>
+            <Label>{t("addItem.patternSelect")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(PATTERN_LABELS) as [Pattern, string][]).map(([p, label]) => (
-                <button key={p} type="button" onClick={() => setEditPatterns(toggleArr(editPatterns, p))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editPatterns.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.PATTERN) as Pattern[]).map((p) => (
+                <button key={p} type="button" onClick={() => setEditPatterns(toggleArr(editPatterns, p))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editPatterns.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.PATTERN[p]}</button>
               ))}
             </div>
           </div>
 
           {/* Formality - multi-select toggle buttons */}
           <div className="space-y-1">
-            <Label>Formality</Label>
+            <Label>{t("addItem.formality")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(FORMALITY_LABELS) as [Formality, string][]).map(([f, label]) => (
-                <button key={f} type="button" onClick={() => setEditFormalities(toggleArr(editFormalities, f))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editFormalities.includes(f) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.FORMALITY) as Formality[]).map((f) => (
+                <button key={f} type="button" onClick={() => setEditFormalities(toggleArr(editFormalities, f))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editFormalities.includes(f) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.FORMALITY[f]}</button>
               ))}
             </div>
           </div>
 
           {/* Seasons */}
           <div className="space-y-1">
-            <Label>Seasons</Label>
+            <Label>{t("addItem.seasons")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(SEASON_LABELS) as [Season, string][]).map(([s, label]) => (
-                <button key={s} type="button" onClick={() => setEditSeasons(toggleArr(editSeasons, s))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSeasons.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.SEASON) as Season[]).map((s) => (
+                <button key={s} type="button" onClick={() => setEditSeasons(toggleArr(editSeasons, s))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSeasons.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SEASON[s]}</button>
               ))}
             </div>
           </div>
 
           {/* Occasions */}
           <div className="space-y-1">
-            <Label>Occasions</Label>
+            <Label>{t("addItem.occasions")}</Label>
             <div className="flex flex-wrap gap-2">
-              {(Object.entries(OCCASION_LABELS) as [Occasion, string][]).map(([o, label]) => (
-                <button key={o} type="button" onClick={() => setEditOccasions(toggleArr(editOccasions, o))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editOccasions.includes(o) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{label}</button>
+              {(Object.keys(labels.OCCASION) as Occasion[]).map((o) => (
+                <button key={o} type="button" onClick={() => setEditOccasions(toggleArr(editOccasions, o))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editOccasions.includes(o) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.OCCASION[o]}</button>
               ))}
             </div>
           </div>
@@ -827,7 +806,7 @@ export default function ItemDetailPage() {
           {/* Warmth - hidden for shoes, accessories, bags */}
           {editShowWarmth && (
             <div className="space-y-1">
-              <Label>Warmth</Label>
+              <Label>{t("addItem.warmth")}</Label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button key={n} type="button" onClick={() => setEditWarmth(n)} className={cn("flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors", editWarmth === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{n}</button>
@@ -839,25 +818,25 @@ export default function ItemDetailPage() {
           {/* Rain + Brand */}
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setEditRain(!editRain)} className={cn("h-5 w-5 rounded border-2 transition-colors", editRain ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-            <Label className="cursor-pointer" onClick={() => setEditRain(!editRain)}>Rain appropriate</Label>
+            <Label className="cursor-pointer" onClick={() => setEditRain(!editRain)}>{t("addItem.rainAppropriate")}</Label>
           </div>
 
           {/* Stored */}
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setEditStored(!editStored)} className={cn("h-5 w-5 rounded border-2 transition-colors", editStored ? "border-primary bg-primary" : "border-muted-foreground/30")} />
             <div>
-              <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>Stored</Label>
-              <p className="text-xs text-muted-foreground">Packed away — excluded from outfit suggestions</p>
+              <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>{t("addItem.stored")}</Label>
+              <p className="text-xs text-muted-foreground">{t("addItem.storedHint")}</p>
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label>Brand (optional)</Label>
-            <Input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} placeholder="e.g. Zara, Nike" />
+            <Label>{t("addItem.brand")}</Label>
+            <Input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} placeholder={t("addItem.brandPlaceholder")} />
           </div>
 
           <Button className="w-full h-12" onClick={saveEdit} disabled={saving}>
-            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}
+            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("common.saving")}</> : t("itemDetail.saveChanges")}
           </Button>
         </div>
       ) : (
@@ -866,16 +845,16 @@ export default function ItemDetailPage() {
           {/* Name & category */}
           <h1 className="text-xl font-bold mb-1">{item.name}</h1>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <Badge variant="secondary">{CATEGORY_LABELS[item.category]}</Badge>
+            <Badge variant="secondary">{labels.CATEGORY[item.category]}</Badge>
             {item.subcategory && <Badge variant="outline">{item.subcategory}</Badge>}
             {item.brand && <span className="text-sm text-muted-foreground">{item.brand}</span>}
-            {item.is_layering_piece && <Badge variant="outline" className="text-[10px]">Layering piece</Badge>}
+            {item.is_layering_piece && <Badge variant="outline" className="text-[10px]">{t("itemDetail.layeringPiece")}</Badge>}
           </div>
 
           {/* Colors */}
           {item.colors.length > 0 && (
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-muted-foreground">Colors:</span>
+              <span className="text-sm text-muted-foreground">{t("itemDetail.colors")}</span>
               <div className="flex gap-1.5">
                 {item.colors.map((color, i) => (
                   <div key={i} className="flex items-center gap-1">
@@ -895,8 +874,8 @@ export default function ItemDetailPage() {
             {viewShowGenericFit && item.fit && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Fit</p>
-                  <p className="text-sm font-medium">{FIT_LABELS[item.fit]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.fit")}</p>
+                  <p className="text-sm font-medium">{labels.FIT[item.fit]}</p>
                 </CardContent>
               </Card>
             )}
@@ -904,24 +883,24 @@ export default function ItemDetailPage() {
             {viewShowBottomFit && item.bottom_fit && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Fit</p>
-                  <p className="text-sm font-medium">{BOTTOM_FIT_LABELS[item.bottom_fit]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.fit")}</p>
+                  <p className="text-sm font-medium">{labels.BOTTOM_FIT[item.bottom_fit]}</p>
                 </CardContent>
               </Card>
             )}
             {item.length && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Length</p>
-                  <p className="text-sm font-medium">{LENGTH_LABELS[item.length]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.length")}</p>
+                  <p className="text-sm font-medium">{labels.LENGTH[item.length]}</p>
                 </CardContent>
               </Card>
             )}
             {item.pants_length && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Length</p>
-                  <p className="text-sm font-medium">{PANTS_LENGTH_LABELS[item.pants_length]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.length")}</p>
+                  <p className="text-sm font-medium">{labels.PANTS_LENGTH[item.pants_length]}</p>
                 </CardContent>
               </Card>
             )}
@@ -929,26 +908,26 @@ export default function ItemDetailPage() {
             {viewIsJeansTrousers && item.waist_height && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Waist Height</p>
-                  <p className="text-sm font-medium">{WAIST_HEIGHT_LABELS[item.waist_height]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("addItem.waistHeight")}</p>
+                  <p className="text-sm font-medium">{labels.WAIST_HEIGHT[item.waist_height]}</p>
                 </CardContent>
               </Card>
             )}
             {item.waist_closure && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Waist Closure</p>
-                  <p className="text-sm font-medium">{WAIST_CLOSURE_LABELS[item.waist_closure]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("addItem.waistClosure")}</p>
+                  <p className="text-sm font-medium">{labels.WAIST_CLOSURE[item.waist_closure]}</p>
                 </CardContent>
               </Card>
             )}
             {item.waist_style && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Waist</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.waist")}</p>
                   <p className="text-sm font-medium">
-                    {WAIST_STYLE_LABELS[item.waist_style]}
-                    {item.belt_compatible && " \u00b7 Belt-friendly"}
+                    {labels.WAIST_STYLE[item.waist_style]}
+                    {item.belt_compatible && ` ${t("itemDetail.beltFriendly")}`}
                   </p>
                 </CardContent>
               </Card>
@@ -957,8 +936,8 @@ export default function ItemDetailPage() {
             {viewShowShoeFields && item.shoe_height && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Shoe Height</p>
-                  <p className="text-sm font-medium">{SHOE_HEIGHT_LABELS[item.shoe_height]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("addItem.shoeHeight")}</p>
+                  <p className="text-sm font-medium">{labels.SHOE_HEIGHT[item.shoe_height]}</p>
                 </CardContent>
               </Card>
             )}
@@ -966,8 +945,8 @@ export default function ItemDetailPage() {
             {viewShowShoeFields && item.heel_type && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Heel Type</p>
-                  <p className="text-sm font-medium">{HEEL_TYPE_LABELS[item.heel_type]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.heelType")}</p>
+                  <p className="text-sm font-medium">{labels.HEEL_TYPE[item.heel_type]}</p>
                 </CardContent>
               </Card>
             )}
@@ -975,8 +954,8 @@ export default function ItemDetailPage() {
             {viewShowShoeFields && item.shoe_closure && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Closure</p>
-                  <p className="text-sm font-medium">{SHOE_CLOSURE_LABELS[item.shoe_closure]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.closure")}</p>
+                  <p className="text-sm font-medium">{labels.SHOE_CLOSURE[item.shoe_closure]}</p>
                 </CardContent>
               </Card>
             )}
@@ -984,8 +963,8 @@ export default function ItemDetailPage() {
             {viewShowBeltPosition && item.belt_position && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Belt Position</p>
-                  <p className="text-sm font-medium">{BELT_POSITION_LABELS[item.belt_position]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("addItem.beltPosition")}</p>
+                  <p className="text-sm font-medium">{labels.BELT_POSITION[item.belt_position]}</p>
                 </CardContent>
               </Card>
             )}
@@ -993,8 +972,8 @@ export default function ItemDetailPage() {
             {viewShowBeltPosition && item.belt_style && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Belt Style</p>
-                  <p className="text-sm font-medium">{BELT_STYLE_LABELS[item.belt_style]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("addItem.beltStyle")}</p>
+                  <p className="text-sm font-medium">{labels.BELT_STYLE[item.belt_style]}</p>
                 </CardContent>
               </Card>
             )}
@@ -1002,54 +981,54 @@ export default function ItemDetailPage() {
             {item.metal_finish && item.metal_finish !== "none" && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Metal Finish</p>
-                  <p className="text-sm font-medium">{METAL_FINISH_LABELS[item.metal_finish]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.metal")}</p>
+                  <p className="text-sm font-medium">{labels.METAL_FINISH[item.metal_finish]}</p>
                 </CardContent>
               </Card>
             )}
             {item.neckline && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Neckline</p>
-                  <p className="text-sm font-medium">{NECKLINE_LABELS[item.neckline]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.neckline")}</p>
+                  <p className="text-sm font-medium">{labels.NECKLINE[item.neckline]}</p>
                 </CardContent>
               </Card>
             )}
             {item.sleeve_length && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Sleeves</p>
-                  <p className="text-sm font-medium">{SLEEVE_LENGTH_LABELS[item.sleeve_length]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.sleeves")}</p>
+                  <p className="text-sm font-medium">{labels.SLEEVE_LENGTH[item.sleeve_length]}</p>
                 </CardContent>
               </Card>
             )}
             {item.closure && (
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">Closure</p>
-                  <p className="text-sm font-medium">{CLOSURE_LABELS[item.closure]}</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.closure")}</p>
+                  <p className="text-sm font-medium">{labels.CLOSURE[item.closure]}</p>
                 </CardContent>
               </Card>
             )}
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Material</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.material")}</p>
                 <p className="text-sm font-medium">
-                  {Array.isArray(item.material) ? item.material.map((m) => MATERIAL_LABELS[m]).join(", ") : MATERIAL_LABELS[item.material]}
+                  {Array.isArray(item.material) ? item.material.map((m) => labels.MATERIAL[m]).join(", ") : labels.MATERIAL[item.material]}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Pattern</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.pattern")}</p>
                 <p className="text-sm font-medium">
-                  {Array.isArray(item.pattern) ? item.pattern.map((p) => PATTERN_LABELS[p]).join(", ") : PATTERN_LABELS[item.pattern]}
+                  {Array.isArray(item.pattern) ? item.pattern.map((p) => labels.PATTERN[p]).join(", ") : labels.PATTERN[item.pattern]}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Formality</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.formality")}</p>
                 <p className="text-sm font-medium">{formalityDisplay}</p>
               </CardContent>
             </Card>
@@ -1062,7 +1041,7 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3 flex items-center gap-2">
                   <Thermometer className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Warmth</p>
+                    <p className="text-xs text-muted-foreground">{t("itemDetail.warmth")}</p>
                     <p className="text-sm font-medium">{item.warmth_rating}/5</p>
                   </div>
                 </CardContent>
@@ -1072,8 +1051,8 @@ export default function ItemDetailPage() {
               <CardContent className="p-3 flex items-center gap-2">
                 <Droplets className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Rain-proof</p>
-                  <p className="text-sm font-medium">{item.rain_appropriate ? "Yes" : "No"}</p>
+                  <p className="text-xs text-muted-foreground">{t("itemDetail.rainProof")}</p>
+                  <p className="text-sm font-medium">{item.rain_appropriate ? t("common.yes") : t("common.no")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1082,10 +1061,10 @@ export default function ItemDetailPage() {
           {/* Seasons */}
           {item.seasons.length > 0 && (
             <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2">Seasons</p>
+              <p className="text-sm text-muted-foreground mb-2">{t("addItem.seasons")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {item.seasons.map((s) => (
-                  <Badge key={s} variant="outline">{SEASON_LABELS[s]}</Badge>
+                  <Badge key={s} variant="outline">{labels.SEASON[s]}</Badge>
                 ))}
               </div>
             </div>
@@ -1094,10 +1073,10 @@ export default function ItemDetailPage() {
           {/* Occasions */}
           {item.occasions.length > 0 && (
             <div className="mt-3">
-              <p className="text-sm text-muted-foreground mb-2">Occasions</p>
+              <p className="text-sm text-muted-foreground mb-2">{t("addItem.occasions")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {item.occasions.map((o) => (
-                  <Badge key={o} variant="outline">{OCCASION_LABELS[o]}</Badge>
+                  <Badge key={o} variant="outline">{labels.OCCASION[o]}</Badge>
                 ))}
               </div>
             </div>
@@ -1106,12 +1085,12 @@ export default function ItemDetailPage() {
           {/* Wear stats */}
           <Separator className="my-4" />
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Times worn</span>
+            <span className="text-muted-foreground">{t("itemDetail.timesWorn")}</span>
             <span className="font-medium">{item.times_worn}</span>
           </div>
           {item.last_worn_date && (
             <div className="flex items-center justify-between text-sm mt-1">
-              <span className="text-muted-foreground">Last worn</span>
+              <span className="text-muted-foreground">{t("itemDetail.lastWorn")}</span>
               <span className="font-medium">{new Date(item.last_worn_date).toLocaleDateString()}</span>
             </div>
           )}
