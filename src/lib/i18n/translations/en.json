@@ -684,7 +684,7 @@
     "signedInAs": "Signed in as"
   },
   "onboarding": {
-    "welcome": "Welcome!",
+    "welcome": "Welcome to Closette",
     "welcomeSub": "Just a few quick questions to set things up.",
     "step": "Step {current} of {total}",
     "languageTitle": "Pick your language",

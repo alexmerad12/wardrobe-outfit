@@ -777,7 +777,7 @@
     "signedInAs": "Connecté en tant que"
   },
   "onboarding": {
-    "welcome": "Bienvenue !",
+    "welcome": "Bienvenue dans Closette",
     "welcomeSub": "Quelques questions rapides pour commencer.",
     "step": "Étape {current} sur {total}",
     "languageTitle": "Choisis ta langue",

@@ -143,7 +143,7 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <CardContent className="space-y-4 p-5">
             {step === 1 && (
               <div className="space-y-3">
