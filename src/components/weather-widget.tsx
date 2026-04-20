@@ -2,7 +2,23 @@
 
 import { useEffect, useState } from "react";
 import type { WeatherData } from "@/lib/types";
-import { Droplets, Wind } from "lucide-react";
+import {
+  Droplets,
+  Droplet,
+  Wind,
+  Sun,
+  Cloud,
+  CloudSun,
+  CloudFog,
+  CloudDrizzle,
+  CloudRain,
+  CloudRainWind,
+  CloudSnow,
+  CloudLightning,
+  Snowflake,
+  Thermometer,
+  type LucideIcon,
+} from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 
@@ -15,6 +31,27 @@ type Coords = { lat: number; lng: number };
 
 function roundCoord(n: number) {
   return Math.round(n * 100) / 100;
+}
+
+// Map Open-Meteo condition strings (see src/lib/weather.ts) to a Lucide icon
+// + a tint color. Keeps the visual consistent with the rest of the app.
+function iconForCondition(condition: string): { Icon: LucideIcon; tint: string } {
+  const c = condition.toLowerCase();
+  if (c.includes("thunder")) return { Icon: CloudLightning, tint: "text-violet-500" };
+  if (c.includes("snow grains") || c.includes("heavy snow"))
+    return { Icon: Snowflake, tint: "text-sky-400" };
+  if (c.includes("snow")) return { Icon: CloudSnow, tint: "text-sky-400" };
+  if (c.includes("heavy rain") || c.includes("violent"))
+    return { Icon: CloudRainWind, tint: "text-blue-500" };
+  if (c.includes("drizzle")) return { Icon: CloudDrizzle, tint: "text-blue-400" };
+  if (c.includes("rain") || c.includes("shower"))
+    return { Icon: CloudRain, tint: "text-blue-500" };
+  if (c.includes("fog") || c.includes("rime")) return { Icon: CloudFog, tint: "text-slate-400" };
+  if (c.includes("overcast")) return { Icon: Cloud, tint: "text-slate-400" };
+  if (c.includes("partly cloudy")) return { Icon: CloudSun, tint: "text-amber-400" };
+  if (c.includes("clear") || c.includes("mainly clear"))
+    return { Icon: Sun, tint: "text-amber-400" };
+  return { Icon: Thermometer, tint: "text-muted-foreground" };
 }
 
 function readCachedCoords(): Coords | null {
@@ -65,6 +102,9 @@ async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> 
   return (await res.json()) as WeatherData;
 }
 
+const GLASS_CLASSES =
+  "relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br from-sky-100/70 via-blue-50/60 to-indigo-100/70 p-5 shadow-sm backdrop-blur-xl";
+
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,8 +130,6 @@ export function WeatherWidget() {
         setWeather(data);
         setLoading(false);
       } catch {
-        // Swallow — an earlier IP-based load may already have populated the
-        // widget. Only surface an error if we have nothing to show.
         if (!cancelled && !weather) setError("Couldn't fetch weather");
       }
     }
@@ -109,15 +147,12 @@ export function WeatherWidget() {
 
     const cachedCoords = readCachedCoords();
     if (cachedCoords) {
-      // Fast path: we already know the user's precise location.
       loadForCoords(cachedCoords);
       return () => {
         cancelled = true;
       };
     }
 
-    // First visit: render IP-based weather immediately, then upgrade to
-    // precise GPS coords once the user grants permission.
     loadFromIpGeo();
 
     if ("geolocation" in navigator) {
@@ -141,13 +176,13 @@ export function WeatherWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-5 animate-pulse">
+      <div className={`${GLASS_CLASSES} animate-pulse`}>
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-10 w-24 rounded-lg bg-blue-100/80" />
-            <div className="h-4 w-32 rounded bg-blue-100/60" />
+            <div className="h-10 w-24 rounded-lg bg-white/50" />
+            <div className="h-4 w-32 rounded bg-white/40" />
           </div>
-          <div className="h-14 w-14 rounded-full bg-blue-100/80" />
+          <div className="h-14 w-14 rounded-full bg-white/50" />
         </div>
       </div>
     );
@@ -155,9 +190,9 @@ export function WeatherWidget() {
 
   if (error || !weather) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-gray-100 p-5">
+      <div className={GLASS_CLASSES}>
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🌡️</span>
+          <Thermometer className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             Enable location for weather-based suggestions
           </p>
@@ -166,10 +201,18 @@ export function WeatherWidget() {
     );
   }
 
+  const { Icon, tint } = iconForCondition(weather.condition);
+
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 p-5 shadow-sm">
+    <div className={GLASS_CLASSES}>
+      {/* Soft light spot in the top-right to sell the glass feel */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/40 blur-2xl"
+      />
+
       {/* Top row: temp + icon */}
-      <div className="flex items-start justify-between mb-3">
+      <div className="relative mb-3 flex items-start justify-between">
         <div>
           <div className="flex items-baseline gap-0.5">
             <span className="text-3xl font-medium tracking-tight leading-none">
@@ -179,36 +222,36 @@ export function WeatherWidget() {
               {unit === "fahrenheit" ? "F" : "C"}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Feels like {convertTemp(weather.feels_like, unit)}°
           </p>
         </div>
         <div className="flex flex-col items-center gap-1">
-          <span className="text-4xl leading-none">{weather.icon}</span>
-          <span className="text-xs font-medium text-muted-foreground text-center max-w-[80px]">
+          <Icon className={`h-9 w-9 ${tint}`} strokeWidth={1.75} />
+          <span className="max-w-[90px] text-center text-xs font-medium text-muted-foreground">
             {weather.condition}
           </span>
         </div>
       </div>
 
       {/* Bottom row: details */}
-      <div className="flex items-center gap-4 pt-3 border-t border-blue-100/60">
+      <div className="relative flex items-center gap-4 border-t border-white/60 pt-3">
         {weather.precipitation_probability > 0 && (
           <div className="flex items-center gap-1.5">
-            <Droplets className="h-3.5 w-3.5 text-blue-400" />
+            <Droplets className="h-3.5 w-3.5 text-blue-500" />
             <span className="text-xs text-muted-foreground">
               {weather.precipitation_probability}%
             </span>
           </div>
         )}
         <div className="flex items-center gap-1.5">
-          <Wind className="h-3.5 w-3.5 text-blue-400" />
+          <Wind className="h-3.5 w-3.5 text-sky-500" />
           <span className="text-xs text-muted-foreground">
             {weather.wind_speed} km/h
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-blue-400">💧</span>
+          <Droplet className="h-3.5 w-3.5 text-blue-400" />
           <span className="text-xs text-muted-foreground">
             {weather.humidity}%
           </span>

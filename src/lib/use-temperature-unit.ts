@@ -42,12 +42,17 @@ export function useTemperatureUnit(): "celsius" | "fahrenheit" {
     let cancelled = false;
     fetch("/api/preferences")
       .then((r) => (r.ok ? r.json() : null))
-      .then((prefs: { temperature_unit?: TemperatureUnit } | null) => {
-        if (cancelled) return;
-        const resolved = resolveUnit(prefs?.temperature_unit);
-        setUnit(resolved);
-        writeCached(resolved);
-      })
+      .then(
+        (prefs: {
+          temperature_unit?: TemperatureUnit;
+          location?: { city?: string | null } | null;
+        } | null) => {
+          if (cancelled) return;
+          const resolved = resolveUnit(prefs?.temperature_unit, prefs?.location);
+          setUnit(resolved);
+          writeCached(resolved);
+        }
+      )
       .catch(() => {});
     return () => {
       cancelled = true;

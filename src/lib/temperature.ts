@@ -3,6 +3,26 @@ import type { TemperatureUnit } from "./types";
 // Countries that use Fahrenheit (essentially US + a few territories)
 const FAHRENHEIT_LOCALES = ["en-US", "en-PR", "en-GU", "en-VI", "en-UM", "en-AS", "en-MP", "en-BS", "en-BZ", "en-KY", "en-PW", "en-FM", "en-MH", "en-LR"];
 
+// Country names as returned by Open-Meteo geocoding, used to match the stored
+// location.city string ("City, Region, Country"). The browser's navigator.language
+// is unreliable here: a French Canadian in Montreal may browse with en-US set,
+// but still expects Celsius.
+const FAHRENHEIT_COUNTRIES = [
+  "United States",
+  "Bahamas",
+  "Belize",
+  "Cayman Islands",
+  "Liberia",
+  "Palau",
+  "Federated States of Micronesia",
+  "Marshall Islands",
+];
+
+function countryFromCity(city: string): string | null {
+  const parts = city.split(",").map((s) => s.trim());
+  return parts[parts.length - 1] || null;
+}
+
 /**
  * Detect the user's preferred unit from browser locale.
  * Returns "fahrenheit" for US-style locales, "celsius" for everything else.
@@ -14,10 +34,20 @@ export function detectTemperatureUnit(): "celsius" | "fahrenheit" {
 }
 
 /**
- * Resolve the actual unit to use - "auto" falls back to browser detection.
+ * Resolve the actual unit to use. "auto" prefers the user's saved location
+ * country (most reliable signal), then falls back to browser-locale detection.
  */
-export function resolveUnit(pref: TemperatureUnit | null | undefined): "celsius" | "fahrenheit" {
+export function resolveUnit(
+  pref: TemperatureUnit | null | undefined,
+  location?: { city?: string | null } | null
+): "celsius" | "fahrenheit" {
   if (pref === "celsius" || pref === "fahrenheit") return pref;
+  if (location?.city) {
+    const country = countryFromCity(location.city);
+    if (country) {
+      return FAHRENHEIT_COUNTRIES.includes(country) ? "fahrenheit" : "celsius";
+    }
+  }
   return detectTemperatureUnit();
 }
 
