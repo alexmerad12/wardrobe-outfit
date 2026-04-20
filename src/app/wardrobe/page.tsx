@@ -66,12 +66,6 @@ export default function WardrobePage() {
     clearReady,
     onItemSaved,
   } = usePendingUploads();
-  // Active = queued + processing. Ready/error don't block the cap — ready
-  // items are done, error items are waiting for retry or dismiss.
-  const activePending = pending.filter(
-    (p) => p.stage !== "ready" && p.stage !== "error"
-  ).length;
-  const atCap = activePending >= MAX_BATCH;
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +92,35 @@ export default function WardrobePage() {
       void refetchItems();
     });
   }, [onItemSaved, refetchItems]);
+
+  // Auto-open the review wizard as soon as a batch finishes. Feels like
+  // the page "pops up" when processing is done — matches the user's
+  // mental model of the flow without forcing them to hunt for a button.
+  // Guarded by a ref so it fires once per completion burst, and skipped
+  // if the user has already navigated away from the wardrobe tab.
+  const autoReviewedRef = useRef(false);
+  useEffect(() => {
+    if (pending.length === 0) {
+      // Reset so the next batch can auto-open too.
+      autoReviewedRef.current = false;
+      return;
+    }
+    const settled = pending.every(
+      (p) => p.stage === "ready" || p.stage === "error"
+    );
+    const readyItems = pending.filter(
+      (p) => p.stage === "ready" && p.savedItemId
+    );
+    if (settled && readyItems.length > 0 && !autoReviewedRef.current) {
+      autoReviewedRef.current = true;
+      const firstId = readyItems[0].savedItemId!;
+      const restIds = readyItems.slice(1).map((p) => p.savedItemId!);
+      clearReady();
+      const qs = new URLSearchParams({ edit: "1" });
+      if (restIds.length > 0) qs.set("next", restIds.join(","));
+      router.push(`/wardrobe/${firstId}?${qs.toString()}`);
+    }
+  }, [pending, router, clearReady]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -279,15 +302,9 @@ export default function WardrobePage() {
                   }
                 />
                 <DropdownMenuContent align="end" className="w-64">
-                  {atCap && (
-                    <div className="px-2 py-1.5 text-[11px] text-[#7c2d3a] bg-[#fdf2f4] rounded-md mb-1 border border-[#e8b4bc]">
-                      {MAX_BATCH} slots in use — wait for the current batch.
-                    </div>
-                  )}
                   <DropdownMenuItem
                     onClick={() => cameraInputRef.current?.click()}
                     className="gap-2"
-                    disabled={atCap}
                   >
                     <Camera className="h-4 w-4" />
                     {t("wardrobe.takePhoto")}
@@ -295,7 +312,6 @@ export default function WardrobePage() {
                   <DropdownMenuItem
                     onClick={() => libraryInputRef.current?.click()}
                     className="gap-2"
-                    disabled={atCap}
                   >
                     <ImageIcon className="h-4 w-4" />
                     {t("wardrobe.chooseFromLibrary")}
@@ -380,11 +396,13 @@ export default function WardrobePage() {
           onDismissAllFailed={dismissAllFailed}
           onStartReview={(firstId, restIds) => {
             clearReady();
-            // Review-all-then-save flow: a single page shows every item in
-            // the batch with inline edits, and one Save button at the end
-            // commits them all.
-            const allIds = [firstId, ...restIds].join(",");
-            router.push(`/wardrobe/review?ids=${allIds}`);
+            // Per-item wizard: lands on the first item in edit mode with
+            // the remaining IDs chained via ?next=. Save & Next on each
+            // page saves the edit and hops forward. Matches how the
+            // single-item add flow edits one item, just repeated.
+            const qs = new URLSearchParams({ edit: "1" });
+            if (restIds.length > 0) qs.set("next", restIds.join(","));
+            router.push(`/wardrobe/${firstId}?${qs.toString()}`);
           }}
         />
       )}
@@ -514,30 +532,14 @@ function PendingStrip({
                 {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Counter uses the ACTIVE count (excludes ready + error) so
-                  it matches what the + dropdown's atCap gate uses.
-                  Showing "10/10" when the slot isn't actually full would
-                  directly contradict the dropdown still being enabled. */}
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide",
-                  processing >= MAX_BATCH
-                    ? "bg-[#7c2d3a] text-white"
-                    : "bg-white/60 text-[#7c2d3a]"
-                )}
+            {inFlight.length > MAX_INLINE_TILES && (
+              <Link
+                href="/wardrobe/bulk"
+                className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
               >
-                {processing} / {MAX_BATCH}
-              </span>
-              {inFlight.length > MAX_INLINE_TILES && (
-                <Link
-                  href="/wardrobe/bulk"
-                  className={cn("text-xs font-medium hover:underline", BURGUNDY_TEXT)}
-                >
-                  {t("wardrobe.viewAll")}
-                </Link>
-              )}
-            </div>
+                {t("wardrobe.viewAll")}
+              </Link>
+            )}
           </div>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
             {visible.map((p) => (

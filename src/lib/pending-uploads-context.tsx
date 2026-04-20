@@ -35,12 +35,12 @@ export type PendingItem = {
   error?: string;
 };
 
-// Hard cap on how many files can be in flight per batch. Picked from
-// real-world data: at 5 every upload finishes cleanly, at 40 most fail
-// on mobile cellular. 10 is the sweet spot — the whole batch completes
-// within a few minutes, the user doesn't wander off, and the chances of
-// hitting a networking dead-end on any single upload stay low.
-export const MAX_BATCH = 10;
+// No hard cap on batch size. Pick however many; items process serially
+// (CONCURRENCY=1) on top of tus-resumable uploads that survive TCP
+// drops — the reliability story no longer needs an arbitrary ceiling.
+// Acloset and Indyx work the same way: the user picks, the queue
+// grinds through. Serialisation + tus is doing the heavy lifting.
+export const MAX_BATCH = Infinity;
 
 type ContextValue = {
   items: PendingItem[];

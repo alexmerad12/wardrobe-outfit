@@ -66,7 +66,7 @@ export default function BulkUploadPage() {
             {t("bulk.description")}
           </p>
           <p className="mb-6 text-xs text-muted-foreground/80">
-            Up to {MAX_BATCH} photos at a time — pick another batch when these finish.
+            Pick however many — items process one at a time and stay safe even if the connection drops.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
