@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage } from "@/lib/image-utils";
@@ -34,13 +35,13 @@ export type PendingItem = {
   error?: string;
 };
 
-// Hard cap per batch. Production-grade bulk upload needs a ceiling —
-// even with tus + serial processing, a 50-item queue on mobile is a
-// user-experience trap (can't review, can't reliably finish, feels
-// stuck). 10 at a time is the UX sweet spot: finishes in a few minutes,
-// user can review immediately, matches what Acloset shows on its
-// picker UI.
-export const MAX_BATCH = 10;
+// Hard cap per batch. Keeping this tight (5) is a reliability win,
+// not a limitation: each photo's pipeline has roughly a 5% chance of
+// hitting a transient network hiccup on mobile cellular, and the more
+// items in flight, the more likely *something* stalls. A 5-item batch
+// finishes cleanly in ~15-20s; a 10-item batch was triggering stuck
+// tiles more often than users have patience for.
+export const MAX_BATCH = 5;
 
 type ContextValue = {
   items: PendingItem[];
@@ -83,11 +84,12 @@ export function usePendingUploads(): ContextValue {
 // every stream slower).
 const CONCURRENCY = 3;
 
-// Hard ceiling on a single item's processing time. If any step hangs —
-// Claude not responding, upload wedged mid-chunk, whatever — we mark
-// the item errored instead of letting it freeze the queue forever.
-// Users can retry individually.
-const PER_ITEM_TIMEOUT_MS = 60_000;
+// Hard ceiling on a single item's processing time. Needs to be longer
+// than tus's own internal retry ladder (~2 min of backoff spans across
+// 8 attempts), otherwise we kill items that would have recovered on
+// their own. 3 min is generous but finite — nothing should stay stuck
+// past this.
+const PER_ITEM_TIMEOUT_MS = 180_000;
 
 
 
@@ -269,6 +271,39 @@ export function PendingUploadsProvider({
         savedItemId: saved.id,
       });
       notifySaved();
+
+      // Post-save background removal — runs async so the pipeline's
+      // wall-clock is unchanged. Item is already "ready" with its
+      // original image; when imgly finishes we upload the cleaned
+      // version and PATCH image_url. Wardrobe grids that are
+      // listening refetch and see the new image. If removal fails or
+      // times out, we just keep the original — no pipeline impact.
+      const downscaledFile = cleaned; // captured for the closure below
+      void (async () => {
+        try {
+          const cleanedBlob = await removeBg(downscaledFile);
+          const cleanedPng = new File(
+            [cleanedBlob],
+            downscaledFile.name.replace(/\.[^.]+$/, "") + ".png",
+            { type: "image/png" }
+          );
+          const cleanedUrl = await uploadToSupabase(cleanedPng);
+          const patchRes = await fetch(`/api/items/${saved.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image_url: cleanedUrl }),
+          });
+          if (!patchRes.ok) return;
+          // Let subscribers (wardrobe grid) refetch so the cleaned
+          // image shows up without a manual reload.
+          notifySaved();
+        } catch (err) {
+          console.warn(
+            `[pending ${item.id}] post-save bg removal failed — keeping original`,
+            err
+          );
+        }
+      })();
     },
     [patchItem, notifySaved]
   );
