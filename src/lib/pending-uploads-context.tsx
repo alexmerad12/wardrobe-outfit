@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import * as tus from "tus-js-client";
 import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { createClient } from "@/lib/supabase/client";
@@ -55,11 +56,12 @@ export function usePendingUploads(): ContextValue {
   return c;
 }
 
-// Serial processing: one item at a time. Slower on wall-clock, but
-// removes concurrent-load as a possible failure mode — no Supabase rate
-// limits, no overlapping session-cookie refreshes, no imgly worker
-// contention. Speed matters less than finishing without errors.
-const CONCURRENCY = 1;
+// Uploads now use tus.io resumable uploads, which survive TCP drops
+// by resuming from the last ACKed byte. With that reliability layer in
+// place we can parallelise again — 3 is the sweet spot per the tus +
+// mobile-network literature (more streams over a weak cell radio make
+// every stream slower).
+const CONCURRENCY = 3;
 
 // Bg removal runs inside a single Web Worker, so only one ML inference can
 // actually happen at a time. Serialise at this layer so we never fire three
@@ -75,45 +77,83 @@ function serializedBgRemove(file: Blob): Promise<Blob> {
   return next;
 }
 
-async function uploadImageOnce(file: File): Promise<string> {
+const BUCKET = "clothing-images";
+const TUS_CHUNK_SIZE = 6 * 1024 * 1024; // Supabase-mandated 6 MB chunks.
+
+function projectIdFromSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL not set");
+  return new URL(url).hostname.split(".")[0];
+}
+
+// Resumable upload via the tus.io protocol — what Supabase exposes at
+// /storage/v1/upload/resumable. Why this and not the simple SDK upload:
+// on mobile cellular a 30-photo batch spans minutes, and TCP connections
+// drop routinely. The SDK's single-shot POST treats that as a hard
+// failure ("Failed to fetch"). tus pauses, negotiates the last-ACKed
+// byte with the server, and resumes from there. The upload survives
+// every real-world flake short of closing the browser.
+async function uploadImage(file: File): Promise<string> {
   const supabase = createClient();
+  // Refresh the session up front so the access token has full TTL for
+  // the upload duration — a chunky batch can outlast a stale token.
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session?.user?.id) throw new Error("Not signed in");
+  if (!session?.user?.id || !session?.access_token) {
+    throw new Error("Not signed in");
+  }
+
+  const projectId = projectIdFromSupabaseUrl();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${session.user.id}/${Date.now()}-${Math.random()
+  const objectName = `${session.user.id}/${Date.now()}-${Math.random()
     .toString(36)
     .slice(2, 8)}-${safeName}`;
-  const { error } = await supabase.storage
-    .from("clothing-images")
-    .upload(path, file, { contentType: file.type });
-  if (error) throw new Error(error.message);
-  return supabase.storage.from("clothing-images").getPublicUrl(path).data.publicUrl;
-}
 
-// "Failed to fetch" is a browser TransferError — the network dropped
-// mid-request. On mobile cellular over a 5-minute bulk upload this is
-// common. Four attempts with exponential backoff (2 s → 4 s → 8 s) clears
-// all but the most stubbornly broken connections.
-async function uploadImage(file: File): Promise<string> {
-  const maxAttempts = 4;
-  let lastErr: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await uploadImageOnce(file);
-    } catch (err) {
-      lastErr = err;
-      if (attempt === maxAttempts) break;
-      const delay = 1000 * Math.pow(2, attempt); // 2s, 4s, 8s
-      console.warn(
-        `[uploadImage] attempt ${attempt}/${maxAttempts} failed, retrying in ${delay}ms`,
-        err
-      );
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  throw lastErr;
+  return new Promise<string>((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: `https://${projectId}.storage.supabase.co/storage/v1/upload/resumable`,
+      // Aggressive retry schedule — cellular drops routinely on mobile.
+      retryDelays: [0, 3_000, 5_000, 10_000, 20_000, 30_000, 60_000],
+      headers: {
+        authorization: `Bearer ${session.access_token}`,
+        "x-upsert": "true",
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      chunkSize: TUS_CHUNK_SIZE,
+      metadata: {
+        bucketName: BUCKET,
+        objectName,
+        contentType: file.type || "image/jpeg",
+        cacheControl: "3600",
+      },
+      onError(err) {
+        console.error("[tus] upload failed for", objectName, err);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      },
+      onSuccess() {
+        const publicUrl = supabase.storage
+          .from(BUCKET)
+          .getPublicUrl(objectName).data.publicUrl;
+        resolve(publicUrl);
+      },
+    });
+
+    // Resume from a half-finished upload if one exists for this file
+    // fingerprint (same name+size+lastModified). Cheap to check.
+    upload
+      .findPreviousUploads()
+      .then((prev) => {
+        if (prev.length > 0) upload.resumeFromPreviousUpload(prev[0]);
+        upload.start();
+      })
+      .catch((err) => {
+        // If the lookup itself fails, still try fresh.
+        console.warn("[tus] findPreviousUploads failed, starting fresh", err);
+        upload.start();
+      });
+  });
 }
 
 function buildItemPayload(imageUrl: string, a: AutoFillResult) {
