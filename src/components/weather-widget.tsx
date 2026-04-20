@@ -21,6 +21,37 @@ import {
 } from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
+import { useLocale } from "@/lib/i18n/use-locale";
+
+// Maps the English condition strings produced by src/lib/weather.ts to the
+// slug keys under "weatherCondition" in the translation files. Kept in the
+// widget rather than on the server so the WeatherData payload stays simple.
+const CONDITION_KEYS: Record<string, string> = {
+  "Clear sky": "clearSky",
+  "Mainly clear": "mainlyClear",
+  "Partly cloudy": "partlyCloudy",
+  "Overcast": "overcast",
+  "Fog": "fog",
+  "Depositing rime fog": "rimeFog",
+  "Light drizzle": "lightDrizzle",
+  "Moderate drizzle": "moderateDrizzle",
+  "Dense drizzle": "denseDrizzle",
+  "Slight rain": "slightRain",
+  "Moderate rain": "moderateRain",
+  "Heavy rain": "heavyRain",
+  "Slight snow": "slightSnow",
+  "Moderate snow": "moderateSnow",
+  "Heavy snow": "heavySnow",
+  "Snow grains": "snowGrains",
+  "Slight rain showers": "slightRainShowers",
+  "Moderate rain showers": "moderateRainShowers",
+  "Violent rain showers": "violentRainShowers",
+  "Slight snow showers": "slightSnowShowers",
+  "Heavy snow showers": "heavySnowShowers",
+  "Thunderstorm": "thunderstorm",
+  "Thunderstorm with slight hail": "thunderstormSlightHail",
+  "Thunderstorm with heavy hail": "thunderstormHeavyHail",
+};
 
 const COORDS_KEY = "wx:coords:v1";
 const DATA_KEY_PREFIX = "wx:data:v1:";
@@ -113,6 +144,7 @@ export function WeatherWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const unit = useTemperatureUnit();
+  const { t } = useLocale();
 
   useEffect(() => {
     let cancelled = false;
@@ -197,7 +229,7 @@ export function WeatherWidget() {
         <div className="flex items-center gap-3">
           <Thermometer className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Enable location for weather-based suggestions
+            {t("weatherWidget.enableLocation")}
           </p>
         </div>
       </div>
@@ -205,6 +237,10 @@ export function WeatherWidget() {
   }
 
   const { Icon, tint } = iconForCondition(weather.condition);
+  const conditionKey = CONDITION_KEYS[weather.condition];
+  const conditionLabel = conditionKey
+    ? t(`weatherCondition.${conditionKey}`)
+    : weather.condition;
 
   return (
     <div className={GLASS_CLASSES}>
@@ -220,13 +256,13 @@ export function WeatherWidget() {
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Feels like {convertTemp(weather.feels_like, unit)}°
+            {t("weatherWidget.feelsLike", { temp: convertTemp(weather.feels_like, unit) })}
           </p>
         </div>
         <div className="flex flex-col items-center gap-1">
           <Icon className={`h-9 w-9 ${tint}`} strokeWidth={1.75} />
           <span className="max-w-[90px] text-center text-xs font-medium text-muted-foreground">
-            {weather.condition}
+            {conditionLabel}
           </span>
         </div>
       </div>

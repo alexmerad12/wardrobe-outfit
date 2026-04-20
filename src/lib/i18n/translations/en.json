@@ -78,6 +78,37 @@
     "period": { "label": "Comfort Day", "description": "Comfy & stretchy" },
     "sad": { "label": "Need a Hug", "description": "Cozy or uplifting" }
   },
+  "weatherWidget": {
+    "feelsLike": "Feels like {temp}°",
+    "enableLocation": "Enable location for weather-based suggestions"
+  },
+  "weatherCondition": {
+    "clearSky": "Clear sky",
+    "mainlyClear": "Mainly clear",
+    "partlyCloudy": "Partly cloudy",
+    "overcast": "Overcast",
+    "fog": "Fog",
+    "rimeFog": "Freezing fog",
+    "lightDrizzle": "Light drizzle",
+    "moderateDrizzle": "Moderate drizzle",
+    "denseDrizzle": "Dense drizzle",
+    "slightRain": "Light rain",
+    "moderateRain": "Moderate rain",
+    "heavyRain": "Heavy rain",
+    "slightSnow": "Light snow",
+    "moderateSnow": "Moderate snow",
+    "heavySnow": "Heavy snow",
+    "snowGrains": "Snow grains",
+    "slightRainShowers": "Light showers",
+    "moderateRainShowers": "Moderate showers",
+    "violentRainShowers": "Violent showers",
+    "slightSnowShowers": "Light snow showers",
+    "heavySnowShowers": "Heavy snow showers",
+    "thunderstorm": "Thunderstorm",
+    "thunderstormSlightHail": "Thunderstorm with light hail",
+    "thunderstormHeavyHail": "Thunderstorm with heavy hail",
+    "unknown": "Unknown"
+  },
   "occasion": {
     "at-home": "At Home",
     "casual": "Casual",

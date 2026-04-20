@@ -83,6 +83,37 @@
     "chill": { "label": "Relax", "description": "Décontracté et facile" },
     "bold": { "label": "Audacieux", "description": "Pièces remarquables" }
   },
+  "weatherWidget": {
+    "feelsLike": "Ressenti {temp}°",
+    "enableLocation": "Active la localisation pour des suggestions météo"
+  },
+  "weatherCondition": {
+    "clearSky": "Ciel dégagé",
+    "mainlyClear": "Plutôt dégagé",
+    "partlyCloudy": "Partiellement nuageux",
+    "overcast": "Couvert",
+    "fog": "Brouillard",
+    "rimeFog": "Brouillard givrant",
+    "lightDrizzle": "Bruine légère",
+    "moderateDrizzle": "Bruine modérée",
+    "denseDrizzle": "Bruine dense",
+    "slightRain": "Pluie faible",
+    "moderateRain": "Pluie modérée",
+    "heavyRain": "Pluie forte",
+    "slightSnow": "Neige faible",
+    "moderateSnow": "Neige modérée",
+    "heavySnow": "Neige forte",
+    "snowGrains": "Grains de neige",
+    "slightRainShowers": "Averses légères",
+    "moderateRainShowers": "Averses modérées",
+    "violentRainShowers": "Averses violentes",
+    "slightSnowShowers": "Averses de neige faibles",
+    "heavySnowShowers": "Averses de neige fortes",
+    "thunderstorm": "Orage",
+    "thunderstormSlightHail": "Orage, grêle légère",
+    "thunderstormHeavyHail": "Orage, grêle forte",
+    "unknown": "Inconnu"
+  },
   "occasion": {
     "at-home": "À la maison",
     "casual": "Décontracté",
