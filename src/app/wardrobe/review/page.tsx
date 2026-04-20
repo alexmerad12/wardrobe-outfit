@@ -121,23 +121,43 @@ function ReviewBatchPage() {
     try {
       const results = await Promise.all(
         Object.entries(edits).map(async ([id, changes]) => {
+          if (!changes.name || !changes.name.trim()) {
+            // Don't blank out a name on save.
+            delete changes.name;
+          }
           const body: Record<string, unknown> = {};
-          if (changes.name !== undefined) body.name = changes.name;
+          if (changes.name !== undefined) body.name = changes.name.trim();
           if (changes.category !== undefined) body.category = changes.category;
           if (changes.subcategory !== undefined) {
             body.subcategory = changes.subcategory || null;
           }
-          const res = await fetch(`/api/items/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          });
-          return { id, ok: res.ok };
+          try {
+            const res = await fetch(`/api/items/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            return { id, ok: res.ok };
+          } catch {
+            return { id, ok: false };
+          }
         })
       );
-      const failed = results.filter((r) => !r.ok);
-      if (failed.length > 0) {
-        setError(`${failed.length} item${failed.length === 1 ? "" : "s"} failed to save`);
+      const failedIds = results.filter((r) => !r.ok).map((r) => r.id);
+      if (failedIds.length > 0) {
+        // Keep only the failed items in `edits` so pressing Save again
+        // retries just those. Clear the successful ones — they don't
+        // need to be PATCHed a second time.
+        setEdits((prev) => {
+          const next: typeof prev = {};
+          for (const id of failedIds) {
+            if (prev[id]) next[id] = prev[id];
+          }
+          return next;
+        });
+        setError(
+          `${failedIds.length} item${failedIds.length === 1 ? "" : "s"} failed to save. Press Save again to retry those.`
+        );
         setSaving(false);
         return;
       }
@@ -194,7 +214,14 @@ function ReviewBatchPage() {
           const draft = edits[item.id] ?? {};
           const effectiveName = draft.name ?? item.name;
           const effectiveCategory = (draft.category ?? item.category) as Category;
-          const effectiveSub = draft.subcategory ?? item.subcategory ?? "";
+          // Important: once the user has explicitly cleared the subcategory
+          // (draft.subcategory === null), we want to render the cleared
+          // state — NOT fall back to the server value. `??` would do that,
+          // so check for `undefined` explicitly.
+          const effectiveSub =
+            draft.subcategory !== undefined
+              ? draft.subcategory ?? ""
+              : item.subcategory ?? "";
           const subOptions =
             effectiveCategory && effectiveCategory in labels.SUBCATEGORY_OPTIONS
               ? labels.SUBCATEGORY_OPTIONS[effectiveCategory]

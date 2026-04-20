@@ -27,7 +27,11 @@ import {
 } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
-import { usePendingUploads, type PendingItem } from "@/lib/pending-uploads-context";
+import {
+  MAX_BATCH,
+  usePendingUploads,
+  type PendingItem,
+} from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
 
 const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
@@ -304,7 +308,7 @@ export default function WardrobePage() {
                     const result = addFiles(e.target.files);
                     if (result.rejected > 0) {
                       alert(
-                        `Only 10 items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                        `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
                       );
                     }
                   }
@@ -323,7 +327,7 @@ export default function WardrobePage() {
                     const result = addFiles(e.target.files);
                     if (result.rejected > 0) {
                       alert(
-                        `Only 10 items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                        `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
                       );
                     }
                   }

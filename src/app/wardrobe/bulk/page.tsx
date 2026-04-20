@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  MAX_BATCH,
   usePendingUploads,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
@@ -65,7 +66,7 @@ export default function BulkUploadPage() {
             {t("bulk.description")}
           </p>
           <p className="mb-6 text-xs text-muted-foreground/80">
-            Up to 10 photos at a time — pick another batch when these finish.
+            Up to {MAX_BATCH} photos at a time — pick another batch when these finish.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
@@ -151,7 +152,7 @@ export default function BulkUploadPage() {
             const result = addFiles(e.target.files);
             if (result.rejected > 0) {
               alert(
-                `Only 10 items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
               );
             }
           }
@@ -169,7 +170,7 @@ export default function BulkUploadPage() {
             const result = addFiles(e.target.files);
             if (result.rejected > 0) {
               alert(
-                `Only 10 items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
               );
             }
           }

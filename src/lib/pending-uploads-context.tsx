@@ -87,7 +87,6 @@ function serializedBgRemove(file: Blob): Promise<Blob> {
   return next;
 }
 
-const uploadImage = uploadToSupabase;
 
 function buildItemPayload(imageUrl: string, a: AutoFillResult) {
   const aiColors =
@@ -210,7 +209,7 @@ export function PendingUploadsProvider({
 
       // 3. Upload + analyze in parallel on the cleaned, downscaled image.
       const [imageUrl, attrsRaw] = await Promise.all([
-        uploadImage(cleaned).catch((err) => {
+        uploadToSupabase(cleaned).catch((err) => {
           console.error(`[pending ${item.id}] upload step failed`, err);
           throw new Error(
             `Upload: ${err instanceof Error ? err.message : String(err)}`
@@ -344,6 +343,23 @@ export function PendingUploadsProvider({
     // so it sees the latest state — otherwise two file-picker events firing
     // close together both read a stale `items` closure and both accept 10
     // files, blowing past the cap.
+    //
+    // Side effects (URL.createObjectURL, id generation) live OUTSIDE the
+    // updater — React Strict Mode runs the updater twice in dev and we
+    // don't want to leak a blob URL per file per render.
+    // Build candidate slots with pre-allocated IDs + blob URLs once, so
+    // Strict Mode's double-invoke of the setItems updater doesn't
+    // allocate new blob URLs on the second pass and leak the first.
+    const candidates = allFiles.map((file) => ({
+      file,
+      key: `${file.name}:${file.size}:${file.lastModified}`,
+      id:
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
     let accepted = 0;
     let rejected = 0;
     setItems((prev) => {
@@ -357,26 +373,29 @@ export function PendingUploadsProvider({
       const incoming: PendingItem[] = [];
       let localAccepted = 0;
       let localRejected = 0;
-      for (const file of allFiles) {
-        const key = `${file.name}:${file.size}:${file.lastModified}`;
-        if (knownKeys.has(key)) continue;
+      for (const c of candidates) {
+        if (knownKeys.has(c.key)) {
+          // Already in state — don't leak its blob URL.
+          URL.revokeObjectURL(c.previewUrl);
+          continue;
+        }
         if (remainingCapacity <= 0) {
+          URL.revokeObjectURL(c.previewUrl);
           localRejected++;
           continue;
         }
-        knownKeys.add(key);
+        knownKeys.add(c.key);
         remainingCapacity--;
         localAccepted++;
         incoming.push({
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-          file,
-          previewUrl: URL.createObjectURL(file),
+          id: c.id,
+          file: c.file,
+          previewUrl: c.previewUrl,
           stage: "queued",
         });
       }
       // Strict Mode runs the updater twice; both runs produce the same
-      // output so overwriting accepted/rejected with identical values is
-      // safe. Don't `+=` here — that would double-count.
+      // output so overwriting these with identical values is safe.
       accepted = localAccepted;
       rejected = localRejected;
       return incoming.length > 0 ? [...incoming, ...prev] : prev;
