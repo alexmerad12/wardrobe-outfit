@@ -8,6 +8,10 @@ function getConfig(
   onProgress?: (key: string, current: number, total: number) => void
 ): Config {
   return {
+    // Run the ONNX model off the main thread. Without this, the whole page
+    // freezes during inference — the spinner stops animating and clicks
+    // queue up until processing finishes.
+    proxyToWorker: true,
     output: { format: "image/png", quality: 1 },
     progress: onProgress,
     debug: typeof process !== "undefined" && process.env.NODE_ENV !== "production",
