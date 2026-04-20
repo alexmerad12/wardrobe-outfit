@@ -179,6 +179,7 @@ create table user_preferences (
   location jsonb,
   temperature_sensitivity text default 'normal' check (temperature_sensitivity in ('runs-hot','normal','runs-cold')),
   temperature_unit text default 'auto' check (temperature_unit in ('auto','celsius','fahrenheit')),
+  language text default 'auto' check (language in ('auto','en','fr')),
   preferred_styles text[] default '{}'::text[],
   favorite_colors text[] default '{}'::text[],
   avoided_colors text[] default '{}'::text[]

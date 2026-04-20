@@ -4,17 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Shirt, Sparkles, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 const NAV_ITEMS = [
-  { href: "/", icon: Home, label: "Home" },
-  { href: "/wardrobe", icon: Shirt, label: "Wardrobe" },
-  { href: "/suggest", icon: Sparkles, label: "Suggest" },
-  { href: "/outfits", icon: Heart, label: "Favorites" },
-  { href: "/profile", icon: User, label: "Profile" },
-];
+  { href: "/", icon: Home, key: "home" },
+  { href: "/wardrobe", icon: Shirt, key: "wardrobe" },
+  { href: "/suggest", icon: Sparkles, key: "suggest" },
+  { href: "/outfits", icon: Heart, key: "favorites" },
+  { href: "/profile", icon: User, key: "profile" },
+] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLocale();
 
   // Hide nav on auth + legal pages
   if (
@@ -30,7 +32,7 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 max-w-md items-center justify-around px-4">
-        {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+        {NAV_ITEMS.map(({ href, icon: Icon, key }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -46,7 +48,7 @@ export function BottomNav() {
               )}
             >
               <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
-              <span className={cn(isActive && "font-semibold")}>{label}</span>
+              <span className={cn(isActive && "font-semibold")}>{t(`nav.${key}`)}</span>
             </Link>
           );
         })}

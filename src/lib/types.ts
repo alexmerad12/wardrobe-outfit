@@ -163,11 +163,14 @@ export interface OutfitLog {
 
 export type TemperatureUnit = "auto" | "celsius" | "fahrenheit";
 
+export type Language = "auto" | "en" | "fr";
+
 export interface UserPreferences {
   user_id: string;
   location: { lat: number; lng: number; city: string } | null;
   temperature_sensitivity: TemperatureSensitivity;
   temperature_unit: TemperatureUnit;
+  language: Language;
   preferred_styles: string[];
   favorite_colors: string[];
   avoided_colors: string[];

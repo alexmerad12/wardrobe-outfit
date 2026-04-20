@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
   const { supabase } = ctx;
 
   try {
-    const { destination, lat, lng, startDate, endDate, occasions, notes } = await request.json();
+    const { destination, lat, lng, startDate, endDate, occasions, notes, locale = "en" } = await request.json();
+    const languageName = locale === "fr" ? "French" : "English";
 
     const { data: allItems, error } = await supabase
       .from("clothing_items")
@@ -98,6 +99,8 @@ TRIP DETAILS:
 - Weather: ${weatherInfo}
 - Planned occasions: ${occasions || "General travel"}
 ${notes ? `- Notes: ${notes}` : ""}
+
+LANGUAGE: Write all reason, day, note, weather_summary, and packing_tips fields in ${languageName}. Item IDs stay as-is.
 
 PACKING PRINCIPLES:
 - Pack versatile pieces that mix and match into multiple outfits

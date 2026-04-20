@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StylistLoader } from "@/components/stylist-loader";
+import { useLocale } from "@/lib/i18n/use-locale";
 import {
   ArrowLeft,
   Loader2,
@@ -55,6 +56,7 @@ interface SavedTrip {
 
 export default function PackingPage() {
   const router = useRouter();
+  const { locale } = useLocale();
 
   // Form
   const [destination, setDestination] = useState("");
@@ -155,7 +157,7 @@ export default function PackingPage() {
       const res = await fetch("/api/packing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destination, lat: destLat, lng: destLng, startDate, endDate, occasions, notes }),
+        body: JSON.stringify({ destination, lat: destLat, lng: destLng, startDate, endDate, occasions, notes, locale }),
       });
 
       if (res.ok) {

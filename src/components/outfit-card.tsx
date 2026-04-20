@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Shirt, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 interface OutfitCardProps {
   items: ClothingItem[];
@@ -34,6 +35,7 @@ export function OutfitCard({
   saving,
   isFavorited = false,
 }: OutfitCardProps) {
+  const { t } = useLocale();
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -82,12 +84,12 @@ export function OutfitCard({
             {isFavorited ? (
               <>
                 <Heart className="mr-1.5 h-4 w-4 fill-current" />
-                Saved
+                {t("suggest.saved")}
               </>
             ) : (
               <>
                 <Heart className="mr-1.5 h-4 w-4" />
-                {saving ? "Saving..." : "Favorite"}
+                {saving ? t("common.saving") : t("suggest.favorite")}
               </>
             )}
           </Button>
@@ -98,7 +100,7 @@ export function OutfitCard({
             disabled={saving}
           >
             <Shirt className="mr-1.5 h-4 w-4" />
-            Wear Today
+            {t("suggest.wearToday")}
           </Button>
         </div>
 
@@ -112,7 +114,7 @@ export function OutfitCard({
             disabled={!canPrev}
           >
             <ChevronLeft className="mr-1 h-4 w-4" />
-            Previous
+            {t("common.previous")}
           </Button>
           <Button
             variant="ghost"
@@ -121,7 +123,7 @@ export function OutfitCard({
             onClick={onNext}
             disabled={!canNext}
           >
-            Next
+            {t("common.next")}
             <ChevronRight className="ml-1 h-4 w-4" />
           </Button>
         </div>

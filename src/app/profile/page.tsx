@@ -14,9 +14,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity, TemperatureUnit, ClothingItem } from "@/lib/types";
+import type { TemperatureSensitivity, TemperatureUnit, Language, ClothingItem } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
-import { MapPin, Thermometer, Loader2, LogOut } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Languages, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface CityResult {
@@ -36,6 +36,7 @@ export default function ProfilePage() {
   const [tempSensitivity, setTempSensitivity] =
     useState<TemperatureSensitivity>("normal");
   const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
+  const [language, setLanguage] = useState<Language>("auto");
   const [saving, setSaving] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
@@ -81,6 +82,7 @@ export default function ProfilePage() {
             setCityLng(prefs.location?.lng ?? 0);
             setTempSensitivity(prefs.temperature_sensitivity ?? "normal");
             setTempUnit(prefs.temperature_unit ?? "auto");
+            setLanguage(prefs.language ?? "auto");
           }
         }
 
@@ -220,11 +222,17 @@ export default function ProfilePage() {
             : null,
           temperature_sensitivity: tempSensitivity,
           temperature_unit: tempUnit,
+          language,
           preferred_styles: [],
           favorite_colors: [],
           avoided_colors: [],
         }),
       });
+      // Clear cached locale/unit so the change takes effect immediately on next render
+      try {
+        window.localStorage.removeItem("locale:v1");
+        window.localStorage.removeItem("tempUnit:v1");
+      } catch {}
     } catch (err) {
       console.error("Failed to save preferences:", err);
     } finally {
@@ -472,6 +480,27 @@ export default function ProfilePage() {
                 <SelectItem value="auto">Auto (based on your region)</SelectItem>
                 <SelectItem value="celsius">Celsius (°C)</SelectItem>
                 <SelectItem value="fahrenheit">Fahrenheit (°F)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Language */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Languages className="h-3.5 w-3.5" />
+              Language
+            </Label>
+            <Select
+              value={language}
+              onValueChange={(v) => setLanguage(v as Language)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (from device)</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="fr">Français</SelectItem>
               </SelectContent>
             </Select>
           </div>

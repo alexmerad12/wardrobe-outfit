@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Scissors, Ruler, Palette, Pencil, Shirt, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 const TOOLS = [Scissors, Ruler, Palette, Shirt, Pencil, Sparkles];
 
@@ -12,7 +13,9 @@ interface StylistLoaderProps {
   label?: string;
 }
 
-export function StylistLoader({ className, size = "md", label = "Yav is styling" }: StylistLoaderProps) {
+export function StylistLoader({ className, size = "md", label }: StylistLoaderProps) {
+  const { t } = useLocale();
+  const effectiveLabel = label ?? t("suggest.yavIsStyling");
   const [index, setIndex] = useState(0);
   const [entering, setEntering] = useState(true);
 
@@ -46,7 +49,7 @@ export function StylistLoader({ className, size = "md", label = "Yav is styling"
         )}
       />
       <span className="text-sm inline-flex items-baseline">
-        {label}
+        {effectiveLabel}
         <span className="inline-flex ml-0.5">
           <span className="animate-[fade_1.5s_ease-in-out_infinite]">.</span>
           <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.25s]">.</span>

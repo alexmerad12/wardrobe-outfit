@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Heart, Sparkles, Trash2, Thermometer, Shirt } from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
+import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
 
 export default function FavoritesPage() {
@@ -21,6 +22,7 @@ export default function FavoritesPage() {
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const unit = useTemperatureUnit();
+  const { t } = useLocale();
   const router = useRouter();
 
   useEffect(() => {
@@ -88,9 +90,9 @@ export default function FavoritesPage() {
     <div className="mx-auto max-w-2xl px-4 pt-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Favorite Outfits</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Saved looks that inspire future suggestions
+            {t("favorites.subtitle")}
           </p>
         </div>
         <Link href="/suggest">
@@ -136,14 +138,14 @@ export default function FavoritesPage() {
       ) : outfits.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
           <Heart className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-          <p className="text-muted-foreground mb-1">No favorite outfits yet</p>
+          <p className="text-muted-foreground mb-1">{t("favorites.none")}</p>
           <p className="text-sm text-muted-foreground mb-4">
-            Get outfit suggestions and save the ones you love. Your favorites help the AI learn your style!
+            {t("favorites.noneHint")}
           </p>
           <Link href="/suggest">
             <Button variant="outline" className="gap-1.5">
               <Sparkles className="h-4 w-4" />
-              Get Suggestions
+              {t("favorites.getSuggestions")}
             </Button>
           </Link>
         </div>
@@ -192,7 +194,7 @@ export default function FavoritesPage() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         {outfit.mood && (
                           <Badge variant="secondary" className="text-xs gap-0.5">
-                            {MOOD_CONFIG[outfit.mood]?.emoji} {MOOD_CONFIG[outfit.mood]?.label}
+                            {MOOD_CONFIG[outfit.mood]?.emoji} {t(`mood.${outfit.mood}.label`)}
                           </Badge>
                         )}
                         {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
@@ -203,7 +205,7 @@ export default function FavoritesPage() {
                         )}
                         {outfit.occasions.map((o) => (
                           <Badge key={o} variant="outline" className="text-xs">
-                            {OCCASION_LABELS[o]}
+                            {t(`occasion.${o}`)}
                           </Badge>
                         ))}
                         {outfit.source === "manual" && (
@@ -274,7 +276,7 @@ export default function FavoritesPage() {
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
                         {outfit.mood && (
                           <Badge variant="secondary" className="text-[10px] gap-0.5">
-                            {MOOD_CONFIG[outfit.mood]?.emoji} {MOOD_CONFIG[outfit.mood]?.label}
+                            {MOOD_CONFIG[outfit.mood]?.emoji} {t(`mood.${outfit.mood}.label`)}
                           </Badge>
                         )}
                         {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
@@ -285,7 +287,7 @@ export default function FavoritesPage() {
                         )}
                         {outfit.occasions.slice(0, 2).map((o) => (
                           <Badge key={o} variant="outline" className="text-[10px]">
-                            {OCCASION_LABELS[o]}
+                            {t(`occasion.${o}`)}
                           </Badge>
                         ))}
                         {outfit.source === "manual" && (

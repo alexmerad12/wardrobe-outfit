@@ -9,9 +9,10 @@ import { WeatherWidget } from "@/components/weather-widget";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
-import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import { MOOD_CONFIG } from "@/lib/types";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
+import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
 
 interface TodayOutfit {
@@ -34,6 +35,7 @@ export default function HomePage() {
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [forgottenItems, setForgottenItems] = useState<ClothingItem[]>([]);
   const unit = useTemperatureUnit();
+  const { t } = useLocale();
 
   useEffect(() => {
     async function load() {
@@ -156,9 +158,9 @@ export default function HomePage() {
 
   const greeting = (() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning!";
-    if (hour < 18) return "Good afternoon!";
-    return "Good evening!";
+    if (hour < 12) return t("home.goodMorning");
+    if (hour < 18) return t("home.goodAfternoon");
+    return t("home.goodEvening");
   })();
 
   return (
@@ -170,8 +172,8 @@ export default function HomePage() {
         </h1>
         <p className="text-muted-foreground mt-0.5">
           {todayOutfit
-            ? "You're all set for today."
-            : "Let's find your perfect outfit today."}
+            ? t("home.allSet")
+            : t("home.letsFindOutfit")}
         </p>
       </div>
 
@@ -183,12 +185,12 @@ export default function HomePage() {
       {/* Today's Outfit */}
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-3">Today&apos;s Outfit</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("home.todaysOutfit")}</h2>
           <Card className="overflow-hidden">
             <CardContent className="p-4 space-y-4">
               {/* Outfit name */}
               <div className="flex items-center justify-between">
-                <p className="font-semibold">{todayOutfit.name || "Today's Look"}</p>
+                <p className="font-semibold">{todayOutfit.name || t("home.todaysLook")}</p>
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={toggleTodayFavorite}>
                     <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
@@ -208,16 +210,16 @@ export default function HomePage() {
                   <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
                     <span className="text-base">{MOOD_CONFIG[todayOutfit.mood as Mood].emoji}</span>
                     <div>
-                      <p className="text-xs font-medium leading-tight">{MOOD_CONFIG[todayOutfit.mood as Mood].label}</p>
+                      <p className="text-xs font-medium leading-tight">{t(`mood.${todayOutfit.mood}.label`)}</p>
                       <p className="text-[10px] text-muted-foreground leading-tight">Mood</p>
                     </div>
                   </div>
                 )}
-                {todayOutfit.occasion && OCCASION_LABELS[todayOutfit.occasion as Occasion] && (
+                {todayOutfit.occasion && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
                     <Sparkles className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-xs font-medium leading-tight">{OCCASION_LABELS[todayOutfit.occasion as Occasion]}</p>
+                      <p className="text-xs font-medium leading-tight">{t(`occasion.${todayOutfit.occasion}`)}</p>
                       <p className="text-[10px] text-muted-foreground leading-tight">Occasion</p>
                     </div>
                   </div>
@@ -259,8 +261,8 @@ export default function HomePage() {
       {/* Forgotten Items */}
       {forgottenItems.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2">Forgotten in your wardrobe</h2>
-          <p className="text-xs text-muted-foreground mb-3">These haven&apos;t been worn in a while</p>
+          <h2 className="text-lg font-semibold mb-2">{t("home.forgottenInWardrobe")}</h2>
+          <p className="text-xs text-muted-foreground mb-3">{t("home.forgottenHint")}</p>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {forgottenItems.map((item) => (
               <Link key={item.id} href={`/wardrobe/${item.id}`} className="flex-shrink-0 w-24">
@@ -270,8 +272,8 @@ export default function HomePage() {
                 <p className="text-[11px] font-medium truncate">{item.name}</p>
                 <p className="text-[10px] text-muted-foreground">
                   {item.last_worn_date
-                    ? `Last worn ${Math.round((Date.now() - new Date(item.last_worn_date).getTime()) / (1000 * 60 * 60 * 24))}d ago`
-                    : "Never worn"}
+                    ? t("home.lastWorn", { days: Math.round((Date.now() - new Date(item.last_worn_date).getTime()) / (1000 * 60 * 60 * 24)) })
+                    : t("home.neverWorn")}
                 </p>
               </Link>
             ))}
@@ -284,7 +286,7 @@ export default function HomePage() {
         <Link href="/suggest">
           <Button className="w-full h-14 text-base gap-2" size="lg">
             <Sparkles className="h-5 w-5" />
-            {todayOutfit ? "Get more suggestions" : "What should I wear today?"}
+            {todayOutfit ? t("home.getMoreSuggestions") : t("home.whatShouldIWear")}
           </Button>
         </Link>
 
@@ -292,19 +294,19 @@ export default function HomePage() {
           <Link href="/wardrobe/add">
             <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
               <Plus className="h-4 w-4" />
-              Add Item
+              {t("home.addItem")}
             </Button>
           </Link>
           <Link href="/wardrobe">
             <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
               <Shirt className="h-4 w-4" />
-              Wardrobe
+              {t("home.myWardrobe")}
             </Button>
           </Link>
           <Link href="/packing">
             <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
               <Plane className="h-4 w-4" />
-              Pack
+              {t("home.pack")}
             </Button>
           </Link>
         </div>
@@ -312,14 +314,14 @@ export default function HomePage() {
 
       {/* Recent Outfits */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Recent Outfits</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("home.recentOutfits")}</h2>
         {recentOutfits.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
             <p className="text-muted-foreground text-sm">
-              Your outfit history will appear here.
+              {t("home.outfitHistoryEmpty")}
             </p>
             <p className="text-muted-foreground text-xs mt-1">
-              Tap &quot;Wear Today&quot; on a suggestion to start logging!
+              {t("home.outfitHistoryHint")}
             </p>
           </div>
         ) : (
@@ -365,12 +367,12 @@ export default function HomePage() {
                           <div className="flex flex-wrap gap-1.5 mb-3">
                             {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (
                               <Badge variant="secondary" className="text-[10px] gap-0.5">
-                                {MOOD_CONFIG[outfit.mood as Mood].emoji} {MOOD_CONFIG[outfit.mood as Mood].label}
+                                {MOOD_CONFIG[outfit.mood as Mood].emoji} {t(`mood.${outfit.mood}.label`)}
                               </Badge>
                             )}
-                            {outfit.occasion && OCCASION_LABELS[outfit.occasion as Occasion] && (
+                            {outfit.occasion && (
                               <Badge variant="outline" className="text-[10px]">
-                                {OCCASION_LABELS[outfit.occasion as Occasion]}
+                                {t(`occasion.${outfit.occasion}`)}
                               </Badge>
                             )}
                             {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (

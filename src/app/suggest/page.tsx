@@ -12,6 +12,7 @@ import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StylistLoader } from "@/components/stylist-loader";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 interface AISuggestion {
   items: ClothingItem[];
@@ -34,6 +35,7 @@ function SuggestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const anchorItemId = searchParams.get("item");
+  const { t, locale } = useLocale();
 
   const [mood, setMood] = useState<Mood | null>(null);
   const [occasion, setOccasion] = useState<Occasion | null>(null);
@@ -58,9 +60,9 @@ function SuggestContent() {
   }, [anchorItemId]);
 
   const STYLE_PRESETS = [
-    "Dress day",
-    "Mix patterns",
-    "All black",
+    { key: "dress-day", label: t("styleWish.dress-day") },
+    { key: "mix-patterns", label: t("styleWish.mix-patterns") },
+    { key: "all-black", label: t("styleWish.all-black") },
   ];
 
   function toggleStyleWish(wish: string) {
@@ -79,7 +81,7 @@ function SuggestContent() {
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, occasion, styleWishes: allWishes, anchorItemId }),
+        body: JSON.stringify({ mood, occasion, styleWishes: allWishes, anchorItemId, locale }),
       });
 
       if (res.ok) {
@@ -196,12 +198,12 @@ function SuggestContent() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">What to Wear</h1>
+          <h1 className="text-xl font-bold">{t("suggest.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {step === "mood" && "How are you feeling today?"}
-            {step === "style" && "Any styling preferences?"}
-            {step === "occasion" && "What's the occasion?"}
-            {step === "results" && `Suggestion ${currentIndex + 1} of ${suggestions.length}`}
+            {step === "mood" && t("suggest.howAreYouFeeling")}
+            {step === "style" && t("suggest.stylingPreferences")}
+            {step === "occasion" && t("suggest.whatsTheOccasion")}
+            {step === "results" && t("suggest.suggestionCounter", { current: currentIndex + 1, total: suggestions.length })}
           </p>
         </div>
       </div>
@@ -215,7 +217,7 @@ function SuggestContent() {
           <div className="flex-1 min-w-0">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
               <Pin className="h-3 w-3" />
-              Styling around this item
+              {t("suggest.stylingAround")}
             </p>
             <p className="text-sm font-medium truncate">{anchorItem.name}</p>
           </div>
@@ -232,7 +234,7 @@ function SuggestContent() {
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-3">
-              How are you feeling?
+              {t("suggest.howAreYouFeelingShort")}
             </h2>
             <MoodPicker selected={mood} onChange={setMood} />
           </div>
@@ -251,28 +253,28 @@ function SuggestContent() {
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-1">
-              Any styling direction?
+              {t("suggest.anyDirection")}
             </h2>
-            <p className="text-xs text-muted-foreground mb-3">Optional - tap any that apply</p>
+            <p className="text-xs text-muted-foreground mb-3">{t("suggest.optional")}</p>
             <div className="flex flex-wrap gap-2">
-              {STYLE_PRESETS.map((wish) => (
+              {STYLE_PRESETS.map(({ key, label }) => (
                 <button
-                  key={wish}
-                  onClick={() => toggleStyleWish(wish)}
+                  key={key}
+                  onClick={() => toggleStyleWish(label)}
                   className={cn(
                     "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    styleWishes.includes(wish)
+                    styleWishes.includes(label)
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
                   )}
                 >
-                  {wish}
+                  {label}
                 </button>
               ))}
             </div>
             <input
               type="text"
-              placeholder="Or type your own... (e.g. 'I want to wear my red boots')"
+              placeholder={t("suggest.customWishPlaceholder")}
               value={customWish}
               onChange={(e) => setCustomWish(e.target.value)}
               className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -280,10 +282,10 @@ function SuggestContent() {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 h-12" onClick={() => setStep("mood")}>
-              Back
+              {t("common.back")}
             </Button>
             <Button className="flex-1 h-12" onClick={() => setStep("occasion")}>
-              Next
+              {t("common.next")}
             </Button>
           </div>
         </div>
@@ -294,11 +296,11 @@ function SuggestContent() {
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-3">
-              What&apos;s the occasion?
+              {t("suggest.whatsOccasionShort")}
             </h2>
             <div className="grid grid-cols-2 gap-2">
-              {(Object.entries(OCCASION_LABELS) as [Occasion, string][]).map(
-                ([occ, label]) => (
+              {(Object.keys(OCCASION_LABELS) as Occasion[]).map(
+                (occ) => (
                   <button
                     key={occ}
                     onClick={() => setOccasion(occ)}
@@ -309,7 +311,7 @@ function SuggestContent() {
                         : "border-transparent bg-muted/50 hover:bg-muted"
                     )}
                   >
-                    {label}
+                    {t(`occasion.${occ}`)}
                   </button>
                 )
               )}
@@ -322,7 +324,7 @@ function SuggestContent() {
               className="flex-1 h-12"
               onClick={() => setStep("style")}
             >
-              Back
+              {t("common.back")}
             </Button>
             <Button
               className="flex-1 h-12 gap-2"
@@ -334,7 +336,7 @@ function SuggestContent() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Style Me
+                  {t("suggest.styleMe")}
                 </>
               )}
             </Button>
@@ -362,10 +364,10 @@ function SuggestContent() {
           {currentIndex >= suggestions.length - 1 && (
             <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground">
-                That&apos;s all the suggestions for now!
+                {t("suggest.thatsAll")}
               </p>
               <Button variant="outline" onClick={handleStartOver}>
-                Start Over
+                {t("suggest.startOver")}
               </Button>
             </div>
           )}
@@ -373,7 +375,7 @@ function SuggestContent() {
           {/* Wardrobe gap suggestion from AI */}
           {wardrobeGap && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mt-2">
-              <p className="text-xs font-semibold text-amber-800 mb-1">Stylist tip</p>
+              <p className="text-xs font-semibold text-amber-800 mb-1">{t("suggest.stylistTip")}</p>
               <p className="text-sm text-amber-700">{wardrobeGap}</p>
             </div>
           )}
@@ -384,17 +386,17 @@ function SuggestContent() {
       {step === "results" && suggestions.length === 0 && !loading && (
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
           <p className="text-muted-foreground mb-2">
-            Not enough items in your wardrobe to suggest outfits.
+            {t("suggest.notEnoughItems")}
           </p>
           <p className="text-sm text-muted-foreground">
-            Add at least 3 items to get started!
+            {t("suggest.atLeast3Items")}
           </p>
           <Button
             variant="outline"
             className="mt-4"
             onClick={() => router.push("/wardrobe/add")}
           >
-            Add Items
+            {t("suggest.addItems")}
           </Button>
         </div>
       )}

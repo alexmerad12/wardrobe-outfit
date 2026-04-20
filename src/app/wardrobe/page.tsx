@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ClothingItem, Category } from "@/lib/types";
-import { CATEGORY_LABELS } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, X, CheckSquare, Combine, Archive } from "lucide-react";
+import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
 
 const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
@@ -31,6 +31,7 @@ export default function WardrobePage() {
   const [deleting, setDeleting] = useState(false);
   const [creatingOutfit, setCreatingOutfit] = useState(false);
   const router = useRouter();
+  const { t } = useLocale();
 
   useEffect(() => {
     async function fetchItems() {
@@ -152,9 +153,9 @@ export default function WardrobePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">My Wardrobe</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("wardrobe.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? "item" : "items"}
+            {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? t("wardrobe.items") : t("wardrobe.itemsPlural")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -229,7 +230,7 @@ export default function WardrobePage() {
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            {cat === "all" ? "All" : cat === "stored" ? `Stored${storedCount > 0 ? ` (${storedCount})` : ""}` : CATEGORY_LABELS[cat as Category]}
+            {cat === "stored" ? `${t("category.stored")}${storedCount > 0 ? ` (${storedCount})` : ""}` : t(`category.${cat}`)}
           </button>
         ))}
       </div>
@@ -245,14 +246,14 @@ export default function WardrobePage() {
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
           <p className="text-muted-foreground mb-3">
             {items.length === 0
-              ? "Your wardrobe is empty"
-              : "No items in this category"}
+              ? t("wardrobe.empty")
+              : t("wardrobe.noneInCategory")}
           </p>
           {items.length === 0 && (
             <Link href="/wardrobe/add">
               <Button variant="outline" className="gap-1.5">
                 <Plus className="h-4 w-4" />
-                Add your first item
+                {t("wardrobe.addFirstItem")}
               </Button>
             </Link>
           )}

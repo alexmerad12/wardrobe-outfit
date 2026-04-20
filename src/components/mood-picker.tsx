@@ -3,6 +3,7 @@
 import type { Mood } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n/use-locale";
 import {
   Zap,
   Crown,
@@ -31,12 +32,13 @@ const MOOD_ICONS: Record<Mood, LucideIcon> = {
   sad: Heart,
 };
 
-const MOODS = Object.entries(MOOD_CONFIG) as [Mood, (typeof MOOD_CONFIG)[Mood]][];
+const MOODS = Object.keys(MOOD_CONFIG) as Mood[];
 
 export function MoodPicker({ selected, onChange }: MoodPickerProps) {
+  const { t } = useLocale();
   return (
     <div className="grid grid-cols-4 gap-2">
-      {MOODS.map(([mood, config]) => {
+      {MOODS.map((mood) => {
         const Icon = MOOD_ICONS[mood];
         const isSelected = selected === mood;
         return (
@@ -56,7 +58,7 @@ export function MoodPicker({ selected, onChange }: MoodPickerProps) {
                 isSelected ? "text-primary" : "text-muted-foreground"
               )}
             />
-            <span className="text-xs font-medium">{config.label}</span>
+            <span className="text-xs font-medium">{t(`mood.${mood}.label`)}</span>
           </button>
         );
       })}
