@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage } from "@/lib/image-utils";
@@ -84,19 +83,12 @@ export function usePendingUploads(): ContextValue {
 // every stream slower).
 const CONCURRENCY = 3;
 
-// Bg removal runs inside a single Web Worker, so only one ML inference can
-// actually happen at a time. Serialise at this layer so we never fire three
-// concurrent worker messages that all race the same timeout — one image
-// being slow used to push the tail of the batch past 3 minutes and trip
-// the timeout on items that hadn't even started yet.
-let bgChain: Promise<unknown> = Promise.resolve();
-function serializedBgRemove(file: Blob): Promise<Blob> {
-  const prev = bgChain;
-  const next = prev.catch(() => {}).then(() => removeBg(file));
-  // Don't let a rejected bg-removal poison the chain for later items.
-  bgChain = next.catch(() => {});
-  return next;
-}
+// Hard ceiling on a single item's processing time. If any step hangs —
+// Claude not responding, upload wedged mid-chunk, whatever — we mark
+// the item errored instead of letting it freeze the queue forever.
+// Users can retry individually.
+const PER_ITEM_TIMEOUT_MS = 60_000;
+
 
 
 function buildItemPayload(imageUrl: string, a: AutoFillResult) {
@@ -209,21 +201,19 @@ export function PendingUploadsProvider({
         setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
       }
 
-      // 2. Background removal in the worker, serialised across all items
-      //    so we don't pile up messages inside imgly. If it fails, keep
-      //    going with the downscaled original — a decent result beats a
-      //    blocked save.
-      const cleanedBlob = await serializedBgRemove(downscaled).catch(
-        (err) => {
-          console.warn(`[pending ${item.id}] bg removal failed, using downscaled original`, err);
-          return downscaled;
-        }
-      );
-
-      // Use the BLOB'S actual MIME type, not a hard-coded PNG. If bg removal
-      // fell back to the downscaled JPEG, labeling it as PNG makes Claude's
-      // vision API reject it with "invalid image" and Supabase store the
-      // file with the wrong Content-Type — both cause uploads to fail.
+      // Background removal is SKIPPED in the bulk pipeline. imgly's
+      // on-device ISNet model costs 3-8 seconds per image on mobile
+      // CPU — multiplied by a 6-item batch that's 30-50 seconds of
+      // pure waiting on top of uploads, which is why the app feels
+      // "god awful slow" vs Acloset (which uses hardware-accelerated
+      // Android ML Kit in native code — an API no web browser can
+      // reach). imgly was also the most common hang point: its worker
+      // deadlocks under rapid messages, leaving the queue frozen.
+      //
+      // The user can still clean a specific photo's background via
+      // the "Remove background" button on /wardrobe/[id] if they care
+      // about a particular item. Bulk upload stays fast.
+      const cleanedBlob = downscaled;
       const outMime =
         cleanedBlob.type === "image/png" ||
         cleanedBlob.type === "image/jpeg" ||
@@ -283,18 +273,38 @@ export function PendingUploadsProvider({
     [patchItem, notifySaved]
   );
 
+  // Per-item timeout wrapper. Races the real work against a timer;
+  // whichever settles first wins. Without this a hung Claude call or a
+  // wedged upload would leave an item in "processing" forever and
+  // block later items (with concurrency=3 that means the whole queue
+  // can stall on three bad apples).
+  const withTimeout = useCallback(
+    <T,>(work: Promise<T>, label: string): Promise<T> => {
+      return Promise.race([
+        work,
+        new Promise<T>((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error(`${label} timed out`)),
+            PER_ITEM_TIMEOUT_MS
+          )
+        ),
+      ]);
+    },
+    []
+  );
+
   const processItem = useCallback(
     async (item: PendingItem) => {
       patchItem(item.id, { stage: "processing" });
       try {
-        await processItemOnce(item);
+        await withTimeout(processItemOnce(item), "Item");
       } catch (firstErr) {
         console.warn(`[pending ${item.id}] first attempt failed, retrying`, firstErr);
         // One automatic retry after a short backoff covers most transient
         // failures: flaky Wi-Fi, a Claude 429, a Supabase 503.
         await new Promise((r) => setTimeout(r, 1500));
         try {
-          await processItemOnce(item);
+          await withTimeout(processItemOnce(item), "Item");
         } catch (secondErr) {
           const err = secondErr instanceof Error ? secondErr : firstErr;
           console.error(`[pending ${item.id}] both attempts failed`, {
@@ -308,7 +318,7 @@ export function PendingUploadsProvider({
         }
       }
     },
-    [processItemOnce, patchItem]
+    [processItemOnce, patchItem, withTimeout]
   );
 
   // Capacity gate: run up to CONCURRENCY items at a time.
