@@ -53,7 +53,14 @@ export default function WardrobePage() {
   const router = useRouter();
   const { t } = useLocale();
 
-  const { items: pending, addFiles, retry, dismiss, onItemSaved } = usePendingUploads();
+  const {
+    items: pending,
+    addFiles,
+    retry,
+    dismiss,
+    dismissAllFailed,
+    onItemSaved,
+  } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
 
@@ -338,6 +345,7 @@ export default function WardrobePage() {
           pending={pending.filter((p) => p.stage !== "ready")}
           onRetry={retry}
           onDismiss={dismiss}
+          onDismissAllFailed={dismissAllFailed}
         />
       )}
 
@@ -395,10 +403,12 @@ function PendingStrip({
   pending,
   onRetry,
   onDismiss,
+  onDismissAllFailed,
 }: {
   pending: PendingItem[];
   onRetry: (id: string) => void;
   onDismiss: (id: string) => void;
+  onDismissAllFailed: () => void;
 }) {
   const { t } = useLocale();
   if (pending.length === 0) return null;
@@ -407,6 +417,18 @@ function PendingStrip({
   const visible = pending.slice(0, MAX_INLINE_TILES);
   const overflow = pending.length - visible.length;
   const firstError = pending.find((p) => p.stage === "error")?.error;
+
+  function copyErrors() {
+    const failed = pending.filter((p) => p.stage === "error");
+    const dump = failed
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.file.name} (${Math.round(p.file.size / 1024)} KB, ${p.file.type || "unknown"})\n   ${p.error ?? "Unknown error"}`
+      )
+      .join("\n\n");
+    const summary = `Closette upload errors — ${failed.length} of ${pending.length} failed\n\n${dump}`;
+    void navigator.clipboard?.writeText(summary);
+  }
 
   return (
     <div className={cn("mb-4 rounded-xl px-4 py-3", BURGUNDY_BG, "border", BURGUNDY_BORDER)}>
@@ -449,11 +471,27 @@ function PendingStrip({
       </div>
       {firstError ? (
         <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-2.5 py-1.5 text-xs text-red-800">
-          <span className="font-medium">{t("wardrobe.failed")}</span>
-          <span className="break-words">{firstError}</span>
-          <span className="block mt-0.5 text-[11px] text-red-600/80">
-            {t("wardrobe.tapFailedTileToRetry")}
-          </span>
+          <div>
+            <span className="font-medium">{t("wardrobe.failed")} </span>
+            <span className="break-words">{firstError}</span>
+          </div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onDismissAllFailed}
+              className="text-[11px] font-medium text-red-700 hover:text-red-900 underline"
+            >
+              Dismiss all {errorCount} failed
+            </button>
+            <span className="text-red-400">·</span>
+            <button
+              type="button"
+              onClick={copyErrors}
+              className="text-[11px] font-medium text-red-700 hover:text-red-900 underline"
+            >
+              Copy error details
+            </button>
+          </div>
         </div>
       ) : (
         <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>

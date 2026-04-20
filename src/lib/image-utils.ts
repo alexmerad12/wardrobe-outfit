@@ -19,10 +19,19 @@ export async function downscaleImage(
   const isOpaqueFormat =
     source.type === "image/heic" || source.type === "image/heif";
   try {
-    const bitmap = await createImageBitmap(source);
+    // imageOrientation: "from-image" makes the decoder honour EXIF rotation
+    // metadata — without it, a photo taken sideways on a phone stays
+    // sideways after upload, because the canvas draws the raw pixel data
+    // and EXIF is stripped during re-encode.
+    const bitmap = await createImageBitmap(source, {
+      imageOrientation: "from-image",
+    });
     const maxSide = Math.max(bitmap.width, bitmap.height);
     if (maxSide <= maxDimension && !isOpaqueFormat) {
       bitmap.close();
+      // Fast-path skipped transcode would mean EXIF rotation is also
+      // preserved (browsers render <img> with EXIF), so returning source
+      // is fine here — only the downscale path strips it.
       return source;
     }
     const scale = maxDimension / maxSide;

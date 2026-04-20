@@ -40,6 +40,7 @@ type ContextValue = {
   addFiles: (files: FileList | File[]) => void;
   retry: (id: string) => void;
   dismiss: (id: string) => void;
+  dismissAllFailed: () => void;
   // Subscribe to "item saved" events — wardrobe grid uses this to refetch.
   onItemSaved: (listener: () => void) => () => void;
 };
@@ -54,10 +55,11 @@ export function usePendingUploads(): ContextValue {
   return c;
 }
 
-// Processing 2 at a time gives decent parallelism without hammering
-// Anthropic / Supabase / our own /api routes. Three was causing sporadic
-// failures under real bulk loads.
-const CONCURRENCY = 2;
+// Serial processing: one item at a time. Slower on wall-clock, but
+// removes concurrent-load as a possible failure mode — no Supabase rate
+// limits, no overlapping session-cookie refreshes, no imgly worker
+// contention. Speed matters less than finishing without errors.
+const CONCURRENCY = 1;
 
 // Bg removal runs inside a single Web Worker, so only one ML inference can
 // actually happen at a time. Serialise at this layer so we never fire three
@@ -213,7 +215,9 @@ export function PendingUploadsProvider({
       const [imageUrl, attrsRaw] = await Promise.all([
         uploadImage(cleaned).catch((err) => {
           console.error(`[pending ${item.id}] upload step failed`, err);
-          throw err;
+          throw new Error(
+            `Upload: ${err instanceof Error ? err.message : String(err)}`
+          );
         }),
         analyzeItem(cleaned).catch((err) => {
           console.warn(`[pending ${item.id}] analyze step failed, using defaults`, err);
@@ -237,9 +241,10 @@ export function PendingUploadsProvider({
           status: res.status,
           response: text,
           attrs,
+          payload: buildItemPayload(imageUrl, attrs),
         });
         throw new Error(
-          `Save failed (${res.status})${text ? `: ${text.slice(0, 120)}` : ""}`
+          `Save (${res.status})${text ? `: ${text.slice(0, 140)}` : ""}`
         );
       }
       const saved = (await res.json()) as { id: string };
@@ -332,8 +337,20 @@ export function PendingUploadsProvider({
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const incoming: PendingItem[] = [];
+    // De-dupe within the current session by filename + size + lastModified.
+    // The same underlying photo picked twice returns an identical key; two
+    // different photos of the same outfit don't. Good enough for
+    // "I accidentally added this twice" without a full content hash.
+    const knownKeys = new Set(
+      items.map((i) => `${i.file.name}:${i.file.size}:${i.file.lastModified}`)
+    );
     for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
+      if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) {
+        continue;
+      }
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (knownKeys.has(key)) continue;
+      knownKeys.add(key);
       incoming.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
         file,
@@ -343,7 +360,7 @@ export function PendingUploadsProvider({
     }
     if (incoming.length === 0) return;
     setItems((prev) => [...incoming, ...prev]);
-  }, []);
+  }, [items]);
 
   const retry = useCallback((id: string) => {
     kickedOffRef.current.delete(id);
@@ -362,6 +379,15 @@ export function PendingUploadsProvider({
     });
   }, []);
 
+  const dismissAllFailed = useCallback(() => {
+    setItems((prev) => {
+      for (const i of prev) {
+        if (i.stage === "error") URL.revokeObjectURL(i.previewUrl);
+      }
+      return prev.filter((i) => i.stage !== "error");
+    });
+  }, []);
+
   const onItemSaved = useCallback((listener: () => void) => {
     savedListenersRef.current.add(listener);
     return () => {
@@ -370,7 +396,9 @@ export function PendingUploadsProvider({
   }, []);
 
   return (
-    <Ctx.Provider value={{ items, addFiles, retry, dismiss, onItemSaved }}>
+    <Ctx.Provider
+      value={{ items, addFiles, retry, dismiss, dismissAllFailed, onItemSaved }}
+    >
       {children}
     </Ctx.Provider>
   );
