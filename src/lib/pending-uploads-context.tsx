@@ -75,7 +75,7 @@ function serializedBgRemove(file: Blob): Promise<Blob> {
   return next;
 }
 
-async function uploadImage(file: File): Promise<string> {
+async function uploadImageOnce(file: File): Promise<string> {
   const supabase = createClient();
   const {
     data: { session },
@@ -90,6 +90,30 @@ async function uploadImage(file: File): Promise<string> {
     .upload(path, file, { contentType: file.type });
   if (error) throw new Error(error.message);
   return supabase.storage.from("clothing-images").getPublicUrl(path).data.publicUrl;
+}
+
+// "Failed to fetch" is a browser TransferError — the network dropped
+// mid-request. On mobile cellular over a 5-minute bulk upload this is
+// common. Four attempts with exponential backoff (2 s → 4 s → 8 s) clears
+// all but the most stubbornly broken connections.
+async function uploadImage(file: File): Promise<string> {
+  const maxAttempts = 4;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await uploadImageOnce(file);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts) break;
+      const delay = 1000 * Math.pow(2, attempt); // 2s, 4s, 8s
+      console.warn(
+        `[uploadImage] attempt ${attempt}/${maxAttempts} failed, retrying in ${delay}ms`,
+        err
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
 }
 
 function buildItemPayload(imageUrl: string, a: AutoFillResult) {
