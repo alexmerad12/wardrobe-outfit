@@ -103,6 +103,11 @@ export default function AddItemPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Background upload — starts uploading to Supabase as soon as the image is
+  // settled (post-bg-removal), so by the time the user hits Save the image
+  // is usually already there and the click feels instant.
+  const uploadPromiseRef = useRef<Promise<string> | null>(null);
+
   // Duplicate detection
   const [existingItems, setExistingItems] = useState<ClothingItem[]>([]);
   useEffect(() => {
@@ -113,6 +118,35 @@ export default function AddItemPage() {
     // Eagerly fetch the model weights so the first click is instant
     preloadBgRemoval();
   }, []);
+
+  async function uploadImage(file: File): Promise<string> {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user?.id) throw new Error("Not signed in");
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${session.user.id}/${Date.now()}-${safeName}`;
+    const { error: uploadError } = await supabase.storage
+      .from("clothing-images")
+      .upload(path, file, { contentType: file.type });
+    if (uploadError) throw new Error(uploadError.message);
+
+    return supabase.storage.from("clothing-images").getPublicUrl(path).data.publicUrl;
+  }
+
+  // Start uploading the final image in the background. When bg removal
+  // completes, imageFile updates to the cleaned version and this refires —
+  // we just replace the promise; the earlier upload continues to Supabase
+  // but its URL is ignored.
+  useEffect(() => {
+    if (!imageFile || removingBg) return;
+    uploadPromiseRef.current = uploadImage(imageFile).catch((err) => {
+      console.error("Background image upload failed:", err);
+      throw err;
+    });
+  }, [imageFile, removingBg]);
 
   const similarItems = useMemo(() => {
     if (!category || !name || name.length < 2) return [];
@@ -365,32 +399,16 @@ export default function AddItemPage() {
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setError("You must be signed in to add items.");
-        setSaving(false);
-        return;
+      // Hot path: image already uploaded in background while the user was
+      // filling out the form — just await the existing promise (usually
+      // resolves immediately). If nothing was in flight, or the background
+      // upload failed, upload inline as a fallback.
+      let imageUrl: string;
+      try {
+        imageUrl = await (uploadPromiseRef.current ?? uploadImage(imageFile));
+      } catch {
+        imageUrl = await uploadImage(imageFile);
       }
-
-      const safeName = imageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${user.id}/${Date.now()}-${safeName}`;
-      const { error: uploadError } = await supabase.storage
-        .from("clothing-images")
-        .upload(path, imageFile, { contentType: imageFile.type });
-
-      if (uploadError) {
-        setError(`Upload failed: ${uploadError.message}`);
-        setSaving(false);
-        return;
-      }
-
-      const { data: publicUrl } = supabase.storage
-        .from("clothing-images")
-        .getPublicUrl(path);
-      const imageUrl = publicUrl.publicUrl;
 
       const allColors = [...manualColors, ...detectedColors];
       const colors = allColors.length > 0
