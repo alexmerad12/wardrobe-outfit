@@ -58,6 +58,13 @@ export default function PackingPage() {
   const router = useRouter();
   const { locale, t } = useLocale();
 
+  // Trip dates come from Supabase as ISO strings (YYYY-MM-DD). Render them
+  // in the user's locale so a French user sees "15 avr." instead of "Apr 15".
+  const localeTag = locale === "fr" ? "fr-FR" : "en-US";
+  function formatTripDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
+    return new Date(iso + "T12:00:00").toLocaleDateString(localeTag, opts);
+  }
+
   // Form
   const [destination, setDestination] = useState("");
   const [destLat, setDestLat] = useState(0);
@@ -250,7 +257,7 @@ export default function PackingPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {viewingTrip
-              ? `${viewingTrip.start_date} - ${viewingTrip.end_date}`
+              ? `${formatTripDate(viewingTrip.start_date)} – ${formatTripDate(viewingTrip.end_date)}`
               : step === "form"
               ? t("packing.planTrip")
               : t("packing.itemsToPack", { count: packingList.length })}
@@ -411,9 +418,9 @@ export default function PackingPage() {
                       <div>
                         <p className="text-sm font-medium">{trip.destination}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(trip.start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          {" - "}
-                          {new Date(trip.end_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          {formatTripDate(trip.start_date)}
+                          {" – "}
+                          {formatTripDate(trip.end_date)}
                           {" · "}
                           {trip.packing_item_ids.length} items
                         </p>
@@ -436,9 +443,9 @@ export default function PackingPage() {
                       <div>
                         <p className="text-sm font-medium">{trip.destination}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(trip.start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          {" - "}
-                          {new Date(trip.end_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          {formatTripDate(trip.start_date)}
+                          {" – "}
+                          {formatTripDate(trip.end_date)}
                         </p>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }} className="text-muted-foreground hover:text-destructive p-1">
