@@ -32,7 +32,7 @@ import type {
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
-import { hexToHSL, isNeutralColor, getColorName } from "@/lib/color-engine";
+import { hexToHSL, isNeutralColor, getColorName, dedupeColors } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -212,9 +212,12 @@ export default function AddItemPage() {
     // Only use AI colors if local corner-sampling hasn't already found some.
     if (r.colors?.length && detectedColors.length === 0) {
       const perSlice = Math.round(100 / r.colors.length);
-      setDetectedColors(
-        r.colors.map((c) => ({ hex: c.hex, name: c.name, percentage: perSlice }))
-      );
+      const aiColors = r.colors.map((c) => ({
+        hex: c.hex,
+        name: c.name,
+        percentage: perSlice,
+      }));
+      setDetectedColors(dedupeColors(aiColors).slice(0, 3));
     }
   }
 
@@ -370,7 +373,11 @@ export default function AddItemPage() {
         percentage: validPixels > 0 ? Math.round((count / validPixels) * 100) : 0,
       }));
 
-      setDetectedColors(colors);
+      // Merge perceptually-near-identical shades (e.g. two slightly different
+      // oranges end up as one "Orange" rather than two confusingly similar
+      // chips in the UI), then cap at the top 3 distinct colors.
+      const deduped = dedupeColors(colors).slice(0, 3);
+      setDetectedColors(deduped);
       setDetectingColors(false);
     };
     img.src = dataUrl;
@@ -562,6 +569,29 @@ export default function AddItemPage() {
         <h1 className="text-xl font-bold">{t("addItem.title")}</h1>
       </div>
 
+      {/* Bulk upload shortcut — visible before user picks a photo, so the
+          "I have 30 items to add" crowd doesn't slog through one form at a
+          time. */}
+      {!imagePreview && (
+        <button
+          type="button"
+          onClick={() => router.push("/wardrobe/bulk")}
+          className="mb-5 w-full rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-left transition-colors hover:bg-purple-100"
+        >
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 shrink-0 text-purple-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-purple-900">
+                Got a bunch of photos? Bulk upload
+              </p>
+              <p className="text-xs text-purple-700/80">
+                AI tags each one automatically — just drop them in and walk away.
+              </p>
+            </div>
+          </div>
+        </button>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo upload */}
         <div
@@ -610,7 +640,29 @@ export default function AddItemPage() {
           />
         </div>
 
-        {/* Remove background button */}
+        {/* Unified status bar — shows the whole pipeline (bg removal + AI
+            pre-fill) as one clear progress message so the user always knows
+            what's happening instead of watching a silent form. */}
+        {imagePreview && (removingBg || autoFilling || autoFillApplied) && (
+          <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-50 px-3 py-2.5 text-xs text-purple-700">
+            {removingBg || autoFilling ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span>
+              {removingBg && autoFilling
+                ? "Cleaning up the photo and reading the details…"
+                : removingBg
+                ? "Removing the background…"
+                : autoFilling
+                ? "Reading the details with AI…"
+                : "Pre-filled by AI — review and tweak anything below"}
+            </span>
+          </div>
+        )}
+
+        {/* Manual retry button for bg removal */}
         {imagePreview && (
           <>
             <Button
@@ -632,20 +684,6 @@ export default function AddItemPage() {
             </Button>
             {bgError && (
               <p className="text-xs text-red-600 text-center">{bgError}</p>
-            )}
-
-            {/* AI auto-fill status */}
-            {autoFilling && (
-              <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Yav is filling in the details…</span>
-              </div>
-            )}
-            {!autoFilling && autoFillApplied && (
-              <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Pre-filled by AI — review and tweak anything below</span>
-              </div>
             )}
           </>
         )}

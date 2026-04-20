@@ -27,6 +27,28 @@ export function hexToHSL(hex: string): HSLColor {
   };
 }
 
+// Collapse perceptually-similar colors into a single entry. Keeps the first
+// occurrence (usually the most-dominant) and merges the percentages of any
+// colors within `threshold` deltaE. Default threshold ~15 matches how CIE
+// deltaE treats "clearly distinguishable" colors — tighter and we'd still
+// show near-duplicates like "two grays", looser and we'd merge genuinely
+// different shades.
+export function dedupeColors<T extends { hex: string; percentage: number }>(
+  colors: T[],
+  threshold = 15
+): T[] {
+  const result: T[] = [];
+  for (const c of colors) {
+    const match = result.find((r) => chroma.deltaE(r.hex, c.hex) < threshold);
+    if (match) {
+      match.percentage = Math.min(100, match.percentage + c.percentage);
+    } else {
+      result.push({ ...c });
+    }
+  }
+  return result;
+}
+
 // ============================================
 // Color harmony checks
 // ============================================
