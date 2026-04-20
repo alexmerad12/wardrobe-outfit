@@ -433,9 +433,13 @@ function PendingStrip({
         )}
       </div>
       {firstError ? (
-        <p className="mt-2 text-[11px] text-red-700">
-          Some failed: {firstError}. Tap a failed tile to retry.
-        </p>
+        <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-2.5 py-1.5 text-xs text-red-800">
+          <span className="font-medium">Failed: </span>
+          <span className="break-words">{firstError}</span>
+          <span className="block mt-0.5 text-[11px] text-red-600/80">
+            Tap a failed tile to retry · full details in browser console
+          </span>
+        </div>
       ) : (
         <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
           Keep using Closette — these stay in flight as you browse.

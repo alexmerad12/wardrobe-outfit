@@ -70,11 +70,17 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64 = buffer.toString("base64");
-    const mediaType = (file.type || "image/png") as
-      | "image/png"
-      | "image/jpeg"
-      | "image/webp"
-      | "image/gif";
+    // Whitelist the MIME type so we never send Claude an unsupported value
+    // (e.g. HEIC slipping through the client pipeline). Default to JPEG —
+    // the pending pipeline always produces PNG or JPEG, and Claude accepts
+    // both fine.
+    const mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif" =
+      file.type === "image/png" ||
+      file.type === "image/jpeg" ||
+      file.type === "image/webp" ||
+      file.type === "image/gif"
+        ? file.type
+        : "image/jpeg";
 
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",

@@ -54,7 +54,10 @@ export function usePendingUploads(): ContextValue {
   return c;
 }
 
-const CONCURRENCY = 3;
+// Processing 2 at a time gives decent parallelism without hammering
+// Anthropic / Supabase / our own /api routes. Three was causing sporadic
+// failures under real bulk loads.
+const CONCURRENCY = 2;
 
 // Bg removal runs inside a single Web Worker, so only one ML inference can
 // actually happen at a time. Serialise at this layer so we never fire three
@@ -186,18 +189,36 @@ export function PendingUploadsProvider({
       //    going with the downscaled original — a decent result beats a
       //    blocked save.
       const cleanedBlob = await serializedBgRemove(downscaled).catch(
-        () => downscaled
+        (err) => {
+          console.warn(`[pending ${item.id}] bg removal failed, using downscaled original`, err);
+          return downscaled;
+        }
       );
-      const cleaned = new File(
-        [cleanedBlob],
-        item.file.name.replace(/\.[^.]+$/, "") + ".png",
-        { type: "image/png" }
-      );
+
+      // Use the BLOB'S actual MIME type, not a hard-coded PNG. If bg removal
+      // fell back to the downscaled JPEG, labeling it as PNG makes Claude's
+      // vision API reject it with "invalid image" and Supabase store the
+      // file with the wrong Content-Type — both cause uploads to fail.
+      const outMime =
+        cleanedBlob.type === "image/png" ||
+        cleanedBlob.type === "image/jpeg" ||
+        cleanedBlob.type === "image/webp"
+          ? cleanedBlob.type
+          : "image/jpeg";
+      const ext = outMime === "image/png" ? "png" : outMime === "image/webp" ? "webp" : "jpg";
+      const baseName = item.file.name.replace(/\.[^.]+$/, "") || "item";
+      const cleaned = new File([cleanedBlob], `${baseName}.${ext}`, { type: outMime });
 
       // 3. Upload + analyze in parallel on the cleaned, downscaled image.
       const [imageUrl, attrsRaw] = await Promise.all([
-        uploadImage(cleaned),
-        analyzeItem(cleaned).catch(() => ({} as AutoFillResult)),
+        uploadImage(cleaned).catch((err) => {
+          console.error(`[pending ${item.id}] upload step failed`, err);
+          throw err;
+        }),
+        analyzeItem(cleaned).catch((err) => {
+          console.warn(`[pending ${item.id}] analyze step failed, using defaults`, err);
+          return {} as AutoFillResult;
+        }),
       ]);
       // Belt-and-braces sanitise — server already strips invalid enums,
       // but this guards against older deploys or any intermediate code
@@ -212,7 +233,14 @@ export function PendingUploadsProvider({
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`Save failed (${res.status})${text ? `: ${text.slice(0, 80)}` : ""}`);
+        console.error(`[pending ${item.id}] save failed`, {
+          status: res.status,
+          response: text,
+          attrs,
+        });
+        throw new Error(
+          `Save failed (${res.status})${text ? `: ${text.slice(0, 120)}` : ""}`
+        );
       }
       const saved = (await res.json()) as { id: string };
 
@@ -233,6 +261,7 @@ export function PendingUploadsProvider({
       try {
         await processItemOnce(item);
       } catch (firstErr) {
+        console.warn(`[pending ${item.id}] first attempt failed, retrying`, firstErr);
         // One automatic retry after a short backoff covers most transient
         // failures: flaky Wi-Fi, a Claude 429, a Supabase 503.
         await new Promise((r) => setTimeout(r, 1500));
@@ -240,6 +269,10 @@ export function PendingUploadsProvider({
           await processItemOnce(item);
         } catch (secondErr) {
           const err = secondErr instanceof Error ? secondErr : firstErr;
+          console.error(`[pending ${item.id}] both attempts failed`, {
+            first: firstErr,
+            second: secondErr,
+          });
           patchItem(item.id, {
             stage: "error",
             error: err instanceof Error ? err.message : "Upload failed",
