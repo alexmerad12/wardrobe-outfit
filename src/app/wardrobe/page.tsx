@@ -263,39 +263,54 @@ export default function WardrobePage() {
                   {t("wardrobe.select")}
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button size="sm" className="gap-1.5">
-                      <Plus className="h-4 w-4" />
-                      {t("wardrobe.add")}
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <Camera className="h-4 w-4" />
-                    {t("wardrobe.takePhoto")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => libraryInputRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    {t("wardrobe.chooseFromLibrary")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/wardrobe/add")}
-                    className="gap-2 text-muted-foreground"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t("wardrobe.fillInManually")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {(() => {
+                const activePending = pending.filter(
+                  (p) => p.stage !== "ready" && p.stage !== "error"
+                ).length;
+                const atCap = activePending >= MAX_BATCH;
+                return (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button size="sm" className="gap-1.5">
+                          <Plus className="h-4 w-4" />
+                          {t("wardrobe.add")}
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end" className="w-64">
+                      {atCap && (
+                        <div className="px-2 py-1.5 text-[11px] text-[#7c2d3a] bg-[#fdf2f4] rounded-md mb-1 border border-[#e8b4bc]">
+                          {MAX_BATCH} slots in use — wait for the current batch.
+                        </div>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="gap-2"
+                        disabled={atCap}
+                      >
+                        <Camera className="h-4 w-4" />
+                        {t("wardrobe.takePhoto")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => libraryInputRef.current?.click()}
+                        className="gap-2"
+                        disabled={atCap}
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        {t("wardrobe.chooseFromLibrary")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push("/wardrobe/add")}
+                        className="gap-2 text-muted-foreground"
+                      >
+                        <Plus className="h-4 w-4" />
+                        {t("wardrobe.fillInManually")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })()}
               {/* Camera: single shot straight from the device camera */}
               <input
                 ref={cameraInputRef}
@@ -501,14 +516,26 @@ function PendingStrip({
                 {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
               </span>
             </div>
-            {inFlight.length > MAX_INLINE_TILES && (
-              <Link
-                href="/wardrobe/bulk"
-                className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
+            <div className="flex items-center gap-2 shrink-0">
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide",
+                  inFlight.length >= MAX_BATCH
+                    ? "bg-[#7c2d3a] text-white"
+                    : "bg-white/60 text-[#7c2d3a]"
+                )}
               >
-                {t("wardrobe.viewAll")}
-              </Link>
-            )}
+                {inFlight.length} / {MAX_BATCH}
+              </span>
+              {inFlight.length > MAX_INLINE_TILES && (
+                <Link
+                  href="/wardrobe/bulk"
+                  className={cn("text-xs font-medium hover:underline", BURGUNDY_TEXT)}
+                >
+                  {t("wardrobe.viewAll")}
+                </Link>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
             {visible.map((p) => (

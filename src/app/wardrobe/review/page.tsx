@@ -6,6 +6,8 @@ import Image from "next/image";
 import type {
   Category,
   ClothingItem,
+  Material,
+  Pattern,
   Subcategory,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,8 @@ import { ArrowLeft, Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
-import { CATEGORY_LABELS, SUBCATEGORY_OPTIONS } from "@/lib/types";
+import { CATEGORY_LABELS } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 // Post-upload review page — Acloset-style.
 //
@@ -42,7 +45,30 @@ type Edit = {
   name?: string;
   category?: Category;
   subcategory?: Subcategory | null;
+  material?: Material[];
+  pattern?: Pattern[];
 };
+
+// Common-case quick-pick shortcuts. If the AI picked something outside
+// this list the user can still use "Edit all details" for the full set,
+// but 95% of corrections fall into these.
+const QUICK_MATERIALS: Material[] = [
+  "cotton",
+  "denim",
+  "leather",
+  "knit",
+  "wool",
+  "polyester",
+  "linen",
+];
+const QUICK_PATTERNS: Pattern[] = [
+  "solid",
+  "striped",
+  "plaid",
+  "floral",
+  "graphic",
+  "polka-dot",
+];
 
 export default function ReviewBatchPageRoute() {
   return (
@@ -130,6 +156,12 @@ function ReviewBatchPage() {
           if (changes.category !== undefined) body.category = changes.category;
           if (changes.subcategory !== undefined) {
             body.subcategory = changes.subcategory || null;
+          }
+          if (changes.material !== undefined) {
+            body.material = changes.material.length > 0 ? changes.material : ["cotton"];
+          }
+          if (changes.pattern !== undefined) {
+            body.pattern = changes.pattern.length > 0 ? changes.pattern : ["solid"];
           }
           try {
             const res = await fetch(`/api/items/${id}`, {
@@ -222,6 +254,28 @@ function ReviewBatchPage() {
             draft.subcategory !== undefined
               ? draft.subcategory ?? ""
               : item.subcategory ?? "";
+          const effectiveMaterials: Material[] =
+            draft.material ??
+            (Array.isArray(item.material) ? item.material : [item.material]);
+          const effectivePatterns: Pattern[] =
+            draft.pattern ??
+            (Array.isArray(item.pattern) ? item.pattern : [item.pattern]);
+          function toggleMaterial(m: Material) {
+            const has = effectiveMaterials.includes(m);
+            patchEdit(item.id, {
+              material: has
+                ? effectiveMaterials.filter((x) => x !== m)
+                : [...effectiveMaterials, m],
+            });
+          }
+          function togglePattern(p: Pattern) {
+            const has = effectivePatterns.includes(p);
+            patchEdit(item.id, {
+              pattern: has
+                ? effectivePatterns.filter((x) => x !== p)
+                : [...effectivePatterns, p],
+            });
+          }
           const subOptions =
             effectiveCategory && effectiveCategory in labels.SUBCATEGORY_OPTIONS
               ? labels.SUBCATEGORY_OPTIONS[effectiveCategory]
@@ -312,9 +366,85 @@ function ReviewBatchPage() {
                     </Select>
                   </div>
                 </div>
-                {/* Color chips (preview-only in this view). Deeper edits
-                    go through the full per-item form. */}
-                <div className="flex items-center gap-2">
+                {/* Material quick-picks. Extra selections (silk, lace,
+                    etc.) live behind "Edit all details". */}
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Material</Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {/* Any AI-chosen materials not in the quick list get
+                        rendered up front so the user can see them. */}
+                    {effectiveMaterials
+                      .filter((m) => !QUICK_MATERIALS.includes(m))
+                      .map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => toggleMaterial(m)}
+                          className="rounded-full bg-[#7c2d3a] text-white px-2 py-0.5 text-[11px]"
+                        >
+                          {m} ×
+                        </button>
+                      ))}
+                    {QUICK_MATERIALS.map((m) => {
+                      const on = effectiveMaterials.includes(m);
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => toggleMaterial(m)}
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[11px] border transition-colors",
+                            on
+                              ? "bg-[#7c2d3a] text-white border-[#7c2d3a]"
+                              : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-[#7c2d3a] hover:text-[#7c2d3a]"
+                          )}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Pattern quick-picks */}
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Pattern</Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {effectivePatterns
+                      .filter((p) => !QUICK_PATTERNS.includes(p))
+                      .map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => togglePattern(p)}
+                          className="rounded-full bg-[#7c2d3a] text-white px-2 py-0.5 text-[11px]"
+                        >
+                          {p} ×
+                        </button>
+                      ))}
+                    {QUICK_PATTERNS.map((p) => {
+                      const on = effectivePatterns.includes(p);
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => togglePattern(p)}
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[11px] border transition-colors",
+                            on
+                              ? "bg-[#7c2d3a] text-white border-[#7c2d3a]"
+                              : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-[#7c2d3a] hover:text-[#7c2d3a]"
+                          )}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Color chips (preview-only) + deep-edit escape hatch. */}
+                <div className="flex items-center gap-2 pt-1">
                   <div className="flex items-center gap-1">
                     {item.colors.slice(0, 3).map((c, i) => (
                       <span
