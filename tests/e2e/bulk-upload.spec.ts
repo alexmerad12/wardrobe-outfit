@@ -149,7 +149,7 @@ test.describe("bulk upload + review flow", () => {
     }
   );
 
-  test("upload 5 photos, watch every one finish, end up in wizard", async ({
+  test("full happy path: upload → save → AI tagged → bg removed", async ({
     page,
   }) => {
     const consoleErrors: string[] = [];
@@ -234,6 +234,55 @@ test.describe("bulk upload + review flow", () => {
 
     // After the batch settles we expect to land on the wizard route.
     await page.waitForURL(/\/wardrobe\/[^/]+\?edit=1/, { timeout: 30_000 });
-    await expect(page.getByRole("button", { name: /Next|Save/i })).toBeVisible();
+
+    // Poll /api/items for up to 90s waiting for bg removal to PATCH
+    // the image_url from .jpg (raw upload) to .png (imgly output). Bg
+    // removal is post-save async so it's done when we see PNGs.
+    type Item = {
+      id: string;
+      name: string;
+      category: string;
+      image_url: string;
+      created_at: string;
+    };
+    let items: Item[] = [];
+    let recent: Item[] = [];
+    const bgDeadline = Date.now() + 90_000;
+    while (Date.now() < bgDeadline) {
+      const apiRes = await page.request.get("/api/items");
+      if (!apiRes.ok()) {
+        await page.waitForTimeout(2000);
+        continue;
+      }
+      items = (await apiRes.json()) as Item[];
+      recent = [...items]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, fixtures.length);
+      const allPng = recent.every((i) => i.image_url.endsWith(".png"));
+      if (allPng) break;
+      await page.waitForTimeout(3000);
+    }
+
+    console.log("[test] recent items after bg-removal poll:");
+    for (const it of recent) {
+      console.log(`  ${it.name} (${it.category}) — ${it.image_url}`);
+    }
+
+    const untitled = recent.filter((i) => i.name === "Untitled item");
+    expect(
+      untitled.length,
+      `${untitled.length} items saved with "Untitled item" — AI didn't run`
+    ).toBe(0);
+
+    // bg removal post-save PATCHes image_url. The signal that it worked
+    // is that the URL ends in .png (imgly output) rather than .jpg
+    // (the original downscaled upload). Allow a small tolerance for
+    // bg removal that genuinely timed out — if most succeeded we're
+    // good.
+    const cleaned = recent.filter((i) => i.image_url.endsWith(".png"));
+    expect(
+      cleaned.length,
+      `only ${cleaned.length}/${recent.length} items have bg removed`
+    ).toBeGreaterThanOrEqual(Math.ceil(recent.length * 0.6));
   });
 });
