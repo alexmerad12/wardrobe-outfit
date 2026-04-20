@@ -16,17 +16,28 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Wardrobe - Your Personal Stylist",
+  title: "Closette — Your Personal Stylist",
   description:
-    "Digitize your wardrobe and get AI-powered outfit suggestions based on weather, mood, and occasion.",
+    "Your wardrobe, beautifully organized. AI-powered outfit suggestions based on weather, mood, and occasion.",
   manifest: "/manifest.json",
+  applicationName: "Closette",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Wardrobe",
+    title: "Closette",
+    startupImage: ["/icon-512.png"],
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icon-512.png", sizes: "512x512", type: "image/png" }],
   },
   other: {
     "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-title": "Closette",
   },
 };
 

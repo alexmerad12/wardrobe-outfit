@@ -18,6 +18,7 @@ import type { TemperatureSensitivity, TemperatureUnit, Language, ClothingItem } 
 import { CATEGORY_LABELS } from "@/lib/types";
 import { MapPin, Thermometer, Loader2, Languages, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { InstallPrompt } from "@/components/install-prompt";
 
 interface CityResult {
   name: string;
@@ -521,6 +522,8 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <InstallPrompt />
 
       <Card>
         <CardHeader>
