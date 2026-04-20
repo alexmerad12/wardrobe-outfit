@@ -157,11 +157,15 @@ function ReviewBatchPage() {
           if (changes.subcategory !== undefined) {
             body.subcategory = changes.subcategory || null;
           }
-          if (changes.material !== undefined) {
-            body.material = changes.material.length > 0 ? changes.material : ["cotton"];
+          // Empty arrays mean "user ended up with nothing selected" — skip
+          // the field so we don't override their intent with a default
+          // they didn't pick. (The chip toggle also prevents this path in
+          // the common case.)
+          if (changes.material !== undefined && changes.material.length > 0) {
+            body.material = changes.material;
           }
-          if (changes.pattern !== undefined) {
-            body.pattern = changes.pattern.length > 0 ? changes.pattern : ["solid"];
+          if (changes.pattern !== undefined && changes.pattern.length > 0) {
+            body.pattern = changes.pattern;
           }
           try {
             const res = await fetch(`/api/items/${id}`, {
@@ -254,14 +258,26 @@ function ReviewBatchPage() {
             draft.subcategory !== undefined
               ? draft.subcategory ?? ""
               : item.subcategory ?? "";
+          // Legacy items may have a scalar or an undefined material/pattern,
+          // so normalise to a cleaned array (strip falsy values) to keep
+          // the chip row from rendering an "undefined ×" pill.
+          const normalize = <T,>(v: unknown): T[] => {
+            if (Array.isArray(v)) return v.filter(Boolean) as T[];
+            if (v) return [v as T];
+            return [];
+          };
           const effectiveMaterials: Material[] =
-            draft.material ??
-            (Array.isArray(item.material) ? item.material : [item.material]);
+            draft.material ?? normalize<Material>(item.material);
           const effectivePatterns: Pattern[] =
-            draft.pattern ??
-            (Array.isArray(item.pattern) ? item.pattern : [item.pattern]);
+            draft.pattern ?? normalize<Pattern>(item.pattern);
+          // Chip toggle: adding is always safe; removing refuses to empty
+          // the list — material/pattern can't be blank in the schema, and
+          // silently defaulting the user back to "cotton" would override
+          // their intent. Last chip stays selected; user must pick a
+          // replacement first.
           function toggleMaterial(m: Material) {
             const has = effectiveMaterials.includes(m);
+            if (has && effectiveMaterials.length === 1) return;
             patchEdit(item.id, {
               material: has
                 ? effectiveMaterials.filter((x) => x !== m)
@@ -270,6 +286,7 @@ function ReviewBatchPage() {
           }
           function togglePattern(p: Pattern) {
             const has = effectivePatterns.includes(p);
+            if (has && effectivePatterns.length === 1) return;
             patchEdit(item.id, {
               pattern: has
                 ? effectivePatterns.filter((x) => x !== p)
