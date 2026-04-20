@@ -1,109 +1,71 @@
-import * as tus from "tus-js-client";
-import { createClient } from "@/lib/supabase/client";
+// Client-side upload helper. POSTs the image (wrapped in a multipart
+// FormData) to our own /api/upload route, which proxies it to Supabase
+// Storage server-side.
+//
+// We moved off tus resumable uploads: the protocol's retry dance works
+// for big files (videos, etc.) but on small ~500 KB JPEGs over mobile
+// cellular it was hanging individual uploads for ~3 minutes of
+// backoffs before surfacing any failure, and occasionally sitting
+// silently in a processing state the user saw as "stuck." A plain
+// POST with an AbortController + explicit client retry is both faster
+// in the happy path and fails louder when something actually breaks.
 
-// Registry of currently-running tus uploads. `cancelAllActiveUploads`
-// calls `.abort(true)` on each, which tells tus to stop the next
-// chunk PATCH and resolve its promise. Without this, "Cancel" on the
-// uploading page would only clear React state while tus kept streaming
-// bytes to Supabase in the background and wrote DB rows after the
-// user thought they'd cancelled.
-const activeUploads = new Set<tus.Upload>();
+const ATTEMPT_TIMEOUT_MS = 45_000;
+const MAX_ATTEMPTS = 3;
+const BACKOFF_MS = [0, 2_000, 5_000]; // before each attempt
+
+// Registry of in-flight uploads so cancelAllActiveUploads() can abort
+// the batch when the user taps Cancel on the /wardrobe/uploading page.
+const activeControllers = new Set<AbortController>();
 
 export function cancelAllActiveUploads(): void {
-  for (const upload of activeUploads) {
+  for (const c of activeControllers) {
     try {
-      // abort(shouldTerminate=true) also deletes the server-side upload
-      // so we don't leave orphaned partials on Supabase.
-      void upload.abort(true);
+      c.abort();
     } catch {}
   }
-  activeUploads.clear();
-}
-
-// Shared client-side upload helper for everything that needs to push an
-// image to Supabase Storage — bulk pending queue, single-item edit, etc.
-//
-// Uses the tus.io resumable upload protocol so dropped TCP connections
-// (routine on mobile cellular) pause and resume instead of wiping the
-// whole upload. Endpoint is the standard Supabase REST hostname — the
-// docs-recommended path — rather than the direct `*.storage.supabase.co`
-// subdomain, which some ISPs / Samsung Internet were failing to resolve.
-
-const BUCKET = "clothing-images";
-const TUS_CHUNK_SIZE = 6 * 1024 * 1024; // Supabase-mandated 6 MB.
-
-function projectIdFromSupabaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL not set");
-  return new URL(url).hostname.split(".")[0];
+  activeControllers.clear();
 }
 
 export async function uploadToSupabase(file: File): Promise<string> {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user?.id || !session.access_token) {
-    throw new Error("Not signed in");
-  }
-
-  const projectId = projectIdFromSupabaseUrl();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const objectName = `${session.user.id}/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}-${safeName}`;
-
-  return new Promise<string>((resolve, reject) => {
-    let upload: tus.Upload; // forward-declared so the callbacks can deregister
-    upload = new tus.Upload(file, {
-      endpoint: `https://${projectId}.supabase.co/storage/v1/upload/resumable`,
-      // Extra-long retry ladder for mobile cellular — up to ~2 minutes
-      // of pause-and-resume before giving up.
-      retryDelays: [0, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000, 90_000],
-      headers: {
-        authorization: `Bearer ${session.access_token}`,
-        "x-upsert": "true",
-      },
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      chunkSize: TUS_CHUNK_SIZE,
-      metadata: {
-        bucketName: BUCKET,
-        objectName,
-        contentType: file.type || "image/jpeg",
-        cacheControl: "3600",
-      },
-      // Retry on every error — the library's default is conservative and
-      // skips some recoverable network failures.
-      onShouldRetry() {
-        return true;
-      },
-      onError(err) {
-        activeUploads.delete(upload);
-        console.error("[tus] upload failed for", objectName, err);
-        reject(err instanceof Error ? err : new Error(String(err)));
-      },
-      onSuccess() {
-        activeUploads.delete(upload);
-        const publicUrl = supabase.storage
-          .from(BUCKET)
-          .getPublicUrl(objectName).data.publicUrl;
-        resolve(publicUrl);
-      },
-    });
-
-    activeUploads.add(upload);
-
-    // Resume a half-finished upload of the same file if one exists.
-    upload
-      .findPreviousUploads()
-      .then((prev) => {
-        if (prev.length > 0) upload.resumeFromPreviousUpload(prev[0]);
-        upload.start();
-      })
-      .catch(() => {
-        // Lookup failed — just start fresh.
-        upload.start();
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (BACKOFF_MS[attempt - 1] > 0) {
+      await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+    activeControllers.add(controller);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
       });
-  });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(
+          `Upload ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`
+        );
+      }
+      const { url } = (await res.json()) as { url: string };
+      return url;
+    } catch (err) {
+      lastErr = err;
+      // If the user cancelled via cancelAllActiveUploads, stop retrying.
+      if (controller.signal.aborted && !activeControllers.has(controller)) {
+        throw new Error("Upload cancelled");
+      }
+      console.warn(
+        `[upload] attempt ${attempt}/${MAX_ATTEMPTS} failed`,
+        err
+      );
+    } finally {
+      clearTimeout(timer);
+      activeControllers.delete(controller);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Upload failed");
 }
