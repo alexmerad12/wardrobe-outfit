@@ -48,7 +48,7 @@ import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
-import { usePendingUploads } from "@/lib/pending-uploads-context";
+import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -420,11 +420,21 @@ export default function AddItemPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Multi-select from the library → user clearly wants bulk, hand it off
-    // to the background queue and send them to the wardrobe immediately.
+    // Multi-select from the library → user clearly wants bulk, hand it
+    // off to the background queue and show them the full-screen
+    // processing page (same flow as the main + picker).
     if (files.length > 1) {
-      addPending(files);
-      router.push("/wardrobe");
+      const result = addPending(files);
+      if (result.rejected > 0) {
+        alert(
+          `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
+        );
+      }
+      if (result.accepted > 0) {
+        router.push("/wardrobe/uploading");
+      } else {
+        router.push("/wardrobe");
+      }
       return;
     }
 
