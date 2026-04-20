@@ -282,7 +282,7 @@ export default function ProfilePage() {
                         className="h-3 w-3 rounded-full flex-shrink-0 border border-border"
                         style={{ backgroundColor: color.hex }}
                       />
-                      <span className="text-sm w-20 truncate">{color.name}</span>
+                      <span className="text-sm w-20 truncate">{t(`color.${color.name}`)}</span>
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                         <div
                           className="h-full rounded-full bg-foreground/20"
@@ -456,8 +456,15 @@ export default function ProfilePage() {
                 setTempSensitivity(v as TemperatureSensitivity)
               }
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value) => {
+                    if (value === "runs-hot") return t("profile.runsHot");
+                    if (value === "normal") return t("profile.normal");
+                    if (value === "runs-cold") return t("profile.runsCold");
+                    return null;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="runs-hot">{t("profile.runsHot")}</SelectItem>
@@ -477,8 +484,15 @@ export default function ProfilePage() {
               value={tempUnit}
               onValueChange={(v) => setTempUnit(v as TemperatureUnit)}
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value) => {
+                    if (value === "auto") return t("profile.tempAuto");
+                    if (value === "celsius") return t("profile.celsius");
+                    if (value === "fahrenheit") return t("profile.fahrenheit");
+                    return null;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">{t("profile.tempAuto")}</SelectItem>
@@ -498,8 +512,15 @@ export default function ProfilePage() {
               value={language}
               onValueChange={(v) => setLanguage(v as Language)}
             >
-              <SelectTrigger>
-                <SelectValue />
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value) => {
+                    if (value === "auto") return t("profile.autoLang");
+                    if (value === "en") return t("profile.english");
+                    if (value === "fr") return t("profile.french");
+                    return null;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">{t("profile.autoLang")}</SelectItem>

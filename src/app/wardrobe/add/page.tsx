@@ -674,7 +674,7 @@ export default function AddItemPage() {
                             className="h-4 w-4 rounded-full border border-border"
                             style={{ backgroundColor: color.hex }}
                           />
-                          <span className="text-xs font-medium">{color.name}</span>
+                          <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
                           <button
                             type="button"
                             onClick={() => setDetectedColors((prev) => prev.filter((_, j) => j !== i))}
@@ -701,7 +701,7 @@ export default function AddItemPage() {
                             className="h-4 w-4 rounded-full border border-border"
                             style={{ backgroundColor: color.hex }}
                           />
-                          <span className="text-xs font-medium">{color.name}</span>
+                          <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
                           <button
                             type="button"
                             onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
@@ -723,13 +723,13 @@ export default function AddItemPage() {
                     <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
                       {FASHION_COLORS.map((group) => (
                         <div key={group.group}>
-                          <p className="text-[10px] font-medium text-muted-foreground mb-1">{group.group}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground mb-1">{t(`colorGroup.${group.group}`)}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {group.colors.map((c) => (
                               <button
                                 key={c.hex + c.name}
                                 type="button"
-                                title={c.name}
+                                title={t(`color.${c.name}`)}
                                 onClick={() => {
                                   setManualColors((prev) => [...prev, { hex: c.hex, name: c.name, percentage: 0 }]);
                                 }}
@@ -762,7 +762,7 @@ export default function AddItemPage() {
                     className="h-4 w-4 rounded-full border border-border"
                     style={{ backgroundColor: color.hex }}
                   />
-                  <span className="text-xs font-medium">{color.name}</span>
+                  <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
                   <button
                     type="button"
                     onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
@@ -835,7 +835,9 @@ export default function AddItemPage() {
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder={t("addItem.selectCategory")} />
+              <SelectValue placeholder={t("addItem.selectCategory")}>
+                {(value) => (value ? labels.CATEGORY[value as Category] : t("addItem.selectCategory"))}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(Object.keys(labels.CATEGORY) as Category[]).map((cat) => (
@@ -856,7 +858,12 @@ export default function AddItemPage() {
               onValueChange={(v) => setSubcategory(v as Subcategory)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={t("addItem.selectType")} />
+                <SelectValue placeholder={t("addItem.selectType")}>
+                  {(value) => {
+                    const opt = subcategoryOptions.find((o) => o.value === value);
+                    return opt ? opt.label : t("addItem.selectType");
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {subcategoryOptions.map((opt) => (

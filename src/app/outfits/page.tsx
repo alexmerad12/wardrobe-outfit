@@ -108,9 +108,9 @@ export default function FavoritesPage() {
         <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {(
             [
-              { key: "all", label: "All" },
-              { key: "custom", label: "Custom" },
-              ...Object.entries(OCCASION_LABELS).map(([key, label]) => ({ key, label })),
+              { key: "all", label: t("category.all") },
+              { key: "custom", label: t("favorites.custom") },
+              ...(Object.keys(OCCASION_LABELS) as Occasion[]).map((key) => ({ key, label: t(`occasion.${key}`) })),
             ] as { key: string; label: string }[]
           ).map(({ key, label }) => (
             <button
