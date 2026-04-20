@@ -35,7 +35,7 @@ const MOOD_ICONS: Record<Mood, LucideIcon> = {
 const MOODS = Object.keys(MOOD_CONFIG) as Mood[];
 
 export function MoodPicker({ selected, onChange }: MoodPickerProps) {
-  const { t } = useLocale();
+  const { tMood } = useLocale();
   return (
     <div className="grid grid-cols-4 gap-2">
       {MOODS.map((mood) => {
@@ -58,7 +58,7 @@ export function MoodPicker({ selected, onChange }: MoodPickerProps) {
                 isSelected ? "text-primary" : "text-muted-foreground"
               )}
             />
-            <span className="text-xs font-medium">{t(`mood.${mood}.label`)}</span>
+            <span className="text-xs font-medium">{tMood(mood, "label")}</span>
           </button>
         );
       })}

@@ -39,7 +39,7 @@ export default function SignUpPage() {
 
     // If email confirmation is OFF, the user is already logged in.
     if (data.session) {
-      router.push("/");
+      router.push("/onboarding");
       router.refresh();
       return;
     }

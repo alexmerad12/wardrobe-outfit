@@ -558,8 +558,27 @@
     "autoLang": "Auto (from device)",
     "english": "English",
     "french": "Français",
+    "gender": "Gender",
+    "woman": "Woman",
+    "man": "Man",
+    "notSpecified": "Prefer not to say",
     "saveSettings": "Save Settings",
     "signOut": "Sign out",
     "signingOut": "Signing out..."
+  },
+  "onboarding": {
+    "welcome": "Welcome!",
+    "welcomeSub": "Just a few quick questions to set things up.",
+    "step": "Step {current} of {total}",
+    "languageTitle": "Pick your language",
+    "languageSub": "You can change this anytime in your profile.",
+    "cityTitle": "Where do you live?",
+    "citySub": "We use your city to check the weather.",
+    "genderTitle": "How should we address you?",
+    "genderSub": "This helps us tailor wording for you.",
+    "next": "Next",
+    "back": "Back",
+    "finish": "Finish",
+    "saving": "Saving..."
   }
 }

@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity, TemperatureUnit, Language, ClothingItem, Category } from "@/lib/types";
-import { MapPin, Thermometer, Loader2, Languages, LogOut } from "lucide-react";
+import type { TemperatureSensitivity, TemperatureUnit, Language, Gender, ClothingItem, Category } from "@/lib/types";
+import { MapPin, Thermometer, Loader2, Languages, LogOut, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
@@ -41,6 +41,7 @@ export default function ProfilePage() {
     useState<TemperatureSensitivity>("normal");
   const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
   const [language, setLanguage] = useState<Language>("auto");
+  const [gender, setGender] = useState<Gender>("not-specified");
   const [saving, setSaving] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
@@ -87,6 +88,7 @@ export default function ProfilePage() {
             setTempSensitivity(prefs.temperature_sensitivity ?? "normal");
             setTempUnit(prefs.temperature_unit ?? "auto");
             setLanguage(prefs.language ?? "auto");
+            setGender(prefs.gender ?? "not-specified");
           }
         }
 
@@ -227,15 +229,17 @@ export default function ProfilePage() {
           temperature_sensitivity: tempSensitivity,
           temperature_unit: tempUnit,
           language,
+          gender,
           preferred_styles: [],
           favorite_colors: [],
           avoided_colors: [],
         }),
       });
-      // Clear cached locale/unit so the change takes effect immediately on next render
+      // Clear cached locale/unit/gender so the change takes effect immediately on next render
       try {
         window.localStorage.removeItem("locale:v1");
         window.localStorage.removeItem("tempUnit:v1");
+        window.localStorage.removeItem("gender:v1");
       } catch {}
     } catch (err) {
       console.error("Failed to save preferences:", err);
@@ -526,6 +530,34 @@ export default function ProfilePage() {
                 <SelectItem value="auto">{t("profile.autoLang")}</SelectItem>
                 <SelectItem value="en">{t("profile.english")}</SelectItem>
                 <SelectItem value="fr">{t("profile.french")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Gender */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5" />
+              {t("profile.gender")}
+            </Label>
+            <Select
+              value={gender}
+              onValueChange={(v) => setGender(v as Gender)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value) => {
+                    if (value === "woman") return t("profile.woman");
+                    if (value === "man") return t("profile.man");
+                    if (value === "not-specified") return t("profile.notSpecified");
+                    return null;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="woman">{t("profile.woman")}</SelectItem>
+                <SelectItem value="man">{t("profile.man")}</SelectItem>
+                <SelectItem value="not-specified">{t("profile.notSpecified")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

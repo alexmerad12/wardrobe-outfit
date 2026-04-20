@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     return NextResponse.redirect(
@@ -26,6 +26,20 @@ export async function GET(request: Request) {
         url
       )
     );
+  }
+
+  // First-time sign-in: if the user has no preferences row yet, send them
+  // through onboarding instead of home so we capture language/city/gender.
+  const userId = sessionData?.user?.id;
+  if (userId && next === "/") {
+    const { data: prefs } = await supabase
+      .from("user_preferences")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!prefs) {
+      return NextResponse.redirect(new URL("/onboarding", url));
+    }
   }
 
   return NextResponse.redirect(new URL(next, url));

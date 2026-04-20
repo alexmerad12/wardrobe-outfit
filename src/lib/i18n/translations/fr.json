@@ -78,6 +78,11 @@
     "period": { "label": "Confort", "description": "Confortable et extensible" },
     "sad": { "label": "Câlin", "description": "Réconfortant" }
   },
+  "mood_m": {
+    "confident": { "label": "Confiant", "description": "Net et raffiné" },
+    "chill": { "label": "Relax", "description": "Décontracté et facile" },
+    "bold": { "label": "Audacieux", "description": "Pièces remarquables" }
+  },
   "occasion": {
     "at-home": "À la maison",
     "casual": "Décontracté",
@@ -646,8 +651,27 @@
     "autoLang": "Auto (selon l'appareil)",
     "english": "English",
     "french": "Français",
+    "gender": "Genre",
+    "woman": "Femme",
+    "man": "Homme",
+    "notSpecified": "Je préfère ne pas le dire",
     "saveSettings": "Enregistrer",
     "signOut": "Déconnexion",
     "signingOut": "Déconnexion..."
+  },
+  "onboarding": {
+    "welcome": "Bienvenue !",
+    "welcomeSub": "Quelques questions rapides pour commencer.",
+    "step": "Étape {current} sur {total}",
+    "languageTitle": "Choisis ta langue",
+    "languageSub": "Tu pourras la changer à tout moment dans ton profil.",
+    "cityTitle": "Où habites-tu ?",
+    "citySub": "On utilise ta ville pour la météo.",
+    "genderTitle": "Comment t'adresser ?",
+    "genderSub": "Ça nous aide à ajuster le ton.",
+    "next": "Suivant",
+    "back": "Retour",
+    "finish": "Terminer",
+    "saving": "Enregistrement..."
   }
 }

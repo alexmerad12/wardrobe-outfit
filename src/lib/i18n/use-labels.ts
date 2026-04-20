@@ -64,7 +64,7 @@ import {
  * Keys are unchanged, so switch-case logic and lookups keep working.
  */
 export function useLabels() {
-  const { t } = useLocale();
+  const { t, tMood } = useLocale();
 
   return useMemo(() => {
     function mapKeys<T extends string>(
@@ -118,8 +118,8 @@ export function useLabels() {
       FORMALITY: mapKeys<Formality>(FORMALITY_LABELS, "formality"),
       SEASON: mapKeys<Season>(SEASON_LABELS, "season"),
       OCCASION: mapKeys<Occasion>(OCCASION_LABELS, "occasion"),
-      MOOD_LABEL: (mood: Mood) => t(`mood.${mood}.label`),
-      MOOD_DESCRIPTION: (mood: Mood) => t(`mood.${mood}.description`),
+      MOOD_LABEL: (mood: Mood) => tMood(mood, "label"),
+      MOOD_DESCRIPTION: (mood: Mood) => tMood(mood, "description"),
     };
-  }, [t]);
+  }, [t, tMood]);
 }
