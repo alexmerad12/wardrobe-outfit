@@ -102,8 +102,11 @@ async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> 
   return (await res.json()) as WeatherData;
 }
 
+// Match the app's Card look (bg-card + ring-foreground/10) so the widget
+// blends with the rest of the home page instead of standing out. Color
+// is carried only by the weather icon tint.
 const GLASS_CLASSES =
-  "relative overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br from-sky-100/70 via-blue-50/60 to-indigo-100/70 p-5 shadow-sm backdrop-blur-xl";
+  "relative overflow-hidden rounded-xl bg-card p-5 ring-1 ring-foreground/10";
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -179,10 +182,10 @@ export function WeatherWidget() {
       <div className={`${GLASS_CLASSES} animate-pulse`}>
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-10 w-24 rounded-lg bg-white/50" />
-            <div className="h-4 w-32 rounded bg-white/40" />
+            <div className="h-10 w-24 rounded-lg bg-muted" />
+            <div className="h-4 w-32 rounded bg-muted" />
           </div>
-          <div className="h-14 w-14 rounded-full bg-white/50" />
+          <div className="h-14 w-14 rounded-full bg-muted" />
         </div>
       </div>
     );
@@ -205,14 +208,8 @@ export function WeatherWidget() {
 
   return (
     <div className={GLASS_CLASSES}>
-      {/* Soft light spot in the top-right to sell the glass feel */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/40 blur-2xl"
-      />
-
       {/* Top row: temp + icon */}
-      <div className="relative mb-3 flex items-start justify-between">
+      <div className="mb-3 flex items-start justify-between">
         <div>
           <div className="flex items-baseline gap-0.5">
             <span className="text-3xl font-medium tracking-tight leading-none">
@@ -235,7 +232,7 @@ export function WeatherWidget() {
       </div>
 
       {/* Bottom row: details */}
-      <div className="relative flex items-center gap-4 border-t border-white/60 pt-3">
+      <div className="flex items-center gap-4 border-t border-border pt-3">
         {weather.precipitation_probability > 0 && (
           <div className="flex items-center gap-1.5">
             <Droplets className="h-3.5 w-3.5 text-blue-500" />
