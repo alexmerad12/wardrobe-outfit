@@ -7,7 +7,7 @@ import { useLocale } from "@/lib/i18n/use-locale";
 import {
   Zap,
   Crown,
-  Palette,
+  Rainbow,
   Cloud,
   Leaf,
   Flame,
@@ -24,7 +24,7 @@ interface MoodPickerProps {
 const MOOD_ICONS: Record<Mood, LucideIcon> = {
   energized: Zap,
   confident: Crown,
-  playful: Palette,
+  playful: Rainbow,
   cozy: Cloud,
   chill: Leaf,
   bold: Flame,
