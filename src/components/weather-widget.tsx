@@ -64,25 +64,37 @@ function roundCoord(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-// Map Open-Meteo condition strings (see src/lib/weather.ts) to a Lucide icon
-// + a tint color. Keeps the visual consistent with the rest of the app.
-function iconForCondition(condition: string): { Icon: LucideIcon; tint: string } {
+// Map Open-Meteo condition strings (see src/lib/weather.ts) to a Lucide icon,
+// icon tint, and ambient-blob tint. The ambient color sits behind the frosted
+// glass so the blur has something to soften — sunny days feel warm, rainy
+// days feel cool, without drenching the card in color.
+function iconForCondition(condition: string): {
+  Icon: LucideIcon;
+  tint: string;
+  ambient: string;
+} {
   const c = condition.toLowerCase();
-  if (c.includes("thunder")) return { Icon: CloudLightning, tint: "text-violet-500" };
+  if (c.includes("thunder"))
+    return { Icon: CloudLightning, tint: "text-violet-500", ambient: "bg-violet-300" };
   if (c.includes("snow grains") || c.includes("heavy snow"))
-    return { Icon: Snowflake, tint: "text-sky-400" };
-  if (c.includes("snow")) return { Icon: CloudSnow, tint: "text-sky-400" };
+    return { Icon: Snowflake, tint: "text-sky-400", ambient: "bg-sky-200" };
+  if (c.includes("snow"))
+    return { Icon: CloudSnow, tint: "text-sky-400", ambient: "bg-sky-200" };
   if (c.includes("heavy rain") || c.includes("violent"))
-    return { Icon: CloudRainWind, tint: "text-blue-500" };
-  if (c.includes("drizzle")) return { Icon: CloudDrizzle, tint: "text-blue-400" };
+    return { Icon: CloudRainWind, tint: "text-blue-500", ambient: "bg-blue-300" };
+  if (c.includes("drizzle"))
+    return { Icon: CloudDrizzle, tint: "text-blue-400", ambient: "bg-blue-200" };
   if (c.includes("rain") || c.includes("shower"))
-    return { Icon: CloudRain, tint: "text-blue-500" };
-  if (c.includes("fog") || c.includes("rime")) return { Icon: CloudFog, tint: "text-slate-400" };
-  if (c.includes("overcast")) return { Icon: Cloud, tint: "text-slate-400" };
-  if (c.includes("partly cloudy")) return { Icon: CloudSun, tint: "text-amber-400" };
+    return { Icon: CloudRain, tint: "text-blue-500", ambient: "bg-blue-300" };
+  if (c.includes("fog") || c.includes("rime"))
+    return { Icon: CloudFog, tint: "text-slate-400", ambient: "bg-slate-300" };
+  if (c.includes("overcast"))
+    return { Icon: Cloud, tint: "text-slate-400", ambient: "bg-slate-300" };
+  if (c.includes("partly cloudy"))
+    return { Icon: CloudSun, tint: "text-amber-400", ambient: "bg-amber-200" };
   if (c.includes("clear") || c.includes("mainly clear"))
-    return { Icon: Sun, tint: "text-amber-400" };
-  return { Icon: Thermometer, tint: "text-muted-foreground" };
+    return { Icon: Sun, tint: "text-amber-400", ambient: "bg-amber-200" };
+  return { Icon: Thermometer, tint: "text-muted-foreground", ambient: "bg-slate-200" };
 }
 
 function readCachedCoords(): Coords | null {
@@ -133,11 +145,15 @@ async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> 
   return (await res.json()) as WeatherData;
 }
 
-// Match the app's Card look (bg-card + ring-foreground/10) so the widget
-// blends with the rest of the home page instead of standing out. Color
-// is carried only by the weather icon tint.
+// Frosted-glass card: thick semi-transparent fill that reveals whatever is
+// underneath (the page background, adjacent cards as you scroll) through a
+// heavy backdrop blur. The inner white highlight + soft drop shadow give it
+// a sense of physical depth — feels like a small tile you could pick up.
 const GLASS_CLASSES =
-  "relative overflow-hidden rounded-xl bg-card p-5 ring-1 ring-foreground/10";
+  "relative overflow-hidden rounded-2xl p-5 " +
+  "bg-white/55 backdrop-blur-2xl backdrop-saturate-150 " +
+  "ring-1 ring-white/70 " +
+  "shadow-[0_10px_28px_-8px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]";
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -236,14 +252,31 @@ export function WeatherWidget() {
     );
   }
 
-  const { Icon, tint } = iconForCondition(weather.condition);
+  const { Icon, tint, ambient } = iconForCondition(weather.condition);
   const conditionKey = CONDITION_KEYS[weather.condition];
   const conditionLabel = conditionKey
     ? t(`weatherCondition.${conditionKey}`)
     : weather.condition;
 
   return (
-    <div className={GLASS_CLASSES}>
+    <div className="relative">
+      {/* Ambient weather-tinted blobs — live behind the glass so the frost
+          has something to soften. Tinted by condition (warm for sun, cool
+          for rain/snow) but heavily blurred and low-opacity so they only
+          read as atmosphere. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+      >
+        <div
+          className={`absolute -right-6 -top-6 h-32 w-32 rounded-full opacity-60 blur-3xl ${ambient}`}
+        />
+        <div
+          className={`absolute -bottom-8 -left-6 h-28 w-28 rounded-full opacity-40 blur-3xl ${ambient}`}
+        />
+      </div>
+
+    <div className={`relative ${GLASS_CLASSES}`}>
       {/* Top row: temp + icon */}
       <div className="mb-3 flex items-start justify-between">
         <div>
@@ -268,7 +301,7 @@ export function WeatherWidget() {
       </div>
 
       {/* Bottom row: details */}
-      <div className="flex items-center gap-4 border-t border-border pt-3">
+      <div className="flex items-center gap-4 border-t border-white/60 pt-3">
         {weather.precipitation_probability > 0 && (
           <div className="flex items-center gap-1.5">
             <Droplets className="h-3.5 w-3.5 text-blue-500" />
@@ -290,6 +323,7 @@ export function WeatherWidget() {
           </span>
         </div>
       </div>
+    </div>
     </div>
   );
 }
