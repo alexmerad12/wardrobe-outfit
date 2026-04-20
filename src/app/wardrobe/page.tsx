@@ -1,14 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ClothingItem, Category } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, X, CheckSquare, Combine, Archive } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus,
+  Trash2,
+  X,
+  CheckSquare,
+  Combine,
+  Archive,
+  Camera,
+  ImageIcon,
+  Sparkles,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
+import { usePendingUploads, type PendingItem } from "@/lib/pending-uploads-context";
 
 const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
   "all",
@@ -33,22 +52,33 @@ export default function WardrobePage() {
   const router = useRouter();
   const { t } = useLocale();
 
-  useEffect(() => {
-    async function fetchItems() {
-      try {
-        const res = await fetch("/api/items");
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch items:", err);
-      } finally {
-        setLoading(false);
+  const { items: pending, addFiles, retry, dismiss, onItemSaved } = usePendingUploads();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
+
+  const refetchItems = useCallback(async () => {
+    try {
+      const res = await fetch("/api/items");
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data);
       }
+    } catch (err) {
+      console.error("Failed to fetch items:", err);
     }
-    fetchItems();
   }, []);
+
+  useEffect(() => {
+    refetchItems().finally(() => setLoading(false));
+  }, [refetchItems]);
+
+  // Refetch the grid whenever a background upload saves, so fresh items
+  // appear in place of their pending tiles.
+  useEffect(() => {
+    return onItemSaved(() => {
+      void refetchItems();
+    });
+  }, [onItemSaved, refetchItems]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -206,12 +236,63 @@ export default function WardrobePage() {
                   Select
                 </Button>
               )}
-              <Link href="/wardrobe/add">
-                <Button size="sm" className="gap-1.5">
-                  <Plus className="h-4 w-4" />
-                  Add
-                </Button>
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button size="sm" className="gap-1.5">
+                      <Plus className="h-4 w-4" />
+                      Add
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Take photo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => libraryInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    Choose from library
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/wardrobe/add")}
+                    className="gap-2 text-muted-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Fill in manually
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Camera: single shot straight from the device camera */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) addFiles(e.target.files);
+                  if (cameraInputRef.current) cameraInputRef.current.value = "";
+                }}
+              />
+              {/* Library: multi-select */}
+              <input
+                ref={libraryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) addFiles(e.target.files);
+                  if (libraryInputRef.current) libraryInputRef.current.value = "";
+                }}
+              />
             </>
           )}
         </div>
@@ -235,6 +316,16 @@ export default function WardrobePage() {
         ))}
       </div>
 
+      {/* Pending uploads (shown on the "all" view so they don't disappear
+          when the user is filtering by category) */}
+      {activeCategory === "all" && (
+        <PendingStrip
+          pending={pending.filter((p) => p.stage !== "ready")}
+          onRetry={retry}
+          onDismiss={dismiss}
+        />
+      )}
+
       {/* Items grid */}
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -242,7 +333,7 @@ export default function WardrobePage() {
             <ClothingCardSkeleton key={i} />
           ))}
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : filteredItems.length === 0 && pending.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
           <p className="text-muted-foreground mb-3">
             {items.length === 0
@@ -250,12 +341,14 @@ export default function WardrobePage() {
               : t("wardrobe.noneInCategory")}
           </p>
           {items.length === 0 && (
-            <Link href="/wardrobe/add">
-              <Button variant="outline" className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                {t("wardrobe.addFirstItem")}
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => libraryInputRef.current?.click()}
+            >
+              <Plus className="h-4 w-4" />
+              {t("wardrobe.addFirstItem")}
+            </Button>
           )}
         </div>
       ) : (
@@ -270,6 +363,97 @@ export default function WardrobePage() {
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Burgundy palette — keeps AI/Yav surfaces consistent across the app.
+const BURGUNDY_BG = "bg-[#fdf2f4]";
+const BURGUNDY_BORDER = "border-[#e8b4bc]";
+const BURGUNDY_TEXT = "text-[#7c2d3a]";
+const BURGUNDY_SUBTLE = "text-[#9b4050]/80";
+
+function PendingStrip({
+  pending,
+  onRetry,
+  onDismiss,
+}: {
+  pending: PendingItem[];
+  onRetry: (id: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  if (pending.length === 0) return null;
+  const processing = pending.filter((p) => p.stage !== "error").length;
+  return (
+    <div className={cn("mb-4 rounded-xl px-4 py-3", BURGUNDY_BG, "border", BURGUNDY_BORDER)}>
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className={cn("h-4 w-4", BURGUNDY_TEXT)} />
+        <span className={cn("text-sm font-medium", BURGUNDY_TEXT)}>
+          {processing > 0
+            ? `Yav is adding ${processing} item${processing === 1 ? "" : "s"} to your wardrobe`
+            : "Some uploads need attention"}
+        </span>
+      </div>
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+        {pending.map((p) => (
+          <PendingTile
+            key={p.id}
+            item={p}
+            onRetry={() => onRetry(p.id)}
+            onDismiss={() => onDismiss(p.id)}
+          />
+        ))}
+      </div>
+      <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
+        You can close this page — they&apos;ll keep processing and appear in your wardrobe when ready.
+      </p>
+    </div>
+  );
+}
+
+function PendingTile({
+  item,
+  onRetry,
+  onDismiss,
+}: {
+  item: PendingItem;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  const isError = item.stage === "error";
+  return (
+    <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.previewUrl}
+        alt=""
+        className="h-full w-full object-cover opacity-70"
+      />
+      {isError ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-950/60 text-white"
+          title="Tap to retry"
+        >
+          <AlertCircle className="h-4 w-4" />
+          <span className="text-[10px] font-medium">Retry</span>
+        </button>
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+          <Loader2 className="h-4 w-4 animate-spin text-white" />
+        </div>
+      )}
+      {isError && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="absolute top-1 right-1 rounded-full bg-black/50 p-0.5 text-white hover:bg-black/70"
+          title="Remove from list"
+        >
+          <X className="h-3 w-3" />
+        </button>
       )}
     </div>
   );

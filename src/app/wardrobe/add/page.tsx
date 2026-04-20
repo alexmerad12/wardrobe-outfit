@@ -48,12 +48,16 @@ import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
+import { usePendingUploads } from "@/lib/pending-uploads-context";
 
 export default function AddItemPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLocale();
   const labels = useLabels();
+  const { addFiles: addPending } = usePendingUploads();
 
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -413,8 +417,18 @@ export default function AddItemPage() {
   }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Multi-select from the library → user clearly wants bulk, hand it off
+    // to the background queue and send them to the wardrobe immediately.
+    if (files.length > 1) {
+      addPending(files);
+      router.push("/wardrobe");
+      return;
+    }
+
+    const file = files[0];
 
     // Reset per-image state so auto-fill re-runs for the new photo
     autoFillAppliedForRef.current = null;
@@ -431,7 +445,7 @@ export default function AddItemPage() {
 
     // Auto-remove the background — matches how Photoroom/Stitch Fix flows
     // work. The preview above shows instantly; the cutout replaces it when
-    // ready, and the manual button is still there if the user wants to retry.
+    // ready.
     void runBgRemoval(file);
   }
 
@@ -576,15 +590,15 @@ export default function AddItemPage() {
         <button
           type="button"
           onClick={() => router.push("/wardrobe/bulk")}
-          className="mb-5 w-full rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-left transition-colors hover:bg-purple-100"
+          className="mb-5 w-full rounded-xl border border-[#e8b4bc] bg-[#fdf2f4] px-4 py-3 text-left transition-colors hover:bg-[#f9e3e7]"
         >
           <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 shrink-0 text-purple-600" />
+            <Sparkles className="h-5 w-5 shrink-0 text-[#7c2d3a]" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-purple-900">
+              <p className="text-sm font-medium text-[#7c2d3a]">
                 Got a bunch of photos? Bulk upload
               </p>
-              <p className="text-xs text-purple-700/80">
+              <p className="text-xs text-[#9b4050]/80">
                 AI tags each one automatically — just drop them in and walk away.
               </p>
             </div>
@@ -594,16 +608,11 @@ export default function AddItemPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo upload */}
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          className={cn(
-            "relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors",
-            imagePreview
-              ? "border-primary/30 bg-primary/5"
-              : "border-muted-foreground/25 hover:border-muted-foreground/50"
-          )}
-        >
-          {imagePreview ? (
+        {imagePreview ? (
+          <div
+            onClick={() => libraryInputRef.current?.click()}
+            className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 overflow-hidden"
+          >
             <div className="relative aspect-square w-full overflow-hidden rounded-xl">
               <Image
                 src={imagePreview}
@@ -617,34 +626,61 @@ export default function AddItemPage() {
                 </p>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 py-12">
-              <div className="flex gap-3">
-                <Camera className="h-8 w-8 text-muted-foreground" />
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium">
-                {t("addItem.takePhoto")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("addItem.bestResults")}
-              </p>
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageChange}
-          />
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
+            >
+              <Camera className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm font-medium">Take photo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => libraryInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
+            >
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm font-medium">Choose photo(s)</span>
+              <span className="text-[10px] text-muted-foreground">Pick many for bulk</span>
+            </button>
+          </div>
+        )}
+        {/* Camera: single shot, no capture attribute lets desktop fall back */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleImageChange}
+        />
+        {/* Library: multi-select — if more than one, the handler hands them
+            off to the pending-uploads queue and redirects to /wardrobe. */}
+        <input
+          ref={libraryInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleImageChange}
+        />
+        {/* Legacy ref kept to avoid touching callers — unused in render */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageChange}
+        />
 
         {/* Unified status bar — shows the whole pipeline (bg removal + AI
             pre-fill) as one clear progress message so the user always knows
             what's happening instead of watching a silent form. */}
         {imagePreview && (removingBg || autoFilling || autoFillApplied) && (
-          <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-50 px-3 py-2.5 text-xs text-purple-700">
+          <div className="flex items-center justify-center gap-2 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2.5 text-xs text-[#7c2d3a]">
             {removingBg || autoFilling ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
             ) : (
@@ -662,9 +698,12 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Manual retry button for bg removal */}
-        {imagePreview && (
-          <>
+        {/* Retry affordance — only appears if bg removal actually failed.
+            The auto-trigger handles the happy path silently, so there's no
+            redundant "Remove background" button cluttering the form. */}
+        {imagePreview && bgError && (
+          <div className="space-y-2">
+            <p className="text-xs text-red-600 text-center">{bgError}</p>
             <Button
               type="button"
               variant="outline"
@@ -676,16 +715,13 @@ export default function AddItemPage() {
               {removingBg ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("addItem.removingBackground")}
+                  Trying again…
                 </>
               ) : (
-                t("addItem.removeBackground")
+                "Try removing background again"
               )}
             </Button>
-            {bgError && (
-              <p className="text-xs text-red-600 text-center">{bgError}</p>
-            )}
-          </>
+          </div>
         )}
 
         {/* Colors (when image is present or colors detected) */}

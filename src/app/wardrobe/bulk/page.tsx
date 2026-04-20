@@ -233,9 +233,9 @@ export default function BulkUploadPage() {
 
       {/* Empty state */}
       {items.length === 0 && (
-        <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 p-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-100">
-            <Sparkles className="h-7 w-7 text-purple-600" />
+        <div className="rounded-2xl border-2 border-dashed border-[#e8b4bc] bg-[#fdf2f4]/40 p-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f4d3d9]">
+            <Sparkles className="h-7 w-7 text-[#7c2d3a]" />
           </div>
           <h2 className="text-base font-medium mb-1">Upload a batch at once</h2>
           <p className="mb-6 text-sm text-muted-foreground">
@@ -264,7 +264,7 @@ export default function BulkUploadPage() {
 
       {/* Progress summary */}
       {items.length > 0 && (
-        <div className="mb-4 rounded-xl bg-purple-50 px-4 py-3 text-sm text-purple-900">
+        <div className="mb-4 rounded-xl bg-[#fdf2f4] px-4 py-3 text-sm text-[#7c2d3a]">
           <div className="flex items-center gap-2">
             {allDone ? (
               <CheckCircle2 className="h-4 w-4" />
@@ -278,7 +278,7 @@ export default function BulkUploadPage() {
             </span>
           </div>
           {!allDone && (
-            <p className="mt-1 text-xs text-purple-700/80">
+            <p className="mt-1 text-xs text-[#9b4050]/80">
               You can leave this page any time — items are saved as they finish.
             </p>
           )}
@@ -296,7 +296,7 @@ export default function BulkUploadPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground hover:border-purple-300 hover:bg-purple-50 transition-colors"
+            className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground hover:border-[#c98695] hover:bg-[#fdf2f4] transition-colors"
           >
             <Plus className="h-6 w-6 mb-1" />
             <span className="text-xs font-medium">Add more</span>

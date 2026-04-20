@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
+import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -60,8 +61,10 @@ export default function RootLayout({
       className={`${dmSans.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background font-[family-name:var(--font-sans)]">
-        <main className="flex-1 pb-20">{children}</main>
-        <BottomNav />
+        <PendingUploadsProvider>
+          <main className="flex-1 pb-20">{children}</main>
+          <BottomNav />
+        </PendingUploadsProvider>
       </body>
     </html>
   );
