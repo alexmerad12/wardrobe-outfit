@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender, ClothingItem, Category } from "@/lib/types";
-import { MapPin, Thermometer, Loader2, Languages, LogOut, User } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Languages, LogOut, User, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [gender, setGender] = useState<Gender>("not-specified");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
@@ -244,6 +245,8 @@ export default function ProfilePage() {
         window.localStorage.removeItem("tempUnit:v1");
         window.localStorage.removeItem("gender:v1");
       } catch {}
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error("Failed to save preferences:", err);
     } finally {
@@ -578,12 +581,17 @@ export default function ProfilePage() {
           <Button
             className="w-full"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || saved}
           >
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t("common.saving")}
+              </>
+            ) : saved ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                {t("profile.settingsSaved")}
               </>
             ) : (
               t("profile.saveSettings")
