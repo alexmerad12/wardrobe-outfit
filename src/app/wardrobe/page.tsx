@@ -391,6 +391,7 @@ function PendingStrip({
   const errorCount = pending.length - processing;
   const visible = pending.slice(0, MAX_INLINE_TILES);
   const overflow = pending.length - visible.length;
+  const firstError = pending.find((p) => p.stage === "error")?.error;
 
   return (
     <div className={cn("mb-4 rounded-xl px-4 py-3", BURGUNDY_BG, "border", BURGUNDY_BORDER)}>
@@ -431,9 +432,15 @@ function PendingStrip({
           </Link>
         )}
       </div>
-      <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
-        Keep using Closette — these stay in flight as you browse.
-      </p>
+      {firstError ? (
+        <p className="mt-2 text-[11px] text-red-700">
+          Some failed: {firstError}. Tap a failed tile to retry.
+        </p>
+      ) : (
+        <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
+          Keep using Closette — these stay in flight as you browse.
+        </p>
+      )}
     </div>
   );
 }

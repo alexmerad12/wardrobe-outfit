@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 
 const anthropic = new Anthropic();
 
@@ -55,36 +56,6 @@ RULES:
 - Never invent values outside the enums above
 - Respond with one JSON object, nothing else`;
 
-type AnalyzeResult = {
-  name?: string;
-  category?: string;
-  subcategory?: string;
-  pattern?: string[];
-  material?: string[];
-  formality?: string[];
-  seasons?: string[];
-  occasions?: string[];
-  fit?: string;
-  bottom_fit?: string;
-  length?: string;
-  pants_length?: string;
-  waist_style?: string;
-  waist_height?: string;
-  waist_closure?: string;
-  neckline?: string;
-  sleeve_length?: string;
-  closure?: string;
-  shoe_height?: string;
-  heel_type?: string;
-  shoe_closure?: string;
-  belt_style?: string;
-  metal_finish?: string;
-  warmth_rating?: number;
-  rain_appropriate?: boolean;
-  is_layering_piece?: boolean;
-  belt_compatible?: boolean;
-  colors?: { hex: string; name: string }[];
-};
 
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
@@ -136,8 +107,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 502 });
     }
 
-    const parsed = JSON.parse(match[0]) as AnalyzeResult;
-    return NextResponse.json(parsed);
+    const parsed = JSON.parse(match[0]);
+    // Drop anything that isn't on the enum allowlist. Claude occasionally
+    // returns close-but-invalid values ("t_shirt" for "t-shirt", "blue"
+    // in the material field) — keeping those would make the Supabase
+    // insert fail with a check-constraint violation.
+    return NextResponse.json(sanitizeAutoFill(parsed));
   } catch (err) {
     console.error("Item analyze error:", err);
     return NextResponse.json({ error: "Analysis failed" }, { status: 500 });

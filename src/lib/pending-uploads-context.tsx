@@ -13,6 +13,7 @@ import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { createClient } from "@/lib/supabase/client";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage } from "@/lib/image-utils";
+import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 
 // Global background-processing queue for item uploads.
 //
@@ -194,10 +195,14 @@ export function PendingUploadsProvider({
       );
 
       // 3. Upload + analyze in parallel on the cleaned, downscaled image.
-      const [imageUrl, attrs] = await Promise.all([
+      const [imageUrl, attrsRaw] = await Promise.all([
         uploadImage(cleaned),
         analyzeItem(cleaned).catch(() => ({} as AutoFillResult)),
       ]);
+      // Belt-and-braces sanitise — server already strips invalid enums,
+      // but this guards against older deploys or any intermediate code
+      // path that skipped validation.
+      const attrs = sanitizeAutoFill(attrsRaw);
 
       // 4. Save to DB.
       const res = await fetch("/api/items", {
