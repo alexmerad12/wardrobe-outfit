@@ -42,6 +42,7 @@ export default function ProfilePage() {
   const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
   const [language, setLanguage] = useState<Language>("auto");
   const [gender, setGender] = useState<Gender>("not-specified");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
@@ -104,6 +105,8 @@ export default function ProfilePage() {
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
+      } finally {
+        setLoading(false);
       }
     }
     loadProfile();
@@ -270,7 +273,7 @@ export default function ProfilePage() {
 
       {/* Wardrobe Insights */}
       {allItems.length > 0 && (
-        <Card className="mb-6">
+        <Card className="mb-6 animate-in fade-in duration-500">
           <CardHeader>
             <CardTitle className="text-base">{t("profile.wardrobeInsights")}</CardTitle>
           </CardHeader>
@@ -398,7 +401,17 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle className="text-base">{t("profile.settings")}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        {loading ? (
+          <CardContent className="space-y-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                <div className="h-9 w-full rounded-lg bg-muted animate-pulse" />
+              </div>
+            ))}
+          </CardContent>
+        ) : (
+        <CardContent className="space-y-4 animate-in fade-in duration-300">
           {/* Location */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
@@ -577,6 +590,7 @@ export default function ProfilePage() {
             )}
           </Button>
         </CardContent>
+        )}
       </Card>
 
       <InstallPrompt />
