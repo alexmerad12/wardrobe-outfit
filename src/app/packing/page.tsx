@@ -7,6 +7,7 @@ import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StylistLoader } from "@/components/stylist-loader";
@@ -375,11 +376,19 @@ export default function PackingPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t("packing.from")}</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <DatePicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder={locale === "fr" ? "jj/mm/aaaa" : "mm/dd/yyyy"}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("packing.to")}</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DatePicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder={locale === "fr" ? "jj/mm/aaaa" : "mm/dd/yyyy"}
+              />
             </div>
           </div>
 
