@@ -292,25 +292,31 @@ export default function AddItemPage() {
     img.src = dataUrl;
   }
 
-  async function handleRemoveBackground() {
-    if (!imageFile) return;
+  async function runBgRemoval(source: File) {
     setRemovingBg(true);
     try {
-      const blob = await removeBg(imageFile);
-      const file = new File([blob], imageFile.name, { type: "image/png" });
-      setImageFile(file);
+      const blob = await removeBg(source);
+      const cleaned = new File([blob], source.name.replace(/\.[^.]+$/, "") + ".png", {
+        type: "image/png",
+      });
+      setImageFile(cleaned);
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
         setImagePreview(dataUrl);
         extractColorsFromImage(dataUrl);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(cleaned);
     } catch (err) {
       console.error("Background removal failed:", err);
     } finally {
       setRemovingBg(false);
     }
+  }
+
+  function handleRemoveBackground() {
+    if (!imageFile) return;
+    void runBgRemoval(imageFile);
   }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -325,6 +331,11 @@ export default function AddItemPage() {
       extractColorsFromImage(dataUrl);
     };
     reader.readAsDataURL(file);
+
+    // Auto-remove the background — matches how Photoroom/Stitch Fix flows
+    // work. The preview above shows instantly; the cutout replaces it when
+    // ready, and the manual button is still there if the user wants to retry.
+    void runBgRemoval(file);
   }
 
   function togglePattern(p: Pattern) {

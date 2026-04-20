@@ -326,15 +326,10 @@ export default function ItemDetailPage() {
     router.push("/wardrobe");
   }
 
-  async function handleRemoveBackground() {
-    // Works on either the new image or the current item image
-    const sourceUrl = newImagePreview || item?.image_url;
-    if (!sourceUrl) return;
+  async function runBgRemoval(source: Blob) {
     setRemovingBg(true);
     try {
-      const response = await fetch(sourceUrl);
-      const imageBlob = await response.blob();
-      const resultBlob = await removeBg(imageBlob);
+      const resultBlob = await removeBg(source);
       const file = new File([resultBlob], "bg-removed.png", { type: "image/png" });
       setNewImageFile(file);
       const reader = new FileReader();
@@ -344,6 +339,19 @@ export default function ItemDetailPage() {
       console.error("Background removal failed:", err);
     } finally {
       setRemovingBg(false);
+    }
+  }
+
+  async function handleRemoveBackground() {
+    // Works on either the new image or the current item image
+    const sourceUrl = newImagePreview || item?.image_url;
+    if (!sourceUrl) return;
+    try {
+      const response = await fetch(sourceUrl);
+      const imageBlob = await response.blob();
+      await runBgRemoval(imageBlob);
+    } catch (err) {
+      console.error("Background removal failed:", err);
     }
   }
 
@@ -448,6 +456,9 @@ export default function ItemDetailPage() {
             const reader = new FileReader();
             reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
             reader.readAsDataURL(file);
+            // Auto-run the cutout — the preview above shows instantly, the
+            // cutout replaces it when ready.
+            void runBgRemoval(file);
           }}
         />
       </div>

@@ -1,60 +1,48 @@
 import type { Config } from "@imgly/background-removal";
 
-declare global {
-  interface Navigator {
-    gpu?: unknown;
-  }
-}
-
-// Detect WebGPU once; GPU path is ~5-10x faster on supported browsers and
-// produces identical output quality to CPU. Falls back cleanly when missing.
-function hasWebGPU(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return Boolean(navigator.gpu);
-}
-
-// Single source of truth for the model config. Used by both the eager
-// `preloadBgRemoval()` warm-up and the actual `removeBg()` call, so the cached
-// model weights from the warm-up are actually hit when the user clicks.
-function getConfig(): Config {
+// imgly's own defaults — isnet_fp16 model on CPU — are what the library is
+// battle-tested with. Don't override the device or model here: specifying
+// "gpu" can hang silently on browsers where WebGPU is exposed but not fully
+// functional, and the model file for fp16 only loads cleanly at its default.
+function getConfig(
+  onProgress?: (key: string, current: number, total: number) => void
+): Config {
   return {
-    // Highest-quality isnet variant for clean edges on clothing photos.
-    model: "isnet_fp16",
-    device: hasWebGPU() ? "gpu" : "cpu",
     output: { format: "image/png", quality: 1 },
+    progress: onProgress,
+    debug: typeof process !== "undefined" && process.env.NODE_ENV !== "production",
   };
 }
 
 let preloaded: Promise<void> | null = null;
 
-// Fetch the model weights eagerly so the first click on "Remove background"
-// is instant. Safe to call repeatedly — work is memoised.
-export function preloadBgRemoval(): Promise<void> {
+// Fetch model weights eagerly so the first click feels instant. Safe to call
+// repeatedly — work is memoised. Returns a promise so callers that need to
+// wait (auto-trigger on upload) can await it.
+export function preloadBgRemoval(
+  onProgress?: (key: string, current: number, total: number) => void
+): Promise<void> {
   if (preloaded) return preloaded;
   preloaded = (async () => {
     try {
       const { preload } = await import("@imgly/background-removal");
-      await preload(getConfig());
-    } catch {
-      // Swallow — the actual `removeBg()` call will surface a real error
-      // and we don't want to break the page if warm-up fails (e.g. WebGPU
-      // init issue). Reset so a later attempt can retry.
+      await preload(getConfig(onProgress));
+    } catch (err) {
+      console.error("bg-removal preload failed:", err);
       preloaded = null;
+      throw err;
     }
   })();
   return preloaded;
 }
 
-export async function removeBg(image: Blob | File): Promise<Blob> {
+export async function removeBg(
+  image: Blob | File,
+  onProgress?: (key: string, current: number, total: number) => void
+): Promise<Blob> {
+  // Ensure the model is ready. If preload hasn't been called yet, this awaits
+  // the full download on-demand — slower on first use but never hangs.
+  await preloadBgRemoval(onProgress);
   const { removeBackground } = await import("@imgly/background-removal");
-  try {
-    return await removeBackground(image, getConfig());
-  } catch (err) {
-    // If GPU path failed (driver glitch, OOM), retry on CPU once before
-    // giving up — the user still gets a clean cutout, just slower.
-    if (hasWebGPU()) {
-      return await removeBackground(image, { ...getConfig(), device: "cpu" });
-    }
-    throw err;
-  }
+  return removeBackground(image, getConfig(onProgress));
 }
