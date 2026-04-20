@@ -44,9 +44,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Upload, ArrowLeft, Loader2 } from "lucide-react";
+import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -103,6 +104,11 @@ export default function AddItemPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // AI auto-fill state
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFillApplied, setAutoFillApplied] = useState(false);
+  const autoFillAppliedForRef = useRef<File | null>(null);
+
   // Background upload — starts uploading to Supabase as soon as the image is
   // settled (post-bg-removal), so by the time the user hits Save the image
   // is usually already there and the click feels instant.
@@ -147,6 +153,70 @@ export default function AddItemPage() {
       throw err;
     });
   }, [imageFile, removingBg]);
+
+  // AI auto-fill: once per image, send it to Claude and pre-fill the form.
+  // Runs in parallel with upload + bg removal — same image, different jobs.
+  useEffect(() => {
+    if (!imageFile || removingBg) return;
+    if (autoFillAppliedForRef.current === imageFile) return;
+    const target = imageFile;
+    setAutoFilling(true);
+    analyzeItem(target)
+      .then((result) => {
+        if (imageFile !== target) return; // user swapped photos
+        autoFillAppliedForRef.current = target;
+        applyAutoFill(result);
+        setAutoFillApplied(true);
+      })
+      .catch((err) => {
+        console.error("Auto-fill failed:", err);
+      })
+      .finally(() => {
+        if (imageFile === target) setAutoFilling(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageFile, removingBg]);
+
+  function applyAutoFill(r: AutoFillResult) {
+    // Never overwrite a name the user has already typed.
+    if (r.name && !name.trim()) setName(r.name);
+    if (r.category) setCategory(r.category);
+    if (r.subcategory) setSubcategory(r.subcategory);
+    if (r.pattern?.length) setPatterns(r.pattern);
+    if (r.material?.length) setMaterials(r.material);
+    if (r.fit) setFit(r.fit);
+    if (r.bottom_fit) setBottomFit(r.bottom_fit);
+    if (r.length) setLength(r.length);
+    if (r.pants_length) setPantsLength(r.pants_length);
+    if (r.waist_style) setWaistStyle(r.waist_style);
+    if (r.waist_height) setWaistHeight(r.waist_height);
+    if (r.waist_closure) setWaistClosure(r.waist_closure);
+    if (r.neckline) setNeckline(r.neckline);
+    if (r.sleeve_length) setSleeveLength(r.sleeve_length);
+    if (r.closure) setClosure(r.closure);
+    if (r.shoe_height) setShoeHeight(r.shoe_height);
+    if (r.heel_type) setHeelType(r.heel_type);
+    if (r.shoe_closure) setShoeClosure(r.shoe_closure);
+    if (r.belt_style) setBeltStyle(r.belt_style);
+    if (r.metal_finish) setMetalFinish(r.metal_finish);
+    if (r.formality?.length) setFormalities(r.formality);
+    if (r.seasons?.length) setSeasons(r.seasons);
+    if (r.occasions?.length) setOccasions(r.occasions);
+    if (typeof r.warmth_rating === "number") {
+      setWarmthRating(Math.max(1, Math.min(5, Math.round(r.warmth_rating))));
+    }
+    if (typeof r.rain_appropriate === "boolean") setRainAppropriate(r.rain_appropriate);
+    if (typeof r.is_layering_piece === "boolean") setIsLayeringPiece(r.is_layering_piece);
+    if (typeof r.belt_compatible === "boolean") setBeltCompatible(r.belt_compatible);
+
+    // Only use AI colors if local corner-sampling hasn't already found some.
+    if (r.colors?.length && detectedColors.length === 0) {
+      const perSlice = Math.round(100 / r.colors.length);
+      setDetectedColors(
+        r.colors.map((c) => ({ hex: c.hex, name: c.name, percentage: perSlice }))
+      );
+    }
+  }
 
   const similarItems = useMemo(() => {
     if (!category || !name || name.length < 2) return [];
@@ -338,6 +408,10 @@ export default function AddItemPage() {
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset per-image state so auto-fill re-runs for the new photo
+    autoFillAppliedForRef.current = null;
+    setAutoFillApplied(false);
 
     setImageFile(file);
     const reader = new FileReader();
@@ -558,6 +632,20 @@ export default function AddItemPage() {
             </Button>
             {bgError && (
               <p className="text-xs text-red-600 text-center">{bgError}</p>
+            )}
+
+            {/* AI auto-fill status */}
+            {autoFilling && (
+              <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Yav is filling in the details…</span>
+              </div>
+            )}
+            {!autoFilling && autoFillApplied && (
+              <div className="flex items-center justify-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-xs text-purple-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Pre-filled by AI — review and tweak anything below</span>
+              </div>
             )}
           </>
         )}
