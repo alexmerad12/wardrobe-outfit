@@ -189,49 +189,56 @@ export default function WardrobePage() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("wardrobe.title")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? t("wardrobe.items") : t("wardrobe.itemsPlural")}
-          </p>
+      {selectMode ? (
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button size="icon" variant="ghost" onClick={exitSelectMode}>
+              <X className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium truncate">
+              {t("wardrobe.nSelected", { count: selected.size })}
+            </span>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              size="sm"
+              className="gap-1.5"
+              disabled={selected.size < 2 || creatingOutfit}
+              onClick={handleCreateOutfit}
+            >
+              <Combine className="h-4 w-4" />
+              {t("wardrobe.outfit")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-1.5"
+              disabled={selected.size === 0}
+              onClick={() => handleBulkStore(activeCategory !== "stored")}
+            >
+              <Archive className="h-4 w-4" />
+              {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-1.5"
+              disabled={selected.size === 0 || deleting}
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {selectMode ? (
-            <>
-              <Button
-                size="sm"
-                className="gap-1.5"
-                disabled={selected.size < 2 || creatingOutfit}
-                onClick={handleCreateOutfit}
-              >
-                <Combine className="h-4 w-4" />
-                {t("wardrobe.outfit")}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1.5"
-                disabled={selected.size === 0}
-                onClick={() => handleBulkStore(activeCategory !== "stored")}
-              >
-                <Archive className="h-4 w-4" />
-                {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="gap-1.5"
-                disabled={selected.size === 0 || deleting}
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="outline" onClick={exitSelectMode}>
-                <X className="h-4 w-4" />
-              </Button>
-            </>
-          ) : (
+      ) : (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{t("wardrobe.title")}</h1>
+            <p className="text-sm text-muted-foreground">
+              {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? t("wardrobe.items") : t("wardrobe.itemsPlural")}
+            </p>
+          </div>
+          <div className="flex gap-2">
             <>
               {items.length > 0 && (
                 <Button
@@ -302,9 +309,9 @@ export default function WardrobePage() {
                 }}
               />
             </>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Category filters */}
       <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">

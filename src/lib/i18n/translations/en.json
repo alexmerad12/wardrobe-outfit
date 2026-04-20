@@ -509,6 +509,7 @@
     "addFirstItem": "Add your first item",
     "confirmBulkDelete": "Delete {count} item?",
     "confirmBulkDeletePlural": "Delete {count} items?",
+    "nSelected": "{count} selected",
     "takePhoto": "Take photo",
     "chooseFromLibrary": "Choose from library",
     "fillInManually": "Fill in manually",

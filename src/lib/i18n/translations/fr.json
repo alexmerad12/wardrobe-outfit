@@ -602,6 +602,7 @@
     "addFirstItem": "Ajoute ton premier item",
     "confirmBulkDelete": "Supprimer {count} item ?",
     "confirmBulkDeletePlural": "Supprimer {count} items ?",
+    "nSelected": "{count} sélectionné",
     "takePhoto": "Prendre une photo",
     "chooseFromLibrary": "Choisir dans la galerie",
     "fillInManually": "Remplir manuellement",
