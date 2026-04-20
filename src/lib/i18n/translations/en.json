@@ -539,8 +539,8 @@
     "saveChanges": "Save Changes"
   },
   "packing": {
-    "title": "Packing List",
-    "planTrip": "Plan your trip",
+    "title": "Trip Essentials",
+    "planTrip": "Plan the stay",
     "itemsToPack": "{count} items to pack",
     "destination": "Destination",
     "destinationPlaceholder": "Where are you going?",
@@ -550,7 +550,7 @@
     "activitiesPlaceholder": "e.g. sightseeing, dinner, beach",
     "anythingElse": "Anything else? (optional)",
     "notesPlaceholder": "e.g. pack light, need formal outfit",
-    "generate": "Generate Packing List",
+    "generate": "Build my list",
     "whatToPack": "What to pack",
     "packingListCount": "Packing list ({count} items)",
     "dailyOutfits": "Daily outfits",

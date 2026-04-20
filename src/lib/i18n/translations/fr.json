@@ -632,8 +632,8 @@
     "saveChanges": "Enregistrer les modifications"
   },
   "packing": {
-    "title": "Liste de valise",
-    "planTrip": "Planifie ton voyage",
+    "title": "Essentiels de voyage",
+    "planTrip": "Organise ton séjour",
     "itemsToPack": "{count} items à emporter",
     "destination": "Destination",
     "destinationPlaceholder": "Où vas-tu ?",
@@ -643,7 +643,7 @@
     "activitiesPlaceholder": "ex : visites, dîner, plage",
     "anythingElse": "Autre chose ? (optionnel)",
     "notesPlaceholder": "ex : voyager léger, besoin d'une tenue formelle",
-    "generate": "Générer la liste",
+    "generate": "Créer ma liste",
     "whatToPack": "Quoi emporter",
     "packingListCount": "Liste de valise ({count} items)",
     "dailyOutfits": "Tenues quotidiennes",
