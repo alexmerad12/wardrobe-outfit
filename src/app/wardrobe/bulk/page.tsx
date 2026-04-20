@@ -61,8 +61,8 @@ export default function BulkUploadPage() {
           <h2 className="text-base font-medium mb-1">Upload a batch at once</h2>
           <p className="mb-6 text-sm text-muted-foreground">
             Pick as many photos as you want. Yav will remove the background,
-            read every detail, and save each one to your wardrobe — you can
-            leave this page any time.
+            read every detail, and save each one to your wardrobe. Keep using
+            the app while it works — just don&apos;t close the tab.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
@@ -103,7 +103,7 @@ export default function BulkUploadPage() {
           </div>
           {!allDone && (
             <p className="mt-1 text-xs text-[#9b4050]/80">
-              You can leave this page any time — items are saved as they finish.
+              Keep browsing — they&apos;ll keep going. Just don&apos;t close the tab.
             </p>
           )}
         </div>

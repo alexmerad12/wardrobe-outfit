@@ -55,6 +55,20 @@ export function usePendingUploads(): ContextValue {
 
 const CONCURRENCY = 3;
 
+// Bg removal runs inside a single Web Worker, so only one ML inference can
+// actually happen at a time. Serialise at this layer so we never fire three
+// concurrent worker messages that all race the same timeout — one image
+// being slow used to push the tail of the batch past 3 minutes and trip
+// the timeout on items that hadn't even started yet.
+let bgChain: Promise<unknown> = Promise.resolve();
+function serializedBgRemove(file: Blob): Promise<Blob> {
+  const prev = bgChain;
+  const next = prev.catch(() => {}).then(() => removeBg(file));
+  // Don't let a rejected bg-removal poison the chain for later items.
+  bgChain = next.catch(() => {});
+  return next;
+}
+
 async function uploadImage(file: File): Promise<string> {
   const supabase = createClient();
   const {
@@ -166,9 +180,13 @@ export function PendingUploadsProvider({
         setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
       }
 
-      // 2. Background removal in the worker. If it fails, keep going with
-      //    the downscaled original — a decent result beats a blocked save.
-      const cleanedBlob = await removeBg(downscaled).catch(() => downscaled);
+      // 2. Background removal in the worker, serialised across all items
+      //    so we don't pile up messages inside imgly. If it fails, keep
+      //    going with the downscaled original — a decent result beats a
+      //    blocked save.
+      const cleanedBlob = await serializedBgRemove(downscaled).catch(
+        () => downscaled
+      );
       const cleaned = new File(
         [cleanedBlob],
         item.file.name.replace(/\.[^.]+$/, "") + ".png",
@@ -239,6 +257,23 @@ export function PendingUploadsProvider({
       void processItem(it);
     }
   }, [items, processItem]);
+
+  // Warn the user before they close the tab while uploads are still in
+  // flight — the context lives in memory only, so closing the window
+  // really does drop any unsaved work. Route-level navigation inside the
+  // app is fine because the provider lives above the router.
+  useEffect(() => {
+    const hasActiveWork = items.some(
+      (i) => i.stage === "queued" || i.stage === "processing"
+    );
+    if (!hasActiveWork) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [items]);
 
   // Auto-dismiss "ready" items a moment after they complete, so the pending
   // tray doesn't grow forever after a batch. Leaves error items for retry.

@@ -30,7 +30,11 @@ type PendingEntry = {
   timer: ReturnType<typeof setTimeout>;
 };
 
-const DEFAULT_TIMEOUT_MS = 90_000;
+// 3 minutes per message — generous enough that a chunky photo on a slow
+// device can finish even when others are queued behind it. The pending
+// context serialises calls at its layer anyway, so this timeout only
+// fires on a genuinely stuck worker.
+const DEFAULT_TIMEOUT_MS = 180_000;
 const MAX_INPUT_DIMENSION = 1600;
 
 let worker: Worker | null = null;
@@ -93,10 +97,13 @@ function sendToWorker(
   const id = nextId++;
   return new Promise<Blob | void>((resolve, reject) => {
     const timer = setTimeout(() => {
-      if (pending.has(id)) {
-        destroyWorker("Background removal timed out");
-        reject(new Error("Background removal timed out"));
-      }
+      const entry = pending.get(id);
+      if (!entry) return;
+      // Only drop THIS message — don't destroy the worker. Other queued
+      // items might still be finishing. Worker-level problems trigger the
+      // error/messageerror listeners, which do tear it down.
+      pending.delete(id);
+      reject(new Error("Background removal timed out"));
     }, timeoutMs);
     pending.set(id, { resolve, reject, onProgress, timer });
     w.postMessage({ ...message, id } as WorkerInbound);

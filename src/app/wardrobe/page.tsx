@@ -375,6 +375,8 @@ const BURGUNDY_BORDER = "border-[#e8b4bc]";
 const BURGUNDY_TEXT = "text-[#7c2d3a]";
 const BURGUNDY_SUBTLE = "text-[#9b4050]/80";
 
+const MAX_INLINE_TILES = 6;
+
 function PendingStrip({
   pending,
   onRetry,
@@ -386,18 +388,33 @@ function PendingStrip({
 }) {
   if (pending.length === 0) return null;
   const processing = pending.filter((p) => p.stage !== "error").length;
+  const errorCount = pending.length - processing;
+  const visible = pending.slice(0, MAX_INLINE_TILES);
+  const overflow = pending.length - visible.length;
+
   return (
     <div className={cn("mb-4 rounded-xl px-4 py-3", BURGUNDY_BG, "border", BURGUNDY_BORDER)}>
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className={cn("h-4 w-4", BURGUNDY_TEXT)} />
-        <span className={cn("text-sm font-medium", BURGUNDY_TEXT)}>
-          {processing > 0
-            ? `Yav is adding ${processing} item${processing === 1 ? "" : "s"} to your wardrobe`
-            : "Some uploads need attention"}
-        </span>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles className={cn("h-4 w-4 shrink-0", BURGUNDY_TEXT)} />
+          <span className={cn("text-sm font-medium truncate", BURGUNDY_TEXT)}>
+            {processing > 0
+              ? `Yav is adding ${processing} item${processing === 1 ? "" : "s"}…`
+              : "Some uploads need attention"}
+            {errorCount > 0 && processing > 0 && ` · ${errorCount} failed`}
+          </span>
+        </div>
+        {pending.length > MAX_INLINE_TILES && (
+          <Link
+            href="/wardrobe/bulk"
+            className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
+          >
+            View all →
+          </Link>
+        )}
       </div>
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-        {pending.map((p) => (
+        {visible.map((p) => (
           <PendingTile
             key={p.id}
             item={p}
@@ -405,9 +422,17 @@ function PendingStrip({
             onDismiss={() => onDismiss(p.id)}
           />
         ))}
+        {overflow > 0 && (
+          <Link
+            href="/wardrobe/bulk"
+            className="relative aspect-square overflow-hidden rounded-lg bg-[#f4d3d9] flex items-center justify-center text-[#7c2d3a] text-xs font-medium"
+          >
+            +{overflow}
+          </Link>
+        )}
       </div>
       <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
-        You can close this page — they&apos;ll keep processing and appear in your wardrobe when ready.
+        Keep using Closette — these stay in flight as you browse.
       </p>
     </div>
   );
