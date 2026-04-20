@@ -299,7 +299,14 @@ export default function WardrobePage() {
                 capture="environment"
                 className="hidden"
                 onChange={(e) => {
-                  if (e.target.files) addFiles(e.target.files);
+                  if (e.target.files) {
+                    const result = addFiles(e.target.files);
+                    if (result.rejected > 0) {
+                      alert(
+                        `Only 10 items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                      );
+                    }
+                  }
                   if (cameraInputRef.current) cameraInputRef.current.value = "";
                 }}
               />
@@ -311,7 +318,14 @@ export default function WardrobePage() {
                 multiple
                 className="hidden"
                 onChange={(e) => {
-                  if (e.target.files) addFiles(e.target.files);
+                  if (e.target.files) {
+                    const result = addFiles(e.target.files);
+                    if (result.rejected > 0) {
+                      alert(
+                        `Only 10 items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                      );
+                    }
+                  }
                   if (libraryInputRef.current) libraryInputRef.current.value = "";
                 }}
               />

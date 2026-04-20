@@ -35,9 +35,16 @@ export type PendingItem = {
   error?: string;
 };
 
+// Hard cap on how many files can be in flight per batch. Picked from
+// real-world data: at 5 every upload finishes cleanly, at 40 most fail
+// on mobile cellular. 10 is the sweet spot — the whole batch completes
+// within a few minutes, the user doesn't wander off, and the chances of
+// hitting a networking dead-end on any single upload stay low.
+export const MAX_BATCH = 10;
+
 type ContextValue = {
   items: PendingItem[];
-  addFiles: (files: FileList | File[]) => void;
+  addFiles: (files: FileList | File[]) => { accepted: number; rejected: number };
   retry: (id: string) => void;
   dismiss: (id: string) => void;
   dismissAllFailed: () => void;
@@ -321,32 +328,50 @@ export function PendingUploadsProvider({
     return () => clearTimeout(timer);
   }, [items]);
 
-  const addFiles = useCallback((files: FileList | File[]) => {
-    const incoming: PendingItem[] = [];
-    // De-dupe within the current session by filename + size + lastModified.
-    // The same underlying photo picked twice returns an identical key; two
-    // different photos of the same outfit don't. Good enough for
-    // "I accidentally added this twice" without a full content hash.
-    const knownKeys = new Set(
-      items.map((i) => `${i.file.name}:${i.file.size}:${i.file.lastModified}`)
-    );
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) {
-        continue;
+  const addFiles = useCallback(
+    (files: FileList | File[]) => {
+      // De-dupe within the current session by filename + size + lastModified.
+      // The same underlying photo picked twice returns an identical key; two
+      // different photos of the same outfit don't. Good enough for
+      // "I accidentally added this twice" without a full content hash.
+      const knownKeys = new Set(
+        items.map((i) => `${i.file.name}:${i.file.size}:${i.file.lastModified}`)
+      );
+      // Enforce MAX_BATCH in-flight: only accept as many as we have capacity
+      // for. Anything past the cap is rejected with a count so the caller
+      // can tell the user.
+      const activeCount = items.filter(
+        (i) => i.stage !== "ready" && i.stage !== "error"
+      ).length;
+      let remainingCapacity = Math.max(0, MAX_BATCH - activeCount);
+      const incoming: PendingItem[] = [];
+      let rejected = 0;
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/") && !/\.(heic|heif)$/i.test(file.name)) {
+          continue;
+        }
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (knownKeys.has(key)) continue;
+        if (remainingCapacity <= 0) {
+          rejected++;
+          continue;
+        }
+        knownKeys.add(key);
+        remainingCapacity--;
+        incoming.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          file,
+          previewUrl: URL.createObjectURL(file),
+          stage: "queued",
+        });
       }
-      const key = `${file.name}:${file.size}:${file.lastModified}`;
-      if (knownKeys.has(key)) continue;
-      knownKeys.add(key);
-      incoming.push({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-        file,
-        previewUrl: URL.createObjectURL(file),
-        stage: "queued",
-      });
-    }
-    if (incoming.length === 0) return;
-    setItems((prev) => [...incoming, ...prev]);
-  }, [items]);
+      if (incoming.length > 0) {
+        setItems((prev) => [...incoming, ...prev]);
+      }
+      return { accepted: incoming.length, rejected };
+    },
+    [items]
+  );
 
   const retry = useCallback((id: string) => {
     kickedOffRef.current.delete(id);
