@@ -6,7 +6,7 @@ export const metadata = {
 
 const EFFECTIVE_DATE = "April 19, 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
-const CONTACT_EMAIL = "alex@automatable.co";
+const CONTACT_EMAIL = "closette.boutique.app@gmail.com";
 
 export default function TermsPage() {
   return (

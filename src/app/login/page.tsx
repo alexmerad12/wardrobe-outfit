@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleSignInButton } from "@/components/google-signin-button";
 
 function LoginForm() {
   const router = useRouter();
@@ -46,6 +47,14 @@ function LoginForm() {
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in to your Closette
           </p>
+        </div>
+
+        <GoogleSignInButton next={next} />
+
+        <div className="my-5 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">OR</span>
+          <div className="h-px flex-1 bg-border" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

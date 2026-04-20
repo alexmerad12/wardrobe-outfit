@@ -16,7 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { TemperatureSensitivity, TemperatureUnit, ClothingItem } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
-import { MapPin, Thermometer, Loader2 } from "lucide-react";
+import { MapPin, Thermometer, Loader2, LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface CityResult {
   name: string;
@@ -27,6 +28,8 @@ interface CityResult {
 }
 
 export default function ProfilePage() {
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -45,6 +48,20 @@ export default function ProfilePage() {
   const [searching, setSearching] = useState(false);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+  }, []);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
 
   useEffect(() => {
     async function loadProfile() {
@@ -471,6 +488,39 @@ export default function ProfilePage() {
               </>
             ) : (
               "Save Settings"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Account</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {userEmail && (
+            <div className="text-sm">
+              <p className="text-muted-foreground">Signed in as</p>
+              <p className="font-medium break-all">{userEmail}</p>
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleSignOut}
+            disabled={signingOut}
+          >
+            {signingOut ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing out...
+              </>
+            ) : (
+              <>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </>
             )}
           </Button>
         </CardContent>
