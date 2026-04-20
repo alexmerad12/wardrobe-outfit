@@ -58,6 +58,7 @@ export default function AddItemPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [removingBg, setRemovingBg] = useState(false);
+  const [bgError, setBgError] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -273,6 +274,7 @@ export default function AddItemPage() {
 
   async function runBgRemoval(source: File) {
     setRemovingBg(true);
+    setBgError(null);
     try {
       const blob = await removeBg(source);
       const cleaned = new File([blob], source.name.replace(/\.[^.]+$/, "") + ".png", {
@@ -288,6 +290,7 @@ export default function AddItemPage() {
       reader.readAsDataURL(cleaned);
     } catch (err) {
       console.error("Background removal failed:", err);
+      setBgError("Couldn't remove the background. You can keep the original or try again.");
     } finally {
       setRemovingBg(false);
     }
@@ -517,23 +520,28 @@ export default function AddItemPage() {
 
         {/* Remove background button */}
         {imagePreview && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={handleRemoveBackground}
-            disabled={removingBg}
-          >
-            {removingBg ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("addItem.removingBackground")}
-              </>
-            ) : (
-              t("addItem.removeBackground")
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={handleRemoveBackground}
+              disabled={removingBg}
+            >
+              {removingBg ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("addItem.removingBackground")}
+                </>
+              ) : (
+                t("addItem.removeBackground")
+              )}
+            </Button>
+            {bgError && (
+              <p className="text-xs text-red-600 text-center">{bgError}</p>
             )}
-          </Button>
+          </>
         )}
 
         {/* Colors (when image is present or colors detected) */}

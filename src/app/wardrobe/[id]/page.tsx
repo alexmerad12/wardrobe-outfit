@@ -75,6 +75,7 @@ export default function ItemDetailPage() {
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
+  const [bgError, setBgError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
@@ -307,6 +308,7 @@ export default function ItemDetailPage() {
 
   async function runBgRemoval(source: Blob) {
     setRemovingBg(true);
+    setBgError(null);
     try {
       const resultBlob = await removeBg(source);
       const file = new File([resultBlob], "bg-removed.png", { type: "image/png" });
@@ -316,6 +318,7 @@ export default function ItemDetailPage() {
       reader.readAsDataURL(file);
     } catch (err) {
       console.error("Background removal failed:", err);
+      setBgError("Couldn't remove the background. You can keep the original or try again.");
     } finally {
       setRemovingBg(false);
     }
@@ -331,6 +334,7 @@ export default function ItemDetailPage() {
       await runBgRemoval(imageBlob);
     } catch (err) {
       console.error("Background removal failed:", err);
+      setBgError("Couldn't remove the background. You can keep the original or try again.");
     }
   }
 
@@ -456,23 +460,28 @@ export default function ItemDetailPage() {
 
       {/* Remove background button - edit mode */}
       {editing && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full mb-4"
-          onClick={handleRemoveBackground}
-          disabled={removingBg}
-        >
-          {removingBg ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {t("itemDetail.removingBackground")}
-            </>
-          ) : (
-            t("itemDetail.removeBackground")
+        <div className="mb-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={handleRemoveBackground}
+            disabled={removingBg}
+          >
+            {removingBg ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t("itemDetail.removingBackground")}
+              </>
+            ) : (
+              t("itemDetail.removeBackground")
+            )}
+          </Button>
+          {bgError && (
+            <p className="mt-2 text-xs text-red-600 text-center">{bgError}</p>
           )}
-        </Button>
+        </div>
       )}
 
       {editing ? (
