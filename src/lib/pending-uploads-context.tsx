@@ -8,13 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
-import * as tus from "tus-js-client";
 import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
-import { createClient } from "@/lib/supabase/client";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage } from "@/lib/image-utils";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
+import { uploadToSupabase } from "@/lib/upload-to-supabase";
 
 // Global background-processing queue for item uploads.
 //
@@ -77,84 +76,7 @@ function serializedBgRemove(file: Blob): Promise<Blob> {
   return next;
 }
 
-const BUCKET = "clothing-images";
-const TUS_CHUNK_SIZE = 6 * 1024 * 1024; // Supabase-mandated 6 MB chunks.
-
-function projectIdFromSupabaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL not set");
-  return new URL(url).hostname.split(".")[0];
-}
-
-// Resumable upload via the tus.io protocol — what Supabase exposes at
-// /storage/v1/upload/resumable. Why this and not the simple SDK upload:
-// on mobile cellular a 30-photo batch spans minutes, and TCP connections
-// drop routinely. The SDK's single-shot POST treats that as a hard
-// failure ("Failed to fetch"). tus pauses, negotiates the last-ACKed
-// byte with the server, and resumes from there. The upload survives
-// every real-world flake short of closing the browser.
-async function uploadImage(file: File): Promise<string> {
-  const supabase = createClient();
-  // Refresh the session up front so the access token has full TTL for
-  // the upload duration — a chunky batch can outlast a stale token.
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user?.id || !session?.access_token) {
-    throw new Error("Not signed in");
-  }
-
-  const projectId = projectIdFromSupabaseUrl();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const objectName = `${session.user.id}/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}-${safeName}`;
-
-  return new Promise<string>((resolve, reject) => {
-    const upload = new tus.Upload(file, {
-      endpoint: `https://${projectId}.storage.supabase.co/storage/v1/upload/resumable`,
-      // Aggressive retry schedule — cellular drops routinely on mobile.
-      retryDelays: [0, 3_000, 5_000, 10_000, 20_000, 30_000, 60_000],
-      headers: {
-        authorization: `Bearer ${session.access_token}`,
-        "x-upsert": "true",
-      },
-      uploadDataDuringCreation: true,
-      removeFingerprintOnSuccess: true,
-      chunkSize: TUS_CHUNK_SIZE,
-      metadata: {
-        bucketName: BUCKET,
-        objectName,
-        contentType: file.type || "image/jpeg",
-        cacheControl: "3600",
-      },
-      onError(err) {
-        console.error("[tus] upload failed for", objectName, err);
-        reject(err instanceof Error ? err : new Error(String(err)));
-      },
-      onSuccess() {
-        const publicUrl = supabase.storage
-          .from(BUCKET)
-          .getPublicUrl(objectName).data.publicUrl;
-        resolve(publicUrl);
-      },
-    });
-
-    // Resume from a half-finished upload if one exists for this file
-    // fingerprint (same name+size+lastModified). Cheap to check.
-    upload
-      .findPreviousUploads()
-      .then((prev) => {
-        if (prev.length > 0) upload.resumeFromPreviousUpload(prev[0]);
-        upload.start();
-      })
-      .catch((err) => {
-        // If the lookup itself fails, still try fresh.
-        console.warn("[tus] findPreviousUploads failed, starting fresh", err);
-        upload.start();
-      });
-  });
-}
+const uploadImage = uploadToSupabase;
 
 function buildItemPayload(imageUrl: string, a: AutoFillResult) {
   const aiColors =

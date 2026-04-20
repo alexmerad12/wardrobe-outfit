@@ -50,10 +50,35 @@ OTHER FIELDS:
 - is_layering_piece: true only for open cardigans, vests, blazers, lightweight outerwear worn over a base layer
 - belt_compatible: true for pants/skirts/dresses with visible belt loops or a defined waist
 
+CATEGORY DISAMBIGUATION (common misclassifications):
+- A "shirt" with a hood is a "hoodie" (subcategory), category stays "top"
+- A zip-front knit top is a "cardigan", not a "sweater"
+- A button-front shirt that's relaxed but tucked-in-appropriate is still a "shirt", not a "blouse" (reserve "blouse" for dressier drapey cuts)
+- Corduroy/quilted jacket = outerwear/"jacket"; structured wool jacket = outerwear/"blazer"
+- Denim jacket in outerwear is ALWAYS "denim-jacket", never generic "jacket"
+- Leather/faux-leather jackets → "leather-jacket" regardless of length
+- Technical waterproof outer layer → "windbreaker" or "raincoat"-style "jacket" (set rain_appropriate: true)
+- Quilted puffy insulated jacket → "puffer"
+- Calf-length formal coat → "trench-coat" or "peacoat" (peacoat = double-breasted wool, trench = belted gabardine); fall back to "coat" otherwise
+- Shorts with an elastic waist and drawstring and not athletic = casual shorts, set subcategory "shorts"; athletic versions → also "shorts" but warmth_rating 1
+- Jumpsuit vs. dress: if legs are separated into pant legs, it's "jumpsuit"; otherwise a dress subcategory
+- Heels vs boots: "heels" only if open-back or low-cut; anything ankle-or-higher is a boot subcategory
+
+MATERIAL GUIDANCE:
+- Cotton looks matte, slight weave; jersey knits are still "cotton" if that's the visible fiber
+- "Knit" is reserved for obvious loops/cables (sweaters, cardigans) — smooth T-shirts are "cotton"
+- Denim is only denim — don't label chambray or canvas as denim
+- "Leather" is the default for shiny supple hide; use "faux-leather" only if clearly synthetic (often thinner, stiffer)
+- Default to ONE material entry. Only add a second if two are clearly visible (e.g. cotton shirt with lace trim)
+
+FIT/WARMTH INTUITION:
+- warmth_rating: 1 = tank/sandals/shorts, 2 = light tee/skirt, 3 = long-sleeve shirt/jeans, 4 = sweater/wool coat, 5 = heavy parka/insulated boots
+- is_layering_piece: open cardigans, blazers, open-drape/vest pieces. NOT crewneck sweaters or pullovers.
+
 RULES:
 - Only include fields relevant to the category (e.g. no neckline on bottoms, no shoe_height on dresses)
-- Prefer a confident best guess over omitting — user reviews and edits
-- Never invent values outside the enums above
+- Prefer a confident best guess over omitting — user reviews and edits. When between two close enum values, pick the more specific one.
+- Never invent values outside the enums above. If unsure, omit the field rather than invent.
 - Respond with one JSON object, nothing else`;
 
 

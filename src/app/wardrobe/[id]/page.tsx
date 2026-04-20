@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { upload } from "@vercel/blob/client";
+import { uploadToSupabase } from "@/lib/upload-to-supabase";
 import type {
   ClothingItem,
   Category,
@@ -226,21 +226,25 @@ export default function ItemDetailPage() {
     editCategory !== "accessory" &&
     editCategory !== "bag";
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   async function saveEdit() {
     if (!item) return;
     setSaving(true);
+    setSaveError(null);
     try {
-      // Upload new image if changed
+      // Upload new image if changed — via the same Supabase-tus path that
+      // the pending bulk queue uses. (Was using the deleted /api/upload
+      // Vercel-Blob endpoint, which is why Save Changes was silently
+      // failing.)
       let imageUrl = item.image_url;
       if (newImageFile) {
         setUploadingImage(true);
-        const blob = await upload(
-          `clothing/${Date.now()}-${newImageFile.name}`,
-          newImageFile,
-          { access: "public", handleUploadUrl: "/api/upload" }
-        );
-        imageUrl = blob.url;
-        setUploadingImage(false);
+        try {
+          imageUrl = await uploadToSupabase(newImageFile);
+        } finally {
+          setUploadingImage(false);
+        }
       }
 
       const res = await fetch(`/api/items/${item.id}`, {
@@ -286,9 +290,16 @@ export default function ItemDetailPage() {
         setEditing(false);
         setNewImageFile(null);
         setNewImagePreview(null);
+      } else {
+        const text = await res.text().catch(() => "");
+        console.error("[edit] PATCH failed", res.status, text);
+        setSaveError(
+          text ? `Save failed (${res.status}): ${text.slice(0, 160)}` : `Save failed (${res.status})`
+        );
       }
     } catch (err) {
       console.error("Failed to save:", err);
+      setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -880,6 +891,11 @@ export default function ItemDetailPage() {
           <Button className="w-full h-12" onClick={saveEdit} disabled={saving}>
             {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("common.saving")}</> : t("itemDetail.saveChanges")}
           </Button>
+          {saveError && (
+            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 break-words">
+              {saveError}
+            </div>
+          )}
         </div>
       ) : (
         /* ==================== VIEW MODE ==================== */
