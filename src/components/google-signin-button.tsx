@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 export function GoogleSignInButton({ next = "/" }: { next?: string }) {
+  const { t } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +40,7 @@ export function GoogleSignInButton({ next = "/" }: { next?: string }) {
         className="flex w-full items-center justify-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
       >
         <GoogleLogo />
-        {loading ? "Redirecting..." : "Continue with Google"}
+        {loading ? t("common.redirecting") : t("auth.continueWithGoogle")}
       </button>
       {error && (
         <p className="mt-2 text-sm text-red-600" role="alert">

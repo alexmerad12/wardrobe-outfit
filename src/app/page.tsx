@@ -150,7 +150,7 @@ export default function HomePage() {
   }
 
   async function clearTodayOutfit() {
-    if (!confirm("Remove today's outfit?")) return;
+    if (!confirm(t("home.confirmRemoveTodaysOutfit"))) return;
     await fetch("/api/today", { method: "DELETE" });
     setTodayOutfit(null);
     setTodayItems([]);
@@ -204,14 +204,14 @@ export default function HomePage() {
               {/* Mood / Occasion / Weather row */}
               <div className="flex flex-wrap gap-2">
                 {!todayOutfit.mood && !todayOutfit.occasion && (todayOutfit.weather_temp === null || todayOutfit.weather_temp === undefined) && (
-                  <p className="text-xs text-muted-foreground italic">Tap &quot;Wear Today&quot; on a new suggestion to see mood &amp; occasion here</p>
+                  <p className="text-xs text-muted-foreground italic">{t("home.tapWearTodayHint")}</p>
                 )}
                 {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
                     <span className="text-base">{MOOD_CONFIG[todayOutfit.mood as Mood].emoji}</span>
                     <div>
                       <p className="text-xs font-medium leading-tight">{t(`mood.${todayOutfit.mood}.label`)}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Mood</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{t("home.moodLabel")}</p>
                     </div>
                   </div>
                 )}
@@ -220,7 +220,7 @@ export default function HomePage() {
                     <Sparkles className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs font-medium leading-tight">{t(`occasion.${todayOutfit.occasion}`)}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Occasion</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{t("home.occasionLabel")}</p>
                     </div>
                   </div>
                 )}
@@ -229,7 +229,7 @@ export default function HomePage() {
                     <Thermometer className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs font-medium leading-tight">{convertTemp(todayOutfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{todayOutfit.weather_condition || "Weather"}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{todayOutfit.weather_condition || t("home.weatherLabel")}</p>
                     </div>
                   </div>
                 )}
@@ -394,11 +394,11 @@ export default function HomePage() {
                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                           <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => favoriteRecent(outfit)}>
                             <Heart className="h-4 w-4" />
-                            Favorite
+                            {t("home.favorite")}
                           </Button>
                           <Button size="sm" className="flex-1 gap-1.5" onClick={() => wearRecentToday(outfit)}>
                             <Shirt className="h-4 w-4" />
-                            Wear Today
+                            {t("home.wearToday")}
                           </Button>
                         </div>
                       </>

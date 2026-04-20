@@ -19,9 +19,11 @@ import {
   type PendingItem,
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 export default function BulkUploadPage() {
   const router = useRouter();
+  const { t } = useLocale();
   const { items, addFiles, retry, dismiss } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +51,7 @@ export default function BulkUploadPage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-medium">Bulk upload</h1>
+        <h1 className="text-xl font-medium">{t("bulk.title")}</h1>
       </div>
 
       {/* Empty state */}
@@ -58,11 +60,9 @@ export default function BulkUploadPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f4d3d9]">
             <Sparkles className="h-7 w-7 text-[#7c2d3a]" />
           </div>
-          <h2 className="text-base font-medium mb-1">Upload a batch at once</h2>
+          <h2 className="text-base font-medium mb-1">{t("bulk.subtitle")}</h2>
           <p className="mb-6 text-sm text-muted-foreground">
-            Pick as many photos as you want. Yav will remove the background,
-            read every detail, and save each one to your wardrobe. Keep using
-            the app while it works — just don&apos;t close the tab.
+            {t("bulk.description")}
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
@@ -72,7 +72,7 @@ export default function BulkUploadPage() {
               onClick={() => cameraInputRef.current?.click()}
             >
               <Camera className="h-4 w-4" />
-              Take photo
+              {t("bulk.takePhoto")}
             </Button>
             <Button
               size="lg"
@@ -80,7 +80,7 @@ export default function BulkUploadPage() {
               onClick={() => libraryInputRef.current?.click()}
             >
               <UploadIcon className="h-4 w-4" />
-              Choose from library
+              {t("bulk.chooseFromLibrary")}
             </Button>
           </div>
         </div>
@@ -97,13 +97,17 @@ export default function BulkUploadPage() {
             )}
             <span className="font-medium">
               {allDone
-                ? `All ${counts.total} item${counts.total === 1 ? "" : "s"} processed`
-                : `${counts.ready} of ${counts.total} ready · ${counts.processing + counts.queued} in progress`}
+                ? t(counts.total === 1 ? "bulk.allProcessed" : "bulk.allProcessedPlural", { count: counts.total })
+                : t("bulk.readyOfTotal", {
+                    ready: counts.ready,
+                    total: counts.total,
+                    inProgress: counts.processing + counts.queued,
+                  })}
             </span>
           </div>
           {!allDone && (
             <p className="mt-1 text-xs text-[#9b4050]/80">
-              Keep browsing — they&apos;ll keep going. Just don&apos;t close the tab.
+              {t("bulk.keepBrowsing")}
             </p>
           )}
         </div>
@@ -127,7 +131,7 @@ export default function BulkUploadPage() {
             className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground hover:border-[#c98695] hover:bg-[#fdf2f4] transition-colors"
           >
             <Plus className="h-6 w-6 mb-1" />
-            <span className="text-xs font-medium">Add more</span>
+            <span className="text-xs font-medium">{t("bulk.addMore")}</span>
           </button>
         </div>
       )}
@@ -164,7 +168,7 @@ export default function BulkUploadPage() {
             className="w-full"
             onClick={() => router.push("/wardrobe")}
           >
-            Go to wardrobe
+            {t("bulk.goToWardrobe")}
           </Button>
         </div>
       )}
@@ -181,11 +185,12 @@ function BulkCard({
   onRetry: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useLocale();
   const content = (
     <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
       <UploadPreviewImage
         src={item.previewUrl}
-        alt={item.name ?? "Clothing item"}
+        alt={item.name ?? t("bulk.altClothingItem")}
         className="h-full w-full object-cover"
       />
 
@@ -193,7 +198,7 @@ function BulkCard({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-white">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-[11px] font-medium">
-            {item.stage === "processing" ? "Working…" : "Queued"}
+            {item.stage === "processing" ? t("bulk.working") : t("bulk.queued")}
           </span>
         </div>
       )}
@@ -208,7 +213,7 @@ function BulkCard({
           title={item.error}
         >
           <AlertCircle className="h-5 w-5" />
-          <span className="text-[11px] font-medium">Failed — tap to retry</span>
+          <span className="text-[11px] font-medium">{t("bulk.failedTapToRetry")}</span>
         </div>
       )}
 

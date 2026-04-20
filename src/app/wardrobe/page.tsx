@@ -97,7 +97,14 @@ export default function WardrobePage() {
 
   async function handleBulkDelete() {
     if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} item${selected.size > 1 ? "s" : ""}?`)) return;
+    if (
+      !confirm(
+        t(selected.size === 1 ? "wardrobe.confirmBulkDelete" : "wardrobe.confirmBulkDeletePlural", {
+          count: selected.size,
+        })
+      )
+    )
+      return;
 
     setDeleting(true);
     try {
@@ -199,7 +206,7 @@ export default function WardrobePage() {
                 onClick={handleCreateOutfit}
               >
                 <Combine className="h-4 w-4" />
-                Outfit
+                {t("wardrobe.outfit")}
               </Button>
               <Button
                 size="sm"
@@ -209,7 +216,7 @@ export default function WardrobePage() {
                 onClick={() => handleBulkStore(activeCategory !== "stored")}
               >
                 <Archive className="h-4 w-4" />
-                {activeCategory === "stored" ? "Unstore" : "Store"}
+                {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
               </Button>
               <Button
                 size="sm"
@@ -234,7 +241,7 @@ export default function WardrobePage() {
                   onClick={() => setSelectMode(true)}
                 >
                   <CheckSquare className="h-4 w-4" />
-                  Select
+                  {t("wardrobe.select")}
                 </Button>
               )}
               <DropdownMenu>
@@ -242,7 +249,7 @@ export default function WardrobePage() {
                   render={
                     <Button size="sm" className="gap-1.5">
                       <Plus className="h-4 w-4" />
-                      Add
+                      {t("wardrobe.add")}
                     </Button>
                   }
                 />
@@ -252,21 +259,21 @@ export default function WardrobePage() {
                     className="gap-2"
                   >
                     <Camera className="h-4 w-4" />
-                    Take photo
+                    {t("wardrobe.takePhoto")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => libraryInputRef.current?.click()}
                     className="gap-2"
                   >
                     <ImageIcon className="h-4 w-4" />
-                    Choose from library
+                    {t("wardrobe.chooseFromLibrary")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => router.push("/wardrobe/add")}
                     className="gap-2 text-muted-foreground"
                   >
                     <Plus className="h-4 w-4" />
-                    Fill in manually
+                    {t("wardrobe.fillInManually")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -386,6 +393,7 @@ function PendingStrip({
   onRetry: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
+  const { t } = useLocale();
   if (pending.length === 0) return null;
   const processing = pending.filter((p) => p.stage !== "error").length;
   const errorCount = pending.length - processing;
@@ -400,9 +408,9 @@ function PendingStrip({
           <Sparkles className={cn("h-4 w-4 shrink-0", BURGUNDY_TEXT)} />
           <span className={cn("text-sm font-medium truncate", BURGUNDY_TEXT)}>
             {processing > 0
-              ? `Yav is adding ${processing} item${processing === 1 ? "" : "s"}…`
-              : "Some uploads need attention"}
-            {errorCount > 0 && processing > 0 && ` · ${errorCount} failed`}
+              ? t(processing === 1 ? "wardrobe.yavIsAdding" : "wardrobe.yavIsAddingPlural", { count: processing })
+              : t("wardrobe.someUploadsNeedAttention")}
+            {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
           </span>
         </div>
         {pending.length > MAX_INLINE_TILES && (
@@ -410,7 +418,7 @@ function PendingStrip({
             href="/wardrobe/bulk"
             className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
           >
-            View all →
+            {t("wardrobe.viewAll")}
           </Link>
         )}
       </div>
@@ -434,15 +442,15 @@ function PendingStrip({
       </div>
       {firstError ? (
         <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-2.5 py-1.5 text-xs text-red-800">
-          <span className="font-medium">Failed: </span>
+          <span className="font-medium">{t("wardrobe.failed")}</span>
           <span className="break-words">{firstError}</span>
           <span className="block mt-0.5 text-[11px] text-red-600/80">
-            Tap a failed tile to retry · full details in browser console
+            {t("wardrobe.tapFailedTileToRetry")}
           </span>
         </div>
       ) : (
         <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
-          Keep using Closette — these stay in flight as you browse.
+          {t("wardrobe.keepUsingClosette")}
         </p>
       )}
     </div>
@@ -458,6 +466,7 @@ function PendingTile({
   onRetry: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useLocale();
   const isError = item.stage === "error";
   return (
     <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
@@ -470,10 +479,10 @@ function PendingTile({
           type="button"
           onClick={onRetry}
           className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-950/60 text-white"
-          title={item.error ? `Tap to retry — ${item.error}` : "Tap to retry"}
+          title={item.error ? t("wardrobe.tapToRetryWithError", { error: item.error }) : t("wardrobe.tapToRetry")}
         >
           <AlertCircle className="h-4 w-4" />
-          <span className="text-[10px] font-medium">Retry</span>
+          <span className="text-[10px] font-medium">{t("wardrobe.retry")}</span>
         </button>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
@@ -485,7 +494,7 @@ function PendingTile({
           type="button"
           onClick={onDismiss}
           className="absolute top-1 right-1 rounded-full bg-black/50 p-0.5 text-white hover:bg-black/70"
-          title="Remove from list"
+          title={t("wardrobe.removeFromList")}
         >
           <X className="h-3 w-3" />
         </button>

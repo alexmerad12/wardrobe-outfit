@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, Share2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -29,6 +30,7 @@ function isStandalone(): boolean {
 }
 
 export function InstallPrompt() {
+  const { t } = useLocale();
   const [platform, setPlatform] = useState<Platform>("unknown");
   const [installed, setInstalled] = useState(true);
   const [deferredPrompt, setDeferredPrompt] =
@@ -64,9 +66,9 @@ export function InstallPrompt() {
           <Download className="h-4 w-4" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold">Install Closette</h3>
+          <h3 className="text-sm font-semibold">{t("install.installClosette")}</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Add Closette to your home screen for the best experience.
+            {t("install.description")}
           </p>
 
           {platform === "android" && deferredPrompt && (
@@ -75,15 +77,13 @@ export function InstallPrompt() {
               className="mt-3"
               onClick={handleAndroidInstall}
             >
-              Install app
+              {t("install.installApp")}
             </Button>
           )}
 
           {platform === "android" && !deferredPrompt && (
             <p className="mt-2 text-xs text-muted-foreground">
-              Open the browser menu (⋮) and tap{" "}
-              <strong>Install app</strong> or{" "}
-              <strong>Add to Home screen</strong>.
+              {t("install.androidInstruction")}
             </p>
           )}
 
@@ -94,27 +94,25 @@ export function InstallPrompt() {
                 variant="outline"
                 onClick={() => setShowIosHint((v) => !v)}
               >
-                How to install on iPhone
+                {t("install.howToInstallIphone")}
               </Button>
               {showIosHint && (
                 <ol className="mt-3 space-y-2 text-xs text-muted-foreground">
                   <li className="flex items-center gap-2">
                     <span>1.</span>
                     <span className="flex items-center gap-1">
-                      Tap the <Share2 className="h-3.5 w-3.5" /> Share button in
-                      Safari
+                      <Share2 className="h-3.5 w-3.5" /> {t("install.iosStep1")}
                     </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span>2.</span>
                     <span className="flex items-center gap-1">
-                      Scroll down and tap{" "}
-                      <Plus className="h-3.5 w-3.5" /> <strong>Add to Home Screen</strong>
+                      <Plus className="h-3.5 w-3.5" /> {t("install.iosStep2")}
                     </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span>3.</span>
-                    <span>Tap Add</span>
+                    <span>{t("install.iosStep3")}</span>
                   </li>
                 </ol>
               )}
@@ -123,8 +121,7 @@ export function InstallPrompt() {
 
           {platform === "desktop" && (
             <p className="mt-2 text-xs text-muted-foreground">
-              In Chrome or Edge, click the install icon in the address bar (or
-              browser menu → Install Closette).
+              {t("install.desktopInstruction")}
             </p>
           )}
         </div>

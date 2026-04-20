@@ -597,12 +597,12 @@ export default function ProfilePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Account</CardTitle>
+          <CardTitle>{t("profile.account")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {userEmail && (
             <div className="text-sm">
-              <p className="text-muted-foreground">Signed in as</p>
+              <p className="text-muted-foreground">{t("profile.signedInAs")}</p>
               <p className="font-medium break-all">{userEmail}</p>
             </div>
           )}

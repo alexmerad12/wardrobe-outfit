@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleSignInButton } from "@/components/google-signin-button";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { t } = useLocale();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +22,7 @@ export default function SignUpPage() {
     setError(null);
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("auth.passwordRequirement"));
       return;
     }
 
@@ -54,17 +56,16 @@ export default function SignUpPage() {
       <div className="flex min-h-screen items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm text-center">
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">
-            Check your inbox
+            {t("auth.checkInbox")}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            We sent a confirmation link to <strong>{email}</strong>. Click it to
-            finish creating your account.
+            {t("auth.confirmationSent", { email })}
           </p>
           <Link
             href="/login"
             className="mt-6 inline-block text-sm font-medium underline"
           >
-            Back to sign in
+            {t("auth.backToSignIn")}
           </Link>
         </div>
       </div>
@@ -76,10 +77,10 @@ export default function SignUpPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">
-            Create your Closette
+            {t("auth.createYourClosette")}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your wardrobe, beautifully organized.
+            {t("auth.wardrobeTagline")}
           </p>
         </div>
 
@@ -87,7 +88,7 @@ export default function SignUpPage() {
 
         <div className="my-5 flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">OR</span>
+          <span className="text-xs text-muted-foreground">{t("auth.or")}</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
@@ -97,7 +98,7 @@ export default function SignUpPage() {
               htmlFor="email"
               className="block text-sm font-medium mb-1.5"
             >
-              Email
+              {t("auth.email")}
             </label>
             <input
               id="email"
@@ -115,7 +116,7 @@ export default function SignUpPage() {
               htmlFor="password"
               className="block text-sm font-medium mb-1.5"
             >
-              Password
+              {t("auth.password")}
             </label>
             <input
               id="password"
@@ -128,7 +129,7 @@ export default function SignUpPage() {
               className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              At least 8 characters.
+              {t("auth.passwordHint")}
             </p>
           </div>
 
@@ -143,30 +144,30 @@ export default function SignUpPage() {
             disabled={loading}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? t("auth.creatingAccount") : t("auth.createAccount")}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
+          {t("auth.alreadyHaveAccount")}{" "}
           <Link
             href="/login"
             className="font-medium text-foreground hover:underline"
           >
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </p>
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          By continuing, you agree to our{" "}
+          {t("auth.termsPrefix")}
           <Link href="/terms" className="underline">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="underline">
-            Privacy Policy
+            {t("auth.termsLink")}
           </Link>
-          .
+          {t("auth.termsAnd")}
+          <Link href="/privacy" className="underline">
+            {t("auth.privacyLink")}
+          </Link>
+          {t("auth.termsSuffix")}
         </p>
       </div>
     </div>

@@ -431,7 +431,7 @@ export default function PackingPage() {
                           {" – "}
                           {formatTripDate(trip.end_date)}
                           {" · "}
-                          {trip.packing_item_ids.length} items
+                          {trip.packing_item_ids.length} {t("packing.items")}
                         </p>
                       </div>
                       <Plane className="h-4 w-4 text-muted-foreground" />

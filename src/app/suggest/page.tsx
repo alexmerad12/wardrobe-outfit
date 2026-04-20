@@ -243,7 +243,7 @@ function SuggestContent() {
             disabled={!mood}
             onClick={() => setStep("style")}
           >
-            Next
+            {t("common.next")}
           </Button>
         </div>
       )}

@@ -98,7 +98,7 @@ export default function FavoritesPage() {
         <Link href="/suggest">
           <Button size="sm" className="gap-1.5">
             <Sparkles className="h-4 w-4" />
-            New
+            {t("favorites.new")}
           </Button>
         </Link>
       </div>
@@ -188,7 +188,7 @@ export default function FavoritesPage() {
                     {/* Details */}
                     <div className="p-3 space-y-3">
                       <p className="font-medium text-sm">
-                        {outfit.name || "Saved Outfit"}
+                        {outfit.name || t("favorites.saved")}
                       </p>
 
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -226,7 +226,7 @@ export default function FavoritesPage() {
                           onClick={() => wearFavoriteToday(outfit)}
                         >
                           <Shirt className="h-4 w-4" />
-                          Wear Today
+                          {t("home.wearToday")}
                         </Button>
                         <Button
                           size="sm"
@@ -235,7 +235,7 @@ export default function FavoritesPage() {
                           onClick={() => removeFavorite(outfit.id)}
                         >
                           <Trash2 className="h-4 w-4" />
-                          Remove
+                          {t("common.remove")}
                         </Button>
                       </div>
                     </div>
@@ -264,7 +264,7 @@ export default function FavoritesPage() {
                     <div className="p-3">
                       <div className="flex items-start justify-between">
                         <p className="font-medium text-sm">
-                          {outfit.name || "Saved Outfit"}
+                          {outfit.name || t("favorites.saved")}
                         </p>
                         <button
                           onClick={(e) => { e.stopPropagation(); removeFavorite(outfit.id); }}
