@@ -10,9 +10,13 @@
 // POST with an AbortController + explicit client retry is both faster
 // in the happy path and fails louder when something actually breaks.
 
-const ATTEMPT_TIMEOUT_MS = 45_000;
-const MAX_ATTEMPTS = 3;
-const BACKOFF_MS = [0, 2_000, 5_000]; // before each attempt
+// One shot, no auto-retry. If a request fails, the user sees a red
+// tile immediately and taps it to retry — that's better UX than silent
+// 5-second retry loops that feel like the app is frozen. Mobile
+// uploads of a ~500 KB JPEG through a server proxy should succeed on
+// first attempt in every normal case; anything that fails on attempt 1
+// probably won't succeed on attempt 2 either.
+const ATTEMPT_TIMEOUT_MS = 30_000;
 
 // Registry of in-flight uploads so cancelAllActiveUploads() can abort
 // the batch when the user taps Cancel on the /wardrobe/uploading page.
@@ -28,44 +32,27 @@ export function cancelAllActiveUploads(): void {
 }
 
 export async function uploadToSupabase(file: File): Promise<string> {
-  let lastErr: unknown = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    if (BACKOFF_MS[attempt - 1] > 0) {
-      await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
-    activeControllers.add(controller);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: form,
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(
-          `Upload ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`
-        );
-      }
-      const { url } = (await res.json()) as { url: string };
-      return url;
-    } catch (err) {
-      lastErr = err;
-      // If the user cancelled via cancelAllActiveUploads, stop retrying.
-      if (controller.signal.aborted && !activeControllers.has(controller)) {
-        throw new Error("Upload cancelled");
-      }
-      console.warn(
-        `[upload] attempt ${attempt}/${MAX_ATTEMPTS} failed`,
-        err
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+  activeControllers.add(controller);
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `Upload ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`
       );
-    } finally {
-      clearTimeout(timer);
-      activeControllers.delete(controller);
     }
+    const { url } = (await res.json()) as { url: string };
+    return url;
+  } finally {
+    clearTimeout(timer);
+    activeControllers.delete(controller);
   }
-  throw lastErr instanceof Error ? lastErr : new Error("Upload failed");
 }

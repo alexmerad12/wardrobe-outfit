@@ -84,12 +84,12 @@ export function usePendingUploads(): ContextValue {
 // every stream slower).
 const CONCURRENCY = 3;
 
-// Hard ceiling on a single item's processing time. Needs to be longer
-// than tus's own internal retry ladder (~2 min of backoff spans across
-// 8 attempts), otherwise we kill items that would have recovered on
-// their own. 3 min is generous but finite — nothing should stay stuck
-// past this.
-const PER_ITEM_TIMEOUT_MS = 180_000;
+// Hard ceiling per item. No auto-retry, no tus protocol backoff — a
+// normal small-JPEG upload takes 2-5 s, Claude analyze 1-3 s. 45 s is
+// comfortably above the p95 happy path; anything slower is genuinely
+// broken and should error out so the user can see the red tile and
+// tap to retry manually.
+const PER_ITEM_TIMEOUT_MS = 45_000;
 
 
 
@@ -333,24 +333,15 @@ export function PendingUploadsProvider({
       patchItem(item.id, { stage: "processing" });
       try {
         await withTimeout(processItemOnce(item), "Item");
-      } catch (firstErr) {
-        console.warn(`[pending ${item.id}] first attempt failed, retrying`, firstErr);
-        // One automatic retry after a short backoff covers most transient
-        // failures: flaky Wi-Fi, a Claude 429, a Supabase 503.
-        await new Promise((r) => setTimeout(r, 1500));
-        try {
-          await withTimeout(processItemOnce(item), "Item");
-        } catch (secondErr) {
-          const err = secondErr instanceof Error ? secondErr : firstErr;
-          console.error(`[pending ${item.id}] both attempts failed`, {
-            first: firstErr,
-            second: secondErr,
-          });
-          patchItem(item.id, {
-            stage: "error",
-            error: err instanceof Error ? err.message : "Upload failed",
-          });
-        }
+      } catch (err) {
+        // Single attempt. If it fails, mark the tile error immediately.
+        // The user taps Retry to try again — that's clearer than silent
+        // 2-attempt backoff loops that just look like the app is hung.
+        console.error(`[pending ${item.id}] upload failed`, err);
+        patchItem(item.id, {
+          stage: "error",
+          error: err instanceof Error ? err.message : "Upload failed",
+        });
       }
     },
     [processItemOnce, patchItem, withTimeout]
