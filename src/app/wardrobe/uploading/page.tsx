@@ -129,6 +129,8 @@ export default function UploadingPage() {
           {items.map((item) => (
             <div
               key={item.id}
+              data-stage={item.stage}
+              data-item-id={item.id}
               className="relative aspect-square overflow-hidden rounded-lg bg-muted"
             >
               <UploadPreviewImage

@@ -1,0 +1,6 @@
+# Image fixtures are copied locally from each dev's downloads;
+# don't ship them in the repo.
+*.jpg
+*.jpeg
+*.png
+*.heic
