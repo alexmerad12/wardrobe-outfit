@@ -13,7 +13,7 @@ import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage } from "@/lib/image-utils";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
-import { uploadToSupabase } from "@/lib/upload-to-supabase";
+import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
 
 // Global background-processing queue for item uploads.
 //
@@ -492,6 +492,10 @@ export function PendingUploadsProvider({
   }, []);
 
   const cancelAll = useCallback(() => {
+    // Abort any tus uploads that are mid-chunk — otherwise they'd keep
+    // streaming to Supabase after "cancel" and write DB rows the user
+    // thought they'd thrown away.
+    cancelAllActiveUploads();
     setItems((prev) => {
       for (const i of prev) URL.revokeObjectURL(i.previewUrl);
       return [];

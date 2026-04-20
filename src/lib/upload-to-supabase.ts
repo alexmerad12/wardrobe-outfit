@@ -1,6 +1,25 @@
 import * as tus from "tus-js-client";
 import { createClient } from "@/lib/supabase/client";
 
+// Registry of currently-running tus uploads. `cancelAllActiveUploads`
+// calls `.abort(true)` on each, which tells tus to stop the next
+// chunk PATCH and resolve its promise. Without this, "Cancel" on the
+// uploading page would only clear React state while tus kept streaming
+// bytes to Supabase in the background and wrote DB rows after the
+// user thought they'd cancelled.
+const activeUploads = new Set<tus.Upload>();
+
+export function cancelAllActiveUploads(): void {
+  for (const upload of activeUploads) {
+    try {
+      // abort(shouldTerminate=true) also deletes the server-side upload
+      // so we don't leave orphaned partials on Supabase.
+      void upload.abort(true);
+    } catch {}
+  }
+  activeUploads.clear();
+}
+
 // Shared client-side upload helper for everything that needs to push an
 // image to Supabase Storage — bulk pending queue, single-item edit, etc.
 //
@@ -35,7 +54,8 @@ export async function uploadToSupabase(file: File): Promise<string> {
     .slice(2, 8)}-${safeName}`;
 
   return new Promise<string>((resolve, reject) => {
-    const upload = new tus.Upload(file, {
+    let upload: tus.Upload; // forward-declared so the callbacks can deregister
+    upload = new tus.Upload(file, {
       endpoint: `https://${projectId}.supabase.co/storage/v1/upload/resumable`,
       // Extra-long retry ladder for mobile cellular — up to ~2 minutes
       // of pause-and-resume before giving up.
@@ -59,16 +79,20 @@ export async function uploadToSupabase(file: File): Promise<string> {
         return true;
       },
       onError(err) {
+        activeUploads.delete(upload);
         console.error("[tus] upload failed for", objectName, err);
         reject(err instanceof Error ? err : new Error(String(err)));
       },
       onSuccess() {
+        activeUploads.delete(upload);
         const publicUrl = supabase.storage
           .from(BUCKET)
           .getPublicUrl(objectName).data.publicUrl;
         resolve(publicUrl);
       },
     });
+
+    activeUploads.add(upload);
 
     // Resume a half-finished upload of the same file if one exists.
     upload

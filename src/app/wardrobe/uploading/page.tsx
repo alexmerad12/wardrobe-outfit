@@ -15,8 +15,7 @@ import { UploadPreviewImage } from "@/components/upload-preview-image";
 // "stuck" waiting for a batch.
 export default function UploadingPage() {
   const router = useRouter();
-  const { items, cancelAll, retry, dismiss, onBatchComplete } =
-    usePendingUploads();
+  const { items, cancelAll, retry, dismiss } = usePendingUploads();
   const [navigated, setNavigated] = useState(false);
 
   const counts = useMemo(() => {
@@ -36,29 +35,35 @@ export default function UploadingPage() {
   const inFlight = counts.queued + counts.processing;
   const pct = counts.total > 0 ? Math.round((counts.ready / counts.total) * 100) : 0;
 
-  // The moment every item settles and at least one is ready, bounce to
-  // the wizard. Guarded by a local flag so a re-render (e.g. user taps
-  // a failed tile to retry) doesn't re-trigger the navigation mid-
-  // second batch.
+  // Watch the items directly instead of a fire-and-forget event. This
+  // fixes a race where the batch could settle between the router.push()
+  // that brought us here and this page actually mounting — the event
+  // would fire into an empty listener set and the user would be
+  // stranded on "Uploading..." forever. State-based detection also
+  // handles the re-mount case: if the user comes back to this page
+  // after a batch already completed, we notice immediately and route
+  // them forward.
   useEffect(() => {
     if (navigated) return;
-    return onBatchComplete((readyIds) => {
-      if (readyIds.length === 0 || navigated) return;
-      setNavigated(true);
-      const [firstId, ...rest] = readyIds;
-      const qs = new URLSearchParams({ edit: "1" });
-      if (rest.length > 0) qs.set("next", rest.join(","));
-      router.replace(`/wardrobe/${firstId}?${qs.toString()}`);
-    });
-  }, [onBatchComplete, router, navigated]);
-
-  // If we land here with nothing pending (user typed the URL or hit
-  // back from somewhere), bounce back to the wardrobe.
-  useEffect(() => {
-    if (items.length === 0 && !navigated) {
+    // Nothing pending at all → nothing to do here, send them home.
+    if (items.length === 0) {
       router.replace("/wardrobe");
+      return;
     }
-  }, [items.length, navigated, router]);
+    const settled = items.every(
+      (i) => i.stage === "ready" || i.stage === "error"
+    );
+    if (!settled) return;
+    const readyIds = items
+      .filter((i) => i.stage === "ready" && i.savedItemId)
+      .map((i) => i.savedItemId!);
+    if (readyIds.length === 0) return; // only errors — stay here, show retry UI
+    setNavigated(true);
+    const [firstId, ...rest] = readyIds;
+    const qs = new URLSearchParams({ edit: "1" });
+    if (rest.length > 0) qs.set("next", rest.join(","));
+    router.replace(`/wardrobe/${firstId}?${qs.toString()}`);
+  }, [items, navigated, router]);
 
   function handleCancel() {
     cancelAll();
@@ -156,8 +161,12 @@ export default function UploadingPage() {
               {item.stage === "error" && (
                 <button
                   type="button"
-                  onClick={() => dismiss(item.id)}
-                  className="absolute top-1 right-1 rounded-full bg-black/50 p-0.5 text-white hover:bg-black/70"
+                  onClick={(e) => {
+                    // Prevent the underlying retry button from also firing.
+                    e.stopPropagation();
+                    dismiss(item.id);
+                  }}
+                  className="absolute top-1 right-1 z-10 rounded-full bg-black/50 p-0.5 text-white hover:bg-black/70"
                   title="Remove from queue"
                 >
                   <X className="h-3 w-3" />
