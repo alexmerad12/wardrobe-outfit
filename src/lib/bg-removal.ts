@@ -1,52 +1,83 @@
-import type { Config } from "@imgly/background-removal";
+// Main-thread API for background removal. All actual work happens in a
+// dedicated Web Worker (bg-removal.worker.ts), so the UI stays responsive
+// even while the ~80 MB model downloads and inference runs.
 
-// imgly's own defaults — isnet_fp16 model on CPU — are what the library is
-// battle-tested with. Don't override the device or model here: specifying
-// "gpu" can hang silently on browsers where WebGPU is exposed but not fully
-// functional, and the model file for fp16 only loads cleanly at its default.
-function getConfig(
-  onProgress?: (key: string, current: number, total: number) => void
-): Config {
-  return {
-    // Run the ONNX model off the main thread. Without this, the whole page
-    // freezes during inference — the spinner stops animating and clicks
-    // queue up until processing finishes.
-    proxyToWorker: true,
-    output: { format: "image/png", quality: 1 },
-    progress: onProgress,
-    debug: typeof process !== "undefined" && process.env.NODE_ENV !== "production",
-  };
+type ProgressCb = (key: string, current: number, total: number) => void;
+
+type PreloadMessage = { id: number; type: "preload" };
+type RemoveMessage = { id: number; type: "remove"; image: Blob };
+type WorkerInbound = PreloadMessage | RemoveMessage;
+
+type WorkerOutbound =
+  | { id: number; type: "progress"; key: string; current: number; total: number }
+  | { id: number; type: "preloaded" }
+  | { id: number; type: "result"; blob: Blob }
+  | { id: number; type: "error"; message: string };
+
+let worker: Worker | null = null;
+let nextId = 1;
+const pending = new Map<
+  number,
+  { resolve: (value: Blob | void) => void; reject: (err: Error) => void; onProgress?: ProgressCb }
+>();
+
+function getWorker(): Worker {
+  if (worker) return worker;
+  worker = new Worker(new URL("./bg-removal.worker.ts", import.meta.url), {
+    type: "module",
+  });
+  worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
+    const data = event.data;
+    const entry = pending.get(data.id);
+    if (!entry) return;
+    if (data.type === "progress") {
+      entry.onProgress?.(data.key, data.current, data.total);
+    } else if (data.type === "preloaded") {
+      pending.delete(data.id);
+      entry.resolve();
+    } else if (data.type === "result") {
+      pending.delete(data.id);
+      entry.resolve(data.blob);
+    } else if (data.type === "error") {
+      pending.delete(data.id);
+      entry.reject(new Error(data.message));
+    }
+  });
+  worker.addEventListener("error", (event) => {
+    console.error("bg-removal worker error:", event.message);
+  });
+  return worker;
+}
+
+function sendToWorker(
+  message: Omit<PreloadMessage, "id"> | Omit<RemoveMessage, "id">,
+  onProgress?: ProgressCb
+): Promise<Blob | void> {
+  const w = getWorker();
+  const id = nextId++;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject, onProgress });
+    w.postMessage({ ...message, id } as WorkerInbound);
+  });
 }
 
 let preloaded: Promise<void> | null = null;
 
-// Fetch model weights eagerly so the first click feels instant. Safe to call
-// repeatedly — work is memoised. Returns a promise so callers that need to
-// wait (auto-trigger on upload) can await it.
-export function preloadBgRemoval(
-  onProgress?: (key: string, current: number, total: number) => void
-): Promise<void> {
+export function preloadBgRemoval(onProgress?: ProgressCb): Promise<void> {
   if (preloaded) return preloaded;
-  preloaded = (async () => {
-    try {
-      const { preload } = await import("@imgly/background-removal");
-      await preload(getConfig(onProgress));
-    } catch (err) {
-      console.error("bg-removal preload failed:", err);
+  preloaded = (sendToWorker({ type: "preload" }, onProgress) as Promise<void>).catch(
+    (err) => {
       preloaded = null;
       throw err;
     }
-  })();
+  );
   return preloaded;
 }
 
-export async function removeBg(
-  image: Blob | File,
-  onProgress?: (key: string, current: number, total: number) => void
-): Promise<Blob> {
-  // Ensure the model is ready. If preload hasn't been called yet, this awaits
-  // the full download on-demand — slower on first use but never hangs.
-  await preloadBgRemoval(onProgress);
-  const { removeBackground } = await import("@imgly/background-removal");
-  return removeBackground(image, getConfig(onProgress));
+export async function removeBg(image: Blob | File, onProgress?: ProgressCb): Promise<Blob> {
+  // Fire-and-forget preload; the worker queues the remove behind it either
+  // way. No main-thread blocking.
+  preloadBgRemoval(onProgress).catch(() => {});
+  const result = (await sendToWorker({ type: "remove", image }, onProgress)) as Blob;
+  return result;
 }
