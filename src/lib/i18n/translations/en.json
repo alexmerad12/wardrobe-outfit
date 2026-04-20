@@ -81,10 +81,9 @@
     "altClothingItem": "Clothing item"
   },
   "home": {
-    "goodMorning": "Good morning!",
-    "goodAfternoon": "Good afternoon!",
-    "goodEvening": "Good evening!",
-    "welcomeToClosette": "Welcome to your Closette",
+    "goodMorning": "Morning from your Closette",
+    "goodAfternoon": "Afternoon from your Closette",
+    "goodEvening": "Evening from your Closette",
     "allSet": "You're all set for today.",
     "letsFindOutfit": "Let's find your perfect outfit today.",
     "todaysOutfit": "Today's Outfit",
