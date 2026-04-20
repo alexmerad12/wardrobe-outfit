@@ -35,12 +35,13 @@ export type PendingItem = {
   error?: string;
 };
 
-// No hard cap on batch size. Pick however many; items process serially
-// (CONCURRENCY=1) on top of tus-resumable uploads that survive TCP
-// drops — the reliability story no longer needs an arbitrary ceiling.
-// Acloset and Indyx work the same way: the user picks, the queue
-// grinds through. Serialisation + tus is doing the heavy lifting.
-export const MAX_BATCH = Infinity;
+// Hard cap per batch. Production-grade bulk upload needs a ceiling —
+// even with tus + serial processing, a 50-item queue on mobile is a
+// user-experience trap (can't review, can't reliably finish, feels
+// stuck). 10 at a time is the UX sweet spot: finishes in a few minutes,
+// user can review immediately, matches what Acloset shows on its
+// picker UI.
+export const MAX_BATCH = 10;
 
 type ContextValue = {
   items: PendingItem[];
@@ -52,6 +53,10 @@ type ContextValue = {
   // post-upload review wizard, so the strip doesn't still show items
   // the user is actively stepping through.
   clearReady: () => void;
+  // Blow away everything. Safety valve for "the upload is stuck and I
+  // want to start over." In-flight work is abandoned — tus handles its
+  // own cleanup on next page reload.
+  cancelAll: () => void;
   // Subscribe to "item saved" events — wardrobe grid uses this to refetch.
   onItemSaved: (listener: () => void) => () => void;
   // Subscribe to "batch finished" — fires exactly once per burst when
@@ -486,6 +491,15 @@ export function PendingUploadsProvider({
     });
   }, []);
 
+  const cancelAll = useCallback(() => {
+    setItems((prev) => {
+      for (const i of prev) URL.revokeObjectURL(i.previewUrl);
+      return [];
+    });
+    kickedOffRef.current.clear();
+    batchCompletedFiredRef.current = false;
+  }, []);
+
   const onItemSaved = useCallback((listener: () => void) => {
     savedListenersRef.current.add(listener);
     return () => {
@@ -502,6 +516,7 @@ export function PendingUploadsProvider({
         dismiss,
         dismissAllFailed,
         clearReady,
+        cancelAll,
         onItemSaved,
         onBatchComplete,
       }}

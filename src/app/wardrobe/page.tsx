@@ -65,7 +65,6 @@ export default function WardrobePage() {
     dismissAllFailed,
     clearReady,
     onItemSaved,
-    onBatchComplete,
   } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -94,24 +93,10 @@ export default function WardrobePage() {
     });
   }, [onItemSaved, refetchItems]);
 
-  // Auto-open the review wizard the moment a batch settles. Subscribes
-  // to the context's batch-complete event, which only reaches listeners
-  // that are currently mounted — so a batch completing while the user
-  // is off on /profile or /suggest doesn't yank them into the wizard
-  // the next time they land on /wardrobe. They see the "Review your N
-  // uploads" button instead and tap when they're ready.
-  useEffect(() => {
-    return onBatchComplete((readyIds) => {
-      if (readyIds.length === 0) return;
-      const [firstId, ...restIds] = readyIds;
-      const qs = new URLSearchParams({ edit: "1" });
-      if (restIds.length > 0) qs.set("next", restIds.join(","));
-      router.push(`/wardrobe/${firstId}?${qs.toString()}`);
-      // Dismiss the ready tiles AFTER the nav is queued — order-safe
-      // because router.push has already captured the URL.
-      clearReady();
-    });
-  }, [onBatchComplete, router, clearReady]);
+  // Auto-nav on batch-complete lives in /wardrobe/uploading now — the
+  // uploading page is where the user is for the duration of processing.
+  // This page keeps the "Review your N uploads" CTA in the pending strip
+  // as a manual fallback if something lands here with ready items.
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -328,8 +313,11 @@ export default function WardrobePage() {
                     const result = addFiles(e.target.files);
                     if (result.rejected > 0) {
                       alert(
-                        `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
                       );
+                    }
+                    if (result.accepted > 0) {
+                      router.push("/wardrobe/uploading");
                     }
                   }
                   if (cameraInputRef.current) cameraInputRef.current.value = "";
@@ -347,8 +335,11 @@ export default function WardrobePage() {
                     const result = addFiles(e.target.files);
                     if (result.rejected > 0) {
                       alert(
-                        `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
                       );
+                    }
+                    if (result.accepted > 0) {
+                      router.push("/wardrobe/uploading");
                     }
                   }
                   if (libraryInputRef.current) libraryInputRef.current.value = "";
