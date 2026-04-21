@@ -7,6 +7,35 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 const anthropic = new Anthropic();
 
+// Category words that, when present in text but NOT present in the outfit's
+// item_ids, are hallucinations. The post-parse rejects outfits whose
+// reasoning/styling_tip/name references a category not in the items.
+const CATEGORY_SIGNAL_WORDS: Record<string, string[]> = {
+  top: ["t-shirt", "tshirt", "tee", "tank", "blouse", "crop top", "cropped top", "sweater", "hoodie", "cardigan", "pullover"],
+  bottom: ["jeans", "trousers", "pants", "shorts", "skirt", "leggings", "sweatpants", "chinos", "slacks"],
+  dress: ["dress", "gown", "sundress"],
+  "one-piece": ["jumpsuit", "overalls", "romper"],
+  outerwear: ["jacket", "coat", "blazer", "vest", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
+  shoes: ["boot", "sneaker", "heel", "sandal", "loafer", "mule", "espadrille", "pump", "oxford"],
+  bag: ["handbag", "backpack", "tote", "clutch", "crossbody", "purse"],
+  accessory: ["belt", "scarf", "beanie", "necklace", "earring"],
+};
+
+function textMentionsMissingCategory(items: ClothingItem[], text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const present = new Set(items.map((i) => i.category));
+  for (const [cat, words] of Object.entries(CATEGORY_SIGNAL_WORDS)) {
+    if (present.has(cat as ClothingItem["category"])) continue;
+    for (const w of words) {
+      const escaped = w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(`\\b${escaped}s?\\b`, "i");
+      if (rx.test(lower)) return true;
+    }
+  }
+  return false;
+}
+
 function describeItem(item: ClothingItem): string {
   const parts: string[] = [`[${item.id}]`, item.name];
   parts.push(`(${item.category}${item.subcategory ? "/" + item.subcategory : ""})`);
@@ -168,13 +197,11 @@ THE 3 OUTFITS MUST BE GENUINELY DIFFERENT FROM EACH OTHER. Not three variations 
 
 ⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
 
-1. DRESSES AND ONE-PIECE GARMENTS REPLACE THE BOTTOM.
-   - If an outfit contains an item from the "dress" category (mini-dress, midi-dress, maxi-dress) OR the "one-piece" category (jumpsuit, overalls), it MUST NOT contain ANY item from the "bottom" category (no jeans, no trousers, no shorts, no skirts, no leggings, no sweatpants - NOTHING).
-   - Check every outfit you generate: if dress or one-piece is in it, bottom MUST NOT be in it. This is non-negotiable.
-
-   1a. WHETHER A TOP IS NEEDED UNDERNEATH:
-   - Dresses (mini/midi/maxi) and JUMPSUITS: full coverage. Worn alone — DO NOT add a top.
-   - OVERALLS (strap-style, bare chest area): MUST include a top underneath (t-shirt, blouse, tank, bodysuit, etc.). Never style overalls without a top.
+1. DRESSES AND ONE-PIECE GARMENTS ARE STANDALONE.
+   - A dress or jumpsuit is worn ALONE on the body. It MUST NOT be combined with a "top" category item (crop-tops, tank-tops, blouses, tees, shirts, sweaters, hoodies, cardigans — NONE of these go on top of a dress or jumpsuit). It MUST NOT be combined with a "bottom" category item (jeans, trousers, shorts, skirts, leggings, sweatpants — none).
+   - Only an OUTERWEAR category piece (jacket / blazer / coat / vest / bomber / trench / puffer / parka) can be layered over a dress or jumpsuit. That is the only layering allowed.
+   - OVERALLS are the single exception: they require ONE top underneath (t-shirt, tank, blouse). Never style overalls without a top.
+   - If you have a dress in item_ids, SCAN the list — if anything from "top" (crop-top, blouse, tank-top, t-shirt, shirt, sweater, hoodie, cardigan) is also in there, REMOVE it before finalizing.
 
 2. EVERY OUTFIT NEEDS A COMPLETE BASE:
    - Each outfit MUST have exactly ONE foundation, and it MUST be complete. Valid bases:
@@ -242,12 +269,10 @@ Respond with ONLY valid JSON in this exact format:
   "wardrobe_gap": "One sentence suggesting a staple piece to add, or null if the wardrobe is complete"
 }
 
-⚠️ CRITICAL — DESCRIPTION INTEGRITY (this is the #1 bug to avoid):
-- BEFORE you write reasoning and styling_tip for an outfit, explicitly list to yourself the CATEGORIES actually in your item_ids array for that outfit. Example: "item_ids has [dress, shoes, belt] → allowed words: the dress, the shoes, the belt."
-- The reasoning and styling_tip must ONLY reference those categories. If the outfit has no top, NEVER write "tank", "tee", "blouse", "shirt", "sweater". If it has no bottom, NEVER write "jeans", "trousers", "pants", "skirt". If it has no jacket / blazer / coat, NEVER mention layering or outerwear. Mentioning a piece you did not actually pick is a CRITICAL failure — the user sees the outfit photo and the text doesn't match.
-- Use BROAD CATEGORY ONLY — the ONLY allowed vocabulary for referring to pieces is: the top, the bottom, the dress, the one-piece, the jacket / coat / blazer, the shoes, the bag, the belt, the accessory.
-- FORBIDDEN words in reasoning and styling_tip: "t-shirt", "tee", "tank", "blouse", "shirt", "sweater", "cardigan" (unless actually in outfit), "jeans", "trousers", "pants", "leggings", "shorts", "skirt", "boots", "sneakers", "heels", "sandals", "flats", "moto", "bomber", "denim", "leather", "silk", "satin", "cotton", "wool", "linen" — plus any brand name, any color name, any material name. Subcategory and material words trip the hallucination; stick to the broad category only.
-- If the outfit is just a dress and shoes, your reasoning says "the dress + the shoes" — NOT "the maxi dress with boots."
+⚠️ DESCRIPTION, STYLING_TIP, NAME — CONSISTENCY IS MANDATORY:
+- The "name", "reasoning", and "styling_tip" must reference ONLY the categories present in this outfit's item_ids. If there is no outerwear in item_ids, do not mention a jacket / coat / blazer / moto / bomber / parka. If there is no top, do not mention a tee / tank / blouse / sweater / cardigan. If there is no bottom, do not mention jeans / pants / skirt / shorts.
+- Use generic category words only: "the dress", "the shoes", "the jacket", "the top", "the bottom", "the belt". Do not name materials (leather, suede, satin, silk, denim, wool, cotton), colors, or brands in any of the three fields. The name must not invent materials either — no "Suede & Satin Edge" unless both suede and satin are actually in the outfit.
+- A post-parse validator will DROP your outfit if its name, reasoning, or styling_tip references a category that isn't in item_ids. Stay conservative with the text.
 
 Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
 
@@ -288,9 +313,18 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
         // styling_tip text referencing pieces that aren't in the outfit
         // anymore, which is the hallucination bug the user saw.
         const hasDress = outfitItems.some((i) => i.category === "dress");
+        const hasJumpsuit = outfitItems.some(
+          (i) => i.category === "one-piece" && i.subcategory !== "overalls"
+        );
         const hasOnePiece = outfitItems.some((i) => i.category === "one-piece");
         const hasBottom = outfitItems.some((i) => i.category === "bottom");
+        const hasNonLayeringTop = outfitItems.some(
+          (i) => i.category === "top" && !i.is_layering_piece
+        );
         const dressWithBottom = (hasDress || hasOnePiece) && hasBottom;
+        // Dress / jumpsuit + a top is the crop-top-over-maxi-dress bug.
+        // Overalls are the only one-piece that take a top, so they're exempt.
+        const dressWithTop = (hasDress || hasJumpsuit) && hasNonLayeringTop;
 
         const seenSubs = new Set<string>();
         let duplicateSub = false;
@@ -303,6 +337,12 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           seenSubs.add(i.subcategory);
         }
 
+        // Text-vs-items validation: reject outfits whose AI-written text
+        // references categories that aren't actually in the outfit (e.g.
+        // styling_tip mentions "moto jacket" but no outerwear is in items).
+        const combinedText = `${s.name ?? ""} ${s.reasoning ?? ""} ${s.styling_tip ?? ""}`;
+        const textHallucinates = textMentionsMissingCategory(outfitItems, combinedText);
+
         return {
           items: outfitItems,
           score: 1,
@@ -313,16 +353,17 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           name: s.name,
           weather_temp: weather?.temp ?? null,
           weather_condition: weather?.condition ?? null,
-          _violations: { dressWithBottom, duplicateSub },
+          _violations: { dressWithBottom, dressWithTop, duplicateSub, textHallucinates },
         };
       })
-      // Drop any outfit that violates hard rules (dress+bottom, duplicate
-      // subcategory) OR is missing a valid base. Stripping items silently
-      // causes the description text to reference pieces that got removed,
-      // so it's safer to drop the whole outfit and let the user re-roll.
+      // Drop any outfit that violates hard rules OR has text that references
+      // items it doesn't actually contain. Silent fixes would leave the user
+      // with a description that doesn't match the photo strip.
       .filter((s) => {
         if (s._violations.dressWithBottom) return false;
+        if (s._violations.dressWithTop) return false;
         if (s._violations.duplicateSub) return false;
+        if (s._violations.textHallucinates) return false;
         const hasDress = s.items.some((i) => i.category === "dress");
         const hasOnePiece = s.items.some((i) => i.category === "one-piece");
         const hasTop = s.items.some((i) => i.category === "top");
