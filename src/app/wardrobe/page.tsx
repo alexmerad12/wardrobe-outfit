@@ -119,6 +119,18 @@ function WardrobePageInner() {
     });
   }, [activeCategory]);
 
+  // Keep the URL in sync with the filter state so navigating to an item
+  // and pressing back (either the app arrow or the browser back button)
+  // returns the user to the same tab. router.replace avoids piling extra
+  // history entries every time the user taps a different category.
+  useEffect(() => {
+    const next = activeCategory === "all" ? "/wardrobe" : `/wardrobe?category=${activeCategory}`;
+    const current = searchParams.get("category") ?? "all";
+    if (current !== activeCategory) {
+      router.replace(next, { scroll: false });
+    }
+  }, [activeCategory, router, searchParams]);
+
   // Refetch the grid whenever a background upload saves, so fresh items
   // appear in place of their pending tiles.
   useEffect(() => {
