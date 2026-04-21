@@ -206,14 +206,15 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* Item photos - horizontal scroll, square aspect ratio */}
+              {/* Item photos - horizontal scroll, names overlaid on photo
+                  to match the style of the recent outfits grid. */}
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                 {todayItems.map((item) => (
-                  <div key={item.id} className="flex-shrink-0 w-28">
-                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30">
-                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
+                  <div key={item.id} className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30">
+                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                      <p className="truncate text-[10px] text-white">{item.name}</p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1 truncate text-center">{item.name}</p>
                   </div>
                 ))}
               </div>
