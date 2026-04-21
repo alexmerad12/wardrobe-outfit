@@ -6,6 +6,7 @@ import { Loader2, Sparkles, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePendingUploads } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
+import { preloadBgRemoval } from "@/lib/bg-removal";
 
 // Full-screen processing page. After a user picks a batch we route them
 // here immediately; the entire UI is consumed by upload progress so
@@ -17,6 +18,14 @@ export default function UploadingPage() {
   const router = useRouter();
   const { items, cancelAll, retry, dismiss } = usePendingUploads();
   const [navigated, setNavigated] = useState(false);
+
+  // Kick off the imgly WASM download as soon as the user lands on
+  // this page. Without this the first item's pipeline stalls for up
+  // to 10 seconds on mobile waiting for the ~45 MB model to arrive;
+  // preloading in parallel with the first upload hides that entirely.
+  useEffect(() => {
+    void preloadBgRemoval().catch(() => {});
+  }, []);
 
   const counts = useMemo(() => {
     let queued = 0;
@@ -45,10 +54,17 @@ export default function UploadingPage() {
   // them forward.
   useEffect(() => {
     if (navigated) return;
-    // Nothing pending at all → nothing to do here, send them home.
+    // Nothing pending → send them home, but DEBOUNCE the redirect.
+    // When the user lands here via router.push() from /wardrobe, the
+    // setItems() that added their batch can commit a React tick or two
+    // AFTER this page mounts, so items is transiently [] at first
+    // paint. Without the delay we immediately bounce back to /wardrobe
+    // and the upload never happens. 500 ms is imperceptible to a user
+    // who genuinely meant to land on an empty uploading page, and
+    // gives the pending context plenty of time to hydrate.
     if (items.length === 0) {
-      router.replace("/wardrobe");
-      return;
+      const timer = setTimeout(() => router.replace("/wardrobe"), 500);
+      return () => clearTimeout(timer);
     }
     const settled = items.every(
       (i) => i.stage === "ready" || i.stage === "error"

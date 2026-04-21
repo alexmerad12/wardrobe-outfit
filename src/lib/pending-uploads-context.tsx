@@ -84,12 +84,11 @@ export function usePendingUploads(): ContextValue {
 // every stream slower).
 const CONCURRENCY = 3;
 
-// Hard ceiling per item. No auto-retry, no tus protocol backoff — a
-// normal small-JPEG upload takes 2-5 s, Claude analyze 1-3 s. 45 s is
-// comfortably above the p95 happy path; anything slower is genuinely
-// broken and should error out so the user can see the red tile and
-// tap to retry manually.
-const PER_ITEM_TIMEOUT_MS = 45_000;
+// Hard ceiling per item. Upload+AI ~3-8 s + imgly bg removal 4-8 s +
+// cleaned PNG upload ~2-5 s. 90 s is comfortably above the p95 happy
+// path even on mobile cellular; anything slower is genuinely stuck and
+// should error out so the user can see the red tile and tap to retry.
+const PER_ITEM_TIMEOUT_MS = 90_000;
 
 
 
@@ -203,52 +202,48 @@ export function PendingUploadsProvider({
         setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
       }
 
-      // Background removal is SKIPPED in the bulk pipeline. imgly's
-      // on-device ISNet model costs 3-8 seconds per image on mobile
-      // CPU — multiplied by a 6-item batch that's 30-50 seconds of
-      // pure waiting on top of uploads, which is why the app feels
-      // "god awful slow" vs Acloset (which uses hardware-accelerated
-      // Android ML Kit in native code — an API no web browser can
-      // reach). imgly was also the most common hang point: its worker
-      // deadlocks under rapid messages, leaving the queue frozen.
-      //
-      // The user can still clean a specific photo's background via
-      // the "Remove background" button on /wardrobe/[id] if they care
-      // about a particular item. Bulk upload stays fast.
-      const cleanedBlob = downscaled;
-      const outMime =
-        cleanedBlob.type === "image/png" ||
-        cleanedBlob.type === "image/jpeg" ||
-        cleanedBlob.type === "image/webp"
-          ? cleanedBlob.type
+      // Re-wrap the downscaled blob as a File so upload + analyze see
+      // a proper filename + type. Even if downscaling returned the
+      // original File unchanged, re-wrapping costs nothing.
+      const downOutMime =
+        downscaled.type === "image/png" ||
+        downscaled.type === "image/jpeg" ||
+        downscaled.type === "image/webp"
+          ? downscaled.type
           : "image/jpeg";
-      const ext = outMime === "image/png" ? "png" : outMime === "image/webp" ? "webp" : "jpg";
+      const downExt =
+        downOutMime === "image/png" ? "png" : downOutMime === "image/webp" ? "webp" : "jpg";
       const baseName = item.file.name.replace(/\.[^.]+$/, "") || "item";
-      const cleaned = new File([cleanedBlob], `${baseName}.${ext}`, { type: outMime });
+      const downscaledFile = new File(
+        [downscaled],
+        `${baseName}.${downExt}`,
+        { type: downOutMime }
+      );
 
-      // 3. Upload + analyze in parallel on the cleaned, downscaled image.
-      const [imageUrl, attrsRaw] = await Promise.all([
-        uploadToSupabase(cleaned).catch((err) => {
+      // 2. Upload raw downscaled + analyze in parallel. This is the
+      //    fast path that gets an item into the DB before bg removal
+      //    runs — if the user cancels or closes the tab after this
+      //    point, they keep the item (just with the original bg).
+      const [rawImageUrl, attrsRaw] = await Promise.all([
+        uploadToSupabase(downscaledFile).catch((err) => {
           console.error(`[pending ${item.id}] upload step failed`, err);
           throw new Error(
             `Upload: ${err instanceof Error ? err.message : String(err)}`
           );
         }),
-        analyzeItem(cleaned).catch((err) => {
+        analyzeItem(downscaledFile).catch((err) => {
           console.warn(`[pending ${item.id}] analyze step failed, using defaults`, err);
           return {} as AutoFillResult;
         }),
       ]);
-      // Belt-and-braces sanitise — server already strips invalid enums,
-      // but this guards against older deploys or any intermediate code
-      // path that skipped validation.
       const attrs = sanitizeAutoFill(attrsRaw);
 
-      // 4. Save to DB.
+      // 3. Save to DB with the raw URL so the row exists. If bg
+      //    removal fails later we still have a complete wardrobe item.
       const res = await fetch("/api/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildItemPayload(imageUrl, attrs)),
+        body: JSON.stringify(buildItemPayload(rawImageUrl, attrs)),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -256,13 +251,64 @@ export function PendingUploadsProvider({
           status: res.status,
           response: text,
           attrs,
-          payload: buildItemPayload(imageUrl, attrs),
+          payload: buildItemPayload(rawImageUrl, attrs),
         });
         throw new Error(
           `Save (${res.status})${text ? `: ${text.slice(0, 140)}` : ""}`
         );
       }
       const saved = (await res.json()) as { id: string };
+
+      // 4. Background removal IS in the critical path now. The user
+      //    explicitly asked for the loading page to stay up until
+      //    backgrounds are removed, so we don't mark "ready" until
+      //    imgly has run and the PNG is uploaded + PATCHed. If bg
+      //    removal fails or times out, we still mark ready with the
+      //    original image — the item is saved, the user just doesn't
+      //    get a white background on that one.
+      const bgLog = (stage: string, extra?: unknown) =>
+        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
+      try {
+        bgLog("starting imgly removeBg");
+        const t0 = performance.now();
+        const cleanedBlob = await removeBg(downscaledFile);
+        bgLog(`imgly done in ${Math.round(performance.now() - t0)}ms`, {
+          size: cleanedBlob.size,
+        });
+        // Swap the tile preview over to the cleaned image so the user
+        // actually sees the white-bg version appear in the grid
+        // before the redirect fires.
+        const cleanedPreview = URL.createObjectURL(cleanedBlob);
+        const oldPreview = item.previewUrl;
+        patchItem(item.id, { previewUrl: cleanedPreview });
+        setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
+
+        const cleanedPng = new File(
+          [cleanedBlob],
+          `${baseName}.png`,
+          { type: "image/png" }
+        );
+        bgLog("uploading cleaned PNG");
+        const uploadT0 = performance.now();
+        const cleanedUrl = await uploadToSupabase(cleanedPng);
+        bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
+        bgLog("PATCHing image_url");
+        const patchRes = await fetch(`/api/items/${saved.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_url: cleanedUrl }),
+        });
+        if (!patchRes.ok) {
+          const txt = await patchRes.text().catch(() => "");
+          bgLog(`PATCH failed status=${patchRes.status}`, txt);
+        } else {
+          bgLog(`DONE in ${Math.round(performance.now() - t0)}ms total`);
+        }
+      } catch (err) {
+        // Bg removal failed. Don't error the item — the DB row is
+        // already saved with the original image. Just log and move on.
+        bgLog("FAILED — keeping original", err);
+      }
 
       patchItem(item.id, {
         stage: "ready",
@@ -271,52 +317,6 @@ export function PendingUploadsProvider({
         savedItemId: saved.id,
       });
       notifySaved();
-
-      // Post-save background removal — runs async so the pipeline's
-      // wall-clock is unchanged. Item is already "ready" with its
-      // original image; when imgly finishes we upload the cleaned
-      // version and PATCH image_url. Wardrobe grids that are
-      // listening refetch and see the new image. If removal fails or
-      // times out, we just keep the original — no pipeline impact.
-      const downscaledFile = cleaned; // captured for the closure below
-      const bgLog = (stage: string, extra?: unknown) =>
-        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
-      void (async () => {
-        bgLog("starting imgly removeBg");
-        const t0 = performance.now();
-        try {
-          const cleanedBlob = await removeBg(downscaledFile);
-          bgLog(`imgly done in ${Math.round(performance.now() - t0)}ms`, {
-            size: cleanedBlob.size,
-          });
-          const cleanedPng = new File(
-            [cleanedBlob],
-            downscaledFile.name.replace(/\.[^.]+$/, "") + ".png",
-            { type: "image/png" }
-          );
-          bgLog("uploading cleaned PNG");
-          const uploadT0 = performance.now();
-          const cleanedUrl = await uploadToSupabase(cleanedPng);
-          bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
-          bgLog("PATCHing image_url");
-          const patchRes = await fetch(`/api/items/${saved.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image_url: cleanedUrl }),
-          });
-          if (!patchRes.ok) {
-            const txt = await patchRes.text().catch(() => "");
-            bgLog(`PATCH failed status=${patchRes.status}`, txt);
-            return;
-          }
-          bgLog(`DONE in ${Math.round(performance.now() - t0)}ms total`);
-          // Let subscribers (wardrobe grid) refetch so the cleaned
-          // image shows up without a manual reload.
-          notifySaved();
-        } catch (err) {
-          bgLog("FAILED — keeping original", err);
-        }
-      })();
     },
     [patchItem, notifySaved]
   );
@@ -496,11 +496,20 @@ export function PendingUploadsProvider({
           stage: "queued",
         });
       }
-      // Strict Mode runs the updater twice; both runs produce the same
-      // output so overwriting these with identical values is safe.
-      accepted = localAccepted;
-      rejected = localRejected;
-      return incoming.length > 0 ? [...incoming, ...prev] : prev;
+      // Only write back when we actually committed incoming items.
+      // Strict Mode invokes the updater twice in dev: the first call
+      // sees prev=[] and accepts everything; the second call sees
+      // prev already containing those items (via knownKeys) and
+      // rejects everything as duplicates. Without this guard the
+      // second pass clobbers `accepted` back to 0, and the caller's
+      // "if (accepted > 0) router.push(...)" silently becomes a
+      // no-op — so the user picks files and nothing happens.
+      if (incoming.length > 0) {
+        accepted = localAccepted;
+        rejected = localRejected;
+        return [...incoming, ...prev];
+      }
+      return prev;
     });
     return { accepted, rejected };
   }, []);

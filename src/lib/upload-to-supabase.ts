@@ -10,13 +10,16 @@
 // POST with an AbortController + explicit client retry is both faster
 // in the happy path and fails louder when something actually breaks.
 
-// One shot, no auto-retry. If a request fails, the user sees a red
-// tile immediately and taps it to retry — that's better UX than silent
-// 5-second retry loops that feel like the app is frozen. Mobile
-// uploads of a ~500 KB JPEG through a server proxy should succeed on
-// first attempt in every normal case; anything that fails on attempt 1
-// probably won't succeed on attempt 2 either.
+// Single silent retry is reserved for transient network-level
+// failures — specifically TypeError ("Failed to fetch"), which is what
+// the browser throws when a request gets cancelled mid-flight by a
+// flaky cell radio, a wifi handoff, or a server-side connection
+// reset. Those legitimately succeed on the second try. HTTP errors
+// (4xx/5xx) do NOT retry — if the server said no, asking again won't
+// change the answer, and we don't want tus-style multi-minute retry
+// loops that make the app feel frozen.
 const ATTEMPT_TIMEOUT_MS = 30_000;
+const RETRY_DELAY_MS = 800;
 
 // Registry of in-flight uploads so cancelAllActiveUploads() can abort
 // the batch when the user taps Cancel on the /wardrobe/uploading page.
@@ -31,7 +34,7 @@ export function cancelAllActiveUploads(): void {
   activeControllers.clear();
 }
 
-export async function uploadToSupabase(file: File): Promise<string> {
+async function attemptUpload(file: File): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
   activeControllers.add(controller);
@@ -54,5 +57,24 @@ export async function uploadToSupabase(file: File): Promise<string> {
   } finally {
     clearTimeout(timer);
     activeControllers.delete(controller);
+  }
+}
+
+export async function uploadToSupabase(file: File): Promise<string> {
+  try {
+    return await attemptUpload(file);
+  } catch (err) {
+    // Only retry transient network failures. TypeError is what the
+    // browser throws when a request fails at the network layer before
+    // a response arrives — the classic "Failed to fetch" case. Any
+    // HTTP error (4xx/5xx) surfaces as a normal Error with the status
+    // in the message, and those are NOT retried: a 401 means auth
+    // problem, a 413 means file too big, a 500 means server bug —
+    // retrying just delays the user seeing the real failure.
+    const isTransient = err instanceof TypeError;
+    if (!isTransient) throw err;
+    console.warn("[upload] transient network failure, retrying once:", err);
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    return attemptUpload(file);
   }
 }
