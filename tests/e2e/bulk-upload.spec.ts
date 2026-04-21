@@ -418,4 +418,109 @@ test.describe("bulk upload + review flow", () => {
     console.log(`[stress] bg-removal logs: ${bgLogs.length} lines`);
     for (const line of bgLogs.slice(0, 20)) console.log("  " + line);
   });
+
+  // Reproduces the exact mode the user reports: first batch works,
+  // second batch in the same session has 1-3 items fail with "Upload:
+  // Failed to fetch". The only way to catch regressions in the
+  // upload-session path (CORS preflight cache, signed URL token
+  // reuse, Supabase SDK state) is to actually do two batches in one
+  // authenticated session and assert both succeed.
+  test("TWO consecutive batches, same session — batch 2 must not regress", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({
+      viewport: { width: 412, height: 915 },
+      isMobile: true,
+      hasTouch: true,
+      deviceScaleFactor: 2.625,
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    });
+    const page = await ctx.newPage();
+
+    const errorLogs: string[] = [];
+    page.on("console", (msg) => {
+      const text = msg.text();
+      if (msg.type() === "error" || /failed|Upload:|Sign /.test(text)) {
+        errorLogs.push(`[${msg.type()}] ${text}`);
+      }
+    });
+
+    await signIn(page);
+    await clearWardrobe(page);
+
+    // Split 10 fixtures into two batches of 5 — no overlap, simulating
+    // two separate photo-picker sessions.
+    const all = fs
+      .readdirSync(FIXTURES_DIR)
+      .filter((f) => f.toLowerCase().endsWith(".jpg"))
+      .sort()
+      .map((f) => path.join(FIXTURES_DIR, f));
+    const batch1 = all.slice(0, 5);
+    const batch2 = all.slice(5, 10);
+    expect(batch2.length).toBe(5);
+
+    async function runBatch(fixtures: string[], label: string) {
+      await page.goto("/wardrobe");
+      await page.waitForLoadState("networkidle");
+      const input = page.locator(
+        'input[type="file"][accept="image/*"][multiple]'
+      );
+      await input.setInputFiles(fixtures);
+      await page.waitForURL(/\/wardrobe\/uploading/, { timeout: 15_000 });
+
+      const settleBy = Date.now() + 3 * 60 * 1000;
+      let ready = 0;
+      let errored = 0;
+      let redirected = false;
+      while (Date.now() < settleBy) {
+        if (!/\/wardrobe\/uploading/.test(page.url())) {
+          redirected = true;
+          break;
+        }
+        ready = await page.locator('[data-stage="ready"]').count();
+        errored = await page.locator('[data-stage="error"]').count();
+        if (ready + errored >= fixtures.length) break;
+        await page.waitForTimeout(500);
+      }
+      console.log(
+        `[${label}] ready=${ready} errored=${errored} redirected=${redirected}`
+      );
+
+      // Capture what actually errored so the test failure has signal.
+      if (errored > 0) {
+        const errorItems = await page
+          .locator('[data-stage="error"]')
+          .evaluateAll((els) => els.map((e) => e.getAttribute("data-item-id")));
+        console.log(`[${label}] errored item ids:`, errorItems);
+        console.log(`[${label}] recent console:`);
+        for (const line of errorLogs.slice(-20)) console.log("  " + line);
+      }
+
+      expect(errored, `${label}: ${errored} items errored`).toBe(0);
+      expect(
+        ready === fixtures.length || redirected,
+        `${label}: neither tile count nor redirect confirmed success`
+      ).toBeTruthy();
+    }
+
+    await runBatch(batch1, "batch1");
+
+    // User flow: after batch 1 finishes, the wizard opens. Exiting
+    // the wizard (via the X) drops us back on /wardrobe — same place
+    // from which they'd start batch 2 in real usage. Skipping the
+    // wizard entirely and just navigating to /wardrobe isn't a fair
+    // reproduction because it leaves the pending context in a
+    // different state.
+    if (/\/wardrobe\/[^/]+\?edit=1/.test(page.url())) {
+      // Land on wardrobe to let any "ready" items auto-dismiss or
+      // get cleared by the pending-uploads cleanup.
+      await page.goto("/wardrobe");
+      await page.waitForLoadState("networkidle");
+    }
+
+    await runBatch(batch2, "batch2");
+
+    await ctx.close();
+  });
 });

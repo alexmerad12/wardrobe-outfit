@@ -1,3 +1,7 @@
+import { createClient } from "@/lib/supabase/client";
+
+const BUCKET = "clothing-images";
+
 // Client-side upload helper. Two-phase:
 //   1. POST a tiny JSON request to /api/upload/sign — server returns a
 //      short-lived Supabase signed URL + path + token.
@@ -107,30 +111,32 @@ async function attemptUpload(file: File): Promise<string> {
         `Sign ${signRes.status}${text ? `: ${text.slice(0, 160)}` : ""}`
       );
     }
-    const { signedUrl, publicUrl } = (await signRes.json()) as {
+    const { path, token, publicUrl } = (await signRes.json()) as {
       signedUrl: string;
+      path: string;
+      token: string;
       publicUrl: string;
     };
 
-    // Phase 2: PUT the file directly to Supabase. This is the slow
-    // part — seconds of actual bytes over mobile cellular — and it
-    // runs against Supabase Storage's infrastructure, not ours, so
-    // Vercel's function timeout never applies.
-    const putRes = await fetch(signedUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": file.type || "image/jpeg",
-        // Supabase storage expects this header for signed PUTs.
-        "x-upsert": "false",
-      },
-      signal: controller.signal,
-    });
-    if (!putRes.ok) {
-      const text = await putRes.text().catch(() => "");
-      throw new Error(
-        `Upload ${putRes.status}${text ? `: ${text.slice(0, 160)}` : ""}`
-      );
+    // Phase 2: use the Supabase SDK's uploadToSignedUrl. The SDK
+    // wraps the File in FormData with a cacheControl field and
+    // sends the correct x-upsert header + content-type metadata
+    // that Supabase's storage API requires. We tried a naive
+    // `fetch(signedUrl, { method: "PUT", body: file })` first, but
+    // that's only a partial match for what the server expects and
+    // was producing intermittent "Failed to fetch" CORS/format
+    // failures on the second batch of uploads — exactly the mode
+    // the user reported. Delegating to the SDK keeps us in sync
+    // with however Supabase evolves the protocol.
+    const supabase = createClient();
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .uploadToSignedUrl(path, token, file, {
+        contentType: file.type || "image/jpeg",
+        upsert: false,
+      });
+    if (error) {
+      throw new Error(`Upload: ${error.message}`);
     }
     return publicUrl;
   } finally {
