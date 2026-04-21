@@ -215,13 +215,17 @@ Respond with ONLY valid JSON in this exact format:
   "outfits": [
     {
       "item_ids": ["id1", "id2", "id3"],
-      "reasoning": "ONE short sentence — the why. Note in passing how it suits the weather / mood / occasion. Keep it tight.",
-      "styling_tip": "ONE concrete how-to-wear sentence with specific layering / styling actions for THIS outfit. Examples: 'Tuck the front of the tee into the jeans and roll the cuffs once', 'Wear the blazer open over the dress with sleeves pushed up', 'Layer the cardigan over the tee and leave it unbuttoned'. If there's nothing useful to add (the outfit is just a dress + shoes), set this to null.",
+      "reasoning": "ONE short sentence — the why. Note in passing how it suits the weather / mood / occasion. Refer to pieces GENERICALLY by category or shape (the dress, the boots, the blazer, the tee), NEVER by brand, color, material, or specific item name. Keep it tight.",
+      "styling_tip": "ONE concrete how-to-wear sentence with specific layering / styling actions for THIS outfit. Refer to pieces GENERICALLY (the cardigan, the jeans, the blouse) — NEVER by brand, color, or material. Examples: 'Tuck the front of the tee into the bottoms and roll the cuffs once', 'Wear the blazer open over the dress with sleeves pushed up', 'Layer the cardigan over the top and leave it unbuttoned'. If there's nothing useful to add (the outfit is just a dress + shoes), set this to null.",
       "name": "A short creative name for this look"
     }
   ],
   "wardrobe_gap": "One sentence suggesting a staple piece to add, or null if the wardrobe is complete"
 }
+
+⚠️ CRITICAL — DESCRIPTION INTEGRITY:
+- The reasoning and styling_tip must ONLY reference categories that are ACTUALLY in the item_ids list. If your outfit has no shoes, do not mention boots / sneakers / heels in either field. If it has no jacket, do not mention layering one.
+- Do not name specific items (no 'the Levi's jeans', no 'the beige striped sweater', no 'the satin Zara dress'). Only generic shapes ('the jeans', 'the sweater', 'the dress', 'the boots').
 
 Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
 
