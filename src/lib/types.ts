@@ -10,7 +10,7 @@ export type Subcategory =
   // Bottoms
   | "jeans" | "trousers" | "shorts" | "skirt" | "leggings" | "sweatpants"
   // Dresses
-  | "mini-dress" | "midi-dress" | "maxi-dress" | "jumpsuit"
+  | "mini-dress" | "midi-dress" | "maxi-dress" | "jumpsuit" | "overalls"
   // Outerwear
   | "jacket" | "coat" | "blazer" | "vest" | "windbreaker" | "puffer" | "bomber" | "denim-jacket" | "leather-jacket" | "trench-coat" | "peacoat" | "parka"
   // Shoes
@@ -492,6 +492,7 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "midi-dress", label: "Midi Dress" },
     { value: "maxi-dress", label: "Maxi Dress" },
     { value: "jumpsuit", label: "Jumpsuit" },
+    { value: "overalls", label: "Overalls" },
   ],
   outerwear: [
     { value: "jacket", label: "Jacket" },
