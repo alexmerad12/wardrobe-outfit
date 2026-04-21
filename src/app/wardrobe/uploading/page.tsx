@@ -136,8 +136,8 @@ export default function UploadingPage() {
         </div>
 
         <p className="mb-4 text-xs text-center text-muted-foreground/80">
-          Please keep this page open. We&apos;ll open the review screen
-          automatically when it&apos;s done.
+          Feel free to browse the app — just don&apos;t close the tab.
+          We&apos;ll open the review screen when every item is ready.
         </p>
 
         {/* Photo tips — visible DURING upload so users see the

@@ -68,9 +68,10 @@ function classifyError(err: unknown): {
     return { retryable: true, label: "timeout (AbortError)" };
   }
   if (err instanceof Error) {
-    // Match either "Upload NNN" (PUT to Supabase) or "Sign NNN" (our
-    // signed-URL endpoint). Same permanent-vs-transient rules apply.
-    const statusMatch = err.message.match(/(?:Upload|Sign) (\d{3})/);
+    // Match any of: "Upload NNN" (PUT to Supabase), "Sign NNN"
+    // (our signed-URL endpoint), or "Proxy NNN" (server fallback).
+    // Same permanent-vs-transient rules apply to all three.
+    const statusMatch = err.message.match(/(?:Upload|Sign|Proxy) (\d{3})/);
     if (statusMatch) {
       const status = Number(statusMatch[1]);
       const phase = err.message.startsWith("Sign") ? "sign" : "PUT";
@@ -176,11 +177,101 @@ function putViaXhr(
   });
 }
 
-async function attemptUpload(file: File): Promise<string> {
+// Fallback: upload via our own-origin proxy. Used when the direct-
+// to-Supabase path fails at the CORS preflight layer ("no bytes
+// sent" on the browser side) — some devices/carriers block the
+// cross-origin PUT entirely regardless of fetch vs XHR, and this is
+// the only way those users can upload at all.
+async function uploadViaServerProxy(
+  file: File,
+  abortSignal: AbortSignal
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const onAbort = () => {
+      try {
+        xhr.abort();
+      } catch {}
+    };
+    abortSignal.addEventListener("abort", onAbort, { once: true });
+
+    const body = new FormData();
+    body.append("file", file);
+
+    xhr.open("POST", "/api/upload", true);
+    xhr.timeout = ATTEMPT_TIMEOUT_MS;
+
+    let lastLoaded = 0;
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) lastLoaded = e.loaded;
+    };
+
+    xhr.onload = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const { url } = JSON.parse(xhr.responseText) as { url: string };
+          resolve(url);
+        } catch {
+          reject(new Error(`Proxy: bad JSON response`));
+        }
+      } else {
+        reject(
+          new Error(
+            `Proxy ${xhr.status}${xhr.responseText ? `: ${xhr.responseText.slice(0, 160)}` : ""}`
+          )
+        );
+      }
+    };
+    xhr.onerror = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      const progress =
+        lastLoaded > 0
+          ? ` (sent ${Math.round((lastLoaded / file.size) * 100)}%)`
+          : " (no bytes sent)";
+      reject(new TypeError(`Proxy network error${progress}`));
+    };
+    xhr.onabort = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      reject(new DOMException("Proxy upload aborted", "AbortError"));
+    };
+    xhr.ontimeout = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      reject(new DOMException("Proxy upload timed out", "AbortError"));
+    };
+
+    xhr.send(body);
+  });
+}
+
+// Decide whether an error from the direct-upload path means we
+// should try the proxy fallback. "No bytes sent" = the browser
+// refused to make the request, classic CORS preflight / device
+// filter issue — proxy will almost certainly work since it's
+// same-origin. Other errors (sent 47% then dropped, HTTP 5xx,
+// AbortError from timeout) are genuine network/upload issues where
+// the proxy isn't magically going to help, so retry the direct
+// path instead. Keeps the primary path as the default and only
+// reaches for the expensive fallback when there's a clear reason.
+function shouldFallbackToProxy(err: unknown): boolean {
+  if (err instanceof TypeError) {
+    return err.message.includes("no bytes sent");
+  }
+  return false;
+}
+
+async function attemptUpload(
+  file: File,
+  forceProxy = false
+): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
   activeControllers.add(controller);
   try {
+    if (forceProxy) {
+      return await uploadViaServerProxy(file, controller.signal);
+    }
+
     // Phase 1: get a signed upload URL. Tiny JSON request, ~100-300
     // ms — Vercel's function timeout is not a concern here. Keep
     // this on fetch since it goes to our own origin.
@@ -204,11 +295,7 @@ async function attemptUpload(file: File): Promise<string> {
       publicUrl: string;
     };
 
-    // Phase 2: PUT the file to Supabase via XHR (not fetch). See the
-    // putViaXhr doc comment above for why — in short, Samsung
-    // Internet's fetch-layer CORS cache was systematically rejecting
-    // batch-2+ uploads with "TypeError: Failed to fetch" on the
-    // user's device. XHR uses a separate code path.
+    // Phase 2: PUT the file to Supabase via XHR (not fetch).
     await putViaXhr(signedUrl, file, controller.signal);
     return publicUrl;
   } finally {
@@ -219,11 +306,26 @@ async function attemptUpload(file: File): Promise<string> {
 
 export async function uploadToSupabase(file: File): Promise<string> {
   let lastErr: unknown = null;
+  // Once the direct path fails with "no bytes sent" (browser blocked
+  // the cross-origin PUT entirely), every subsequent retry should
+  // use the proxy. Flipping back mid-batch would just fail again.
+  let forceProxy = false;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      return await attemptUpload(file);
+      return await attemptUpload(file, forceProxy);
     } catch (err) {
       lastErr = err;
+      if (!forceProxy && shouldFallbackToProxy(err)) {
+        console.warn(
+          `[upload] direct path blocked at CORS preflight — switching to server proxy for subsequent attempts`,
+          err
+        );
+        forceProxy = true;
+        // Don't count this as a retry; immediately try again via
+        // proxy without eating the backoff or an attempt count.
+        attempt--;
+        continue;
+      }
       const { retryable, label } = classifyError(err);
       if (!retryable || attempt === MAX_ATTEMPTS) {
         if (!retryable) {
