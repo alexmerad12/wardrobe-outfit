@@ -89,16 +89,20 @@ export default function FavoritesPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
-      <div className="flex items-end justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("favorites.subtitle")}
-          </p>
+      {/* Sticky title bar — solid bg matches the wardrobe select bar. */}
+      <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-6 border-b bg-background px-4 pb-3 pt-6">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
+            <p className="text-sm text-muted-foreground">
+              {t("favorites.subtitle")}
+            </p>
+          </div>
+          <span className="flex items-center gap-1.5 font-[family-name:var(--font-heading)] text-3xl font-medium leading-none">
+            <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+            {outfits.length}
+          </span>
         </div>
-        <span className="font-[family-name:var(--font-heading)] text-3xl font-medium leading-none">
-          {outfits.length}
-        </span>
       </div>
 
       {/* Occasion filter tabs */}

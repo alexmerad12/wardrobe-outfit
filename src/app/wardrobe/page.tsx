@@ -256,15 +256,16 @@ export default function WardrobePage() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("wardrobe.title")}</h1>
-            <p className="text-sm text-muted-foreground">
-              {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? t("wardrobe.items") : t("wardrobe.itemsPlural")}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <>
+        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold tracking-tight">{t("wardrobe.title")}</h1>
+              <p className="text-sm text-muted-foreground">
+                {items.filter((i) => !i.is_stored).length} {items.filter((i) => !i.is_stored).length === 1 ? t("wardrobe.items") : t("wardrobe.itemsPlural")}
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <>
               {items.length > 0 && (
                 <Button
                   size="sm"
@@ -373,6 +374,7 @@ export default function WardrobePage() {
                 }}
               />
             </>
+            </div>
           </div>
         </div>
       )}
