@@ -124,6 +124,17 @@ function putViaXhr(
     xhr.setRequestHeader("x-upsert", "false");
     // Do NOT set Content-Type — the browser will set the correct
     // multipart/form-data boundary automatically for FormData bodies.
+    // Explicit per-XHR timeout. Belt-and-braces in addition to the
+    // outer AbortController: some mobile browsers ignore or lag
+    // abort() mid-flight but respect xhr.timeout directly.
+    xhr.timeout = ATTEMPT_TIMEOUT_MS;
+    // Track how much of the file actually made it onto the wire so
+    // we can tell a "never got a packet out" network error from a
+    // "connection died 90% through the upload" one.
+    let lastLoaded = 0;
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) lastLoaded = e.loaded;
+    };
 
     xhr.onload = () => {
       abortSignal.removeEventListener("abort", onAbort);
@@ -139,10 +150,16 @@ function putViaXhr(
     };
     xhr.onerror = () => {
       abortSignal.removeEventListener("abort", onAbort);
-      // XHR's onerror fires on network failures with no response. The
-      // status is usually 0 in this case. Message mirrors the fetch
-      // version so classifyError treats them identically.
-      reject(new TypeError("XHR network error"));
+      // XHR's onerror fires on network failures with no response —
+      // DNS failure, connection drop, TLS failure, CORS rejection.
+      // Include how far the upload progressed so "died at byte 0"
+      // (DNS/CORS) is distinguishable from "died at byte N of M"
+      // (network dropped mid-stream) in the user-facing error.
+      const progress =
+        lastLoaded > 0
+          ? ` (sent ${Math.round((lastLoaded / file.size) * 100)}%)`
+          : " (no bytes sent)";
+      reject(new TypeError(`XHR network error${progress}`));
     };
     xhr.onabort = () => {
       abortSignal.removeEventListener("abort", onAbort);

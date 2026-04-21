@@ -140,6 +140,22 @@ export default function UploadingPage() {
           automatically when it&apos;s done.
         </p>
 
+        {/* Photo tips — visible DURING upload so users see the
+            guidance while they're still forming habits. Previously
+            tucked in the + dropdown where nobody found them. The
+            three rules map 1:1 to the failure modes we see in
+            practice: bg removal leaves artefacts when the backdrop
+            is cluttered, the AI mislabels when multiple items are
+            in frame, and cropped shots lose sleeves/hems. */}
+        <div className="mb-4 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2.5 text-xs text-[#7c2d3a]">
+          <p className="font-medium mb-1">Tips for clean backgrounds</p>
+          <ul className="space-y-0.5 text-[#9b4050]/90">
+            <li>• One item per photo, fully visible (no cropped edges)</li>
+            <li>• Flat plain surface — bed, table, floor</li>
+            <li>• Good light, no strong shadows</li>
+          </ul>
+        </div>
+
         {/* Tile grid */}
         <div className="grid grid-cols-4 gap-2">
           {items.map((item) => (
@@ -200,9 +216,22 @@ export default function UploadingPage() {
             failures impossible to diagnose from the phone. */}
         {counts.error > 0 && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-            <p className="font-medium mb-1">
-              {counts.error} item{counts.error === 1 ? "" : "s"} errored
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="font-medium">
+                {counts.error} item{counts.error === 1 ? "" : "s"} errored
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  for (const it of items) {
+                    if (it.stage === "error") retry(it.id);
+                  }
+                }}
+                className="shrink-0 rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-red-700"
+              >
+                Retry all
+              </button>
+            </div>
             <ul className="space-y-1">
               {items
                 .filter((i) => i.stage === "error")
