@@ -185,9 +185,10 @@ THE 3 OUTFITS MUST BE GENUINELY DIFFERENT FROM EACH OTHER. Not three variations 
    - Never combine a dress/jumpsuit with a bottom. Overalls are the only exception: they ALWAYS pair with a top.
    - A top alone is NOT an outfit. A top + shoes is NOT an outfit. If you can't find a suitable bottom in the wardrobe, skip that outfit entirely rather than sending something incomplete.
 
-3. NO DUPLICATES FROM SAME CATEGORY:
-   - Don't include two tops, two bottoms, or two dresses in one outfit.
-   - EXCEPTION: One "layering piece" can go over a base top (vest over shirt, cardigan over tee, open shirt over tank). Only one layering piece per outfit.
+3. NO DUPLICATES — MAX ONE ITEM PER SUBCATEGORY:
+   - Don't include two tops, two bottoms, two dresses, two pairs of shoes, two belts, two hats, two bags, etc. EVER. One per subcategory across the whole outfit.
+   - EXCEPTION: One "layering piece" can go over a base top (vest over shirt, cardigan over tee, open shirt over tank). Only one layering piece per outfit. Layering pieces and base tops are NOT duplicates of each other.
+   - Two pieces of the SAME subcategory (two belts, two scarves, two pairs of boots) are forbidden no matter what.
 
 4. CATEGORY CHECK:
    - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item or drop the outfit.
@@ -285,6 +286,18 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
         if (hasDress || hasOnePiece) {
           outfitItems = outfitItems.filter((i) => i.category !== "bottom");
         }
+
+        // De-dupe by subcategory: if AI slipped two belts (or two of any
+        // same subcategory), keep the first and drop the rest. Items
+        // without a subcategory aren't deduped here — they're rare and
+        // category-level rules above cover the common cases.
+        const seenSubs = new Set<string>();
+        outfitItems = outfitItems.filter((i) => {
+          if (!i.subcategory) return true;
+          if (seenSubs.has(i.subcategory)) return false;
+          seenSubs.add(i.subcategory);
+          return true;
+        });
 
         return {
           items: outfitItems,
