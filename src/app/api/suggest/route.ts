@@ -147,7 +147,7 @@ OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${style
 
 LANGUAGE: Write the outfit "name" and "reasoning" fields in ${languageName}. Item IDs stay as-is.
 
-Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
+Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look that matches ALL THREE of: the WEATHER (temperature + conditions), the MOOD, and the OCCASION above. Weather is not optional — a cozy look at −5°C must actually handle the cold; an at-home look on a 30°C day must not include a wool coat.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
 
 ⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
 
@@ -174,6 +174,16 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
 
 4. CATEGORY CHECK:
    - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item or drop the outfit.
+
+5. WEATHER MATCH (non-negotiable):
+   - The WEATHER value at the top tells you today's temperature and conditions. Every outfit MUST be appropriate for it.
+   - <5°C: heavy outerwear (coat / puffer / parka), warmth rating 4–5 pieces, closed shoes / boots. No shorts / skirts without tights, no sandals, no tank tops as the only top.
+   - 5–12°C: light-to-mid outerwear (jacket / cardigan / blazer), long sleeves, closed shoes. No sandals, no shorts.
+   - 12–18°C: long sleeves or layered short sleeves, optional light jacket/cardigan. Jeans / trousers or midi skirts work; shorts only if the user's pieces clearly handle it.
+   - 18–25°C: short sleeves / t-shirts / blouses, shorts / skirts / trousers, sneakers / flats / sandals. No heavy coats.
+   - >25°C: lightest pieces (tank, t-shirt, shorts, sundress), breathable materials (cotton, linen, mesh). NO sweaters, NO wool, NO heavy jackets, NO boots.
+   - Rain chance ≥ 40%: prefer items marked "Rain-proof" when available; avoid suede / canvas / delicate pieces.
+   - Match the Warmth rating on each item to the temp — don't mix a warmth-5 coat with warmth-2 pieces on a warm day, or vice versa.
 
 OCCASION-SPECIFIC GUIDANCE:
 - "At Home" (loungewear): prioritize soft, stretchy, comfortable pieces (sweatpants, leggings, hoodies, cozy knits, oversized tees, lounge sets). Shoes are OPTIONAL and should be skipped unless the user has truly casual indoor shoes (slippers, house sneakers) — don't force heels / boots / formal shoes. Bags should NOT appear in at-home outfits. Keep layering minimal; at home you want one top max, not sweater + cardigan.
@@ -204,7 +214,7 @@ Respond with ONLY valid JSON in this exact format:
   "outfits": [
     {
       "item_ids": ["id1", "id2", "id3"],
-      "reasoning": "2-3 sentences explaining the styling choices like a personal stylist would",
+      "reasoning": "2-3 sentences explaining the styling choices like a personal stylist would. Briefly note how the outfit fits the weather, the mood, and the occasion.",
       "name": "A short creative name for this look"
     }
   ],
