@@ -175,16 +175,16 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
 4. CATEGORY CHECK:
    - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item or drop the outfit.
 
-5. WEATHER MATCH (non-negotiable):
+5. WEATHER MATCH:
    - The WEATHER value at the top tells you today's temperature and conditions. Every outfit MUST be appropriate for it.
-   - <5°C: OUTERWEAR REQUIRED — heavy coat / puffer / parka in every outfit. Warmth rating 4–5 pieces, closed shoes / boots. No shorts / skirts without tights, no sandals, no tank tops as the only top.
-   - 5–12°C: OUTERWEAR REQUIRED — jacket / cardigan / blazer / coat in every outfit. Long sleeves, closed shoes. No sandals, no shorts. (Even for indoor occasions like Dinner Out or Work, the user has to get there — include the outerwear.)
+   - <5°C: include heavy outerwear (coat / puffer / parka) whenever the wardrobe has it. Warmth rating 4–5 pieces, closed shoes / boots. No shorts / skirts without tights, no sandals, no tank tops as the only top.
+   - 5–12°C: include outerwear (jacket / cardigan / blazer / coat) whenever the wardrobe has a piece that fits the look. Long sleeves, closed shoes. No sandals, no shorts. (Even indoor occasions like Dinner Out or Work — the user has to get there.)
    - 12–18°C: long sleeves or layered short sleeves, optional light jacket/cardigan. Jeans / trousers or midi skirts work; shorts only if the user's pieces clearly handle it.
    - 18–25°C: short sleeves / t-shirts / blouses, shorts / skirts / trousers, sneakers / flats / sandals. No heavy coats.
    - >25°C: lightest pieces (tank, t-shirt, shorts, sundress), breathable materials (cotton, linen, mesh). NO sweaters, NO wool, NO heavy jackets, NO boots.
    - Rain chance ≥ 40%: prefer items marked "Rain-proof" when available; avoid suede / canvas / delicate pieces.
    - Match the Warmth rating on each item to the temp — don't mix a warmth-5 coat with warmth-2 pieces on a warm day, or vice versa.
-   - If the wardrobe has NO suitable outerwear for the temperature, SKIP that outfit entirely rather than send something that leaves the user cold.
+   - If the wardrobe is missing a key cold-weather piece (no outerwear at all, no closed shoes, etc.), STILL generate an outfit with what's available, and call out the gap in wardrobe_gap so the user knows what to add.
 
 OCCASION-SPECIFIC GUIDANCE:
 - "At Home" (loungewear): prioritize soft, stretchy, comfortable pieces (sweatpants, leggings, hoodies, cozy knits, oversized tees, lounge sets). Shoes are OPTIONAL and should be skipped unless the user has truly casual indoor shoes (slippers, house sneakers) — don't force heels / boots / formal shoes. Bags should NOT appear in at-home outfits. Keep layering minimal; at home you want one top max, not sweater + cardigan.
@@ -277,6 +277,10 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
       // (one-piece without overalls), or a top+bottom pair (which for
       // overalls means overalls + top). A sweater + shoes alone is not
       // a complete outfit and shouldn't be shown.
+      // (Note: we used to also drop outfits missing outerwear in cold
+      // weather, but that nuked all 3 results when AI didn't include any
+      // — the prompt nudges hard for outerwear; we don't enforce it
+      // post-parse so users always see SOMETHING actionable.)
       .filter((s) => {
         const hasDress = s.items.some((i) => i.category === "dress");
         const hasOnePiece = s.items.some((i) => i.category === "one-piece");
@@ -285,23 +289,9 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
         const isOveralls = s.items.some(
           (i) => i.category === "one-piece" && i.subcategory === "overalls"
         );
-        if (hasDress) {
-          // ok
-        } else if (hasOnePiece) {
-          if (isOveralls && !hasTop) return false;
-        } else if (!(hasTop && hasBottom)) {
-          return false;
-        }
-        // Cold-weather outerwear check. If it's <=12°C and the user HAS
-        // outerwear in their wardrobe, every outfit must include one.
-        // (If the user has no outerwear at all, we don't reject — the AI
-        // did what it could.)
-        if (weather && weather.temp <= 12) {
-          const wardrobeHasOuterwear = items.some((i) => i.category === "outerwear");
-          const outfitHasOuterwear = s.items.some((i) => i.category === "outerwear");
-          if (wardrobeHasOuterwear && !outfitHasOuterwear) return false;
-        }
-        return true;
+        if (hasDress) return true;
+        if (hasOnePiece) return !isOveralls || hasTop;
+        return hasTop && hasBottom;
       });
 
     return NextResponse.json({
