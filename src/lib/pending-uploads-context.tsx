@@ -279,29 +279,42 @@ export function PendingUploadsProvider({
       // listening refetch and see the new image. If removal fails or
       // times out, we just keep the original — no pipeline impact.
       const downscaledFile = cleaned; // captured for the closure below
+      const bgLog = (stage: string, extra?: unknown) =>
+        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
       void (async () => {
+        bgLog("starting imgly removeBg");
+        const t0 = performance.now();
         try {
           const cleanedBlob = await removeBg(downscaledFile);
+          bgLog(`imgly done in ${Math.round(performance.now() - t0)}ms`, {
+            size: cleanedBlob.size,
+          });
           const cleanedPng = new File(
             [cleanedBlob],
             downscaledFile.name.replace(/\.[^.]+$/, "") + ".png",
             { type: "image/png" }
           );
+          bgLog("uploading cleaned PNG");
+          const uploadT0 = performance.now();
           const cleanedUrl = await uploadToSupabase(cleanedPng);
+          bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
+          bgLog("PATCHing image_url");
           const patchRes = await fetch(`/api/items/${saved.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ image_url: cleanedUrl }),
           });
-          if (!patchRes.ok) return;
+          if (!patchRes.ok) {
+            const txt = await patchRes.text().catch(() => "");
+            bgLog(`PATCH failed status=${patchRes.status}`, txt);
+            return;
+          }
+          bgLog(`DONE in ${Math.round(performance.now() - t0)}ms total`);
           // Let subscribers (wardrobe grid) refetch so the cleaned
           // image shows up without a manual reload.
           notifySaved();
         } catch (err) {
-          console.warn(
-            `[pending ${item.id}] post-save bg removal failed — keeping original`,
-            err
-          );
+          bgLog("FAILED — keeping original", err);
         }
       })();
     },
