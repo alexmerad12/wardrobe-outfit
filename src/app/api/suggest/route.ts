@@ -7,18 +7,16 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 const anthropic = new Anthropic();
 
-// Category words that, when present in text but NOT present in the outfit's
-// item_ids, are hallucinations. The post-parse rejects outfits whose
-// reasoning/styling_tip/name references a category not in the items.
+// High-signal category words — when these appear in the AI's text but the
+// corresponding category is NOT in item_ids, it's a visible hallucination
+// the user will see as "where is the jacket?". We only guard the structural
+// pieces (outerwear / bottom / dress / one-piece) so harmless vocab slips
+// on tops and shoes don't nuke otherwise-fine outfits.
 const CATEGORY_SIGNAL_WORDS: Record<string, string[]> = {
-  top: ["t-shirt", "tshirt", "tee", "tank", "blouse", "crop top", "cropped top", "sweater", "hoodie", "cardigan", "pullover"],
-  bottom: ["jeans", "trousers", "pants", "shorts", "skirt", "leggings", "sweatpants", "chinos", "slacks"],
-  dress: ["dress", "gown", "sundress"],
+  bottom: ["jeans", "trousers", "leggings", "sweatpants", "chinos", "slacks"],
+  dress: ["maxi dress", "midi dress", "mini dress", "sundress", "gown"],
   "one-piece": ["jumpsuit", "overalls", "romper"],
-  outerwear: ["jacket", "coat", "blazer", "vest", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
-  shoes: ["boot", "sneaker", "heel", "sandal", "loafer", "mule", "espadrille", "pump", "oxford"],
-  bag: ["handbag", "backpack", "tote", "clutch", "crossbody", "purse"],
-  accessory: ["belt", "scarf", "beanie", "necklace", "earring"],
+  outerwear: ["jacket", "blazer", "coat", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
 };
 
 function textMentionsMissingCategory(items: ClothingItem[], text: string): boolean {
@@ -254,7 +252,7 @@ STYLING PRINCIPLES (real-stylist logic, not generic safe pairings):
 - Respect the occasion's formality (see OCCASION-SPECIFIC GUIDANCE) and the mood (see MOOD-SPECIFIC GUIDANCE).
 - Include shoes when the occasion calls for them (everything except At Home).
 
-Also analyze the wardrobe for any gaps - staple pieces that are missing and would significantly improve outfit options (e.g. a neutral belt, white sneakers, a blazer, a basic white tee). Only mention a gap if it's genuinely useful, not just to fill space. If the wardrobe is well-rounded, don't suggest anything.
+Wardrobe gap: BEFORE suggesting any gap, COUNT the items the user already has in each category (top / bottom / dress / outerwear / shoes / accessory). If the user has ANY outerwear (jacket, blazer, coat, etc.), DO NOT suggest "a blazer" or "a jacket" as a gap. If they have dresses, do not suggest a dress. Only name a gap when that category is genuinely empty or missing a specific staple type the user lacks. If the wardrobe is covered, set wardrobe_gap to null.
 
 Respond with ONLY valid JSON in this exact format:
 {
@@ -377,9 +375,30 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
       })
       .map(({ _violations: _v, ...rest }) => rest);
 
+    // Scrub wardrobe_gap if the AI suggested a category the user already has
+    // populated. Keeps the AI from recommending "a blazer" when her wardrobe
+    // already has jackets.
+    const userCategoryCounts = items.reduce<Record<string, number>>((acc, i) => {
+      acc[i.category] = (acc[i.category] ?? 0) + 1;
+      return acc;
+    }, {});
+    const gapMentionsOwnedCategory = (gap: string): boolean => {
+      const lower = gap.toLowerCase();
+      for (const [cat, words] of Object.entries(CATEGORY_SIGNAL_WORDS)) {
+        if ((userCategoryCounts[cat] ?? 0) === 0) continue;
+        for (const w of words) {
+          const escaped = w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&");
+          if (new RegExp(`\\b${escaped}s?\\b`, "i").test(lower)) return true;
+        }
+      }
+      return false;
+    };
+    const rawGap = parsed.wardrobe_gap ?? null;
+    const wardrobe_gap = rawGap && gapMentionsOwnedCategory(rawGap) ? null : rawGap;
+
     return NextResponse.json({
       suggestions,
-      wardrobe_gap: parsed.wardrobe_gap ?? null,
+      wardrobe_gap,
     });
   } catch (error) {
     console.error("Suggestion error:", error);
