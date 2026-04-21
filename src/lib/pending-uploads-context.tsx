@@ -275,11 +275,13 @@ export function PendingUploadsProvider({
       //    per item.
       bgLog("uploading final image");
       const uploadT0 = performance.now();
+      // Don't re-wrap the error with another "Upload:" prefix — the
+      // upload helper already prefixes its errors, and doubling them
+      // up produced "Upload: Upload: Failed to fetch" in the user-
+      // facing error panel, which was confusing.
       const imageUrl = await uploadToSupabase(finalFile).catch((err) => {
         console.error(`[pending ${item.id}] upload step failed`, err);
-        throw new Error(
-          `Upload: ${err instanceof Error ? err.message : String(err)}`
-        );
+        throw err;
       });
       bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
 

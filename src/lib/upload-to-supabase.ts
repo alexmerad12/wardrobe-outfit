@@ -1,6 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
-
-const BUCKET = "clothing-images";
 
 // Client-side upload helper. Two-phase:
 //   1. POST a tiny JSON request to /api/upload/sign — server returns a
@@ -88,15 +85,88 @@ function classifyError(err: unknown): {
   return { retryable: true, label: "unknown" };
 }
 
+// XHR-based PUT to the signed URL. We were using the Supabase SDK's
+// uploadToSignedUrl (which uses fetch internally), but the user's
+// Samsung S21 FE was hitting systematic "TypeError: Failed to fetch"
+// on every PUT in batch 2+ — 5/5 items, not flaky signal. The leading
+// theory is Samsung Internet's aggressive CORS-preflight caching: the
+// first batch's OPTIONS preflight succeeds, then a stale/misbehaved
+// cache entry makes every subsequent fetch fail before the request
+// leaves the device. XHR has a different internal code path in the
+// browser — it doesn't consult the same fetch-layer preflight cache
+// and sends an inline OPTIONS when needed, so it sidesteps the bug.
+//
+// The body format matches exactly what supabase-js constructs for
+// uploadToSignedUrl: a FormData with `cacheControl` and the blob
+// appended under an empty key, plus `x-upsert` as a request header.
+// That's how Supabase Storage expects the request; any deviation
+// produces silent 4xx/CORS rejection.
+function putViaXhr(
+  signedUrl: string,
+  file: File,
+  abortSignal: AbortSignal
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const onAbort = () => {
+      try {
+        xhr.abort();
+      } catch {}
+    };
+    abortSignal.addEventListener("abort", onAbort, { once: true });
+
+    const body = new FormData();
+    body.append("cacheControl", "3600");
+    // Supabase SDK appends the file under an empty field name.
+    body.append("", file);
+
+    xhr.open("PUT", signedUrl, true);
+    xhr.setRequestHeader("x-upsert", "false");
+    // Do NOT set Content-Type — the browser will set the correct
+    // multipart/form-data boundary automatically for FormData bodies.
+
+    xhr.onload = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(
+          new Error(
+            `Upload ${xhr.status}${xhr.responseText ? `: ${xhr.responseText.slice(0, 160)}` : ""}`
+          )
+        );
+      }
+    };
+    xhr.onerror = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      // XHR's onerror fires on network failures with no response. The
+      // status is usually 0 in this case. Message mirrors the fetch
+      // version so classifyError treats them identically.
+      reject(new TypeError("XHR network error"));
+    };
+    xhr.onabort = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      reject(
+        new DOMException("Upload aborted", "AbortError")
+      );
+    };
+    xhr.ontimeout = () => {
+      abortSignal.removeEventListener("abort", onAbort);
+      reject(new DOMException("Upload timed out", "AbortError"));
+    };
+
+    xhr.send(body);
+  });
+}
+
 async function attemptUpload(file: File): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
   activeControllers.add(controller);
   try {
-    // Phase 1: get a signed upload URL. This is a tiny JSON request
-    // to our server (~100-300 ms) so the Vercel timeout isn't a
-    // concern. We send filename + contentType so the server can
-    // construct a sensible storage path.
+    // Phase 1: get a signed upload URL. Tiny JSON request, ~100-300
+    // ms — Vercel's function timeout is not a concern here. Keep
+    // this on fetch since it goes to our own origin.
     const signRes = await fetch("/api/upload/sign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,33 +182,17 @@ async function attemptUpload(file: File): Promise<string> {
         `Sign ${signRes.status}${text ? `: ${text.slice(0, 160)}` : ""}`
       );
     }
-    const { path, token, publicUrl } = (await signRes.json()) as {
+    const { signedUrl, publicUrl } = (await signRes.json()) as {
       signedUrl: string;
-      path: string;
-      token: string;
       publicUrl: string;
     };
 
-    // Phase 2: use the Supabase SDK's uploadToSignedUrl. The SDK
-    // wraps the File in FormData with a cacheControl field and
-    // sends the correct x-upsert header + content-type metadata
-    // that Supabase's storage API requires. We tried a naive
-    // `fetch(signedUrl, { method: "PUT", body: file })` first, but
-    // that's only a partial match for what the server expects and
-    // was producing intermittent "Failed to fetch" CORS/format
-    // failures on the second batch of uploads — exactly the mode
-    // the user reported. Delegating to the SDK keeps us in sync
-    // with however Supabase evolves the protocol.
-    const supabase = createClient();
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .uploadToSignedUrl(path, token, file, {
-        contentType: file.type || "image/jpeg",
-        upsert: false,
-      });
-    if (error) {
-      throw new Error(`Upload: ${error.message}`);
-    }
+    // Phase 2: PUT the file to Supabase via XHR (not fetch). See the
+    // putViaXhr doc comment above for why — in short, Samsung
+    // Internet's fetch-layer CORS cache was systematically rejecting
+    // batch-2+ uploads with "TypeError: Failed to fetch" on the
+    // user's device. XHR uses a separate code path.
+    await putViaXhr(signedUrl, file, controller.signal);
     return publicUrl;
   } finally {
     clearTimeout(timer);
