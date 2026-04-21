@@ -85,9 +85,9 @@
     "altClothingItem": "Vêtement"
   },
   "home": {
-    "goodMorning": "Bon matin de ta Closette",
-    "goodAfternoon": "Bonjour de ta Closette",
-    "goodEvening": "Bonsoir de ta Closette",
+    "goodMorning": "Bon matin de Closette",
+    "goodAfternoon": "Bonjour de Closette",
+    "goodEvening": "Bonsoir de Closette",
     "allSet": "Tu es prête pour aujourd'hui.",
     "letsFindOutfit": "Trouvons ta tenue parfaite du jour.",
     "todaysOutfit": "Tenue du jour",
