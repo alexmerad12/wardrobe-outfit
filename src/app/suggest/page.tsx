@@ -203,10 +203,9 @@ function SuggestContent() {
         <div>
           <h1 className="text-xl font-bold">{t("suggest.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {step === "mood" && t("suggest.howAreYouFeeling")}
-            {step === "style" && t("suggest.stylingPreferences")}
-            {step === "occasion" && t("suggest.whatsTheOccasion")}
-            {step === "results" && t("suggest.suggestionCounter", { current: currentIndex + 1, total: suggestions.length })}
+            {step === "results"
+              ? t("suggest.suggestionCounter", { current: currentIndex + 1, total: suggestions.length })
+              : t("suggest.stepTagline")}
           </p>
         </div>
       </div>
