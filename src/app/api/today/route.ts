@@ -114,6 +114,31 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Log this wear in outfit_log for the durable wear-history metric.
+  // Dedupe by (user, outfit, day) so toggling Wear Today twice in one day
+  // doesn't double-count.
+  const { data: existingLog } = await supabase
+    .from("outfit_log")
+    .select("id")
+    .eq("outfit_id", row.outfit_id)
+    .eq("worn_date", today)
+    .maybeSingle();
+  if (!existingLog) {
+    await supabase.from("outfit_log").insert({
+      user_id: userId,
+      outfit_id: row.outfit_id,
+      worn_date: today,
+      weather_snapshot:
+        row.weather_temp != null
+          ? { temp: row.weather_temp, condition: row.weather_condition }
+          : null,
+      mood: row.mood,
+      occasion: row.occasion,
+      loved_it: false,
+    });
+  }
+
   return NextResponse.json(data);
 }
 

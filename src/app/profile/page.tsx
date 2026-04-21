@@ -74,10 +74,11 @@ export default function ProfilePage() {
   useEffect(() => {
     async function loadProfile() {
       try {
-        const [prefsRes, itemsRes, outfitsRes] = await Promise.all([
+        const [prefsRes, itemsRes, outfitsRes, logsRes] = await Promise.all([
           fetch("/api/preferences"),
           fetch("/api/items"),
           fetch("/api/outfits"),
+          fetch("/api/logs"),
         ]);
 
         if (prefsRes.ok) {
@@ -100,12 +101,16 @@ export default function ProfilePage() {
           setAllItems(items);
         }
 
-        if (outfitsRes.ok) {
-          const outfits = await outfitsRes.json();
-          // 'Saved Outfits' = what the user sees in Favorites. Unfavorited
-          // outfits stay in the DB (is_favorite=false) but shouldn't bump
-          // this count since they're not visible anywhere.
-          setOutfitCount(outfits.filter((o: { is_favorite: boolean }) => o.is_favorite).length);
+        // 'Outfits worn from Closette' = total wear-log entries whose outfit
+        // was AI-generated. Counts every Wear Today click on an AI suggestion
+        // (deduped per day server-side).
+        if (outfitsRes.ok && logsRes.ok) {
+          const outfits = (await outfitsRes.json()) as { id: string; source: string }[];
+          const logs = (await logsRes.json()) as { outfit_id: string }[];
+          const aiOutfitIds = new Set(
+            outfits.filter((o) => o.source === "ai").map((o) => o.id)
+          );
+          setOutfitCount(logs.filter((l) => aiOutfitIds.has(l.outfit_id)).length);
         }
       } catch (err) {
         console.error("Failed to load profile:", err);

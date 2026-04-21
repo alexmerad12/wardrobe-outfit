@@ -89,19 +89,16 @@ export default function FavoritesPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {t("favorites.subtitle")}
           </p>
         </div>
-        <Link href="/suggest">
-          <Button size="sm" className="gap-1.5">
-            <Sparkles className="h-4 w-4" />
-            {t("favorites.new")}
-          </Button>
-        </Link>
+        <span className="font-[family-name:var(--font-heading)] text-3xl font-medium leading-none">
+          {outfits.length}
+        </span>
       </div>
 
       {/* Occasion filter tabs */}
