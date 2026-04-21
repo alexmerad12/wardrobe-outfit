@@ -946,7 +946,9 @@ export default function ItemDetailPage() {
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setEditStored(!editStored)} className={cn("h-5 w-5 rounded border-2 transition-colors", editStored ? "border-primary bg-primary" : "border-muted-foreground/30")} />
             <div>
-              <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>{t("addItem.stored")}</Label>
+              <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>
+                {editStored ? t("addItem.storedOn") : t("addItem.stored")}
+              </Label>
               <p className="text-xs text-muted-foreground">{t("addItem.storedHint")}</p>
             </div>
           </div>
