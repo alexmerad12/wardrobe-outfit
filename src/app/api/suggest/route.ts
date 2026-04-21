@@ -187,7 +187,9 @@ THE 3 OUTFITS MUST BE GENUINELY DIFFERENT FROM EACH OTHER. Not three variations 
 
 3. NO DUPLICATES — MAX ONE ITEM PER SUBCATEGORY:
    - Don't include two tops, two bottoms, two dresses, two pairs of shoes, two belts, two hats, two bags, etc. EVER. One per subcategory across the whole outfit.
-   - EXCEPTION: One "layering piece" can go over a base top (vest over shirt, cardigan over tee, open shirt over tank). Only one layering piece per outfit. Layering pieces and base tops are NOT duplicates of each other.
+   - EXCEPTIONS:
+     a. One TOP marked '(layering piece)' (vest, cardigan, open shirt) can go OVER a base top — counts as 1 layering top + 1 base top, not duplicates.
+     b. ONE outerwear piece (jacket / blazer / coat / cardigan-as-outerwear) layered over a top is normal styling, NOT a duplicate.
    - Two pieces of the SAME subcategory (two belts, two scarves, two pairs of boots) are forbidden no matter what.
 
 4. CATEGORY CHECK:
@@ -220,6 +222,7 @@ STYLING PRINCIPLES (real-stylist logic, not generic safe pairings):
 - Color stories: pick ONE — monochromatic (one color, varied tones), tonal (close neighbors), complementary (one accent against neutrals), or true contrast (a confident bold pop). Don't just throw colors together.
 - Hardware + accessories cohere: match metals (silver with silver, gold with gold) and tonal hardware (cool tones with cool, warm with warm).
 - Layering is a styling MOVE, not just warmth: open over base, contrast textures, let an undershirt peek out, push sleeves up, leave a button undone. The styling_tip is where these moves live.
+- USE THE OUTERWEAR. If the wardrobe has jackets, blazers, vests, or coats, they are style finishers — not just weather gear. A blazer over a tee elevates the look. A denim jacket adds texture. An open cardigan adds depth. Across 3 outfits, default to including outerwear in at least 2 of them when the user has options. Skip only when the temperature is genuinely too warm (>22°C) or the silhouette is already fully developed (e.g., a statement dress that doesn't need a layer).
 - Tucking, cuffing, half-buttoning, sleeve-pushing — these small actions are what separate 'wearing clothes' from 'styled'. Always include at least one specific action in styling_tip when there's room.
 - Don't pile on. Empty space is a tool. Outfits with too many pieces (5+ small details, layered + belt + scarf + jewelry + bag) feel cluttered, not curated.
 - The occasion sets the floor for formality, the mood sets the energy, the weather sets the materials. All three must align.
@@ -245,7 +248,8 @@ Respond with ONLY valid JSON in this exact format:
 
 ⚠️ CRITICAL — DESCRIPTION INTEGRITY:
 - The reasoning and styling_tip must ONLY reference categories that are ACTUALLY in the item_ids list. If your outfit has no shoes, do not mention boots / sneakers / heels in either field. If it has no jacket, do not mention layering one.
-- Do not name specific items (no 'the Levi's jeans', no 'the beige striped sweater', no 'the satin Zara dress'). Only generic shapes ('the jeans', 'the sweater', 'the dress', 'the boots').
+- Use BROAD CATEGORY ONLY when referring to pieces — the safe vocabulary is: the top, the bottom, the dress, the one-piece, the jacket / coat / blazer, the shoes, the bag, the belt, the accessory.
+- Do NOT use subcategory names — no 'the t-shirt', no 'the blouse', no 'the jeans', no 'the sneakers'. The model often guesses the subcategory wrong (calling a tank a t-shirt, calling trousers jeans). Stick to the broad category and the user will mentally fill in the right name from the photo. Same goes for brand / color / material — never name them.
 
 Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
 
