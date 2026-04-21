@@ -625,7 +625,7 @@
   },
   "favorites": {
     "title": "Favorite Outfits",
-    "subtitle": "Your best looks",
+    "subtitle": "Outfits that feel like you",
     "none": "No favorite outfits yet",
     "noneHint": "Get outfit suggestions and save the ones you love. Your favorites help the AI learn your style!",
     "getSuggestions": "Get Suggestions",
