@@ -213,7 +213,7 @@ export default function WardrobePage() {
         // makes the frosted background extend to the viewport edges within
         // the page's max-width container. -mt-6 + pt-6 cancels the page's
         // top padding so the bar starts flush.
-        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background/95 px-4 pb-3 pt-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Button size="icon" variant="ghost" onClick={exitSelectMode}>
