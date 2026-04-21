@@ -9,7 +9,7 @@ import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Sparkles, Trash2, Thermometer, Shirt } from "lucide-react";
+import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check } from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
@@ -22,6 +22,9 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState(false);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
   const router = useRouter();
@@ -87,22 +90,101 @@ export default function FavoritesPage() {
     setOutfits((prev) => prev.filter((o) => o.id !== outfitId));
   }
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
+  async function handleBulkRemove() {
+    if (selected.size === 0) return;
+    setRemoving(true);
+    try {
+      await Promise.all(
+        Array.from(selected).map((id) =>
+          fetch(`/api/outfits/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_favorite: false }),
+          })
+        )
+      );
+      setOutfits((prev) => prev.filter((o) => !selected.has(o.id)));
+      exitSelectMode();
+    } catch (err) {
+      console.error("Failed to bulk-remove favorites:", err);
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
-      {/* Sticky title bar — solid bg matches the wardrobe select bar. */}
+      {/* Sticky top bar. Select mode mirrors the wardrobe pattern — Cancel
+          + count on the left, bulk Remove on the right. */}
       <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-6 border-b bg-background px-4 pb-3 pt-6">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t("favorites.subtitle")}
-            </p>
+        {selectMode ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button size="icon" variant="ghost" onClick={exitSelectMode}>
+                <X className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium truncate">
+                {t("wardrobe.nSelected", { count: selected.size })}
+              </span>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1.5"
+                disabled={selected.size === 0 || removing}
+                onClick={handleBulkRemove}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("common.remove")}
+              </Button>
+            </div>
           </div>
-          <span className="flex items-center gap-1.5 font-[family-name:var(--font-heading)] text-3xl font-medium leading-none">
-            <Heart className="h-5 w-5 fill-red-500 text-red-500" />
-            {outfits.length}
-          </span>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
+              <p className="text-sm text-muted-foreground">{t("favorites.subtitle")}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Heart + count, sized like a button so it sits on the same
+                  baseline as the Select action — same line-icon family as
+                  the mood / weather icons elsewhere in the app. */}
+              <div className="flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground">
+                <Heart className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                {outfits.length}
+              </div>
+              {outfits.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setSelectMode(true);
+                    setExpandedId(null);
+                  }}
+                >
+                  <CheckSquare className="h-4 w-4" />
+                  {t("wardrobe.select")}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Occasion filter tabs */}
@@ -162,9 +244,28 @@ export default function FavoritesPage() {
             .map((outfit) => (
             <Card
               key={outfit.id}
-              className="overflow-hidden cursor-pointer"
-              onClick={() => setExpandedId(expandedId === outfit.id ? null : outfit.id)}
+              className={cn(
+                "overflow-hidden cursor-pointer relative",
+                selectMode && selected.has(outfit.id) && "ring-2 ring-primary"
+              )}
+              onClick={() =>
+                selectMode
+                  ? toggleSelect(outfit.id)
+                  : setExpandedId(expandedId === outfit.id ? null : outfit.id)
+              }
             >
+              {selectMode && (
+                <div
+                  className={cn(
+                    "absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-md border-2 transition-colors",
+                    selected.has(outfit.id)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-white/80 bg-black/20"
+                  )}
+                >
+                  {selected.has(outfit.id) && <Check className="h-4 w-4" />}
+                </div>
+              )}
               <CardContent className="p-0">
                 {expandedId === outfit.id ? (
                   /* ===== EXPANDED VIEW ===== */
