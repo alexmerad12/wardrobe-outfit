@@ -159,28 +159,43 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
    - Dresses (mini/midi/maxi) and JUMPSUITS: full coverage. Worn alone — DO NOT add a top.
    - OVERALLS (strap-style, bare chest area): MUST include a top underneath (t-shirt, blouse, tank, bodysuit, etc.). Never style overalls without a top.
 
-2. ONE BASE PER OUTFIT:
-   - Each outfit must have exactly ONE foundation - either a single dress, a single one-piece (jumpsuit/overalls), OR a top+bottom pair. Never combine. (Overalls are the only exception: they ALWAYS pair with a top.)
+2. EVERY OUTFIT NEEDS A COMPLETE BASE:
+   - Each outfit MUST have exactly ONE foundation, and it MUST be complete. Valid bases:
+     (a) a dress (mini/midi/maxi), OR
+     (b) a jumpsuit, OR
+     (c) an overalls + one top underneath, OR
+     (d) one top + one bottom (jeans/trousers/skirt/shorts/leggings/sweatpants).
+   - Never combine a dress/jumpsuit with a bottom. Overalls are the only exception: they ALWAYS pair with a top.
+   - A top alone is NOT an outfit. A top + shoes is NOT an outfit. If you can't find a suitable bottom in the wardrobe, skip that outfit entirely rather than sending something incomplete.
 
 3. NO DUPLICATES FROM SAME CATEGORY:
    - Don't include two tops, two bottoms, or two dresses in one outfit.
    - EXCEPTION: One "layering piece" can go over a base top (vest over shirt, cardigan over tee, open shirt over tank). Only one layering piece per outfit.
 
 4. CATEGORY CHECK:
-   - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item.
+   - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item or drop the outfit.
+
+OCCASION-SPECIFIC GUIDANCE:
+- "At Home" (loungewear): prioritize soft, stretchy, comfortable pieces (sweatpants, leggings, hoodies, cozy knits, oversized tees, lounge sets). Shoes are OPTIONAL and should be skipped unless the user has truly casual indoor shoes (slippers, house sneakers) — don't force heels / boots / formal shoes. Bags should NOT appear in at-home outfits. Keep layering minimal; at home you want one top max, not sweater + cardigan.
+- "Work" / "Date Night" / "Party" / "Dinner Out": shoes complete the look, include them.
+
+MOOD-SPECIFIC GUIDANCE:
+- "Comfort Day" / "Cozy" / "Need a Hug": prefer soft, stretchy, warm materials (knit, fleece, cotton, jersey). AVOID stiff denim, fitted tailoring, and multiple layers stacked together. One cozy piece is enough — don't put a cardigan over a heavy sweater.
+- "Bold" / "Confident" / "Playful": statement pieces, bolder color combos, more thoughtful layering.
+- "Chill": relaxed fits, simple pairings, nothing fussy.
 
 STYLING PRINCIPLES:
 - Mix textures (e.g., denim with knit, leather with cotton)
 - Balance proportions (fitted top with wider bottom, or vice versa)
 - Consider color harmony but don't be boring - monochromatic looks, complementary accents, and tonal dressing all work
 - Match metal finishes on accessories when possible (silver with silver, gold with gold)
-- Layer thoughtfully - items marked as "layering piece" go over base layers
+- Layer thoughtfully - items marked as "layering piece" go over base layers. Don't stack layering pieces over already-heavy tops (e.g. cardigan over chunky sweater).
 - Match warmth ratings to the weather
-- Respect the occasion's formality level
-- Consider the mood - bold moods get statement pieces, cozy moods get soft textures
+- Respect the occasion's formality level (see OCCASION-SPECIFIC GUIDANCE above for at-home)
+- Consider the mood (see MOOD-SPECIFIC GUIDANCE above)
 - Learn from the user's favorites - if they tend toward certain combinations or styles, lean into that
 - Think like a real stylist: unexpected but intentional pairings are better than safe/boring ones
-- Include shoes and accessories when available - they complete the look
+- Include shoes when the occasion calls for them (everything except At Home)
 
 Also analyze the wardrobe for any gaps - staple pieces that are missing and would significantly improve outfit options (e.g. a neutral belt, white sneakers, a blazer, a basic white tee). Only mention a gap if it's genuinely useful, not just to fill space. If the wardrobe is well-rounded, don't suggest anything.
 
@@ -224,29 +239,45 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
       wardrobe_gap: string | null;
     };
 
-    const suggestions = parsed.outfits.map((s) => {
-      let outfitItems = s.item_ids
-        .map((id) => items.find((i) => i.id === id))
-        .filter(Boolean) as ClothingItem[];
+    const suggestions = parsed.outfits
+      .map((s) => {
+        let outfitItems = s.item_ids
+          .map((id) => items.find((i) => i.id === id))
+          .filter(Boolean) as ClothingItem[];
 
-      const hasDressOrOnePiece = outfitItems.some(
-        (i) => i.category === "dress" || i.category === "one-piece"
-      );
-      if (hasDressOrOnePiece) {
-        outfitItems = outfitItems.filter((i) => i.category !== "bottom");
-      }
+        const hasDress = outfitItems.some((i) => i.category === "dress");
+        const hasOnePiece = outfitItems.some((i) => i.category === "one-piece");
+        if (hasDress || hasOnePiece) {
+          outfitItems = outfitItems.filter((i) => i.category !== "bottom");
+        }
 
-      return {
-        items: outfitItems,
-        score: 1,
-        reasoning: s.reasoning,
-        color_harmony: "ai-styled",
-        mood_match: mood,
-        name: s.name,
-        weather_temp: weather?.temp ?? null,
-        weather_condition: weather?.condition ?? null,
-      };
-    });
+        return {
+          items: outfitItems,
+          score: 1,
+          reasoning: s.reasoning,
+          color_harmony: "ai-styled",
+          mood_match: mood,
+          name: s.name,
+          weather_temp: weather?.temp ?? null,
+          weather_condition: weather?.condition ?? null,
+        };
+      })
+      // Drop any outfit that doesn't have a valid base: dress, jumpsuit
+      // (one-piece without overalls), or a top+bottom pair (which for
+      // overalls means overalls + top). A sweater + shoes alone is not
+      // a complete outfit and shouldn't be shown.
+      .filter((s) => {
+        const hasDress = s.items.some((i) => i.category === "dress");
+        const hasOnePiece = s.items.some((i) => i.category === "one-piece");
+        const hasTop = s.items.some((i) => i.category === "top");
+        const hasBottom = s.items.some((i) => i.category === "bottom");
+        const isOveralls = s.items.some(
+          (i) => i.category === "one-piece" && i.subcategory === "overalls"
+        );
+        if (hasDress) return true;
+        if (hasOnePiece) return !isOveralls || hasTop;
+        return hasTop && hasBottom;
+      });
 
     return NextResponse.json({
       suggestions,
