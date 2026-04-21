@@ -382,48 +382,109 @@ export default function HomePage() {
           <div className="grid gap-3">
             {recentOutfits.slice(0, 7).map((outfit) => {
               const isExpanded = expandedRecent === outfit.date;
+              const dateLabel = new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              });
               return (
                 <Card
                   key={outfit.date}
                   className="overflow-hidden cursor-pointer"
                   onClick={() => setExpandedRecent(isExpanded ? null : outfit.date)}
                 >
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                      {outfit.name && (
-                        <p className="text-xs font-medium">{outfit.name}</p>
-                      )}
-                    </div>
-
+                  <CardContent className="p-0">
                     {isExpanded ? (
-                      <>
-                        {/* Bigger photos — each links to the item's detail. */}
-                        <div className="grid grid-cols-2 gap-1.5 mb-3">
+                      /* ===== EXPANDED VIEW (mirrors favorites) ===== */
+                      <div>
+                        <div className="grid grid-cols-2 gap-1 p-1">
                           {outfit.items.map((item) => (
                             <Link
                               key={item.id}
                               href={`/wardrobe/${item.id}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="relative aspect-square rounded-lg overflow-hidden bg-muted/30"
+                              className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
                             >
-                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="120px" />
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
-                                <p className="text-[10px] text-white truncate">{item.name}</p>
+                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                <p className="text-xs text-white truncate">{item.name}</p>
                               </div>
                             </Link>
                           ))}
                         </div>
 
-                        {/* Context badges */}
-                        {(outfit.mood || outfit.occasion || outfit.weather_temp !== null) && (
-                          <div className="flex flex-wrap gap-1.5 mb-3">
+                        <div className="p-3 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-sm">
+                              {outfit.name || t("favorites.saved")}
+                            </p>
+                            <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {
+                              const MoodIcon = MOOD_ICONS[outfit.mood as Mood];
+                              return (
+                                <Badge variant="secondary" className="text-xs gap-1">
+                                  <MoodIcon className="h-3 w-3" />
+                                  {t(`mood.${outfit.mood}.label`)}
+                                </Badge>
+                              );
+                            })()}
+                            {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
+                              <Badge variant="outline" className="text-xs gap-0.5">
+                                <Thermometer className="h-3 w-3" />
+                                {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"} {outfit.weather_condition || ""}
+                              </Badge>
+                            )}
+                            {outfit.occasion && (
+                              <Badge variant="outline" className="text-xs">
+                                {t(`occasion.${outfit.occasion}`)}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {outfit.reasoning && (
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {outfit.reasoning}
+                            </p>
+                          )}
+
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => favoriteRecent(outfit)}>
+                              <Heart className="h-4 w-4" />
+                              {t("home.favorite")}
+                            </Button>
+                            <Button size="sm" className="flex-1 gap-1.5" onClick={() => wearRecentToday(outfit)}>
+                              <Shirt className="h-4 w-4" />
+                              {t("home.wearToday")}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ===== COLLAPSED VIEW (mirrors favorites) ===== */
+                      <>
+                        <div className="flex h-28 gap-0.5">
+                          {outfit.items.slice(0, 5).map((item) => (
+                            <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
+                            </div>
+                          ))}
+                          {outfit.items.length === 0 && (
+                            <div className="flex-1 bg-muted/20 flex items-center justify-center">
+                              <p className="text-xs text-muted-foreground">No items</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-sm">
+                              {outfit.name || t("favorites.saved")}
+                            </p>
+                            <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {
                               const MoodIcon = MOOD_ICONS[outfit.mood as Mood];
                               return (
@@ -433,46 +494,20 @@ export default function HomePage() {
                                 </Badge>
                               );
                             })()}
-                            {outfit.occasion && (
-                              <Badge variant="outline" className="text-[10px]">
-                                {t(`occasion.${outfit.occasion}`)}
-                              </Badge>
-                            )}
                             {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
                               <Badge variant="outline" className="text-[10px] gap-0.5">
                                 <Thermometer className="h-2.5 w-2.5" />
                                 {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}
                               </Badge>
                             )}
+                            {outfit.occasion && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {t(`occasion.${outfit.occasion}`)}
+                              </Badge>
+                            )}
                           </div>
-                        )}
-
-                        {outfit.reasoning && (
-                          <p className="text-xs text-muted-foreground italic mb-3">
-                            &ldquo;{outfit.reasoning}&rdquo;
-                          </p>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                          <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => favoriteRecent(outfit)}>
-                            <Heart className="h-4 w-4" />
-                            {t("home.favorite")}
-                          </Button>
-                          <Button size="sm" className="flex-1 gap-1.5" onClick={() => wearRecentToday(outfit)}>
-                            <Shirt className="h-4 w-4" />
-                            {t("home.wearToday")}
-                          </Button>
                         </div>
                       </>
-                    ) : (
-                      <div className="flex gap-1.5">
-                        {outfit.items.slice(0, 5).map((item) => (
-                          <div key={item.id} className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden bg-muted/30">
-                            <Image src={item.image_url} alt={item.name} fill className="object-contain p-0.5" sizes="56px" />
-                          </div>
-                        ))}
-                      </div>
                     )}
                   </CardContent>
                 </Card>
