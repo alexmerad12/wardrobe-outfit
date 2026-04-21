@@ -246,10 +246,12 @@ Respond with ONLY valid JSON in this exact format:
   "wardrobe_gap": "One sentence suggesting a staple piece to add, or null if the wardrobe is complete"
 }
 
-⚠️ CRITICAL — DESCRIPTION INTEGRITY:
-- The reasoning and styling_tip must ONLY reference categories that are ACTUALLY in the item_ids list. If your outfit has no shoes, do not mention boots / sneakers / heels in either field. If it has no jacket, do not mention layering one.
-- Use BROAD CATEGORY ONLY when referring to pieces — the safe vocabulary is: the top, the bottom, the dress, the one-piece, the jacket / coat / blazer, the shoes, the bag, the belt, the accessory.
-- Do NOT use subcategory names — no 'the t-shirt', no 'the blouse', no 'the jeans', no 'the sneakers'. The model often guesses the subcategory wrong (calling a tank a t-shirt, calling trousers jeans). Stick to the broad category and the user will mentally fill in the right name from the photo. Same goes for brand / color / material — never name them.
+⚠️ CRITICAL — DESCRIPTION INTEGRITY (this is the #1 bug to avoid):
+- BEFORE you write reasoning and styling_tip for an outfit, explicitly list to yourself the CATEGORIES actually in your item_ids array for that outfit. Example: "item_ids has [dress, shoes, belt] → allowed words: the dress, the shoes, the belt."
+- The reasoning and styling_tip must ONLY reference those categories. If the outfit has no top, NEVER write "tank", "tee", "blouse", "shirt", "sweater". If it has no bottom, NEVER write "jeans", "trousers", "pants", "skirt". If it has no jacket / blazer / coat, NEVER mention layering or outerwear. Mentioning a piece you did not actually pick is a CRITICAL failure — the user sees the outfit photo and the text doesn't match.
+- Use BROAD CATEGORY ONLY — the ONLY allowed vocabulary for referring to pieces is: the top, the bottom, the dress, the one-piece, the jacket / coat / blazer, the shoes, the bag, the belt, the accessory.
+- FORBIDDEN words in reasoning and styling_tip: "t-shirt", "tee", "tank", "blouse", "shirt", "sweater", "cardigan" (unless actually in outfit), "jeans", "trousers", "pants", "leggings", "shorts", "skirt", "boots", "sneakers", "heels", "sandals", "flats", "moto", "bomber", "denim", "leather", "silk", "satin", "cotton", "wool", "linen" — plus any brand name, any color name, any material name. Subcategory and material words trip the hallucination; stick to the broad category only.
+- If the outfit is just a dress and shoes, your reasoning says "the dress + the shoes" — NOT "the maxi dress with boots."
 
 Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
 
@@ -281,27 +283,29 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
 
     const suggestions = parsed.outfits
       .map((s) => {
-        let outfitItems = s.item_ids
+        const outfitItems = s.item_ids
           .map((id) => items.find((i) => i.id === id))
           .filter(Boolean) as ClothingItem[];
 
+        // Detect rule violations. If ANY rule is broken we drop the whole
+        // outfit below — silently stripping items leaves the reasoning /
+        // styling_tip text referencing pieces that aren't in the outfit
+        // anymore, which is the hallucination bug the user saw.
         const hasDress = outfitItems.some((i) => i.category === "dress");
         const hasOnePiece = outfitItems.some((i) => i.category === "one-piece");
-        if (hasDress || hasOnePiece) {
-          outfitItems = outfitItems.filter((i) => i.category !== "bottom");
-        }
+        const hasBottom = outfitItems.some((i) => i.category === "bottom");
+        const dressWithBottom = (hasDress || hasOnePiece) && hasBottom;
 
-        // De-dupe by subcategory: if AI slipped two belts (or two of any
-        // same subcategory), keep the first and drop the rest. Items
-        // without a subcategory aren't deduped here — they're rare and
-        // category-level rules above cover the common cases.
         const seenSubs = new Set<string>();
-        outfitItems = outfitItems.filter((i) => {
-          if (!i.subcategory) return true;
-          if (seenSubs.has(i.subcategory)) return false;
+        let duplicateSub = false;
+        for (const i of outfitItems) {
+          if (!i.subcategory) continue;
+          if (seenSubs.has(i.subcategory)) {
+            duplicateSub = true;
+            break;
+          }
           seenSubs.add(i.subcategory);
-          return true;
-        });
+        }
 
         return {
           items: outfitItems,
@@ -313,17 +317,16 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           name: s.name,
           weather_temp: weather?.temp ?? null,
           weather_condition: weather?.condition ?? null,
+          _violations: { dressWithBottom, duplicateSub },
         };
       })
-      // Drop any outfit that doesn't have a valid base: dress, jumpsuit
-      // (one-piece without overalls), or a top+bottom pair (which for
-      // overalls means overalls + top). A sweater + shoes alone is not
-      // a complete outfit and shouldn't be shown.
-      // (Note: we used to also drop outfits missing outerwear in cold
-      // weather, but that nuked all 3 results when AI didn't include any
-      // — the prompt nudges hard for outerwear; we don't enforce it
-      // post-parse so users always see SOMETHING actionable.)
+      // Drop any outfit that violates hard rules (dress+bottom, duplicate
+      // subcategory) OR is missing a valid base. Stripping items silently
+      // causes the description text to reference pieces that got removed,
+      // so it's safer to drop the whole outfit and let the user re-roll.
       .filter((s) => {
+        if (s._violations.dressWithBottom) return false;
+        if (s._violations.duplicateSub) return false;
         const hasDress = s.items.some((i) => i.category === "dress");
         const hasOnePiece = s.items.some((i) => i.category === "one-piece");
         const hasTop = s.items.some((i) => i.category === "top");
@@ -334,7 +337,8 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
         if (hasDress) return true;
         if (hasOnePiece) return !isOveralls || hasTop;
         return hasTop && hasBottom;
-      });
+      })
+      .map(({ _violations: _v, ...rest }) => rest);
 
     return NextResponse.json({
       suggestions,
