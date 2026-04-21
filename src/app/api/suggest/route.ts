@@ -215,7 +215,8 @@ Respond with ONLY valid JSON in this exact format:
   "outfits": [
     {
       "item_ids": ["id1", "id2", "id3"],
-      "reasoning": "2-3 sentences explaining the styling choices like a personal stylist would. Briefly note how the outfit fits the weather, the mood, and the occasion.",
+      "reasoning": "ONE short sentence — the why. Note in passing how it suits the weather / mood / occasion. Keep it tight.",
+      "styling_tip": "ONE concrete how-to-wear sentence with specific layering / styling actions for THIS outfit. Examples: 'Tuck the front of the tee into the jeans and roll the cuffs once', 'Wear the blazer open over the dress with sleeves pushed up', 'Layer the cardigan over the tee and leave it unbuttoned'. If there's nothing useful to add (the outfit is just a dress + shoes), set this to null.",
       "name": "A short creative name for this look"
     }
   ],
@@ -246,7 +247,7 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {
-      outfits: { item_ids: string[]; reasoning: string; name: string }[];
+      outfits: { item_ids: string[]; reasoning: string; styling_tip?: string | null; name: string }[];
       wardrobe_gap: string | null;
     };
 
@@ -266,6 +267,7 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           items: outfitItems,
           score: 1,
           reasoning: s.reasoning,
+          styling_tip: s.styling_tip ?? null,
           color_harmony: "ai-styled",
           mood_match: mood,
           name: s.name,

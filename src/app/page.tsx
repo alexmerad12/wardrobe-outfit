@@ -22,6 +22,7 @@ interface TodayOutfit {
   item_ids: string[];
   name: string | null;
   reasoning: string | null;
+  styling_tip: string | null;
   mood: string | null;
   occasion: string | null;
   weather_temp: number | null;
@@ -282,13 +283,19 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* Expanded content: description + action buttons */}
+              {/* Expanded content: description + stylist tip + action buttons */}
               {todayExpanded && (
                 <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                   {todayOutfit.reasoning && (
                     <p className="text-xs text-muted-foreground leading-relaxed italic">
                       &ldquo;{todayOutfit.reasoning}&rdquo;
                     </p>
+                  )}
+                  {todayOutfit.styling_tip && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
+                      <p className="text-xs text-amber-900 leading-relaxed">{todayOutfit.styling_tip}</p>
+                    </div>
                   )}
                   <div className="flex gap-2">
                     <ShareOutfitButton
@@ -448,6 +455,13 @@ export default function HomePage() {
                             <p className="text-sm text-muted-foreground leading-relaxed">
                               {outfit.reasoning}
                             </p>
+                          )}
+
+                          {outfit.styling_tip && (
+                            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
+                              <p className="text-xs text-amber-900 leading-relaxed">{outfit.styling_tip}</p>
+                            </div>
                           )}
 
                           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

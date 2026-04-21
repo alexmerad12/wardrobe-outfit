@@ -17,6 +17,7 @@ import { useLocale } from "@/lib/i18n/use-locale";
 interface AISuggestion {
   items: ClothingItem[];
   reasoning: string;
+  styling_tip: string | null;
   name: string;
   mood_match: Mood;
   weather_temp: number | null;
@@ -119,6 +120,7 @@ function SuggestContent() {
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
           ai_reasoning: suggestion.reasoning,
+          styling_tip: suggestion.styling_tip,
           source: "ai",
         }),
       });
@@ -152,6 +154,7 @@ function SuggestContent() {
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
           ai_reasoning: suggestion.reasoning,
+          styling_tip: suggestion.styling_tip,
           source: "ai",
         }),
       });
@@ -164,6 +167,7 @@ function SuggestContent() {
           item_ids: suggestion.items.map((i) => i.id),
           name: suggestion.name,
           reasoning: suggestion.reasoning,
+          styling_tip: suggestion.styling_tip,
           mood,
           occasion,
           weather_temp: suggestion.weather_temp,
@@ -352,6 +356,7 @@ function SuggestContent() {
           <OutfitCard
             items={suggestions[currentIndex].items}
             reasoning={suggestions[currentIndex].reasoning}
+            stylingTip={suggestions[currentIndex].styling_tip}
             name={suggestions[currentIndex].name}
             saving={saving}
             isFavorited={favoritedIndices.has(currentIndex)}

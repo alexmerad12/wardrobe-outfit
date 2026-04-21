@@ -11,6 +11,7 @@ import { useLocale } from "@/lib/i18n/use-locale";
 interface OutfitCardProps {
   items: ClothingItem[];
   reasoning: string;
+  stylingTip?: string | null;
   name?: string;
   onSave?: () => void;
   onWearToday?: () => void;
@@ -25,6 +26,7 @@ interface OutfitCardProps {
 export function OutfitCard({
   items,
   reasoning,
+  stylingTip,
   name,
   onSave,
   onWearToday,
@@ -65,9 +67,17 @@ export function OutfitCard({
         </div>
 
         {/* Styling note */}
-        <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+        <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
           {reasoning}
         </p>
+
+        {/* Stylist's how-to-wear tip — only shown when the AI provided one. */}
+        {stylingTip && (
+          <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
+            <p className="text-xs text-amber-900 leading-relaxed">{stylingTip}</p>
+          </div>
+        )}
 
         {/* Primary actions */}
         <div className="flex gap-2 mb-2">

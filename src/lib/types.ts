@@ -145,6 +145,7 @@ export interface Outfit {
   weather_temp: number | null;
   weather_condition: string | null;
   ai_reasoning: string | null;
+  styling_tip: string | null;
   source: "ai" | "manual";
   created_at: string;
   // Joined data (not in DB)

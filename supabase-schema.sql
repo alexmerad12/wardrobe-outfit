@@ -81,6 +81,7 @@ create table outfits (
   weather_temp numeric,
   weather_condition text,
   ai_reasoning text,
+  styling_tip text,
   source text default 'manual' check (source in ('ai','manual')),
   created_at timestamptz default now()
 );
@@ -116,6 +117,7 @@ create table today_outfit (
   item_ids uuid[] default '{}'::uuid[],
   name text,
   reasoning text,
+  styling_tip text,
   mood text,
   occasion text,
   weather_temp numeric,
@@ -136,6 +138,7 @@ create table recent_outfits (
   item_ids uuid[] default '{}'::uuid[],
   name text,
   reasoning text,
+  styling_tip text,
   mood text,
   occasion text,
   weather_temp numeric,
