@@ -194,6 +194,28 @@ export default function UploadingPage() {
           ))}
         </div>
 
+        {/* Error details panel — visible when any item has errored.
+            Without this the user only sees a "Retry" tile with no
+            indication of what actually failed, which made batch-2
+            failures impossible to diagnose from the phone. */}
+        {counts.error > 0 && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+            <p className="font-medium mb-1">
+              {counts.error} item{counts.error === 1 ? "" : "s"} errored
+            </p>
+            <ul className="space-y-1">
+              {items
+                .filter((i) => i.stage === "error")
+                .map((i) => (
+                  <li key={i.id} className="break-words">
+                    <span className="font-medium">{i.file.name}:</span>{" "}
+                    {i.error ?? "Unknown error"}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+
         {/* If every remaining item is errored, offer escape */}
         {inFlight === 0 && counts.error > 0 && counts.ready === 0 && (
           <Button

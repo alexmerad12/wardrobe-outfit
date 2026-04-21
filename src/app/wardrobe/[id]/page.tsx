@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { uploadToSupabase } from "@/lib/upload-to-supabase";
+import { usePendingUploads } from "@/lib/pending-uploads-context";
 import type {
   ClothingItem,
   Category,
@@ -69,6 +70,7 @@ export default function ItemDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const shouldAutoEdit = searchParams.get("edit") === "1";
+  const { clearReady } = usePendingUploads();
   // Review wizard: /wardrobe/[id]?edit=1&next=id2,id3,id4 steps the user
   // through each newly-uploaded item. Save & Next advances to the head of
   // the list, carrying the rest along.
@@ -311,6 +313,10 @@ export default function ItemDetailPage() {
           return;
         }
         if (shouldAutoEdit) {
+          // Wizard is done — clear the "Review your N uploads" strip
+          // on /wardrobe so it doesn't linger after the user has
+          // already reviewed every item.
+          clearReady();
           router.push("/wardrobe");
           return;
         }
@@ -445,6 +451,10 @@ export default function ItemDetailPage() {
             // still on /wardrobe/[id]?edit=1 with nothing obvious to
             // tap except the bottom-nav tab.
             if (editing && shouldAutoEdit) {
+              // Exiting the wizard early — same cleanup as Save on
+              // the last item, so a stale review strip doesn't stay
+              // on the wardrobe page.
+              clearReady();
               router.push("/wardrobe");
               return;
             }
