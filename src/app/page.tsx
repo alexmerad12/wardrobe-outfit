@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherWidget } from "@/components/weather-widget";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane } from "lucide-react";
+import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
@@ -34,6 +34,7 @@ export default function HomePage() {
   const [todayItems, setTodayItems] = useState<ClothingItem[]>([]);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
+  const [todayExpanded, setTodayExpanded] = useState(false);
   const [forgottenItems, setForgottenItems] = useState<ClothingItem[]>([]);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
@@ -187,25 +188,21 @@ export default function HomePage() {
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-3">{t("home.todaysOutfit")}</h2>
-          <Card className="overflow-hidden">
+          <Card
+            className="overflow-hidden cursor-pointer"
+            onClick={() => setTodayExpanded((v) => !v)}
+          >
             <CardContent className="p-4 space-y-4">
-              {/* Outfit name */}
+              {/* Outfit name + expand chevron. Action buttons only appear
+                  once the user taps in — keeps the collapsed card compact. */}
               <div className="flex items-center justify-between">
                 <p className="font-semibold">{todayOutfit.name || t("home.todaysLook")}</p>
-                <div className="flex gap-1">
-                  <ShareOutfitButton
-                    items={todayItems}
-                    title={todayOutfit.name || t("share.todaysLook")}
-                    iconOnly
-                    className="h-8 w-8 p-0"
-                  />
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={toggleTodayFavorite}>
-                    <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={clearTodayOutfit}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 text-muted-foreground transition-transform",
+                    todayExpanded && "rotate-180"
+                  )}
+                />
               </div>
 
               {/* Mood / Occasion / Weather row */}
@@ -254,11 +251,30 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {/* AI reasoning */}
-              {todayOutfit.reasoning && (
-                <p className="text-xs text-muted-foreground leading-relaxed italic">
-                  &ldquo;{todayOutfit.reasoning}&rdquo;
-                </p>
+              {/* Expanded content: description + action buttons */}
+              {todayExpanded && (
+                <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                  {todayOutfit.reasoning && (
+                    <p className="text-xs text-muted-foreground leading-relaxed italic">
+                      &ldquo;{todayOutfit.reasoning}&rdquo;
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <ShareOutfitButton
+                      items={todayItems}
+                      title={todayOutfit.name || t("share.todaysLook")}
+                      variant="outline"
+                      className="flex-1"
+                    />
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={toggleTodayFavorite}>
+                      <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
+                      {t("home.favorite")}
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-destructive" onClick={clearTodayOutfit}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
