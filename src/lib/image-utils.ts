@@ -12,14 +12,47 @@
 // shipped through imgly / Claude, EXIF is stripped. Leaving it alone
 // avoids surprising "why did my photo flip?" cases.
 // Composite a transparent-background blob (imgly's output) onto a
-// pure-white canvas and re-encode as JPEG. Imgly produces PNGs that
-// routinely land at 2-3 MB on a 1600 px image because transparency
-// defeats JPEG-style entropy coding, and that size is what was
-// starving the upload pipeline on flaky mobile networks. For
-// wardrobe photos we don't actually want transparency — every
-// consumer of the image (wardrobe grid, outfit suggestions, review
-// wizard) displays it on a light background anyway. Baking in white
-// drops the file size ~10x with no visible quality loss.
+// pure-white canvas, auto-crop to the subject, re-center on a square
+// canvas, and re-encode as JPEG. Three problems this addresses:
+//
+//   1. Halo/fringe: imgly leaves semi-transparent pixels at the edge
+//      of the subject. When drawn on white, those pixels retain a
+//      tint from the original background (dark fringe on dark bg
+//      → visible grey halo). Snapping low-alpha pixels to white kills
+//      the halo before the blend.
+//   2. Off-centred subjects: the bg-removed image has the subject
+//      wherever the user happened to frame it. A dress at the top-
+//      right of the photo looks unbalanced in the wardrobe grid.
+//      Finding the alpha bounding box and re-centering on a square
+//      gives every item a consistent, balanced presentation.
+//   3. File size: imgly's transparent PNGs routinely hit 2-3 MB on
+//      1600 px inputs. Flattening onto white + JPEG encoding drops
+//      that ~10× with no visible quality loss.
+//
+// If bbox detection fails (shouldn't happen but the canvas might not
+// give us readable ImageData on some browsers / CORS edge cases), we
+// fall back to the old direct-flatten path.
+function createCanvas(w: number, h: number) {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
+  return Object.assign(document.createElement("canvas"), { width: w, height: h });
+}
+
+async function encodeJpeg(
+  canvas: OffscreenCanvas | HTMLCanvasElement,
+  quality: number
+): Promise<Blob> {
+  if ("convertToBlob" in canvas) {
+    return await (canvas as OffscreenCanvas).convertToBlob({ type: "image/jpeg", quality });
+  }
+  return await new Promise<Blob>((resolve, reject) => {
+    (canvas as HTMLCanvasElement).toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("canvas.toBlob failed"))),
+      "image/jpeg",
+      quality
+    );
+  });
+}
+
 export async function flattenOntoWhite(
   transparentBlob: Blob,
   maxDimension = 1280,
@@ -27,46 +60,126 @@ export async function flattenOntoWhite(
 ): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(transparentBlob);
-    const maxSide = Math.max(bitmap.width, bitmap.height);
-    const scale = maxSide > maxDimension ? maxDimension / maxSide : 1;
-    const outW = Math.round(bitmap.width * scale);
-    const outH = Math.round(bitmap.height * scale);
-    const canvas =
-      typeof OffscreenCanvas !== "undefined"
-        ? new OffscreenCanvas(outW, outH)
-        : Object.assign(document.createElement("canvas"), {
-            width: outW,
-            height: outH,
-          });
-    const ctx = (canvas as OffscreenCanvas | HTMLCanvasElement).getContext("2d") as
+    const srcW = bitmap.width;
+    const srcH = bitmap.height;
+
+    // Read pixel data so we can (a) clean the fringe and (b) find the
+    // subject's bounding box.
+    const workCanvas = createCanvas(srcW, srcH);
+    const workCtx = (workCanvas as OffscreenCanvas | HTMLCanvasElement).getContext("2d") as
       | OffscreenCanvasRenderingContext2D
       | CanvasRenderingContext2D
       | null;
-    if (!ctx) {
+    if (!workCtx) {
       bitmap.close();
       return transparentBlob;
     }
-    // Paint a solid white backdrop BEFORE drawing the subject so
-    // transparent pixels become white rather than black (which is
-    // what canvases default to for uninitialised pixels in some
-    // browsers).
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outW, outH);
-    ctx.drawImage(bitmap, 0, 0, outW, outH);
+    workCtx.drawImage(bitmap, 0, 0);
     bitmap.close();
-    if ("convertToBlob" in canvas) {
-      return await (canvas as OffscreenCanvas).convertToBlob({
-        type: "image/jpeg",
-        quality,
-      });
+
+    const imageData = workCtx.getImageData(0, 0, srcW, srcH);
+    const data = imageData.data;
+
+    // Fringe cleanup: any pixel with alpha below FRINGE_CUT is almost
+    // certainly the model's soft transition between subject and
+    // background. Snapping those to opaque white removes the tinted
+    // halo that was visible against the pure-white backdrop. Pixels
+    // above the cut keep their alpha so the subject's true edge still
+    // anti-aliases smoothly.
+    const FRINGE_CUT = 120;
+    const SUBJECT_CUT = 30; // anything below this is treated as bg for bbox
+    let minX = srcW;
+    let minY = srcH;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < srcH; y++) {
+      for (let x = 0; x < srcW; x++) {
+        const idx = (y * srcW + x) * 4;
+        const a = data[idx + 3];
+        if (a < FRINGE_CUT) {
+          data[idx] = 255;
+          data[idx + 1] = 255;
+          data[idx + 2] = 255;
+          data[idx + 3] = 255;
+          if (a >= SUBJECT_CUT) {
+            // fringe was still close enough to count as subject
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+          continue;
+        }
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
     }
-    return await new Promise<Blob>((resolve, reject) => {
-      (canvas as HTMLCanvasElement).toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error("canvas.toBlob failed"))),
-        "image/jpeg",
-        quality
+    workCtx.putImageData(imageData, 0, 0);
+
+    // Bbox sanity: if the model returned no subject (or a trivially
+    // small one), fall back to the whole-frame flatten.
+    const bboxValid =
+      maxX >= 0 &&
+      maxY >= 0 &&
+      maxX - minX > 20 &&
+      maxY - minY > 20;
+
+    const outSize = maxDimension;
+    const out = createCanvas(outSize, outSize);
+    const outCtx = (out as OffscreenCanvas | HTMLCanvasElement).getContext("2d") as
+      | OffscreenCanvasRenderingContext2D
+      | CanvasRenderingContext2D
+      | null;
+    if (!outCtx) return transparentBlob;
+    outCtx.fillStyle = "#ffffff";
+    outCtx.fillRect(0, 0, outSize, outSize);
+
+    if (bboxValid) {
+      const bboxW = maxX - minX + 1;
+      const bboxH = maxY - minY + 1;
+      // 8% padding on each side so the subject never kisses the frame
+      const padding = Math.round(outSize * 0.08);
+      const innerSize = outSize - padding * 2;
+      const scale = Math.min(innerSize / bboxW, innerSize / bboxH);
+      const drawW = Math.round(bboxW * scale);
+      const drawH = Math.round(bboxH * scale);
+      const drawX = Math.round((outSize - drawW) / 2);
+      const drawY = Math.round((outSize - drawH) / 2);
+      outCtx.drawImage(
+        workCanvas as unknown as CanvasImageSource,
+        minX,
+        minY,
+        bboxW,
+        bboxH,
+        drawX,
+        drawY,
+        drawW,
+        drawH
       );
-    });
+    } else {
+      const maxSide = Math.max(srcW, srcH);
+      const scale = outSize / maxSide;
+      const drawW = Math.round(srcW * scale);
+      const drawH = Math.round(srcH * scale);
+      const drawX = Math.round((outSize - drawW) / 2);
+      const drawY = Math.round((outSize - drawH) / 2);
+      outCtx.drawImage(
+        workCanvas as unknown as CanvasImageSource,
+        0,
+        0,
+        srcW,
+        srcH,
+        drawX,
+        drawY,
+        drawW,
+        drawH
+      );
+    }
+
+    return await encodeJpeg(out as OffscreenCanvas | HTMLCanvasElement, quality);
   } catch {
     // Last-ditch: return the original transparent blob. Upload will
     // still attempt it (probably fail on the large PNG size) but we
