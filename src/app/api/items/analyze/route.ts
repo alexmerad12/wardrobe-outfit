@@ -34,7 +34,7 @@ ENUMS:
 - waist_style: "elastic" | "fitted" | "relaxed" | "belted"
 - waist_height (bottoms only): "high" | "mid" | "low"
 - waist_closure (bottoms only): "button-zip" | "elastic" | "drawstring" | "tie" | "hook-eye" | "pull-on" | "side-zip" | "other"
-- neckline (tops/dresses/outerwear): "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "collared" | "henley" | "cowl" | "sweetheart" | "other"
+- neckline (tops/dresses/outerwear): "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "asymmetric" | "collared" | "henley" | "cowl" | "sweetheart" | "other" (use "asymmetric" for biker/moto jackets with the diagonal zip and angled lapel)
 - sleeve_length (tops/dresses/outerwear): "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other"
 - closure (tops/dresses/outerwear): "pullover" | "full-button" | "partial-button" | "zipper" | "wrap-tie" | "snap" | "hook-eye" | "open-drape" | "other"
 - shoe_height (shoes only): "low" | "ankle" | "mid" | "knee" | "over-knee"

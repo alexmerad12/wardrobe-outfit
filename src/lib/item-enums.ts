@@ -220,6 +220,7 @@ export const NECKLINES = [
   "halter",
   "one-shoulder",
   "off-shoulder",
+  "asymmetric",
   "collared",
   "henley",
   "cowl",

@@ -52,7 +52,7 @@ export type BeltPosition = "waist" | "hips" | "both";
 
 export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none";
 
-export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "collared" | "henley" | "cowl" | "sweetheart" | "other";
+export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "asymmetric" | "collared" | "henley" | "cowl" | "sweetheart" | "other";
 
 export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
 
@@ -389,6 +389,7 @@ export const NECKLINE_LABELS: Record<Neckline, string> = {
   halter: "Halter",
   "one-shoulder": "One Shoulder",
   "off-shoulder": "Off Shoulder",
+  asymmetric: "Asymmetric",
   collared: "Collared",
   henley: "Henley",
   cowl: "Cowl Neck",
