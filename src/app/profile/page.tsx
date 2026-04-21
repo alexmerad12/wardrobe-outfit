@@ -102,7 +102,10 @@ export default function ProfilePage() {
 
         if (outfitsRes.ok) {
           const outfits = await outfitsRes.json();
-          setOutfitCount(outfits.length);
+          // 'Saved Outfits' = what the user sees in Favorites. Unfavorited
+          // outfits stay in the DB (is_favorite=false) but shouldn't bump
+          // this count since they're not visible anywhere.
+          setOutfitCount(outfits.filter((o: { is_favorite: boolean }) => o.is_favorite).length);
         }
       } catch (err) {
         console.error("Failed to load profile:", err);

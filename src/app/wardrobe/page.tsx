@@ -208,44 +208,51 @@ export default function WardrobePage() {
     <div className="mx-auto max-w-2xl px-4 pt-6">
       {/* Header */}
       {selectMode ? (
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button size="icon" variant="ghost" onClick={exitSelectMode}>
-              <X className="h-4 w-4" />
-            </Button>
-            <span className="text-sm font-medium truncate">
-              {t("wardrobe.nSelected", { count: selected.size })}
-            </span>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <Button
-              size="sm"
-              className="gap-1.5"
-              disabled={selected.size < 2 || creatingOutfit}
-              onClick={handleCreateOutfit}
-            >
-              <Combine className="h-4 w-4" />
-              {t("wardrobe.outfit")}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="gap-1.5"
-              disabled={selected.size === 0}
-              onClick={() => handleBulkStore(activeCategory !== "stored")}
-            >
-              <Archive className="h-4 w-4" />
-              {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              className="gap-1.5"
-              disabled={selected.size === 0 || deleting}
-              onClick={handleBulkDelete}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+        // Stick the select-mode bar to the top so the bulk actions stay
+        // reachable while scrolling through the grid. Negative -mx-4 + px-4
+        // makes the frosted background extend to the viewport edges within
+        // the page's max-width container. -mt-6 + pt-6 cancels the page's
+        // top padding so the bar starts flush.
+        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background/95 px-4 pb-3 pt-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button size="icon" variant="ghost" onClick={exitSelectMode}>
+                <X className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium truncate">
+                {t("wardrobe.nSelected", { count: selected.size })}
+              </span>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="gap-1.5"
+                disabled={selected.size < 2 || creatingOutfit}
+                onClick={handleCreateOutfit}
+              >
+                <Combine className="h-4 w-4" />
+                {t("wardrobe.outfit")}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1.5"
+                disabled={selected.size === 0}
+                onClick={() => handleBulkStore(activeCategory !== "stored")}
+              >
+                <Archive className="h-4 w-4" />
+                {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1.5"
+                disabled={selected.size === 0 || deleting}
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
