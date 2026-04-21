@@ -363,7 +363,7 @@ export default function ProfilePage() {
                           src={item.thumbnail_url ?? item.image_url}
                           alt={item.name}
                           fill
-                          className="object-cover"
+                          className="object-contain p-0.5"
                           sizes="40px"
                         />
                       </div>
@@ -391,7 +391,7 @@ export default function ProfilePage() {
                           src={item.thumbnail_url ?? item.image_url}
                           alt={item.name}
                           fill
-                          className="object-cover"
+                          className="object-contain p-0.5"
                           sizes="40px"
                         />
                       </div>

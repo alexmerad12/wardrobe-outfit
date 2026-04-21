@@ -220,7 +220,7 @@ export default function HomePage() {
                       onClick={(e) => e.stopPropagation()}
                       className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
                     >
-                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="(max-width: 640px) 45vw, 200px" />
+                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 45vw, 200px" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
                         <p className="truncate text-[10px] text-white">{item.name}</p>
                       </div>
@@ -236,7 +236,7 @@ export default function HomePage() {
                       onClick={(e) => e.stopPropagation()}
                       className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30"
                     >
-                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
+                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-1.5" sizes="112px" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
                         <p className="truncate text-[10px] text-white">{item.name}</p>
                       </div>
@@ -321,7 +321,7 @@ export default function HomePage() {
             {forgottenItems.map((item) => (
               <Link key={item.id} href={`/wardrobe/${item.id}`} className="flex-shrink-0 w-24">
                 <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30 mb-1">
-                  <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="96px" />
+                  <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
                 </div>
                 <p className="text-[11px] font-medium truncate">{item.name}</p>
                 <p className="text-[10px] text-muted-foreground">
@@ -413,7 +413,7 @@ export default function HomePage() {
                               onClick={(e) => e.stopPropagation()}
                               className="relative aspect-square rounded-lg overflow-hidden bg-muted/30"
                             >
-                              <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="120px" />
+                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="120px" />
                               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
                                 <p className="text-[10px] text-white truncate">{item.name}</p>
                               </div>
@@ -469,7 +469,7 @@ export default function HomePage() {
                       <div className="flex gap-1.5">
                         {outfit.items.slice(0, 5).map((item) => (
                           <div key={item.id} className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden bg-muted/30">
-                            <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="56px" />
+                            <Image src={item.image_url} alt={item.name} fill className="object-contain p-0.5" sizes="56px" />
                           </div>
                         ))}
                       </div>

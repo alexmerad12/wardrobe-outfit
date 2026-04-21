@@ -282,7 +282,7 @@ export default function FavoritesPage() {
                               src={item.image_url}
                               alt={item.name}
                               fill
-                              className="object-cover"
+                              className="object-contain p-2"
                               sizes="(max-width: 640px) 50vw, 250px"
                             />
                             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
@@ -300,7 +300,7 @@ export default function FavoritesPage() {
                               src={item.image_url}
                               alt={item.name}
                               fill
-                              className="object-cover"
+                              className="object-contain p-2"
                               sizes="(max-width: 640px) 50vw, 250px"
                             />
                             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
@@ -385,7 +385,7 @@ export default function FavoritesPage() {
                             src={item.image_url}
                             alt={item.name}
                             fill
-                            className="object-cover"
+                            className="object-contain p-1"
                             sizes="120px"
                           />
                         </div>

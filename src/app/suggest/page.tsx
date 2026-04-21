@@ -214,7 +214,7 @@ function SuggestContent() {
       {anchorItem && (
         <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 p-3 mb-4">
           <div className="relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30">
-            <Image src={anchorItem.image_url} alt={anchorItem.name} fill className="object-cover" sizes="56px" />
+            <Image src={anchorItem.image_url} alt={anchorItem.name} fill className="object-contain p-1" sizes="56px" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">

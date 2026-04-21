@@ -282,7 +282,7 @@ export default function PackingPage() {
               {resolveItems(viewingTrip.packing_item_ids).map((item) => (
                 <div key={item.id} className="text-center">
                   <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30 mb-1">
-                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="100px" />
+                    <Image src={item.image_url} alt={item.name} fill className="object-contain p-1.5" sizes="100px" />
                   </div>
                   <p className="text-[10px] text-muted-foreground truncate">{item.name}</p>
                 </div>
@@ -303,7 +303,7 @@ export default function PackingPage() {
                         <div className="flex gap-1.5 overflow-x-auto pb-1 mb-1">
                           {dayItems.map((item) => (
                             <div key={item.id} className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden bg-muted/30">
-                              <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="56px" />
+                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="56px" />
                             </div>
                           ))}
                         </div>
@@ -486,7 +486,7 @@ export default function PackingPage() {
                 <Card key={item.id} className="overflow-hidden">
                   <CardContent className="p-2 flex items-center gap-3">
                     <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30">
-                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="64px" />
+                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="64px" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.name}</p>
@@ -514,7 +514,7 @@ export default function PackingPage() {
                         <div className="flex gap-1.5 overflow-x-auto pb-1 mb-1">
                           {day.items.map((item) => (
                             <div key={item.id} className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden bg-muted/30">
-                              <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="56px" />
+                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="56px" />
                             </div>
                           ))}
                         </div>

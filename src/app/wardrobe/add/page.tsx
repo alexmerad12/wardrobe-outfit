@@ -919,7 +919,7 @@ export default function AddItemPage() {
               {similarItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-1.5">
                   <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted/30 flex-shrink-0">
-                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="40px" />
+                    <Image src={item.image_url} alt={item.name} fill className="object-contain p-0.5" sizes="40px" />
                   </div>
                   <p className="text-[11px] text-amber-700 leading-tight">{item.name}</p>
                 </div>
