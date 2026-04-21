@@ -208,27 +208,39 @@ export default function HomePage() {
 
               {/* Item photos. Collapsed: horizontal scroll (compact).
                   Expanded: 2-column grid with bigger images, matching
-                  the recent outfits grid for consistency. */}
+                  the recent outfits grid for consistency. Each tile is
+                  a Link to the item's detail page; stopPropagation so
+                  tapping doesn't also toggle the card. */}
               {todayExpanded ? (
                 <div className="grid grid-cols-2 gap-1.5">
                   {todayItems.map((item) => (
-                    <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted/30">
+                    <Link
+                      key={item.id}
+                      href={`/wardrobe/${item.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
+                    >
                       <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="(max-width: 640px) 45vw, 200px" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
                         <p className="truncate text-[10px] text-white">{item.name}</p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
                 <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                   {todayItems.map((item) => (
-                    <div key={item.id} className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30">
+                    <Link
+                      key={item.id}
+                      href={`/wardrobe/${item.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30"
+                    >
                       <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
                         <p className="truncate text-[10px] text-white">{item.name}</p>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -392,15 +404,20 @@ export default function HomePage() {
 
                     {isExpanded ? (
                       <>
-                        {/* Bigger photos */}
+                        {/* Bigger photos — each links to the item's detail. */}
                         <div className="grid grid-cols-2 gap-1.5 mb-3">
                           {outfit.items.map((item) => (
-                            <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted/30">
+                            <Link
+                              key={item.id}
+                              href={`/wardrobe/${item.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="relative aspect-square rounded-lg overflow-hidden bg-muted/30"
+                            >
                               <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="120px" />
                               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
                                 <p className="text-[10px] text-white truncate">{item.name}</p>
                               </div>
-                            </div>
+                            </Link>
                           ))}
                         </div>
 

@@ -271,22 +271,44 @@ export default function FavoritesPage() {
                 {expandedId === outfit.id ? (
                   /* ===== EXPANDED VIEW ===== */
                   <div>
-                    {/* Large item images grid */}
+                    {/* Large item images grid — each links to the item's
+                        detail page (disabled in select mode so the
+                        multi-select UX doesn't fight nav). */}
                     <div className="grid grid-cols-2 gap-1 p-1">
-                      {(outfit.items ?? []).map((item) => (
-                        <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted/30">
-                          <Image
-                            src={item.image_url}
-                            alt={item.name}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 640px) 50vw, 250px"
-                          />
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                            <p className="text-xs text-white truncate">{item.name}</p>
+                      {(outfit.items ?? []).map((item) =>
+                        selectMode ? (
+                          <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted/30">
+                            <Image
+                              src={item.image_url}
+                              alt={item.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 50vw, 250px"
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                              <p className="text-xs text-white truncate">{item.name}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ) : (
+                          <Link
+                            key={item.id}
+                            href={`/wardrobe/${item.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
+                          >
+                            <Image
+                              src={item.image_url}
+                              alt={item.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 50vw, 250px"
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                              <p className="text-xs text-white truncate">{item.name}</p>
+                            </div>
+                          </Link>
+                        )
+                      )}
                     </div>
 
                     {/* Details */}
