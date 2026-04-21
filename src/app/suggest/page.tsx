@@ -133,7 +133,10 @@ function SuggestContent() {
   async function wearToday(suggestion: AISuggestion) {
     setSaving(true);
     try {
-      // Save as favorite too
+      // Persist the outfit so the wear log can reference it, but don't
+      // auto-favorite — wearing an outfit for the day and loving it enough
+      // to keep it are separate actions (the user can still tap the heart
+      // to favorite if they want).
       await fetch("/api/outfits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,7 +147,7 @@ function SuggestContent() {
           occasions: occasion ? [occasion] : [],
           seasons: [],
           rating: null,
-          is_favorite: true,
+          is_favorite: false,
           mood,
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
@@ -165,7 +168,7 @@ function SuggestContent() {
           occasion,
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
-          is_favorite: true,
+          is_favorite: false,
         }),
       });
 
