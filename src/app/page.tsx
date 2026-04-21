@@ -206,18 +206,32 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* Item photos - horizontal scroll, names overlaid on photo
-                  to match the style of the recent outfits grid. */}
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                {todayItems.map((item) => (
-                  <div key={item.id} className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30">
-                    <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
-                      <p className="truncate text-[10px] text-white">{item.name}</p>
+              {/* Item photos. Collapsed: horizontal scroll (compact).
+                  Expanded: 2-column grid with bigger images, matching
+                  the recent outfits grid for consistency. */}
+              {todayExpanded ? (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {todayItems.map((item) => (
+                    <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted/30">
+                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="(max-width: 640px) 45vw, 200px" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                        <p className="truncate text-[10px] text-white">{item.name}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                  {todayItems.map((item) => (
+                    <div key={item.id} className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30">
+                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                        <p className="truncate text-[10px] text-white">{item.name}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Mood / Occasion / Weather row (below items) */}
               <div className="flex flex-wrap gap-2">
