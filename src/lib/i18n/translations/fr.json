@@ -630,7 +630,7 @@
   },
   "favorites": {
     "title": "Tenues favorites",
-    "subtitle": "Des looks sauvegardés qui inspirent les futures suggestions",
+    "subtitle": "Tes meilleurs looks",
     "none": "Aucune tenue favorite pour le moment",
     "noneHint": "Demande des suggestions et enregistre celles que tu aimes. Tes favoris aident l'IA à apprendre ton style !",
     "getSuggestions": "Obtenir des suggestions",
