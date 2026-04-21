@@ -949,7 +949,9 @@ export default function ItemDetailPage() {
               <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>
                 {editStored ? t("addItem.storedOn") : t("addItem.stored")}
               </Label>
-              <p className="text-xs text-muted-foreground">{t("addItem.storedHint")}</p>
+              <p className="text-xs text-muted-foreground">
+                {editStored ? t("addItem.storedHintOn") : t("addItem.storedHint")}
+              </p>
             </div>
           </div>
 
