@@ -11,7 +11,7 @@ import {
 import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
-import { downscaleImage } from "@/lib/image-utils";
+import { downscaleImage, flattenOntoWhite } from "@/lib/image-utils";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
 
@@ -253,17 +253,37 @@ export function PendingUploadsProvider({
       // 3. Pick the final image: cleaned PNG if imgly worked, raw
       //    downscaled otherwise. Swap the tile preview so the user
       //    sees the white-bg version appear before the redirect.
+      //    IMPORTANT: when imgly succeeds, we flatten the transparent
+      //    PNG onto white and re-encode as JPEG before uploading.
+      //    Imgly's raw output is routinely 2-3 MB at 1600 px because
+      //    PNG compresses transparency poorly — that file size was
+      //    starving both the direct-upload path (Samsung's CORS
+      //    preflight bug compounds with large bodies) and the proxy
+      //    fallback (3 MB through Vercel's 4.5 MB Hobby body limit
+      //    + 10 s function timeout was failing in the wild). Wardrobe
+      //    photos never actually need transparency — every consumer
+      //    renders them on a light background — so baking in white
+      //    is loss-free in the user's eyes and 5-10× smaller on disk.
       let finalFile: File;
       if (cleanedOrNull) {
         bgLog(`imgly done in ${Math.round(performance.now() - t0)}ms`, {
           size: cleanedOrNull.size,
         });
-        const cleanedPreview = URL.createObjectURL(cleanedOrNull);
+        const flattened = await flattenOntoWhite(cleanedOrNull, 1280, 0.88);
+        bgLog(`flattened to JPEG`, {
+          beforeBytes: cleanedOrNull.size,
+          afterBytes: flattened.size,
+          ratio:
+            cleanedOrNull.size > 0
+              ? `${((flattened.size / cleanedOrNull.size) * 100).toFixed(0)}%`
+              : "n/a",
+        });
+        const cleanedPreview = URL.createObjectURL(flattened);
         const oldPreview = item.previewUrl;
         patchItem(item.id, { previewUrl: cleanedPreview });
         setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
-        finalFile = new File([cleanedOrNull], `${baseName}.png`, {
-          type: "image/png",
+        finalFile = new File([flattened], `${baseName}.jpg`, {
+          type: "image/jpeg",
         });
       } else {
         finalFile = downscaledFile;
