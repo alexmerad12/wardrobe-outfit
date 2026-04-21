@@ -1,14 +1,23 @@
-// Client-side upload helper. POSTs the image (wrapped in a multipart
-// FormData) to our own /api/upload route, which proxies it to Supabase
-// Storage server-side.
+// Client-side upload helper. Two-phase:
+//   1. POST a tiny JSON request to /api/upload/sign — server returns a
+//      short-lived Supabase signed URL + path + token.
+//   2. PUT the file bytes DIRECTLY to Supabase Storage using that URL.
+//      The file never passes through our Vercel function, so we don't
+//      inherit the platform's 10 s (Hobby) / 60 s (Pro) function
+//      timeout or the memory-buffering pressure that was killing
+//      concurrent 4 MB uploads on mobile cellular.
 //
-// We moved off tus resumable uploads: the protocol's retry dance works
-// for big files (videos, etc.) but on small ~500 KB JPEGs over mobile
-// cellular it was hanging individual uploads for ~3 minutes of
-// backoffs before surfacing any failure, and occasionally sitting
-// silently in a processing state the user saw as "stuck." A plain
-// POST with an AbortController + explicit client retry is both faster
-// in the happy path and fails louder when something actually breaks.
+// History of this module, so nobody regresses it:
+//   - tus resumable uploads: hung 3 min on mobile backoffs, items
+//     looked "stuck," abandoned.
+//   - Server-proxied multipart POST to /api/upload: worked in dev,
+//     failed intermittently in prod under any network turbulence —
+//     Vercel serverless would time out buffering a 4 MB body while
+//     simultaneously talking to Supabase upstream. That's the mode
+//     the user saw as "2 of 5 errors, tap retry."
+//   - Current: direct signed-URL upload. Same pattern every serious
+//     image-upload SaaS uses (Cloudinary, Uploadcare, Supabase's own
+//     docs). The only thing our server does is mint a signed URL.
 
 // Upload robustness knobs. The goal is "never errors under any
 // realistic mobile network condition" — the user said any failure is
@@ -57,13 +66,16 @@ function classifyError(err: unknown): {
     return { retryable: true, label: "timeout (AbortError)" };
   }
   if (err instanceof Error) {
-    const statusMatch = err.message.match(/Upload (\d{3})/);
+    // Match either "Upload NNN" (PUT to Supabase) or "Sign NNN" (our
+    // signed-URL endpoint). Same permanent-vs-transient rules apply.
+    const statusMatch = err.message.match(/(?:Upload|Sign) (\d{3})/);
     if (statusMatch) {
       const status = Number(statusMatch[1]);
+      const phase = err.message.startsWith("Sign") ? "sign" : "PUT";
       if (PERMANENT_STATUSES.has(status)) {
-        return { retryable: false, label: `HTTP ${status} (permanent)` };
+        return { retryable: false, label: `${phase} HTTP ${status} (permanent)` };
       }
-      return { retryable: true, label: `HTTP ${status} (transient)` };
+      return { retryable: true, label: `${phase} HTTP ${status} (transient)` };
     }
   }
   // Unknown error shape — err on the side of retrying, since the user
@@ -76,21 +88,51 @@ async function attemptUpload(file: File): Promise<string> {
   const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
   activeControllers.add(controller);
   try {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch("/api/upload", {
+    // Phase 1: get a signed upload URL. This is a tiny JSON request
+    // to our server (~100-300 ms) so the Vercel timeout isn't a
+    // concern. We send filename + contentType so the server can
+    // construct a sensible storage path.
+    const signRes = await fetch("/api/upload/sign", {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type || "image/jpeg",
+      }),
       signal: controller.signal,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
+    if (!signRes.ok) {
+      const text = await signRes.text().catch(() => "");
       throw new Error(
-        `Upload ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`
+        `Sign ${signRes.status}${text ? `: ${text.slice(0, 160)}` : ""}`
       );
     }
-    const { url } = (await res.json()) as { url: string };
-    return url;
+    const { signedUrl, publicUrl } = (await signRes.json()) as {
+      signedUrl: string;
+      publicUrl: string;
+    };
+
+    // Phase 2: PUT the file directly to Supabase. This is the slow
+    // part — seconds of actual bytes over mobile cellular — and it
+    // runs against Supabase Storage's infrastructure, not ours, so
+    // Vercel's function timeout never applies.
+    const putRes = await fetch(signedUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type || "image/jpeg",
+        // Supabase storage expects this header for signed PUTs.
+        "x-upsert": "false",
+      },
+      signal: controller.signal,
+    });
+    if (!putRes.ok) {
+      const text = await putRes.text().catch(() => "");
+      throw new Error(
+        `Upload ${putRes.status}${text ? `: ${text.slice(0, 160)}` : ""}`
+      );
+    }
+    return publicUrl;
   } finally {
     clearTimeout(timer);
     activeControllers.delete(controller);
