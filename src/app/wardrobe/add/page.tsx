@@ -642,25 +642,41 @@ export default function AddItemPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
-            >
-              <Camera className="h-8 w-8 text-muted-foreground" />
-              <span className="text-sm font-medium">Take photo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => libraryInputRef.current?.click()}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
-            >
-              <Upload className="h-8 w-8 text-muted-foreground" />
-              <span className="text-sm font-medium">Choose photo(s)</span>
-              <span className="text-[10px] text-muted-foreground">Pick many for bulk</span>
-            </button>
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
+              >
+                <Camera className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm font-medium">Take photo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => libraryInputRef.current?.click()}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
+              >
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm font-medium">Choose photo(s)</span>
+                <span className="text-[10px] text-muted-foreground">
+                  Up to 5 at once
+                </span>
+              </button>
+            </div>
+            {/* Same tips shown on the uploading page, here too — the
+                manual-add flow bypasses that page entirely when the
+                user picks only one photo, so they'd never see the
+                guidance otherwise. */}
+            <div className="mt-4 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2.5 text-xs text-[#7c2d3a]">
+              <p className="font-medium mb-1">Tips for clean backgrounds</p>
+              <ul className="space-y-0.5 text-[#9b4050]/90">
+                <li>• One item per photo, fully visible (no cropped edges)</li>
+                <li>• Flat plain surface — bed, table, floor</li>
+                <li>• Good light, no strong shadows</li>
+              </ul>
+            </div>
+          </>
         )}
         {/* Camera: single shot, no capture attribute lets desktop fall back */}
         <input

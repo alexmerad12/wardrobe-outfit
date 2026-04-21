@@ -163,7 +163,7 @@ export default function UploadingPage() {
               key={item.id}
               data-stage={item.stage}
               data-item-id={item.id}
-              className="relative aspect-square overflow-hidden rounded-lg bg-muted"
+              className="relative aspect-square overflow-hidden rounded-lg bg-white"
             >
               <UploadPreviewImage
                 src={item.previewUrl}
