@@ -45,7 +45,7 @@ ENUMS:
 
 OTHER FIELDS:
 - name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")
-- colors: array of { hex: "#rrggbb", name: "plain-english color name" } — up to 3 dominant colors
+- colors: array of { hex: "#rrggbb", name: "Plain English color name in Title Case" } — up to 3 dominant colors. Use Title Case ("Black", "Navy Blue", "Dark Brown") not lowercase or ALL CAPS.
 - warmth_rating: integer 1–5 (1 = tank top / sandals, 3 = shirt / jeans, 5 = parka / heavy boots)
 - rain_appropriate: true if the item is rainwear or a raincoat / waterproof shoe
 - is_layering_piece: true only for open cardigans, vests, blazers, lightweight outerwear worn over a base layer

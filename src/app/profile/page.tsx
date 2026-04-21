@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
+import { toColorKey } from "@/lib/color-label";
 
 interface CityResult {
   name: string;
@@ -300,7 +301,7 @@ export default function ProfilePage() {
                         className="h-3 w-3 rounded-full flex-shrink-0 border border-border"
                         style={{ backgroundColor: color.hex }}
                       />
-                      <span className="text-sm w-20 truncate">{t(`color.${color.name}`)}</span>
+                      <span className="text-sm w-20 truncate">{t(`color.${toColorKey(color.name)}`)}</span>
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                         <div
                           className="h-full rounded-full bg-foreground/20"

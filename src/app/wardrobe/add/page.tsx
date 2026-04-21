@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toColorKey } from "@/lib/color-label";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
@@ -761,7 +762,7 @@ export default function AddItemPage() {
                             className="h-4 w-4 rounded-full border border-border"
                             style={{ backgroundColor: color.hex }}
                           />
-                          <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
+                          <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                           <button
                             type="button"
                             onClick={() => setDetectedColors((prev) => prev.filter((_, j) => j !== i))}
@@ -788,7 +789,7 @@ export default function AddItemPage() {
                             className="h-4 w-4 rounded-full border border-border"
                             style={{ backgroundColor: color.hex }}
                           />
-                          <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
+                          <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                           <button
                             type="button"
                             onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
@@ -816,7 +817,7 @@ export default function AddItemPage() {
                               <button
                                 key={c.hex + c.name}
                                 type="button"
-                                title={t(`color.${c.name}`)}
+                                title={t(`color.${toColorKey(c.name)}`)}
                                 onClick={() => {
                                   setManualColors((prev) => [...prev, { hex: c.hex, name: c.name, percentage: 0 }]);
                                 }}
@@ -849,7 +850,7 @@ export default function AddItemPage() {
                     className="h-4 w-4 rounded-full border border-border"
                     style={{ backgroundColor: color.hex }}
                   />
-                  <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
+                  <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                   <button
                     type="button"
                     onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}

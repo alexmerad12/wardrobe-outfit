@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { toColorKey } from "@/lib/color-label";
 
 export default function ItemDetailPage() {
   const { t } = useLocale();
@@ -639,7 +640,7 @@ export default function ItemDetailPage() {
               {editColors.map((color, i) => (
                 <div key={i} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1">
                   <span className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color.hex }} />
-                  <span className="text-xs font-medium">{t(`color.${color.name}`)}</span>
+                  <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                   <button type="button" onClick={() => setEditColors((p) => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive text-xs ml-0.5">×</button>
                 </div>
               ))}
@@ -655,7 +656,7 @@ export default function ItemDetailPage() {
                       <p className="text-[10px] font-medium text-muted-foreground mb-1">{t(`colorGroup.${group.group}`)}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {group.colors.map((c) => (
-                          <button key={c.hex + c.name} type="button" title={t(`color.${c.name}`)} onClick={() => setEditColors((p) => [...p, { hex: c.hex, name: c.name, percentage: 0 }])} className="h-7 w-7 rounded-full border border-border hover:ring-2 hover:ring-primary transition-all" style={{ backgroundColor: c.hex }} />
+                          <button key={c.hex + c.name} type="button" title={t(`color.${toColorKey(c.name)}`)} onClick={() => setEditColors((p) => [...p, { hex: c.hex, name: c.name, percentage: 0 }])} className="h-7 w-7 rounded-full border border-border hover:ring-2 hover:ring-primary transition-all" style={{ backgroundColor: c.hex }} />
                         ))}
                       </div>
                     </div>
@@ -993,7 +994,7 @@ export default function ItemDetailPage() {
                 {item.colors.map((color, i) => (
                   <div key={i} className="flex items-center gap-1">
                     <span className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color.hex }} />
-                    <span className="text-xs text-muted-foreground">{t(`color.${color.name}`)}</span>
+                    <span className="text-xs text-muted-foreground">{t(`color.${toColorKey(color.name)}`)}</span>
                   </div>
                 ))}
               </div>

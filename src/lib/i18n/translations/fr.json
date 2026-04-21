@@ -487,7 +487,9 @@
   "color": {
     "White": "Blanc",
     "Black": "Noir",
+    "Brown": "Brun",
     "Gray": "Gris",
+    "Grey": "Gris",
     "Beige": "Beige",
     "Red": "Rouge",
     "Burgundy": "Bordeaux",

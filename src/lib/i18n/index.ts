@@ -52,7 +52,10 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
 
 /**
  * Get a translation string for the given locale and key.
- * Falls back to English if the key is missing in the selected locale.
+ * Falls back to English if the key is missing in the selected locale,
+ * and to the key's last segment if missing in English too — so a stale
+ * `t("color.SomethingWeird")` shows "SomethingWeird" instead of the
+ * raw "color.SomethingWeird" path.
  */
 export function translate(
   locale: Locale,
@@ -61,10 +64,15 @@ export function translate(
 ): string {
   const dict = LOCALES[locale] as NestedValue;
   const value = lookup(dict, key);
-  if (value === key && locale !== "en") {
-    // Fallback to English
+  if (value !== key) return interpolate(value, vars);
+
+  if (locale !== "en") {
     const fallback = lookup(LOCALES.en as NestedValue, key);
-    return interpolate(fallback, vars);
+    if (fallback !== key) return interpolate(fallback, vars);
   }
-  return interpolate(value, vars);
+
+  // Final fallback: return just the last segment so the user sees a
+  // human-ish word instead of the dotted key.
+  const segments = key.split(".");
+  return interpolate(segments[segments.length - 1], vars);
 }
