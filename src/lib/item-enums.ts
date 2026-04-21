@@ -9,6 +9,7 @@ export const CATEGORIES = [
   "top",
   "bottom",
   "dress",
+  "one-piece",
   "outerwear",
   "shoes",
   "bag",

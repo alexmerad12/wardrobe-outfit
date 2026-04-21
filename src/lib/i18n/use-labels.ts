@@ -82,6 +82,7 @@ export function useLabels() {
       top: [],
       bottom: [],
       dress: [],
+      "one-piece": [],
       outerwear: [],
       shoes: [],
       bag: [],

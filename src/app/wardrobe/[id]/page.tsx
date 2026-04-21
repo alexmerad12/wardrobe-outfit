@@ -59,9 +59,11 @@ import {
   X,
   Camera,
   Sparkles,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { SetPicker } from "@/components/set-picker";
 
 export default function ItemDetailPage() {
   const { t } = useLocale();
@@ -126,6 +128,11 @@ export default function ItemDetailPage() {
   const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
   const [showColorPalette, setShowColorPalette] = useState(false);
 
+  // Set linking state — siblings = other items sharing this item's set_id.
+  const [setMembers, setSetMembers] = useState<ClothingItem[]>([]);
+  const [setPickerOpen, setSetPickerOpen] = useState(false);
+  const [setBusy, setSetBusy] = useState(false);
+
   useEffect(() => {
     async function fetchItem() {
       try {
@@ -146,6 +153,82 @@ export default function ItemDetailPage() {
     // Eagerly fetch the model weights so the first click is instant
     preloadBgRemoval();
   }, []);
+
+  // Fetch the other items in this item's set (anything sharing the same
+  // set_id, minus this item itself). Re-runs whenever the item's set_id
+  // changes via link/unlink.
+  useEffect(() => {
+    if (!item?.set_id) {
+      setSetMembers([]);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/items")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((all: ClothingItem[]) => {
+        if (cancelled) return;
+        setSetMembers(all.filter((i) => i.set_id === item.set_id && i.id !== item.id));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.set_id, item?.id]);
+
+  async function patchItem(id: string, body: Partial<ClothingItem>) {
+    const res = await fetch(`/api/items/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.ok ? ((await res.json()) as ClothingItem) : null;
+  }
+
+  async function handleLinkSet(target: ClothingItem) {
+    if (!item) return;
+    setSetBusy(true);
+    try {
+      // Reuse whichever set_id already exists; otherwise mint a new one.
+      // Falls back to crypto.randomUUID() since we're in a browser context.
+      const sharedId =
+        item.set_id ?? target.set_id ?? (typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      const updates: Promise<ClothingItem | null>[] = [];
+      if (item.set_id !== sharedId) updates.push(patchItem(item.id, { set_id: sharedId }));
+      if (target.set_id !== sharedId) updates.push(patchItem(target.id, { set_id: sharedId }));
+      await Promise.all(updates);
+      setItem({ ...item, set_id: sharedId });
+      setSetPickerOpen(false);
+    } catch (err) {
+      console.error("Failed to link set:", err);
+    } finally {
+      setSetBusy(false);
+    }
+  }
+
+  async function handleUnlinkSet(memberId: string) {
+    setSetBusy(true);
+    try {
+      await patchItem(memberId, { set_id: null });
+      setSetMembers((prev) => prev.filter((m) => m.id !== memberId));
+    } catch (err) {
+      console.error("Failed to unlink set member:", err);
+    } finally {
+      setSetBusy(false);
+    }
+  }
+
+  async function handleRemoveSelfFromSet() {
+    if (!item) return;
+    setSetBusy(true);
+    try {
+      await patchItem(item.id, { set_id: null });
+      setItem({ ...item, set_id: null });
+    } catch (err) {
+      console.error("Failed to remove from set:", err);
+    } finally {
+      setSetBusy(false);
+    }
+  }
 
   // When arriving from a freshly-processed upload (`?edit=1`), drop straight
   // into edit mode so users can correct any AI guesses in one tap.
@@ -418,6 +501,7 @@ export default function ItemDetailPage() {
   const viewShowGenericFit =
     item.category === "top" ||
     item.category === "dress" ||
+    item.category === "one-piece" ||
     item.category === "outerwear" ||
     (item.category === "bottom" && !viewIsJeansTrousers);
   const viewShowBottomFit = item.category === "bottom" && viewIsJeansTrousers;
@@ -999,6 +1083,99 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Part of a set */}
+          <Card className="mb-4">
+            <CardContent className="p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">{t("set.label")}</p>
+              </div>
+
+              {setMembers.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">{t("set.linkedWith")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {setMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-2 rounded-lg border bg-muted/30 p-1.5 pr-2"
+                      >
+                        <button
+                          type="button"
+                          className="flex items-center gap-2"
+                          onClick={() => router.push(`/wardrobe/${member.id}`)}
+                        >
+                          <div className="relative h-10 w-10 overflow-hidden rounded-md bg-muted">
+                            <Image
+                              src={member.thumbnail_url ?? member.image_url}
+                              alt={member.name}
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          </div>
+                          <span className="text-xs">{member.name}</span>
+                        </button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          disabled={setBusy}
+                          onClick={() => handleUnlinkSet(member.id)}
+                          title={t("set.unlinkButton")}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      disabled={setBusy}
+                      onClick={() => setSetPickerOpen(true)}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      {t("set.linkButton")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs text-muted-foreground"
+                      disabled={setBusy}
+                      onClick={handleRemoveSelfFromSet}
+                    >
+                      {t("set.unlinkButton")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">{t("set.hint")}</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={setBusy}
+                    onClick={() => setSetPickerOpen(true)}
+                  >
+                    {setBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Link2 className="h-3.5 w-3.5" />
+                    )}
+                    {t("set.linkButton")}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Separator className="my-4" />
 
           {/* Details grid */}
@@ -1229,6 +1406,15 @@ export default function ItemDetailPage() {
           )}
         </>
       )}
+
+      {/* Set picker modal — exclude self + already-linked members so the
+          user can't pick what's already in the set. */}
+      <SetPicker
+        open={setPickerOpen}
+        onClose={() => setSetPickerOpen(false)}
+        excludeIds={new Set([item.id, ...setMembers.map((m) => m.id)])}
+        onPick={handleLinkSet}
+      />
     </div>
   );
 }

@@ -12,11 +12,12 @@ const SYSTEM_PROMPT = `You are a fashion expert analyzing a single clothing item
 For each field, pick ONE of the allowed values below. Omit the field if genuinely indeterminate. Arrays may have 1-3 entries.
 
 ENUMS:
-- category: "top" | "bottom" | "dress" | "outerwear" | "shoes" | "bag" | "accessory"
+- category: "top" | "bottom" | "dress" | "one-piece" | "outerwear" | "shoes" | "bag" | "accessory"
 - subcategory (must match the category):
   • top: "t-shirt" | "blouse" | "shirt" | "tank-top" | "crop-top" | "sweater" | "hoodie" | "cardigan"
   • bottom: "jeans" | "trousers" | "shorts" | "skirt" | "leggings" | "sweatpants"
-  • dress: "mini-dress" | "midi-dress" | "maxi-dress" | "jumpsuit"
+  • dress: "mini-dress" | "midi-dress" | "maxi-dress"
+  • one-piece: "jumpsuit" | "overalls"
   • outerwear: "jacket" | "coat" | "blazer" | "vest" | "windbreaker" | "puffer" | "bomber" | "denim-jacket" | "leather-jacket" | "trench-coat" | "peacoat" | "parka"
   • shoes: "sneakers" | "boots" | "combat-boots" | "western-boots" | "chelsea-boots" | "ankle-boots" | "knee-boots" | "heels" | "sandals" | "flats" | "ballet-flats" | "loafers" | "mules" | "espadrilles"
   • bag: "handbag" | "backpack" | "tote" | "clutch" | "crossbody"

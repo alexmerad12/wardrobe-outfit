@@ -136,7 +136,9 @@ export function generateOutfitCandidates(
   const baseTops = shuffleArray(allTops.filter((t) => !t.is_layering_piece));
   const layeringTops = shuffleArray(allTops.filter((t) => t.is_layering_piece));
   const bottoms = shuffleArray(groups["bottom"] ?? []);
-  const dresses = shuffleArray(groups["dress"] ?? []);
+  // 'dress' and 'one-piece' (jumpsuits, overalls) both replace top + bottom,
+  // so they go through the same outfit branch.
+  const dresses = shuffleArray([...(groups["dress"] ?? []), ...(groups["one-piece"] ?? [])]);
   const shoes = shuffleArray(groups["shoes"] ?? []);
   const outerwear = groups["outerwear"] ?? [];
   // Layering outerwear (vests, cardigans marked as outerwear + layering)

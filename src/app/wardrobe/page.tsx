@@ -39,6 +39,7 @@ const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
   "top",
   "bottom",
   "dress",
+  "one-piece",
   "outerwear",
   "shoes",
   "bag",

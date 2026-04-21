@@ -2,7 +2,7 @@
 // Database entity types
 // ============================================
 
-export type Category = "top" | "bottom" | "dress" | "outerwear" | "shoes" | "bag" | "accessory";
+export type Category = "top" | "bottom" | "dress" | "one-piece" | "outerwear" | "shoes" | "bag" | "accessory";
 
 export type Subcategory =
   // Tops
@@ -10,7 +10,9 @@ export type Subcategory =
   // Bottoms
   | "jeans" | "trousers" | "shorts" | "skirt" | "leggings" | "sweatpants"
   // Dresses
-  | "mini-dress" | "midi-dress" | "maxi-dress" | "jumpsuit" | "overalls"
+  | "mini-dress" | "midi-dress" | "maxi-dress"
+  // One-piece (jumpsuits, overalls)
+  | "jumpsuit" | "overalls"
   // Outerwear
   | "jacket" | "coat" | "blazer" | "vest" | "windbreaker" | "puffer" | "bomber" | "denim-jacket" | "leather-jacket" | "trench-coat" | "peacoat" | "parka"
   // Shoes
@@ -127,6 +129,7 @@ export interface ClothingItem {
   last_worn_date: string | null;
   is_favorite: boolean;
   is_stored: boolean;
+  set_id: string | null;
   created_at: string;
 }
 
@@ -218,6 +221,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   top: "Top",
   bottom: "Bottom",
   dress: "Dress",
+  "one-piece": "One-piece",
   outerwear: "Outerwear",
   shoes: "Shoes",
   bag: "Bag",
@@ -491,6 +495,8 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "mini-dress", label: "Mini Dress" },
     { value: "midi-dress", label: "Midi Dress" },
     { value: "maxi-dress", label: "Maxi Dress" },
+  ],
+  "one-piece": [
     { value: "jumpsuit", label: "Jumpsuit" },
     { value: "overalls", label: "Overalls" },
   ],

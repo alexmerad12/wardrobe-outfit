@@ -45,6 +45,9 @@ function describeItem(item: ClothingItem): string {
   parts.push(`Warmth: ${item.warmth_rating}/5`);
   if (item.rain_appropriate) parts.push("Rain-proof");
   if (item.brand) parts.push(`Brand: ${item.brand}`);
+  // Items sharing a set_id are coordinated pieces (e.g., matching blazer + pants).
+  // Surfaced to the model as a stable short tag; see SET GROUPS rule below.
+  if (item.set_id) parts.push(`Set: ${item.set_id.slice(0, 8)}`);
 
   return parts.join(" | ");
 }
@@ -151,13 +154,13 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
 
 ⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
 
-1. DRESSES ARE WORN ALONE AS THE FULL OUTFIT BASE.
-   - If an outfit contains an item from the "dress" category (mini-dress, midi-dress, maxi-dress, jumpsuit), it MUST NOT contain ANY item from the "bottom" category (no jeans, no trousers, no shorts, no skirts, no leggings, no sweatpants - NOTHING).
-   - Check every outfit you generate: if dress is in it, bottom MUST NOT be in it. This is non-negotiable.
-   - A dress + shoes + (optional) outerwear/layering + (optional) accessory is the full valid structure.
+1. DRESSES AND ONE-PIECE GARMENTS ARE WORN ALONE AS THE FULL OUTFIT BASE.
+   - If an outfit contains an item from the "dress" category (mini-dress, midi-dress, maxi-dress) OR the "one-piece" category (jumpsuit, overalls), it MUST NOT contain ANY item from the "bottom" category (no jeans, no trousers, no shorts, no skirts, no leggings, no sweatpants - NOTHING).
+   - Check every outfit you generate: if dress or one-piece is in it, bottom MUST NOT be in it. This is non-negotiable.
+   - A dress/one-piece + shoes + (optional) outerwear/layering + (optional) accessory is the full valid structure.
 
 2. ONE BASE PER OUTFIT:
-   - Each outfit must have exactly ONE foundation - either a single dress/jumpsuit OR a top+bottom pair. Never both.
+   - Each outfit must have exactly ONE foundation - either a single dress, a single one-piece (jumpsuit/overalls), OR a top+bottom pair. Never combine.
 
 3. NO DUPLICATES FROM SAME CATEGORY:
    - Don't include two tops, two bottoms, or two dresses in one outfit.
@@ -165,6 +168,12 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
 
 4. CATEGORY CHECK:
    - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item.
+
+5. SET GROUPS (preference, not a rule):
+   - Items sharing the same "Set: xxxxxxxx" tag were marked by the user as coordinated pieces (matching blazer + pants, tracksuits, etc.).
+   - When you include one item from a set in an outfit, STRONGLY PREFER including the others from the same set in that same outfit. Sets are designed to be worn together.
+   - This is a preference, not a hard rule: if styling intent is to break up the set on purpose (e.g., wearing the blazer with jeans for a different vibe), that's allowed — but justify it in the reasoning.
+   - Across the 3 outfits you generate, give the user variety: not every set member has to appear together every time.
 
 STYLING PRINCIPLES:
 - Mix textures (e.g., denim with knit, leather with cotton)
@@ -226,8 +235,10 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
 
-      const hasDress = outfitItems.some((i) => i.category === "dress");
-      if (hasDress) {
+      const hasDressOrOnePiece = outfitItems.some(
+        (i) => i.category === "dress" || i.category === "one-piece"
+      );
+      if (hasDressOrOnePiece) {
         outfitItems = outfitItems.filter((i) => i.category !== "bottom");
       }
 

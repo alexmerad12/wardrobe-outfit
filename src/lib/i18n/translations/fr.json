@@ -67,6 +67,18 @@
     "outfit": "Partager",
     "todaysLook": "Tenue du jour"
   },
+  "set": {
+    "label": "Partie d'un ensemble",
+    "hint": "Lie cet item à une autre pièce (haut + bas assortis, jogging, etc.). L'IA préférera les associer mais pourra toujours les suggérer séparément.",
+    "linkButton": "Lier à un autre item",
+    "linkedWith": "Lié avec",
+    "unlinkButton": "Retirer de l'ensemble",
+    "pickerTitle": "Choisis l'item assorti",
+    "pickerSearch": "Cherche dans ton dressing...",
+    "pickerEmpty": "Aucun autre item à lier.",
+    "linking": "Liaison...",
+    "removing": "Suppression..."
+  },
   "bulk": {
     "title": "Téléchargement groupé",
     "subtitle": "Télécharge un lot d'un coup",
@@ -202,6 +214,7 @@
     "top": "Haut",
     "bottom": "Bas",
     "dress": "Robe",
+    "one-piece": "Une-pièce",
     "outerwear": "Manteau",
     "shoes": "Chaussures",
     "bag": "Sac",

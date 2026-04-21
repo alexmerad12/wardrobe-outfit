@@ -247,6 +247,7 @@ export default function AddItemPage() {
   const showGenericFit =
     category === "top" ||
     category === "dress" ||
+    category === "one-piece" ||
     category === "outerwear" ||
     (category === "bottom" && !isJeansTrousers);
   const showBottomFit = category === "bottom" && isJeansTrousers;
@@ -258,7 +259,7 @@ export default function AddItemPage() {
   const showPantsLength =
     category === "bottom" &&
     ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
-  const showWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(category as string);
+  const showWaistStyle = ["top", "bottom", "dress", "one-piece", "outerwear"].includes(category as string);
   const showWaistHeight = category === "bottom" && isJeansTrousers;
   // Waist Closure: for all pants (jeans, trousers, leggings, sweatpants)
   const showWaistClosure =
@@ -268,6 +269,7 @@ export default function AddItemPage() {
     category === "top" ||
     category === "bottom" ||
     category === "dress" ||
+    category === "one-piece" ||
     category === "outerwear";
   const showLayeringPiece = category === "top" || category === "outerwear";
   const showShoeFields = category === "shoes";
@@ -279,17 +281,18 @@ export default function AddItemPage() {
     category !== "bag";
   // Neckline: hide for hoodies (hooded) and cardigans (open front)
   const showNeckline =
-    ["top", "dress", "outerwear"].includes(category as string) &&
+    ["top", "dress", "one-piece", "outerwear"].includes(category as string) &&
     subcategory !== "hoodie" &&
     subcategory !== "cardigan";
   // Sleeve length: hide for tank tops (always straps/sleeveless by nature)
   const showSleeveLength =
-    ["top", "dress", "outerwear"].includes(category as string) &&
+    ["top", "dress", "one-piece", "outerwear"].includes(category as string) &&
     subcategory !== "tank-top";
   // Closure: only for tops/outerwear where there's an actual opening,
   // and for dresses (wrap dress, button-up, zipper, etc.)
   const showClosure =
     category === "dress" ||
+    category === "one-piece" ||
     category === "outerwear" ||
     (category === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(subcategory));
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ClothingItem } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Check } from "lucide-react";
+import { Heart, Check, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ClothingCardProps {
@@ -53,6 +53,11 @@ export function ClothingCard({
         {!selectMode && item.is_favorite && (
           <div className="absolute right-2 top-2">
             <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+          </div>
+        )}
+        {!selectMode && item.set_id && (
+          <div className="absolute bottom-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow-sm">
+            <Link2 className="h-3 w-3" />
           </div>
         )}
       </div>
