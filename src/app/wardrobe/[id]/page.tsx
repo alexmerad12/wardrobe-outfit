@@ -299,14 +299,19 @@ export default function ItemDetailPage() {
         setItem(saved);
         setNewImageFile(null);
         setNewImagePreview(null);
-        // Review wizard: if there are more items queued up for review,
-        // advance to the next one instead of closing edit mode. User can
-        // still exit via the X in the header at any time.
+        // Review wizard: if there are more items queued up, advance to
+        // the next one. On the FINAL item the wizard exits by routing
+        // back to /wardrobe — staying on an orphaned edit screen with
+        // no clear exit was confusing users.
         if (hasNext) {
           const [head, ...rest] = nextIds;
           const qs = new URLSearchParams({ edit: "1" });
           if (rest.length > 0) qs.set("next", rest.join(","));
           router.push(`/wardrobe/${head}?${qs.toString()}`);
+          return;
+        }
+        if (shouldAutoEdit) {
+          router.push("/wardrobe");
           return;
         }
         setEditing(false);
@@ -430,7 +435,26 @@ export default function ItemDetailPage() {
     <div className="mx-auto max-w-md px-4 pt-4 pb-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="icon" onClick={() => editing ? setEditing(false) : router.back()}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            // In wizard mode, X always exits back to the wardrobe.
+            // Without this the user gets stuck on an edit form with
+            // no navigation — X flipped editing off but they were
+            // still on /wardrobe/[id]?edit=1 with nothing obvious to
+            // tap except the bottom-nav tab.
+            if (editing && shouldAutoEdit) {
+              router.push("/wardrobe");
+              return;
+            }
+            if (editing) {
+              setEditing(false);
+              return;
+            }
+            router.back();
+          }}
+        >
           {editing ? <X className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}
         </Button>
         <div className="flex gap-2">

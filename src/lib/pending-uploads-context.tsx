@@ -77,18 +77,25 @@ export function usePendingUploads(): ContextValue {
   return c;
 }
 
-// Uploads now use tus.io resumable uploads, which survive TCP drops
-// by resuming from the last ACKed byte. With that reliability layer in
-// place we can parallelise again — 3 is the sweet spot per the tus +
-// mobile-network literature (more streams over a weak cell radio make
-// every stream slower).
-const CONCURRENCY = 3;
+// Concurrency has to balance throughput vs. reliability on mobile.
+// 3 simultaneous uploads was triggering timeouts on the user's phone
+// — three streams contending for one weak cell radio, plus three
+// concurrent Claude analyses hitting our server at once, was enough
+// to push individual requests past the 60 s per-attempt ceiling.
+// 2 gives each stream meaningful bandwidth and keeps imgly's
+// single-worker queue from piling up 3 deep; real-world wall-clock
+// for a 5-item batch is only marginally slower than 3 but the
+// transient-failure rate drops to near zero.
+const CONCURRENCY = 2;
 
-// Hard ceiling per item. Upload+AI ~3-8 s + imgly bg removal 4-8 s +
-// cleaned PNG upload ~2-5 s. 90 s is comfortably above the p95 happy
-// path even on mobile cellular; anything slower is genuinely stuck and
-// should error out so the user can see the red tile and tap to retry.
-const PER_ITEM_TIMEOUT_MS = 90_000;
+// Hard ceiling per item. imgly runs in parallel with Claude analyze
+// (~5-8 s), then a single upload (~3-8 s with up to 2 silent retries
+// of 60 s each + backoff) and a DB save. Worst-case budget is
+// therefore ~3 × 60 s for upload retries on a wedged connection plus
+// the usual pipeline steps. 5 min is a generous ceiling that only
+// fires on genuinely broken networks — in which case erroring the
+// tile is correct since we've already burned 3 min trying.
+const PER_ITEM_TIMEOUT_MS = 5 * 60 * 1000;
 
 
 
@@ -202,9 +209,9 @@ export function PendingUploadsProvider({
         setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
       }
 
-      // Re-wrap the downscaled blob as a File so upload + analyze see
-      // a proper filename + type. Even if downscaling returned the
-      // original File unchanged, re-wrapping costs nothing.
+      // Re-wrap the downscaled blob as a File so AI analyze + imgly
+      // see a proper filename + type. Even if downscaling returned
+      // the original File unchanged, re-wrapping costs nothing.
       const downOutMime =
         downscaled.type === "image/png" ||
         downscaled.type === "image/jpeg" ||
@@ -220,95 +227,115 @@ export function PendingUploadsProvider({
         { type: downOutMime }
       );
 
-      // 2. Upload raw downscaled + analyze in parallel. This is the
-      //    fast path that gets an item into the DB before bg removal
-      //    runs — if the user cancels or closes the tab after this
-      //    point, they keep the item (just with the original bg).
-      const [rawImageUrl, attrsRaw] = await Promise.all([
-        uploadToSupabase(downscaledFile).catch((err) => {
-          console.error(`[pending ${item.id}] upload step failed`, err);
-          throw new Error(
-            `Upload: ${err instanceof Error ? err.message : String(err)}`
-          );
+      // 2. imgly bg removal + Claude analyze in parallel. imgly runs
+      //    entirely on-device (serialized through a single Web
+      //    Worker), analyze is a server round-trip — the two don't
+      //    contend, so racing them shaves 2-4s off each item's total.
+      //    imgly failures fall back to the original image rather
+      //    than erroring the whole item.
+      const bgLog = (stage: string, extra?: unknown) =>
+        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
+      const t0 = performance.now();
+      bgLog("starting imgly + analyze in parallel");
+      const [cleanedOrNull, attrsRaw] = await Promise.all([
+        removeBg(downscaledFile).catch((err) => {
+          bgLog("imgly failed — keeping original", err);
+          return null;
         }),
         analyzeItem(downscaledFile).catch((err) => {
-          console.warn(`[pending ${item.id}] analyze step failed, using defaults`, err);
+          console.warn(`[pending ${item.id}] analyze failed, using defaults`, err);
           return {} as AutoFillResult;
         }),
       ]);
       const attrs = sanitizeAutoFill(attrsRaw);
 
-      // 3. Save to DB with the raw URL so the row exists. If bg
-      //    removal fails later we still have a complete wardrobe item.
-      const res = await fetch("/api/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildItemPayload(rawImageUrl, attrs)),
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error(`[pending ${item.id}] save failed`, {
-          status: res.status,
-          response: text,
-          attrs,
-          payload: buildItemPayload(rawImageUrl, attrs),
-        });
-        throw new Error(
-          `Save (${res.status})${text ? `: ${text.slice(0, 140)}` : ""}`
-        );
-      }
-      const saved = (await res.json()) as { id: string };
-
-      // 4. Background removal IS in the critical path now. The user
-      //    explicitly asked for the loading page to stay up until
-      //    backgrounds are removed, so we don't mark "ready" until
-      //    imgly has run and the PNG is uploaded + PATCHed. If bg
-      //    removal fails or times out, we still mark ready with the
-      //    original image — the item is saved, the user just doesn't
-      //    get a white background on that one.
-      const bgLog = (stage: string, extra?: unknown) =>
-        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
-      try {
-        bgLog("starting imgly removeBg");
-        const t0 = performance.now();
-        const cleanedBlob = await removeBg(downscaledFile);
+      // 3. Pick the final image: cleaned PNG if imgly worked, raw
+      //    downscaled otherwise. Swap the tile preview so the user
+      //    sees the white-bg version appear before the redirect.
+      let finalFile: File;
+      if (cleanedOrNull) {
         bgLog(`imgly done in ${Math.round(performance.now() - t0)}ms`, {
-          size: cleanedBlob.size,
+          size: cleanedOrNull.size,
         });
-        // Swap the tile preview over to the cleaned image so the user
-        // actually sees the white-bg version appear in the grid
-        // before the redirect fires.
-        const cleanedPreview = URL.createObjectURL(cleanedBlob);
+        const cleanedPreview = URL.createObjectURL(cleanedOrNull);
         const oldPreview = item.previewUrl;
         patchItem(item.id, { previewUrl: cleanedPreview });
         setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
-
-        const cleanedPng = new File(
-          [cleanedBlob],
-          `${baseName}.png`,
-          { type: "image/png" }
-        );
-        bgLog("uploading cleaned PNG");
-        const uploadT0 = performance.now();
-        const cleanedUrl = await uploadToSupabase(cleanedPng);
-        bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
-        bgLog("PATCHing image_url");
-        const patchRes = await fetch(`/api/items/${saved.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_url: cleanedUrl }),
+        finalFile = new File([cleanedOrNull], `${baseName}.png`, {
+          type: "image/png",
         });
-        if (!patchRes.ok) {
-          const txt = await patchRes.text().catch(() => "");
-          bgLog(`PATCH failed status=${patchRes.status}`, txt);
-        } else {
-          bgLog(`DONE in ${Math.round(performance.now() - t0)}ms total`);
-        }
-      } catch (err) {
-        // Bg removal failed. Don't error the item — the DB row is
-        // already saved with the original image. Just log and move on.
-        bgLog("FAILED — keeping original", err);
+      } else {
+        finalFile = downscaledFile;
       }
+
+      // 4. Single upload + single save. Previously we did 2 uploads
+      //    (raw + cleaned) and 2 DB writes (POST + PATCH) per item;
+      //    uploading only the final image cuts ~3-5s of network I/O
+      //    per item.
+      bgLog("uploading final image");
+      const uploadT0 = performance.now();
+      const imageUrl = await uploadToSupabase(finalFile).catch((err) => {
+        console.error(`[pending ${item.id}] upload step failed`, err);
+        throw new Error(
+          `Upload: ${err instanceof Error ? err.message : String(err)}`
+        );
+      });
+      bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
+
+      // Save with the same retry strategy as upload — the DB write
+      // can also drop under transient network/server stress and we
+      // don't want a tile to turn red just because a 503 came back
+      // on attempt 1.
+      const savePayload = JSON.stringify(buildItemPayload(imageUrl, attrs));
+      const saved = await (async () => {
+        const delays = [1_000, 3_000];
+        let lastErr: unknown = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const res = await fetch("/api/items", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: savePayload,
+            });
+            if (res.ok) return (await res.json()) as { id: string };
+            const text = await res.text().catch(() => "");
+            const permanent = [400, 401, 403, 404, 413, 415].includes(
+              res.status
+            );
+            if (permanent || attempt === 3) {
+              console.error(`[pending ${item.id}] save failed`, {
+                status: res.status,
+                response: text,
+              });
+              throw new Error(
+                `Save (${res.status})${text ? `: ${text.slice(0, 140)}` : ""}`
+              );
+            }
+            console.warn(
+              `[pending ${item.id}] save attempt ${attempt} returned ${res.status}, retrying`
+            );
+          } catch (err) {
+            lastErr = err;
+            if (attempt === 3) throw err;
+            const isNetwork =
+              err instanceof TypeError ||
+              (err instanceof DOMException && err.name === "AbortError");
+            if (!isNetwork && err instanceof Error && /^Save /.test(err.message)) {
+              // Already a thrown Save-error we intend to propagate.
+              throw err;
+            }
+            console.warn(
+              `[pending ${item.id}] save attempt ${attempt} threw, retrying`,
+              err
+            );
+          }
+          await new Promise((r) =>
+            setTimeout(r, delays[attempt - 1] ?? 3_000)
+          );
+        }
+        throw lastErr instanceof Error ? lastErr : new Error("Save failed");
+      })();
+      bgLog(`DONE in ${Math.round(performance.now() - t0)}ms total`);
 
       patchItem(item.id, {
         stage: "ready",
