@@ -154,13 +154,16 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
 
 ⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
 
-1. DRESSES AND ONE-PIECE GARMENTS ARE WORN ALONE AS THE FULL OUTFIT BASE.
+1. DRESSES AND ONE-PIECE GARMENTS REPLACE THE BOTTOM.
    - If an outfit contains an item from the "dress" category (mini-dress, midi-dress, maxi-dress) OR the "one-piece" category (jumpsuit, overalls), it MUST NOT contain ANY item from the "bottom" category (no jeans, no trousers, no shorts, no skirts, no leggings, no sweatpants - NOTHING).
    - Check every outfit you generate: if dress or one-piece is in it, bottom MUST NOT be in it. This is non-negotiable.
-   - A dress/one-piece + shoes + (optional) outerwear/layering + (optional) accessory is the full valid structure.
+
+   1a. WHETHER A TOP IS NEEDED UNDERNEATH:
+   - Dresses (mini/midi/maxi) and JUMPSUITS: full coverage. Worn alone — DO NOT add a top.
+   - OVERALLS (strap-style, bare chest area): MUST include a top underneath (t-shirt, blouse, tank, bodysuit, etc.). Never style overalls without a top.
 
 2. ONE BASE PER OUTFIT:
-   - Each outfit must have exactly ONE foundation - either a single dress, a single one-piece (jumpsuit/overalls), OR a top+bottom pair. Never combine.
+   - Each outfit must have exactly ONE foundation - either a single dress, a single one-piece (jumpsuit/overalls), OR a top+bottom pair. Never combine. (Overalls are the only exception: they ALWAYS pair with a top.)
 
 3. NO DUPLICATES FROM SAME CATEGORY:
    - Don't include two tops, two bottoms, or two dresses in one outfit.

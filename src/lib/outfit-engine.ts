@@ -202,9 +202,17 @@ export function generateOutfitCandidates(
     });
   }
 
-  // Also generate dress-based outfits
+  // Also generate dress-based outfits.
+  // Overalls (strap-style, exposed chest) need a top underneath; the rest of
+  // the "dresses" group (mini/midi/maxi dress + jumpsuit) is full coverage.
   for (const dress of dresses.slice(0, 2)) {
     const outfitItems: ClothingItem[] = [dress];
+    const needsBaseTop = dress.subcategory === "overalls";
+
+    if (needsBaseTop) {
+      const baseTop = pickRandom(tops);
+      if (baseTop) outfitItems.push(baseTop);
+    }
 
     // Layer over a dress (cardigan, vest, etc.)
     if (suggestLayering) {
