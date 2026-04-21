@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const languageName = locale === "fr" ? "French" : "English";
 
-    const [itemsRes, prefsRes, outfitsRes] = await Promise.all([
+    const [itemsRes, prefsRes, outfitsRes, recentRes] = await Promise.all([
       supabase.from("clothing_items").select("*").eq("is_stored", false),
       supabase.from("user_preferences").select("*").eq("user_id", userId).maybeSingle(),
       supabase
@@ -74,6 +74,13 @@ export async function POST(request: NextRequest) {
         .eq("is_favorite", true)
         .order("created_at", { ascending: false })
         .limit(5),
+      // Last ~10 worn looks — used as the 'don't recycle these' signal
+      // so the user gets fresh combinations across sessions.
+      supabase
+        .from("recent_outfits")
+        .select("item_ids")
+        .order("date", { ascending: false })
+        .limit(10),
     ]);
 
     if (itemsRes.error) {
@@ -83,6 +90,7 @@ export async function POST(request: NextRequest) {
     const items = (itemsRes.data ?? []) as ClothingItem[];
     const prefs = prefsRes.data;
     const favoriteOutfits = outfitsRes.data ?? [];
+    const recentItemSets = (recentRes.data ?? []) as { item_ids: string[] }[];
 
     if (items.length < 3) {
       return NextResponse.json({
@@ -133,10 +141,17 @@ export async function POST(request: NextRequest) {
       ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}`).join("\n")}`
       : "";
 
-    const cachedPrefix = `You are Yav, an expert personal stylist AI. You combine fashion knowledge, current trends, and timeless style principles to create outfits. You understand color theory, texture pairing, proportions, layering, and how to dress for different occasions and moods.
+    // Anti-repetition signal: surface the last ~10 worn item-id sets so
+    // the model can deliberately bring NEW combinations rather than recycle
+    // the same handful of safe pairings every session.
+    const recentSection = recentItemSets.length > 0
+      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets — do NOT propose the same combinations; the user has already seen these):\n${recentItemSets.map((r, i) => `${i + 1}. [${r.item_ids.join(", ")}]`).join("\n")}`
+      : "";
+
+    const cachedPrefix = `You are Yav, an expert personal stylist AI — think senior editor at a fashion magazine, not a polite assistant. You compose outfits with: real color theory (complementary, analogous, monochromatic, tonal), proportion (rule of thirds, balance fitted with loose, cropped with high-waist), silhouette discipline (one focal point per look — never compete a statement piece against another), texture variety (mix matte/shine, structured/flowy, knit/leather), and editorial intent (looks should feel intentional and considered, never random or 'safe-but-boring'). You know when to break rules: a single 'wrong' element done with confidence (oversized blazer with slip dress, sneakers with a gown) reads as styling. Cluttered piling-on does not.
 
 WARDROBE:
-${wardrobeList}${favoritesSection}`;
+${wardrobeList}${favoritesSection}${recentSection}`;
 
     const dynamicSuffix = `
 
@@ -147,7 +162,9 @@ OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${style
 
 LANGUAGE: Write the outfit "name" and "reasoning" fields in ${languageName}. Item IDs stay as-is.
 
-Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look that matches ALL THREE of: the WEATHER (temperature + conditions), the MOOD, and the OCCASION above. Weather is not optional — a cozy look at −5°C must actually handle the cold; an at-home look on a 30°C day must not include a wool coat.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
+Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look that matches ALL THREE of: the WEATHER (temperature + conditions), the MOOD, and the OCCASION above. Weather is not optional — a cozy look at −5°C must actually handle the cold; an at-home look on a 30°C day must not include a wool coat.
+
+THE 3 OUTFITS MUST BE GENUINELY DIFFERENT FROM EACH OTHER. Not three variations of the same combo. Vary at least 2 of these dimensions across the set: silhouette (e.g. one with a dress, one with trousers, one with a skirt), color story (one bold/saturated, one neutral/tonal, one monochrome), structure (one tailored, one relaxed, one effortless). Avoid repeating the same anchor pair (same top + same bottom) twice. If the wardrobe has limited variety, still find genuinely different looks rather than three near-duplicates.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
 
 ⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
 
@@ -195,18 +212,20 @@ MOOD-SPECIFIC GUIDANCE:
 - "Bold" / "Confident" / "Playful": statement pieces, bolder color combos, more thoughtful layering.
 - "Chill": relaxed fits, simple pairings, nothing fussy.
 
-STYLING PRINCIPLES:
-- Mix textures (e.g., denim with knit, leather with cotton)
-- Balance proportions (fitted top with wider bottom, or vice versa)
-- Consider color harmony but don't be boring - monochromatic looks, complementary accents, and tonal dressing all work
-- Match metal finishes on accessories when possible (silver with silver, gold with gold)
-- Layer thoughtfully - items marked as "layering piece" go over base layers. Don't stack layering pieces over already-heavy tops (e.g. cardigan over chunky sweater).
-- Match warmth ratings to the weather
-- Respect the occasion's formality level (see OCCASION-SPECIFIC GUIDANCE above for at-home)
-- Consider the mood (see MOOD-SPECIFIC GUIDANCE above)
-- Learn from the user's favorites - if they tend toward certain combinations or styles, lean into that
-- Think like a real stylist: unexpected but intentional pairings are better than safe/boring ones
-- Include shoes when the occasion calls for them (everything except At Home)
+STYLING PRINCIPLES (real-stylist logic, not generic safe pairings):
+- One focal point per outfit. The standout item (statement coat, bold print, sequined piece, sculptural shoe) carries the look — surround it with quieter pieces. Two statement items in the same outfit fight each other.
+- Texture is what makes 'simple' look intentional. Mix at least two textures: denim + silk, leather + knit, cotton + satin, wool + leather. All-cotton head-to-toe reads flat.
+- Proportion math: fitted with loose, cropped with high-waist, voluminous top with slim bottom (or vice versa). Avoid same-fit head-to-toe unless monochrome and intentional.
+- Color stories: pick ONE — monochromatic (one color, varied tones), tonal (close neighbors), complementary (one accent against neutrals), or true contrast (a confident bold pop). Don't just throw colors together.
+- Hardware + accessories cohere: match metals (silver with silver, gold with gold) and tonal hardware (cool tones with cool, warm with warm).
+- Layering is a styling MOVE, not just warmth: open over base, contrast textures, let an undershirt peek out, push sleeves up, leave a button undone. The styling_tip is where these moves live.
+- Tucking, cuffing, half-buttoning, sleeve-pushing — these small actions are what separate 'wearing clothes' from 'styled'. Always include at least one specific action in styling_tip when there's room.
+- Don't pile on. Empty space is a tool. Outfits with too many pieces (5+ small details, layered + belt + scarf + jewelry + bag) feel cluttered, not curated.
+- The occasion sets the floor for formality, the mood sets the energy, the weather sets the materials. All three must align.
+- Lean into the user's favorites for what to repeat (silhouette, color preference, formality level), but always bring at least one fresh angle they haven't seen yet.
+- Match warmth ratings to the weather; don't mix warmth-1 and warmth-5 in the same outfit unless one is genuine outerwear over a base.
+- Respect the occasion's formality (see OCCASION-SPECIFIC GUIDANCE) and the mood (see MOOD-SPECIFIC GUIDANCE).
+- Include shoes when the occasion calls for them (everything except At Home).
 
 Also analyze the wardrobe for any gaps - staple pieces that are missing and would significantly improve outfit options (e.g. a neutral belt, white sneakers, a blazer, a basic white tee). Only mention a gap if it's genuinely useful, not just to fill space. If the wardrobe is well-rounded, don't suggest anything.
 
