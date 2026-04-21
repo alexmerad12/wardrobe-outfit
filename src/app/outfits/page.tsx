@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Outfit, ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import { MOOD_ICONS } from "@/lib/mood-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -295,11 +296,15 @@ export default function FavoritesPage() {
                       </p>
 
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {outfit.mood && (
-                          <Badge variant="secondary" className="text-xs gap-0.5">
-                            {MOOD_CONFIG[outfit.mood]?.emoji} {t(`mood.${outfit.mood}.label`)}
-                          </Badge>
-                        )}
+                        {outfit.mood && (() => {
+                          const MoodIcon = MOOD_ICONS[outfit.mood];
+                          return (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <MoodIcon className="h-3 w-3" />
+                              {t(`mood.${outfit.mood}.label`)}
+                            </Badge>
+                          );
+                        })()}
                         {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
                           <Badge variant="outline" className="text-xs gap-0.5">
                             <Thermometer className="h-3 w-3" />
@@ -382,11 +387,15 @@ export default function FavoritesPage() {
                         </button>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                        {outfit.mood && (
-                          <Badge variant="secondary" className="text-[10px] gap-0.5">
-                            {MOOD_CONFIG[outfit.mood]?.emoji} {t(`mood.${outfit.mood}.label`)}
-                          </Badge>
-                        )}
+                        {outfit.mood && (() => {
+                          const MoodIcon = MOOD_ICONS[outfit.mood];
+                          return (
+                            <Badge variant="secondary" className="text-[10px] gap-1">
+                              <MoodIcon className="h-3 w-3" />
+                              {t(`mood.${outfit.mood}.label`)}
+                            </Badge>
+                          );
+                        })()}
                         {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
                           <Badge variant="outline" className="text-[10px] gap-0.5">
                             <Thermometer className="h-2.5 w-2.5" />

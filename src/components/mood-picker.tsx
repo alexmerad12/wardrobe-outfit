@@ -2,35 +2,14 @@
 
 import type { Mood } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
+import { MOOD_ICONS } from "@/lib/mood-icons";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n/use-locale";
-import {
-  Zap,
-  Crown,
-  Rainbow,
-  Cloud,
-  Leaf,
-  Flame,
-  Moon,
-  Heart,
-  type LucideIcon,
-} from "lucide-react";
 
 interface MoodPickerProps {
   selected: Mood | null;
   onChange: (mood: Mood) => void;
 }
-
-const MOOD_ICONS: Record<Mood, LucideIcon> = {
-  energized: Zap,
-  confident: Crown,
-  playful: Rainbow,
-  cozy: Cloud,
-  chill: Leaf,
-  bold: Flame,
-  period: Moon,
-  sad: Heart,
-};
 
 const MOODS = Object.keys(MOOD_CONFIG) as Mood[];
 

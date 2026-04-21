@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
+import { MOOD_ICONS } from "@/lib/mood-icons";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
@@ -210,15 +211,18 @@ export default function HomePage() {
                 {!todayOutfit.mood && !todayOutfit.occasion && (todayOutfit.weather_temp === null || todayOutfit.weather_temp === undefined) && (
                   <p className="text-xs text-muted-foreground italic">{t("home.tapWearTodayHint")}</p>
                 )}
-                {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
-                    <span className="text-base">{MOOD_CONFIG[todayOutfit.mood as Mood].emoji}</span>
-                    <div>
-                      <p className="text-xs font-medium leading-tight">{t(`mood.${todayOutfit.mood}.label`)}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{t("home.moodLabel")}</p>
+                {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (() => {
+                  const MoodIcon = MOOD_ICONS[todayOutfit.mood as Mood];
+                  return (
+                    <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
+                      <MoodIcon className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs font-medium leading-tight">{t(`mood.${todayOutfit.mood}.label`)}</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight">{t("home.moodLabel")}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {todayOutfit.occasion && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2.5 py-1.5">
                     <Sparkles className="h-4 w-4 text-muted-foreground" />
@@ -388,11 +392,15 @@ export default function HomePage() {
                         {/* Context badges */}
                         {(outfit.mood || outfit.occasion || outfit.weather_temp !== null) && (
                           <div className="flex flex-wrap gap-1.5 mb-3">
-                            {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (
-                              <Badge variant="secondary" className="text-[10px] gap-0.5">
-                                {MOOD_CONFIG[outfit.mood as Mood].emoji} {t(`mood.${outfit.mood}.label`)}
-                              </Badge>
-                            )}
+                            {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {
+                              const MoodIcon = MOOD_ICONS[outfit.mood as Mood];
+                              return (
+                                <Badge variant="secondary" className="text-[10px] gap-1">
+                                  <MoodIcon className="h-3 w-3" />
+                                  {t(`mood.${outfit.mood}.label`)}
+                                </Badge>
+                              );
+                            })()}
                             {outfit.occasion && (
                               <Badge variant="outline" className="text-[10px]">
                                 {t(`occasion.${outfit.occasion}`)}
