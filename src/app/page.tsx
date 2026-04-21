@@ -206,7 +206,19 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* Mood / Occasion / Weather row */}
+              {/* Item photos - horizontal scroll, square aspect ratio */}
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {todayItems.map((item) => (
+                  <div key={item.id} className="flex-shrink-0 w-28">
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30">
+                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1 truncate text-center">{item.name}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mood / Occasion / Weather row (below items) */}
               <div className="flex flex-wrap gap-2">
                 {!todayOutfit.mood && !todayOutfit.occasion && (todayOutfit.weather_temp === null || todayOutfit.weather_temp === undefined) && (
                   <p className="text-xs text-muted-foreground italic">{t("home.tapWearTodayHint")}</p>
@@ -241,18 +253,6 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Item photos - horizontal scroll, square aspect ratio */}
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                {todayItems.map((item) => (
-                  <div key={item.id} className="flex-shrink-0 w-28">
-                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30">
-                      <Image src={item.image_url} alt={item.name} fill className="object-cover" sizes="112px" />
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1 truncate text-center">{item.name}</p>
-                  </div>
-                ))}
               </div>
 
               {/* Expanded content: description + action buttons */}

@@ -13,6 +13,9 @@ interface ClothingCardProps {
   selectMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  /** Category the user is filtering by — forwarded as a query param so
+   *  the item-detail page can return them to the same tab. */
+  fromCategory?: string;
 }
 
 export function ClothingCard({
@@ -20,6 +23,7 @@ export function ClothingCard({
   selectMode = false,
   isSelected = false,
   onToggleSelect,
+  fromCategory,
 }: ClothingCardProps) {
   const content = (
     <div
@@ -87,8 +91,12 @@ export function ClothingCard({
     );
   }
 
+  const href = fromCategory
+    ? `/wardrobe/${item.id}?from=${encodeURIComponent(fromCategory)}`
+    : `/wardrobe/${item.id}`;
+
   return (
-    <Link href={`/wardrobe/${item.id}`}>
+    <Link href={href}>
       {content}
     </Link>
   );

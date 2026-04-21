@@ -464,7 +464,14 @@ export default function ItemDetailPage() {
               setEditing(false);
               return;
             }
-            router.back();
+            // Return to the wardrobe tab the user came from (passed via
+            // ?from= when they tapped the item). Falls back to history.
+            const from = searchParams.get("from");
+            if (from) {
+              router.push(`/wardrobe?category=${encodeURIComponent(from)}`);
+            } else {
+              router.back();
+            }
           }}
         >
           {editing ? <X className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}

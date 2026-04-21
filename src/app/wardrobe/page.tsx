@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { ClothingItem, Category } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
@@ -48,9 +48,27 @@ const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
 ];
 
 export default function WardrobePage() {
+  return (
+    <Suspense>
+      <WardrobePageInner />
+    </Suspense>
+  );
+}
+
+function WardrobePageInner() {
+  const searchParams = useSearchParams();
+  // Initial category honors ?category= in the URL so returning from an
+  // item detail drops the user back on the tab they came from.
+  const initialCategory = (() => {
+    const c = searchParams.get("category");
+    if (!c) return "all";
+    return (ALL_CATEGORIES as readonly string[]).includes(c)
+      ? (c as Category | "all" | "stored")
+      : "all";
+  })();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<Category | "all" | "stored">("all");
+  const [activeCategory, setActiveCategory] = useState<Category | "all" | "stored">(initialCategory);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -452,6 +470,7 @@ export default function WardrobePage() {
               selectMode={selectMode}
               isSelected={selected.has(item.id)}
               onToggleSelect={() => toggleSelect(item.id)}
+              fromCategory={activeCategory !== "all" ? activeCategory : undefined}
             />
           ))}
         </div>
