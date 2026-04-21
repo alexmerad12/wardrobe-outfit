@@ -627,12 +627,12 @@ export default function AddItemPage() {
             onClick={() => libraryInputRef.current?.click()}
             className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 overflow-hidden"
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-xl">
+            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white">
               <Image
                 src={imagePreview}
                 alt="Preview"
                 fill
-                className="object-cover"
+                className="object-contain"
               />
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity hover:opacity-100">
                 <p className="text-sm font-medium text-white">
