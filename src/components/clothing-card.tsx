@@ -33,13 +33,15 @@ export function ClothingCard({
         item.is_stored && "opacity-60"
       )}
     >
-      {/* Image */}
+      {/* Image — object-contain so the full item shows (matches the
+          item detail view); object-cover was zooming and cropping the
+          edges. */}
       <div className="relative aspect-square bg-muted/30">
         <Image
           src={item.image_url}
           alt={item.name}
           fill
-          className="object-cover transition-transform group-hover:scale-105"
+          className="object-contain p-2 transition-transform group-hover:scale-105"
           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
         />
         {selectMode && (
