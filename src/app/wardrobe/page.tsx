@@ -278,7 +278,7 @@ export default function WardrobePage() {
                     </Button>
                   }
                 />
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent align="end" className="w-72">
                   <DropdownMenuItem
                     onClick={() => cameraInputRef.current?.click()}
                     className="gap-2"
@@ -300,6 +300,25 @@ export default function WardrobePage() {
                     <Plus className="h-4 w-4" />
                     {t("wardrobe.fillInManually")}
                   </DropdownMenuItem>
+                  {/* Photo tips — keep this tight. Users read it once,
+                      skim it forever; a wall of text hurts more than
+                      it helps. The four bullets cover the actual
+                      failure modes we've seen: cluttered background
+                      defeats bg removal, cropping chops sleeves/hems,
+                      multi-item shots confuse AI tagging, and the
+                      5-at-a-time cap catches people who select 20 in
+                      their library. */}
+                  <div className="border-t mt-1 pt-2 px-2 pb-2 text-[11px] leading-relaxed text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">
+                      For best results
+                    </p>
+                    <ul className="space-y-0.5">
+                      <li>• One item per photo, fully in frame</li>
+                      <li>• Flat, plain surface (bed, table, floor)</li>
+                      <li>• Good light, avoid shadows & clutter</li>
+                      <li>• Up to 5 at a time</li>
+                    </ul>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
               {/* Camera: single shot straight from the device camera */}
@@ -592,7 +611,7 @@ function PendingTile({
     <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
       <UploadPreviewImage
         src={item.previewUrl}
-        className="h-full w-full object-cover opacity-70"
+        className="h-full w-full object-contain opacity-70"
       />
       {isError ? (
         <button

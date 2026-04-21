@@ -29,15 +29,16 @@ const BUCKET = "clothing-images";
 // transient (network drops, server 5xx, timeouts) while still failing
 // fast on permanent errors (auth, payload too big, bad request).
 //
-// Budget: 3 total attempts with exponential backoff, 60 s per attempt.
-// Worst case a truly wedged upload takes 3×60 + 1 + 3 ≈ 3.1 min before
-// the user sees a red tile — that's long but acceptable since the cap
-// is only hit for genuine connectivity problems the user can see in
-// their phone's signal bar.
-const ATTEMPT_TIMEOUT_MS = 60_000;
-const MAX_ATTEMPTS = 3;
-// Exponential backoff between attempts: 1 s, then 3 s.
-const RETRY_DELAYS_MS = [1_000, 3_000];
+// Budget: 5 attempts, 90 s per attempt, backoff 2s/5s/10s/20s. Worst
+// case a genuinely wedged upload burns ~8.5 min before turning the
+// tile red. That's long, but the alternative — giving up after 3
+// retries when the 4th might succeed — was how users were getting
+// "3 of 5 failed" on marginal mobile signal. Empirically most real
+// uploads succeed on attempt 1; retries 2+ exist purely for the
+// carrier-handoff / signal-dropout cases the first attempt hit.
+const ATTEMPT_TIMEOUT_MS = 90_000;
+const MAX_ATTEMPTS = 5;
+const RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 20_000];
 
 // Registry of in-flight uploads so cancelAllActiveUploads() can abort
 // the batch when the user taps Cancel on the /wardrobe/uploading page.

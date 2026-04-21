@@ -151,7 +151,7 @@ export default function UploadingPage() {
             >
               <UploadPreviewImage
                 src={item.previewUrl}
-                className="h-full w-full object-cover opacity-80"
+                className="h-full w-full object-contain opacity-80"
               />
               {item.stage === "ready" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-green-500/30">

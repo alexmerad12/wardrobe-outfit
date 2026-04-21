@@ -88,14 +88,15 @@ export function usePendingUploads(): ContextValue {
 // transient-failure rate drops to near zero.
 const CONCURRENCY = 2;
 
-// Hard ceiling per item. imgly runs in parallel with Claude analyze
-// (~5-8 s), then a single upload (~3-8 s with up to 2 silent retries
-// of 60 s each + backoff) and a DB save. Worst-case budget is
-// therefore ~3 × 60 s for upload retries on a wedged connection plus
-// the usual pipeline steps. 5 min is a generous ceiling that only
-// fires on genuinely broken networks — in which case erroring the
-// tile is correct since we've already burned 3 min trying.
-const PER_ITEM_TIMEOUT_MS = 5 * 60 * 1000;
+// Hard ceiling per item. Upload's own retry budget is now up to
+// 5 × 90 s + ~37 s of backoff ≈ 8 min on a genuinely broken
+// connection. Add imgly (up to 3 min) and save retries (up to ~1.5
+// min) and the theoretical worst case is ~12 min, but real items
+// finish in 10-25 s. We set the outer ceiling to 10 min so the
+// upload-retry ladder can fully play out before we give up — cutting
+// it off sooner was turning retryable failures (attempt 4 would
+// have worked) into permanent red tiles.
+const PER_ITEM_TIMEOUT_MS = 10 * 60 * 1000;
 
 
 
