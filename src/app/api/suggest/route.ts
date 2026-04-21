@@ -195,16 +195,12 @@ THE 3 OUTFITS MUST BE GENUINELY DIFFERENT FROM EACH OTHER. Not three variations 
 4. CATEGORY CHECK:
    - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item or drop the outfit.
 
-5. WEATHER MATCH:
-   - The WEATHER value at the top tells you today's temperature and conditions. Every outfit MUST be appropriate for it.
-   - <5°C: include heavy outerwear (coat / puffer / parka) whenever the wardrobe has it. Warmth rating 4–5 pieces, closed shoes / boots. No shorts / skirts without tights, no sandals, no tank tops as the only top.
-   - 5–12°C: include outerwear (jacket / cardigan / blazer / coat) whenever the wardrobe has a piece that fits the look. Long sleeves, closed shoes. No sandals, no shorts. (Even indoor occasions like Dinner Out or Work — the user has to get there.)
-   - 12–18°C: long sleeves or layered short sleeves, optional light jacket/cardigan. Jeans / trousers or midi skirts work; shorts only if the user's pieces clearly handle it.
-   - 18–25°C: short sleeves / t-shirts / blouses, shorts / skirts / trousers, sneakers / flats / sandals. No heavy coats.
-   - >25°C: lightest pieces (tank, t-shirt, shorts, sundress), breathable materials (cotton, linen, mesh). NO sweaters, NO wool, NO heavy jackets, NO boots.
-   - Rain chance ≥ 40%: prefer items marked "Rain-proof" when available; avoid suede / canvas / delicate pieces.
-   - Match the Warmth rating on each item to the temp — don't mix a warmth-5 coat with warmth-2 pieces on a warm day, or vice versa.
-   - If the wardrobe is missing a key cold-weather piece (no outerwear at all, no closed shoes, etc.), STILL generate an outfit with what's available, and call out the gap in wardrobe_gap so the user knows what to add.
+5. WEATHER FIT (use the WEATHER value at the top as a guide — pick pieces that make sense for it, but ALWAYS return 3 outfits even if the wardrobe forces compromises):
+   - Cold (<12°C): lean toward warmer pieces, long sleeves, closed shoes; avoid tank-tops-as-only-top, sandals, shorts. Outerwear is a nice finisher when it fits the look.
+   - Mild (12–22°C): flexible — long or short sleeves, light layering optional.
+   - Warm (>22°C): lighter pieces, breathable materials, avoid heavy coats / wool / heavy boots.
+   - Rain chance ≥ 40%: prefer items marked "Rain-proof" when available.
+   - Don't refuse to generate an outfit just because the wardrobe is missing the ideal weather piece — work with what's there and note the gap in wardrobe_gap.
 
 OCCASION-SPECIFIC GUIDANCE:
 - "At Home" (loungewear): prioritize soft, stretchy, comfortable pieces (sweatpants, leggings, hoodies, cozy knits, oversized tees, lounge sets). Shoes are OPTIONAL and should be skipped unless the user has truly casual indoor shoes (slippers, house sneakers) — don't force heels / boots / formal shoes. Bags should NOT appear in at-home outfits. Keep layering minimal; at home you want one top max, not sweater + cardigan.
