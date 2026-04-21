@@ -129,7 +129,6 @@ export interface ClothingItem {
   last_worn_date: string | null;
   is_favorite: boolean;
   is_stored: boolean;
-  set_id: string | null;
   created_at: string;
 }
 

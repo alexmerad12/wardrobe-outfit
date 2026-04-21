@@ -58,13 +58,11 @@ create table clothing_items (
   last_worn_date date,
   is_favorite boolean default false,
   is_stored boolean default false,
-  set_id uuid,
   created_at timestamptz default now()
 );
 
 create index clothing_items_user_idx on clothing_items (user_id);
 create index clothing_items_user_category_idx on clothing_items (user_id, category);
-create index clothing_items_set_id_idx on clothing_items (set_id);
 
 -- ============================================
 -- Outfits

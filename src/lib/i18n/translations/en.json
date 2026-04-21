@@ -67,18 +67,6 @@
     "outfit": "Share",
     "todaysLook": "Today's Look"
   },
-  "set": {
-    "label": "Part of a set",
-    "hint": "Link this with another piece (matching top + bottom, tracksuit, etc.). The AI will prefer styling them together but can still suggest each on its own.",
-    "linkButton": "Link to another item",
-    "linkedWith": "Linked with",
-    "unlinkButton": "Remove from set",
-    "pickerTitle": "Pick the matching item",
-    "pickerSearch": "Search your wardrobe...",
-    "pickerEmpty": "No other items to link.",
-    "linking": "Linking...",
-    "removing": "Removing..."
-  },
   "bulk": {
     "title": "Bulk upload",
     "subtitle": "Upload a batch at once",

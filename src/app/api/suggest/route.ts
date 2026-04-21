@@ -45,9 +45,6 @@ function describeItem(item: ClothingItem): string {
   parts.push(`Warmth: ${item.warmth_rating}/5`);
   if (item.rain_appropriate) parts.push("Rain-proof");
   if (item.brand) parts.push(`Brand: ${item.brand}`);
-  // Items sharing a set_id are coordinated pieces (e.g., matching blazer + pants).
-  // Surfaced to the model as a stable short tag; see SET GROUPS rule below.
-  if (item.set_id) parts.push(`Set: ${item.set_id.slice(0, 8)}`);
 
   return parts.join(" | ");
 }
@@ -171,12 +168,6 @@ Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit s
 
 4. CATEGORY CHECK:
    - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item.
-
-5. SET GROUPS (preference, not a rule):
-   - Items sharing the same "Set: xxxxxxxx" tag were marked by the user as coordinated pieces (matching blazer + pants, tracksuits, etc.).
-   - When you include one item from a set in an outfit, STRONGLY PREFER including the others from the same set in that same outfit. Sets are designed to be worn together.
-   - This is a preference, not a hard rule: if styling intent is to break up the set on purpose (e.g., wearing the blazer with jeans for a different vibe), that's allowed — but justify it in the reasoning.
-   - Across the 3 outfits you generate, give the user variety: not every set member has to appear together every time.
 
 STYLING PRINCIPLES:
 - Mix textures (e.g., denim with knit, leather with cotton)
