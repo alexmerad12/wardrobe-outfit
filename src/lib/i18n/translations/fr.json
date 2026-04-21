@@ -209,6 +209,18 @@
     "accessory": "Accessoire",
     "stored": "Rangés"
   },
+  "categoryTab": {
+    "all": "Tous",
+    "top": "Hauts",
+    "bottom": "Bas",
+    "dress": "Robes",
+    "one-piece": "Une-pièces",
+    "outerwear": "Manteaux",
+    "shoes": "Chaussures",
+    "bag": "Sacs",
+    "accessory": "Accessoires",
+    "stored": "Rangés"
+  },
   "subcategory": {
     "t-shirt": "T-Shirt",
     "blouse": "Chemisier",

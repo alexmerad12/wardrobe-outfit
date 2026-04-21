@@ -426,7 +426,7 @@ function WardrobePageInner() {
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            {cat === "stored" ? `${t("category.stored")}${storedCount > 0 ? ` (${storedCount})` : ""}` : t(`category.${cat}`)}
+            {cat === "stored" ? `${t("categoryTab.stored")}${storedCount > 0 ? ` (${storedCount})` : ""}` : t(`categoryTab.${cat}`)}
           </button>
         ))}
       </div>

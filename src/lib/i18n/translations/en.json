@@ -204,6 +204,18 @@
     "accessory": "Accessory",
     "stored": "Stored"
   },
+  "categoryTab": {
+    "all": "All",
+    "top": "Tops",
+    "bottom": "Bottoms",
+    "dress": "Dresses",
+    "one-piece": "One-pieces",
+    "outerwear": "Outerwear",
+    "shoes": "Shoes",
+    "bag": "Bags",
+    "accessory": "Accessories",
+    "stored": "Stored"
+  },
   "subcategory": {
     "t-shirt": "T-Shirt",
     "blouse": "Blouse",
