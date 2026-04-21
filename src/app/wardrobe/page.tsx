@@ -75,6 +75,10 @@ function WardrobePageInner() {
   const [creatingOutfit, setCreatingOutfit] = useState(false);
   const router = useRouter();
   const { t } = useLocale();
+  // Ref to the active category pill so we can scroll it into view when
+  // the page mounts on a non-default category (e.g. returning from an
+  // item detail on the Shoes tab).
+  const activeCategoryRef = useRef<HTMLButtonElement | null>(null);
 
   const {
     items: pending,
@@ -103,6 +107,17 @@ function WardrobePageInner() {
   useEffect(() => {
     refetchItems().finally(() => setLoading(false));
   }, [refetchItems]);
+
+  // Bring the active category pill into view whenever it changes (mount
+  // with a non-default category, tapping a different tab, etc.) so the
+  // user doesn't have to scroll the filter bar by hand.
+  useEffect(() => {
+    activeCategoryRef.current?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [activeCategory]);
 
   // Refetch the grid whenever a background upload saves, so fresh items
   // appear in place of their pending tiles.
@@ -402,6 +417,7 @@ function WardrobePageInner() {
         {ALL_CATEGORIES.map((cat) => (
           <button
             key={cat}
+            ref={cat === activeCategory ? activeCategoryRef : undefined}
             onClick={() => setActiveCategory(cat)}
             className={cn(
               "whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
