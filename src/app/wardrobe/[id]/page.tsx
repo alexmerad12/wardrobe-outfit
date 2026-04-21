@@ -505,7 +505,7 @@ export default function ItemDetailPage() {
       )}
 
       {/* Image */}
-      <div className="relative aspect-square overflow-hidden rounded-xl bg-muted/30 mb-4">
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-white mb-4">
         <Image src={newImagePreview || item.image_url} alt={item.name} fill className="object-contain" sizes="(max-width: 448px) 100vw, 448px" priority />
         {editing && (
           <button
