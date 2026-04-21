@@ -130,7 +130,7 @@ export default function FavoritesPage() {
     <div className="mx-auto max-w-2xl px-4 pt-6">
       {/* Sticky top bar. Select mode mirrors the wardrobe pattern — Cancel
           + count on the left, bulk Remove on the right. */}
-      <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-6 border-b bg-background px-4 pb-3 pt-6">
+      <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
         {selectMode ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -158,7 +158,7 @@ export default function FavoritesPage() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
-              <p className="text-sm text-muted-foreground">{t("favorites.subtitle")}</p>
+              <p className="truncate text-sm text-muted-foreground">{t("favorites.subtitle")}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* Heart + count, sized like a button so it sits on the same
