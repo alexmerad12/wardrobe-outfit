@@ -751,6 +751,7 @@
     "deleteConfirm": "Delete this item from your wardrobe?",
     "itemNotFound": "Item not found",
     "backToWardrobe": "Back to Wardrobe",
+    "saveFirst": "Save or cancel your changes first",
     "colors": "Colors:",
     "fit": "Fit",
     "length": "Length",

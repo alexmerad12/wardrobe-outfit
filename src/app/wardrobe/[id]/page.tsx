@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Trash2,
   Droplets,
@@ -148,6 +150,90 @@ export default function ItemDetailPage() {
     }
     fetchItem();
   }, [params.id]);
+
+  // Sibling navigation: fetch the full wardrobe once, filter by the
+  // ?from= category if present, and compute prev / next ids so the user
+  // can swipe or arrow through items without bouncing back to the grid.
+  // Sorted newest-first to match the grid order.
+  const [siblingIds, setSiblingIds] = useState<string[]>([]);
+  const fromFilter = searchParams.get("from") ?? "";
+  useEffect(() => {
+    async function fetchSiblings() {
+      try {
+        const res = await fetch("/api/items");
+        if (!res.ok) return;
+        const all = (await res.json()) as ClothingItem[];
+        const filtered = fromFilter
+          ? all.filter((i) => i.category === fromFilter && !i.is_stored)
+          : all.filter((i) => !i.is_stored);
+        setSiblingIds(filtered.map((i) => i.id));
+      } catch (err) {
+        console.error("Failed to fetch siblings:", err);
+      }
+    }
+    fetchSiblings();
+  }, [fromFilter]);
+
+  const currentIndex = siblingIds.indexOf(params.id as string);
+  const prevId = currentIndex > 0 ? siblingIds[currentIndex - 1] : null;
+  const nextId =
+    currentIndex >= 0 && currentIndex < siblingIds.length - 1
+      ? siblingIds[currentIndex + 1]
+      : null;
+
+  // Transient "save first" banner when the user tries to swipe / arrow
+  // during edit mode — navigation is blocked until they save or cancel.
+  const [blockedHint, setBlockedHint] = useState(false);
+  useEffect(() => {
+    if (!blockedHint) return;
+    const timer = setTimeout(() => setBlockedHint(false), 2000);
+    return () => clearTimeout(timer);
+  }, [blockedHint]);
+
+  const goToSibling = (targetId: string | null) => {
+    if (!targetId) return;
+    if (editing) {
+      setBlockedHint(true);
+      return;
+    }
+    const suffix = fromFilter ? `?from=${encodeURIComponent(fromFilter)}` : "";
+    router.push(`/wardrobe/${targetId}${suffix}`);
+  };
+
+  // Desktop keyboard: arrow-left/arrow-right navigate siblings.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input / textarea / select.
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowLeft") goToSibling(prevId);
+      else if (e.key === "ArrowRight") goToSibling(nextId);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prevId, nextId, editing]);
+
+  // Mobile edge-swipe: detect a mostly-horizontal drag of >= 60px and
+  // navigate accordingly. No visible arrows on mobile — just gesture.
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    // Must be predominantly horizontal and over 60 px.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0) goToSibling(nextId); // swipe left → next
+    else goToSibling(prevId); // swipe right → prev
+  };
 
   useEffect(() => {
     // Eagerly fetch the model weights so the first click is instant
@@ -455,7 +541,42 @@ export default function ItemDetailPage() {
     : labels.FORMALITY[item.formality];
 
   return (
-    <div className="mx-auto max-w-md px-4 pt-4 pb-8">
+    <div
+      className="mx-auto max-w-md px-4 pt-4 pb-8 relative"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Desktop-only sibling arrows (hidden on mobile — mobile uses edge
+          swipe). Positioned at the left / right viewport edges so they
+          feel like page navigation rather than page content. */}
+      {prevId && (
+        <button
+          type="button"
+          aria-label="Previous item"
+          onClick={() => goToSibling(prevId)}
+          className="fixed left-4 top-1/2 z-40 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition-colors hover:bg-muted md:flex"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+      )}
+      {nextId && (
+        <button
+          type="button"
+          aria-label="Next item"
+          onClick={() => goToSibling(nextId)}
+          className="fixed right-4 top-1/2 z-40 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition-colors hover:bg-muted md:flex"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      )}
+
+      {/* Transient hint when the user tries to navigate away mid-edit. */}
+      {blockedHint && (
+        <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-sm text-background shadow-lg">
+          {t("itemDetail.saveFirst")}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <Button
