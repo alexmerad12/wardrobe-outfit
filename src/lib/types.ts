@@ -24,7 +24,7 @@ export type Subcategory =
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embroidery" | "other";
 
-export type Material = "cotton" | "denim" | "wool" | "silk" | "polyester" | "leather" | "faux-leather" | "suede" | "faux-suede" | "patent-leather" | "linen" | "knit" | "satin" | "velvet" | "corduroy" | "canvas" | "mesh" | "sheer" | "lace" | "tulle" | "chiffon" | "fur-shearling" | "faux-fur" | "rubber" | "nylon" | "other";
+export type Material = "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other";
 
 export type Fit = "slim" | "regular" | "loose" | "oversized";
 
@@ -388,22 +388,23 @@ export const BAG_SIZE_LABELS: Record<BagSize, string> = {
   tote: "Tote",
 };
 
+// Hybrid order: most common necklines first, rest alphabetical.
 export const NECKLINE_LABELS: Record<Neckline, string> = {
   crew: "Crew Neck",
   "v-neck": "V-Neck",
   scoop: "Scoop Neck",
-  square: "Square Neck",
-  boat: "Boat Neck",
-  sweetheart: "Sweetheart",
-  turtleneck: "Turtleneck",
-  "mock-neck": "Mock Neck",
-  halter: "Halter",
-  "one-shoulder": "One Shoulder",
-  "off-shoulder": "Off Shoulder",
-  asymmetric: "Asymmetric",
   collared: "Collared",
-  henley: "Henley",
+  turtleneck: "Turtleneck",
+  asymmetric: "Asymmetric",
+  boat: "Boat Neck",
   cowl: "Cowl Neck",
+  halter: "Halter",
+  henley: "Henley",
+  "mock-neck": "Mock Neck",
+  "off-shoulder": "Off Shoulder",
+  "one-shoulder": "One Shoulder",
+  square: "Square Neck",
+  sweetheart: "Sweetheart",
   other: "Other",
 };
 
@@ -433,46 +434,62 @@ export const CLOSURE_LABELS: Record<Closure, string> = {
   other: "Other",
 };
 
+// Hybrid order: the most commonly tagged materials first (one tap row),
+// rest alphabetical. Keeps scan-speed for new users and known values.
 export const MATERIAL_LABELS: Record<Material, string> = {
+  // Most common (quick picks)
   cotton: "Cotton",
   denim: "Denim",
   wool: "Wool",
   silk: "Silk",
-  polyester: "Polyester",
   leather: "Leather",
-  "faux-leather": "Faux Leather",
-  suede: "Suede",
-  "faux-suede": "Faux Suede",
-  "patent-leather": "Patent Leather",
-  linen: "Linen",
   knit: "Knit",
-  satin: "Satin",
-  velvet: "Velvet",
-  corduroy: "Corduroy",
+  polyester: "Polyester",
+  linen: "Linen",
+  // Rest alphabetical
   canvas: "Canvas",
-  mesh: "Mesh",
-  sheer: "Sheer",
-  lace: "Lace",
-  tulle: "Tulle",
+  cashmere: "Cashmere",
   chiffon: "Chiffon",
-  "fur-shearling": "Fur / Shearling",
+  corduroy: "Corduroy",
   "faux-fur": "Faux Fur",
-  rubber: "Rubber",
+  "faux-leather": "Faux Leather",
+  "faux-suede": "Faux Suede",
+  flannel: "Flannel",
+  fleece: "Fleece",
+  "fur-shearling": "Fur / Shearling",
+  jersey: "Jersey",
+  lace: "Lace",
+  mesh: "Mesh",
+  modal: "Modal",
   nylon: "Nylon",
+  "patent-leather": "Patent Leather",
+  "rayon-viscose": "Rayon / Viscose",
+  rubber: "Rubber",
+  satin: "Satin",
+  sheer: "Sheer",
+  spandex: "Spandex",
+  suede: "Suede",
+  tencel: "Tencel",
+  tulle: "Tulle",
+  tweed: "Tweed",
+  twill: "Twill",
+  velvet: "Velvet",
   other: "Other",
 };
 
+// Hybrid order: solid dominates (~80% of items), then common prints,
+// then alphabetical tail.
 export const PATTERN_LABELS: Record<Pattern, string> = {
   solid: "Solid",
   striped: "Striped",
-  plaid: "Plaid",
   floral: "Floral",
+  plaid: "Plaid",
   graphic: "Graphic / Print",
-  "polka-dot": "Polka Dot",
+  abstract: "Abstract",
   "animal-print": "Animal Print",
   camo: "Camo",
-  abstract: "Abstract",
   embroidery: "Embroidery",
+  "polka-dot": "Polka Dot",
   other: "Other",
 };
 
