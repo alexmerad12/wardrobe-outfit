@@ -440,7 +440,11 @@ HARD RULES — do not violate:
 2. Overalls are the one exception: they require a "top" underneath.
 3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes).
-5. WEATHER: cold (<12°C) MUST include an outerwear piece (jacket / coat / blazer / puffer / trench / bomber) IF the wardrobe has any outerwear. The BASE layer (dress / jumpsuit / top+bottom under the coat) must ALSO be weather-appropriate — a warmth-1 mini floral dress under a warmth-5 coat is WRONG because the coat comes off indoors. At temp <10°C, base items' Warmth ratings must be ≥2; at <5°C, ≥2.5. Prefer midi/maxi dresses, knit or wool fabrics, and items whose Seasons include fall or winter. Warm (>22°C): no heavy coats, no wool, no heavy boots. Rain ≥40%: prefer rain-proof items.
+5. WEATHER (NON-NEGOTIABLE):
+   - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule. If the wardrobe has zero outerwear items, skip the rule.
+   - Cold base layer: the dress / jumpsuit / top+bottom under the coat must ALSO handle the temperature — the coat comes off indoors. At <10°C, base Warmth ≥2; at <5°C, Warmth ≥2.5. Prefer midi/maxi, knit/wool, fall or winter in Seasons.
+   - Warm (>22°C): no heavy coats, no wool, no heavy boots.
+   - Rain ≥40%: prefer rain-proof items.
 6. SHOES: every outfit EXCEPT occasion = at-home MUST include a "shoes" category item. No exceptions.
 7. AT-HOME: no bag. Scarves only if Warmth ≤2 (thin bandana / silk kerchief). Never pair a turtleneck top with any scarf at home.
 8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
@@ -600,6 +604,43 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         stripped = deduped;
       }
 
+      // Auto-inject an outerwear piece when the outfit is cold but missing
+      // one and the wardrobe has outerwear available. The AI skips jackets
+      // repeatedly despite the HARD RULE; this is the backstop. We pick
+      // the closest-warmth-match outerwear from the wardrobe so the user
+      // always sees a jacket/coat in cold weather.
+      if (
+        weather &&
+        typeof weather.temp === "number" &&
+        weather.temp < 12 &&
+        !stripped.some((i) => i.category === "outerwear")
+      ) {
+        const available = items.filter(
+          (i) => i.category === "outerwear" && !i.is_stored
+        );
+        if (available.length > 0) {
+          const targetWarmth =
+            weather.temp < 5 ? 4.5 : weather.temp < 10 ? 3.5 : 2.5;
+          let best = available[0];
+          let bestDist = Math.abs((best.warmth_rating ?? 3) - targetWarmth);
+          for (const o of available.slice(1)) {
+            const d = Math.abs((o.warmth_rating ?? 3) - targetWarmth);
+            if (d < bestDist) {
+              best = o;
+              bestDist = d;
+            }
+          }
+          // Avoid re-injecting the same subcategory we already have.
+          const alreadySub = stripped.some(
+            (i) => i.subcategory && i.subcategory === best.subcategory
+          );
+          if (!alreadySub) {
+            stripped = [...stripped, best];
+            fixes.push(`injected outerwear: ${best.subcategory ?? "jacket"}`);
+          }
+        }
+      }
+
       const outfitItems = stripped;
 
       // Hybrid text: prefer the AI's one-sentence prose; fall back to the
@@ -665,12 +706,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return warmths.length > 0 ? Math.min(...warmths) : 3;
     };
 
-    // Separate rigid drops (truly broken outfits) from soft drops
-    // (cold-without-outerwear, cold-with-summer-base — quality issues).
-    // If hard drops leave us with fewer than 3 outfits, we admit the
-    // soft-dropped ones back so the user always sees 3 suggestions.
+    // Rigid drops (truly broken outfits) vs soft drops (quality issues —
+    // base-layer warmth mismatch). If hard drops leave us with fewer than
+    // 3, we admit soft-dropped outfits back with a styling tip explaining
+    // the gap. Cold-without-outerwear is now handled upstream via auto-
+    // injection in the map phase.
     const drops: { ids: string[]; reason: string }[] = [];
-    const softCold: typeof mapped = [];
     const softMismatch: typeof mapped = [];
 
     const hardValid = mapped.filter((s) => {
@@ -718,19 +759,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // Cold-weather outerwear: SOFT drop. The AI keeps skipping the
-      // jacket; we prefer outfits that have it, but if filtering would
-      // leave <3 outfits we admit these back below.
-      if (
-        weather &&
-        typeof weather.temp === "number" &&
-        weather.temp < 12 &&
-        wardrobeHasOuterwear &&
-        !s.items.some((i) => i.category === "outerwear")
-      ) {
-        softCold.push(s);
-        return false;
-      }
+      // (Cold-weather outerwear is handled by auto-injection in the map
+      // phase — if an outfit reaches this filter without outerwear in
+      // cold weather, the wardrobe genuinely doesn't have any to inject.)
       // Base-layer weather mismatch: SOFT drop. A mini summer dress (warmth
       // 1-1.5) under a winter coat is still wrong — the coat comes off,
       // the dress doesn't handle 5°C. Require base warmth >= 2 for temp
@@ -761,15 +792,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     });
 
     // If hard-valid outfits leave us with fewer than 3, admit soft-dropped
-    // outfits back in priority order: cold-no-outerwear first (just missing
-    // a layer), base-warmth-mismatch last (the base itself is wrong).
-    // Either way the user sees 3 outfits, and the styling_tip explains the
-    // gap.
+    // outfits back with an appended styling tip. Base-warmth mismatches
+    // are the one soft bucket left (cold-without-outerwear is auto-injected
+    // upstream now).
     let final = dedupedHard;
-    const coldTip =
-      locale === "fr"
-        ? "Ajoute une veste ou un manteau pour le froid."
-        : "Add a jacket or coat to handle the cold.";
     const mismatchTip =
       locale === "fr"
         ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
@@ -789,19 +815,18 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
     };
 
-    if (final.length < 3) admit(softCold, coldTip);
     if (final.length < 3) admit(softMismatch, mismatchTip);
 
-    if (softCold.length > 0 || softMismatch.length > 0) {
+    if (softMismatch.length > 0) {
       drops.push({
         ids: [],
-        reason: `softCold=${softCold.length} softMismatch=${softMismatch.length} → final=${final.length}`,
+        reason: `softMismatch=${softMismatch.length} → final=${final.length}`,
       });
     }
 
     if (drops.length > 0) {
       console.log(
-        `[suggest] returned=${parsed.outfits.length} hard=${hardValid.length} softCold=${softCold.length} final=${final.length} drops=${JSON.stringify(drops)}`
+        `[suggest] returned=${parsed.outfits.length} hard=${hardValid.length} softMismatch=${softMismatch.length} final=${final.length} drops=${JSON.stringify(drops)}`
       );
     }
 
