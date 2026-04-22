@@ -388,7 +388,7 @@ export default function HomePage() {
         ) : (
           <div className="grid gap-3">
             {recentOutfits.slice(0, 7).map((outfit) => {
-              const isExpanded = expandedRecent === outfit.date;
+              const isExpanded = expandedRecent === outfit.outfit_id;
               const dateLabel = new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
                 weekday: "short",
                 month: "short",
@@ -396,9 +396,9 @@ export default function HomePage() {
               });
               return (
                 <Card
-                  key={outfit.date}
+                  key={outfit.outfit_id}
                   className="overflow-hidden cursor-pointer"
-                  onClick={() => setExpandedRecent(isExpanded ? null : outfit.date)}
+                  onClick={() => setExpandedRecent(isExpanded ? null : outfit.outfit_id)}
                 >
                   <CardContent className="p-0">
                     {isExpanded ? (
