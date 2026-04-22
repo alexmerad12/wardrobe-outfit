@@ -203,6 +203,7 @@ export default function ItemDetailPage() {
   const editShowGenericFit =
     editCategory === "top" ||
     editCategory === "dress" ||
+    editCategory === "one-piece" ||
     editCategory === "outerwear" ||
     (editCategory === "bottom" && !editIsJeansTrousers);
   const editShowBottomFit = editCategory === "bottom" && editIsJeansTrousers;
@@ -213,14 +214,15 @@ export default function ItemDetailPage() {
     editCategory === "bottom" &&
     ["jeans", "trousers", "leggings", "sweatpants"].includes(editSubcategory);
   const editShowNeckline =
-    ["top", "dress", "outerwear"].includes(editCategory) &&
+    ["top", "dress", "one-piece", "outerwear"].includes(editCategory) &&
     editSubcategory !== "hoodie" &&
     editSubcategory !== "cardigan";
   const editShowSleeveLength =
-    ["top", "dress", "outerwear"].includes(editCategory) &&
+    ["top", "dress", "one-piece", "outerwear"].includes(editCategory) &&
     editSubcategory !== "tank-top";
   const editShowClosure =
     editCategory === "dress" ||
+    editCategory === "one-piece" ||
     editCategory === "outerwear" ||
     (editCategory === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(editSubcategory));
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
