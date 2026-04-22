@@ -50,7 +50,7 @@ create table clothing_items (
 
   seasons text[] default '{}'::text[],
   occasions text[] default '{}'::text[],
-  warmth_rating integer default 3 check (warmth_rating between 1 and 5),
+  warmth_rating numeric(3, 1) default 3 check (warmth_rating between 1 and 5),
   rain_appropriate boolean default false,
   brand text,
 
