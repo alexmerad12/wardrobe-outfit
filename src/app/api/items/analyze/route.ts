@@ -44,6 +44,7 @@ ENUMS:
 - metal_finish (shoes/accessory hardware): "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none"
 - bag_size (only for category="bag"): "clutch" | "small" | "medium" | "large" | "tote". Clutch = evening / wristlet-size. Small = mini bag / small crossbody. Medium = everyday handbag. Large = shoulder bag that holds a laptop. Tote = oversized carry-all / weekender.
 - dress_silhouette (only for category="dress"): "a-line" | "sheath" | "bodycon" | "wrap" | "fit-and-flare" | "slip" | "shift" | "empire" | "mermaid". A-line = fitted bodice, triangle-flare skirt. Sheath = straight-cut, follows body without defined waist. Bodycon = clingy stretch. Wrap = V-neck with tie waist (DVF style). Fit-and-flare = nipped waist + full skirt. Slip = minimal lingerie-style with thin straps. Shift = straight 60s cut, no waist definition. Empire = seam under the bust. Mermaid = fitted through hips, dramatic flare below knee. Pick the single best match; if unsure between sheath and bodycon, default to sheath.
+- toe_shape (only for category="shoes"): "round" | "almond" | "pointed" | "square" | "peep-toe" | "open-toe". Round = the default comfort shape. Almond = subtly pointed oval (most pumps). Pointed = sharp V shape (classic pump). Square = flat-front blocky toe (trendy, 90s). Peep-toe = closed shoe with a small toe opening. Open-toe = sandal / strappy / no closed front.
 
 OTHER FIELDS:
 - name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")

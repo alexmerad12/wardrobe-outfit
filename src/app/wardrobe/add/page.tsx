@@ -24,6 +24,7 @@ import type {
   MetalFinish,
   BagSize,
   DressSilhouette,
+  ToeShape,
   Neckline,
   SleeveLength,
   Closure,
@@ -94,6 +95,7 @@ export default function AddItemPage() {
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [bagSize, setBagSize] = useState<BagSize | null>(null);
   const [dressSilhouette, setDressSilhouette] = useState<DressSilhouette | null>(null);
+  const [toeShape, setToeShape] = useState<ToeShape | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -210,6 +212,7 @@ export default function AddItemPage() {
     if (r.metal_finish) setMetalFinish(r.metal_finish);
     if (r.bag_size) setBagSize(r.bag_size);
     if (r.dress_silhouette) setDressSilhouette(r.dress_silhouette);
+    if (r.toe_shape) setToeShape(r.toe_shape);
     if (r.formality?.length) setFormalities(r.formality);
     if (r.seasons?.length) setSeasons(r.seasons);
     if (r.occasions?.length) setOccasions(r.occasions);
@@ -570,6 +573,7 @@ export default function AddItemPage() {
           metal_finish: showMetalFinish ? metalFinish : null,
           bag_size: category === "bag" ? bagSize : null,
           dress_silhouette: category === "dress" ? dressSilhouette : null,
+          toe_shape: category === "shoes" ? toeShape : null,
           formality: formalities,
           seasons,
           occasions,
@@ -1403,6 +1407,30 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.DRESS_SILHOUETTE[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Toe Shape - only for shoes */}
+        {category === "shoes" && (
+          <div className="space-y-2">
+            <Label>{t("addItem.toeShape")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.TOE_SHAPE) as ToeShape[]).map((ts) => (
+                <button
+                  key={ts}
+                  type="button"
+                  onClick={() => setToeShape(toeShape === ts ? null : ts)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    toeShape === ts
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.TOE_SHAPE[ts]}
                 </button>
               ))}
             </div>

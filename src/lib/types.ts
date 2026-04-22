@@ -65,6 +65,14 @@ export type DressSilhouette =
   | "empire"
   | "mermaid";
 
+export type ToeShape =
+  | "round"
+  | "almond"
+  | "pointed"
+  | "square"
+  | "peep-toe"
+  | "open-toe";
+
 export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "asymmetric" | "collared" | "henley" | "cowl" | "sweetheart" | "other";
 
 export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
@@ -134,6 +142,7 @@ export interface ClothingItem {
   metal_finish: MetalFinish | null;
   bag_size: BagSize | null;
   dress_silhouette: DressSilhouette | null;
+  toe_shape: ToeShape | null;
   formality: Formality | Formality[];
   seasons: Season[];
   occasions: Occasion[];
@@ -412,6 +421,15 @@ export const DRESS_SILHOUETTE_LABELS: Record<DressSilhouette, string> = {
   shift: "Shift",
   empire: "Empire Waist",
   mermaid: "Mermaid",
+};
+
+export const TOE_SHAPE_LABELS: Record<ToeShape, string> = {
+  round: "Round",
+  almond: "Almond",
+  pointed: "Pointed",
+  square: "Square",
+  "peep-toe": "Peep-Toe",
+  "open-toe": "Open-Toe",
 };
 
 // Hybrid order: most common necklines first, rest alphabetical.

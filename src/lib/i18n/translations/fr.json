@@ -452,6 +452,14 @@
     "empire": "Taille empire",
     "mermaid": "Sirène"
   },
+  "toeShape": {
+    "round": "Ronde",
+    "almond": "Amande",
+    "pointed": "Pointue",
+    "square": "Carrée",
+    "peep-toe": "Bout ouvert",
+    "open-toe": "Ouverte"
+  },
   "neckline": {
     "crew": "Ras du cou",
     "v-neck": "Col en V",
@@ -709,6 +717,7 @@
     "metalFinish": "Finition métal",
     "bagSize": "Taille du sac",
     "dressSilhouette": "Silhouette de la robe",
+    "toeShape": "Forme du bout",
     "neckline": "Col / Encolure",
     "sleeveLength": "Longueur des manches",
     "closure": "Fermeture",

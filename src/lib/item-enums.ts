@@ -241,6 +241,15 @@ export const DRESS_SILHOUETTES = [
   "mermaid",
 ] as const;
 
+export const TOE_SHAPES = [
+  "round",
+  "almond",
+  "pointed",
+  "square",
+  "peep-toe",
+  "open-toe",
+] as const;
+
 export const NECKLINES = [
   "crew",
   "v-neck",

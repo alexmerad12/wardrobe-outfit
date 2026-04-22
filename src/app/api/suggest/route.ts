@@ -280,6 +280,7 @@ function describeItem(item: ClothingItem): string {
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
   if (item.bag_size) parts.push(`Bag size: ${item.bag_size}`);
   if (item.dress_silhouette) parts.push(`Silhouette: ${item.dress_silhouette}`);
+  if (item.toe_shape) parts.push(`Toe: ${item.toe_shape}`);
   if (item.neckline) parts.push(`Neckline: ${item.neckline}`);
   if (item.sleeve_length) parts.push(`Sleeves: ${item.sleeve_length}`);
   if (item.closure) parts.push(`Closure: ${item.closure}`);

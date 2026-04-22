@@ -20,6 +20,7 @@ import type {
   MetalFinish,
   BagSize,
   DressSilhouette,
+  ToeShape,
   Neckline,
   SleeveLength,
   Closure,
@@ -54,6 +55,7 @@ export type AutoFillResult = {
   metal_finish?: MetalFinish;
   bag_size?: BagSize;
   dress_silhouette?: DressSilhouette;
+  toe_shape?: ToeShape;
   warmth_rating?: number;
   rain_appropriate?: boolean;
   is_layering_piece?: boolean;

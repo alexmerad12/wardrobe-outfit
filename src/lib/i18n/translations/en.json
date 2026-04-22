@@ -447,6 +447,14 @@
     "empire": "Empire Waist",
     "mermaid": "Mermaid"
   },
+  "toeShape": {
+    "round": "Round",
+    "almond": "Almond",
+    "pointed": "Pointed",
+    "square": "Square",
+    "peep-toe": "Peep-Toe",
+    "open-toe": "Open-Toe"
+  },
   "neckline": {
     "crew": "Crew Neck",
     "v-neck": "V-Neck",
@@ -704,6 +712,7 @@
     "metalFinish": "Metal Finish",
     "bagSize": "Bag Size",
     "dressSilhouette": "Dress Silhouette",
+    "toeShape": "Toe Shape",
     "neckline": "Neckline",
     "sleeveLength": "Sleeve Length",
     "closure": "Closure",
