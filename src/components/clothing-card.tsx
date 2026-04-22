@@ -33,10 +33,11 @@ export function ClothingCard({
         item.is_stored && "opacity-60"
       )}
     >
-      {/* Image — object-contain so the full item shows (matches the
-          item detail view); object-cover was zooming and cropping the
-          edges. */}
-      <div className="relative aspect-square bg-muted/30">
+      {/* Image — object-contain so the full item shows. Background is
+          pure white to match the flattened image content; a tinted
+          muted color created a visible off-white halo between subject
+          and card frame. */}
+      <div className="relative aspect-square bg-white">
         <Image
           src={item.image_url}
           alt={item.name}
