@@ -242,9 +242,6 @@ export default function HomePage() {
                       className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30"
                     >
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1.5" sizes="112px" />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
-                        <p className="truncate text-[10px] text-white">{item.name}</p>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -407,15 +404,7 @@ export default function HomePage() {
                   <CardContent className="p-0">
                     {isExpanded ? (
                       /* ===== EXPANDED VIEW (mirrors favorites) ===== */
-                      <div className="relative">
-                        <button
-                          type="button"
-                          aria-label={t("itemDetail.close")}
-                          onClick={(e) => { e.stopPropagation(); setExpandedRecent(null); }}
-                          className="absolute right-2 top-2 z-10 rounded-full bg-background/90 p-1.5 text-muted-foreground shadow-sm hover:bg-muted"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                      <div>
                         <div className="grid grid-cols-2 gap-1 p-1">
                           {outfit.items.map((item) => (
                             <Link
@@ -434,10 +423,18 @@ export default function HomePage() {
 
                         <div className="p-3 space-y-3">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm">
+                            <p className="font-medium text-sm min-w-0 flex-1 truncate">
                               {outfit.name || t("favorites.saved")}
                             </p>
                             <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
+                            <button
+                              type="button"
+                              aria-label={t("itemDetail.close")}
+                              onClick={(e) => { e.stopPropagation(); setExpandedRecent(null); }}
+                              className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-1.5">
