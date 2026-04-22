@@ -391,7 +391,7 @@ MOOD: ${moodInfo.label} — ${moodInfo.description}
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}
 ITERATION: ${iterationNonce}
 
-Return exactly 3 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN.
+Return exactly 4 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; the 4th is a backup in case one gets filtered out.)
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over.
@@ -405,7 +405,7 @@ STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when 
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Respond with ONLY valid JSON:
+Respond with ONLY valid JSON. The "outfits" array must have exactly 4 entries:
 {
   "outfits": [
     { "item_ids": ["id1","id2","id3"], "name": "Short look name (2-4 words, in ${languageName}, no material/color words)" }
@@ -458,72 +458,117 @@ Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
       return cleaned.length >= 3 ? cleaned : fallback;
     };
 
-    const suggestions = parsed.outfits
-      .map((s) => {
-        const outfitItems = s.item_ids
-          .map((id) => items.find((i) => i.id === id))
-          .filter(Boolean) as ClothingItem[];
+    const mapped = parsed.outfits.map((s) => {
+      const outfitItems = s.item_ids
+        .map((id) => items.find((i) => i.id === id))
+        .filter(Boolean) as ClothingItem[];
 
-        // Structural rule violations. Compared to the AI's text-hallucination
-        // concerns (which we no longer have — we generate the text ourselves),
-        // these are real photo-vs-items mismatches we still need to reject.
-        const hasDress = outfitItems.some((i) => i.category === "dress");
-        const hasJumpsuit = outfitItems.some(
-          (i) => i.category === "one-piece" && i.subcategory !== "overalls"
-        );
-        const hasOnePiece = outfitItems.some((i) => i.category === "one-piece");
-        const hasBottom = outfitItems.some((i) => i.category === "bottom");
-        const hasNonLayeringTop = outfitItems.some(
-          (i) => i.category === "top" && !i.is_layering_piece
-        );
-        const dressWithBottom = (hasDress || hasOnePiece) && hasBottom;
-        const dressWithTop = (hasDress || hasJumpsuit) && hasNonLayeringTop;
+      const hasDress = outfitItems.some((i) => i.category === "dress");
+      const hasJumpsuit = outfitItems.some(
+        (i) => i.category === "one-piece" && i.subcategory !== "overalls"
+      );
+      const hasOnePiece = outfitItems.some((i) => i.category === "one-piece");
+      const hasBottom = outfitItems.some((i) => i.category === "bottom");
+      // A top "over" a dress is only nonsensical if it's a regular top
+      // (tee, blouse, tank, crop top). Cardigans and anything explicitly
+      // flagged as a layering piece are legitimate over-dress layers —
+      // don't drop the outfit for them.
+      const hasNonLayeringTop = outfitItems.some(
+        (i) =>
+          i.category === "top" &&
+          !i.is_layering_piece &&
+          i.subcategory !== "cardigan"
+      );
+      const dressWithBottom = (hasDress || hasOnePiece) && hasBottom;
+      const dressWithTop = (hasDress || hasJumpsuit) && hasNonLayeringTop;
 
-        const seenSubs = new Set<string>();
-        let duplicateSub = false;
-        for (const i of outfitItems) {
-          if (!i.subcategory) continue;
-          if (seenSubs.has(i.subcategory)) {
-            duplicateSub = true;
-            break;
-          }
-          seenSubs.add(i.subcategory);
+      const seenSubs = new Set<string>();
+      let duplicateSub = false;
+      for (const i of outfitItems) {
+        if (!i.subcategory) continue;
+        if (seenSubs.has(i.subcategory)) {
+          duplicateSub = true;
+          break;
         }
+        seenSubs.add(i.subcategory);
+      }
 
-        const reasoning = buildReasoning(outfitItems, mood, occasion, weather, locale);
-        const styling_tip = buildStylingTip(outfitItems, locale);
-        const nameFallback = locale === "fr" ? `${moodInfo.label} look` : `${moodInfo.label} look`;
-        const name = cleanName(s.name, nameFallback);
+      const reasoning = buildReasoning(outfitItems, mood, occasion, weather, locale);
+      const styling_tip = buildStylingTip(outfitItems, locale);
+      const nameFallback = `${moodInfo.label} look`;
+      const name = cleanName(s.name, nameFallback);
 
-        return {
-          items: outfitItems,
-          score: 1,
-          reasoning,
-          styling_tip,
-          color_harmony: "ai-styled",
-          mood_match: mood,
-          name,
-          weather_temp: weather?.temp ?? null,
-          weather_condition: weather?.condition ?? null,
-          _violations: { dressWithBottom, dressWithTop, duplicateSub },
-        };
-      })
-      .filter((s) => {
-        if (s._violations.dressWithBottom) return false;
-        if (s._violations.dressWithTop) return false;
-        if (s._violations.duplicateSub) return false;
-        const hasDress = s.items.some((i) => i.category === "dress");
-        const hasOnePiece = s.items.some((i) => i.category === "one-piece");
-        const hasTop = s.items.some((i) => i.category === "top");
-        const hasBottom = s.items.some((i) => i.category === "bottom");
-        const isOveralls = s.items.some(
-          (i) => i.category === "one-piece" && i.subcategory === "overalls"
-        );
-        if (hasDress) return true;
-        if (hasOnePiece) return !isOveralls || hasTop;
-        return hasTop && hasBottom;
-      })
-      .map(({ _violations: _v, ...rest }) => rest);
+      return {
+        items: outfitItems,
+        score: 1,
+        reasoning,
+        styling_tip,
+        color_harmony: "ai-styled",
+        mood_match: mood,
+        name,
+        weather_temp: weather?.temp ?? null,
+        weather_condition: weather?.condition ?? null,
+        _violations: { dressWithBottom, dressWithTop, duplicateSub },
+        _ids: outfitItems.map((i) => i.id),
+      };
+    });
+
+    // Filter with logging so when an outfit drops we can see why in
+    // server logs (and surface it in the response for debugging).
+    const drops: { ids: string[]; reason: string }[] = [];
+    const validOutfits = mapped.filter((s) => {
+      if (s._violations.dressWithBottom) {
+        drops.push({ ids: s._ids, reason: "dress+bottom" });
+        return false;
+      }
+      if (s._violations.dressWithTop) {
+        drops.push({ ids: s._ids, reason: "dress+top" });
+        return false;
+      }
+      if (s._violations.duplicateSub) {
+        drops.push({ ids: s._ids, reason: "duplicate subcategory" });
+        return false;
+      }
+      const hasDress = s.items.some((i) => i.category === "dress");
+      const hasOnePiece = s.items.some((i) => i.category === "one-piece");
+      const hasTop = s.items.some((i) => i.category === "top");
+      const hasBottom = s.items.some((i) => i.category === "bottom");
+      const isOveralls = s.items.some(
+        (i) => i.category === "one-piece" && i.subcategory === "overalls"
+      );
+      if (hasDress) return true;
+      if (hasOnePiece) {
+        if (!isOveralls || hasTop) return true;
+        drops.push({ ids: s._ids, reason: "overalls without top" });
+        return false;
+      }
+      if (hasTop && hasBottom) return true;
+      drops.push({ ids: s._ids, reason: "incomplete base" });
+      return false;
+    });
+
+    // Dedupe: if two of the 4 share the exact same item set, keep only one.
+    const seenSets = new Set<string>();
+    const deduped = validOutfits.filter((s) => {
+      const key = [...s._ids].sort().join("|");
+      if (seenSets.has(key)) {
+        drops.push({ ids: s._ids, reason: "duplicate of another outfit" });
+        return false;
+      }
+      seenSets.add(key);
+      return true;
+    });
+
+    if (drops.length > 0) {
+      console.log(
+        `[suggest] returned=${parsed.outfits.length} valid=${validOutfits.length} deduped=${deduped.length} drops=${JSON.stringify(drops)}`
+      );
+    }
+
+    // Show at most 3 — the AI was asked for 4 so we have slack.
+    const suggestions = deduped
+      .slice(0, 3)
+      .map(({ _violations: _v, _ids: _ids2, ...rest }) => rest);
 
     // Scrub wardrobe_gap if the AI suggested a category the user already
     // has populated. Keeps the AI from recommending "a blazer" when the
