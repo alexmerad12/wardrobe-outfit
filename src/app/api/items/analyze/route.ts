@@ -42,6 +42,7 @@ ENUMS:
 - shoe_closure (shoes only): "laces" | "velcro" | "slip-on" | "zip" | "buckle" | "elastic" | "strap" | "other"
 - belt_style (accessory belts only): "plain" | "studded" | "perforated" | "woven" | "braided" | "chain" | "embellished" | "other"
 - metal_finish (shoes/accessory hardware): "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none"
+- bag_size (only for category="bag"): "clutch" | "small" | "medium" | "large" | "tote". Clutch = evening / wristlet-size. Small = mini bag / small crossbody. Medium = everyday handbag. Large = shoulder bag that holds a laptop. Tote = oversized carry-all / weekender.
 
 OTHER FIELDS:
 - name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")

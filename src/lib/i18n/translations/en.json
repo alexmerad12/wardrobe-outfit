@@ -419,6 +419,13 @@
     "mixed": "Mixed Metals",
     "none": "None"
   },
+  "bagSize": {
+    "clutch": "Clutch",
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "tote": "Tote"
+  },
   "neckline": {
     "crew": "Crew Neck",
     "v-neck": "V-Neck",
@@ -674,6 +681,7 @@
     "beltPosition": "Belt Position",
     "beltStyle": "Belt Style",
     "metalFinish": "Metal Finish",
+    "bagSize": "Bag Size",
     "neckline": "Neckline",
     "sleeveLength": "Sleeve Length",
     "closure": "Closure",

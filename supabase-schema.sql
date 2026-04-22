@@ -47,6 +47,7 @@ create table clothing_items (
   shoe_closure text,
   belt_style text,
   metal_finish text,
+  bag_size text check (bag_size in ('clutch','small','medium','large','tote')),
 
   seasons text[] default '{}'::text[],
   occasions text[] default '{}'::text[],

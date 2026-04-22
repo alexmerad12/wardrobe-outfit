@@ -424,6 +424,13 @@
     "mixed": "Métaux mélangés",
     "none": "Aucun"
   },
+  "bagSize": {
+    "clutch": "Pochette",
+    "small": "Petit",
+    "medium": "Moyen",
+    "large": "Grand",
+    "tote": "Cabas"
+  },
   "neckline": {
     "crew": "Ras du cou",
     "v-neck": "Col en V",
@@ -679,6 +686,7 @@
     "beltPosition": "Position de la ceinture",
     "beltStyle": "Style de ceinture",
     "metalFinish": "Finition métal",
+    "bagSize": "Taille du sac",
     "neckline": "Col / Encolure",
     "sleeveLength": "Longueur des manches",
     "closure": "Fermeture",

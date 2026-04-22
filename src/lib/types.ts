@@ -52,6 +52,8 @@ export type BeltPosition = "waist" | "hips" | "both";
 
 export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none";
 
+export type BagSize = "clutch" | "small" | "medium" | "large" | "tote";
+
 export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "asymmetric" | "collared" | "henley" | "cowl" | "sweetheart" | "other";
 
 export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
@@ -119,6 +121,7 @@ export interface ClothingItem {
   shoe_closure: ShoeClosure | null;
   belt_style: BeltStyle | null;
   metal_finish: MetalFinish | null;
+  bag_size: BagSize | null;
   formality: Formality | Formality[];
   seasons: Season[];
   occasions: Occasion[];
@@ -375,6 +378,14 @@ export const METAL_FINISH_LABELS: Record<MetalFinish, string> = {
   gunmetal: "Gunmetal",
   mixed: "Mixed Metals",
   none: "None",
+};
+
+export const BAG_SIZE_LABELS: Record<BagSize, string> = {
+  clutch: "Clutch",
+  small: "Small",
+  medium: "Medium",
+  large: "Large",
+  tote: "Tote",
 };
 
 export const NECKLINE_LABELS: Record<Neckline, string> = {

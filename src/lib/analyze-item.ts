@@ -18,6 +18,7 @@ import type {
   ShoeClosure,
   BeltStyle,
   MetalFinish,
+  BagSize,
   Neckline,
   SleeveLength,
   Closure,
@@ -50,6 +51,7 @@ export type AutoFillResult = {
   shoe_closure?: ShoeClosure;
   belt_style?: BeltStyle;
   metal_finish?: MetalFinish;
+  bag_size?: BagSize;
   warmth_rating?: number;
   rain_appropriate?: boolean;
   is_layering_piece?: boolean;

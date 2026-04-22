@@ -26,6 +26,7 @@ import {
   SHOE_CLOSURES,
   BELT_STYLES,
   METAL_FINISHES,
+  BAG_SIZES,
   NECKLINES,
   SLEEVE_LENGTHS,
   CLOSURES,
@@ -108,6 +109,7 @@ export function sanitizeAutoFill(raw: unknown): AutoFillResult {
     shoe_closure: oneOf(r.shoe_closure, SHOE_CLOSURES),
     belt_style: oneOf(r.belt_style, BELT_STYLES),
     metal_finish: oneOf(r.metal_finish, METAL_FINISHES),
+    bag_size: oneOf(r.bag_size, BAG_SIZES),
     warmth_rating: warmth,
     rain_appropriate:
       typeof r.rain_appropriate === "boolean" ? r.rain_appropriate : undefined,

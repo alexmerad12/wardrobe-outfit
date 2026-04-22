@@ -278,6 +278,7 @@ function describeItem(item: ClothingItem): string {
   if (item.shoe_closure) parts.push(`Shoe closure: ${item.shoe_closure}`);
   if (item.belt_style) parts.push(`Belt style: ${item.belt_style}`);
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
+  if (item.bag_size) parts.push(`Bag size: ${item.bag_size}`);
   if (item.neckline) parts.push(`Neckline: ${item.neckline}`);
   if (item.sleeve_length) parts.push(`Sleeves: ${item.sleeve_length}`);
   if (item.closure) parts.push(`Closure: ${item.closure}`);
@@ -445,7 +446,7 @@ HARD RULES — do not violate:
 8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
 9. OFFICE: for work, the classic template is (a) sheath-dress + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
-11. BAG × FORMALITY: formal / party / date → prefer clutch subcategory; work → handbag / tote; at-home → no bag at all.
+11. BAG × FORMALITY: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel → "tote" or "large" is fine; at-home → no bag at all. Use Bag size field when available on the item.
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 

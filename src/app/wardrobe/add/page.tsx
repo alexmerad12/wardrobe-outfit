@@ -22,6 +22,7 @@ import type {
   BeltPosition,
   BeltStyle,
   MetalFinish,
+  BagSize,
   Neckline,
   SleeveLength,
   Closure,
@@ -90,6 +91,7 @@ export default function AddItemPage() {
   const [beltStyle, setBeltStyle] = useState<BeltStyle | null>(null);
   const [beltPosition, setBeltPosition] = useState<BeltPosition>("waist");
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
+  const [bagSize, setBagSize] = useState<BagSize | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -204,6 +206,7 @@ export default function AddItemPage() {
     if (r.shoe_closure) setShoeClosure(r.shoe_closure);
     if (r.belt_style) setBeltStyle(r.belt_style);
     if (r.metal_finish) setMetalFinish(r.metal_finish);
+    if (r.bag_size) setBagSize(r.bag_size);
     if (r.formality?.length) setFormalities(r.formality);
     if (r.seasons?.length) setSeasons(r.seasons);
     if (r.occasions?.length) setOccasions(r.occasions);
@@ -562,6 +565,7 @@ export default function AddItemPage() {
           sleeve_length: showSleeveLength ? sleeveLength : null,
           closure: showClosure ? closure : null,
           metal_finish: showMetalFinish ? metalFinish : null,
+          bag_size: category === "bag" ? bagSize : null,
           formality: formalities,
           seasons,
           occasions,
@@ -1347,6 +1351,30 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.METAL_FINISH[m]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bag Size - only for bags */}
+        {category === "bag" && (
+          <div className="space-y-2">
+            <Label>{t("addItem.bagSize")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.BAG_SIZE) as BagSize[]).map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setBagSize(bagSize === b ? null : b)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    bagSize === b
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.BAG_SIZE[b]}
                 </button>
               ))}
             </div>

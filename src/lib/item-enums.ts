@@ -209,6 +209,14 @@ export const METAL_FINISHES = [
   "none",
 ] as const;
 
+export const BAG_SIZES = [
+  "clutch",
+  "small",
+  "medium",
+  "large",
+  "tote",
+] as const;
+
 export const NECKLINES = [
   "crew",
   "v-neck",
