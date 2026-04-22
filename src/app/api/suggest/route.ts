@@ -432,26 +432,30 @@ MOOD: ${moodInfo.label} — ${moodInfo.description}
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}
 ITERATION: ${iterationNonce}
 
-Return exactly 5 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; extras are backups in case some get filtered out.)
+Return exactly 6 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; extras are backups in case some get filtered out.)
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over.
 2. Overalls are the one exception: they require a "top" underneath.
-3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom. Top alone is not an outfit.
-4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes, etc).
-5. Match weather: cold (<12°C) = long sleeves + closed shoes + warm pieces; warm (>22°C) = light materials, no heavy coats. Always return 3 outfits — work with what the wardrobe has.
-6. Occasion sets formality; mood sets the energy. At-home = comfort wear, no bag; work/date/party/dinner = include shoes.
-7. AT-HOME + SCARF: only include a scarf in an at-home outfit if its Warmth is 2 or lower (thin bandana, silk kerchief). Never include a wool / knit / warm scarf (warmth 3+) for at-home — those are for going out. Also: never pair a turtleneck top with a scarf at home — the neck is already covered, the combo is redundant.
+3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
+4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes).
+5. WEATHER: cold (<12°C) MUST include an outerwear piece (jacket / coat / blazer / puffer / trench / bomber) IF the wardrobe has any outerwear at all. Warm (>22°C): no heavy coats, no wool, no heavy boots. Rain ≥40%: prefer rain-proof items when available.
+6. SHOES: every outfit EXCEPT occasion = at-home MUST include a "shoes" category item. No exceptions.
+7. AT-HOME: no bag. Scarves only if Warmth ≤2 (thin bandana / silk kerchief). Never pair a turtleneck top with any scarf at home.
+8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
+9. OFFICE: for work, the classic template is (a) sheath-dress + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
+10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
+11. BAG × FORMALITY: formal / party / date → prefer clutch subcategory; work → handbag / tote; at-home → no bag at all.
 
-STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when the wardrobe has it and it fits the weather. Lean into the user's favorites for preferences but bring at least one fresh angle.
+STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Call the propose_outfits tool with exactly 5 outfits. Per outfit:
+Call the propose_outfits tool with exactly 6 outfits. Per outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
-- name: Short 2-4 word look name in ${languageName}, no material / color words.
-- reasoning: ONE short sentence in ${languageName} on why this look works for the mood / occasion / weather. Refer to pieces by broad category ONLY (the dress, the bottoms, the jacket, the shoes, the belt). NEVER name materials (leather, silk, satin, denim, suede, cotton, wool), colors, subcategories (moto, biker, bomber, maxi, midi, crop, tank, blouse, jeans, trousers, boots, heels), or brands.
-- styling_tip: ONE short sentence in ${languageName} with a concrete styling action (tuck, cuff, half-button, layer open, cinch). Same generic vocab rules as reasoning. null if nothing useful fits.
+- name: Short 2-4 word look name in ${languageName}.
+- reasoning: ONE short sentence in ${languageName} on why this look works for the mood / occasion / weather. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt).
+- styling_tip: ONE short sentence in ${languageName} with a concrete styling action (tuck, cuff, half-button, layer open, cinch). If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
 
 wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe is covered.`;
 
@@ -613,6 +617,13 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       };
     });
 
+    // Wardrobe-availability flags used by the post-parse filters. If the
+    // user's wardrobe doesn't have any outerwear, we can't demand a
+    // jacket for cold weather; same for shoes. Best-effort is better than
+    // no suggestions.
+    const wardrobeHasOuterwear = items.some((i) => i.category === "outerwear");
+    const wardrobeHasShoes = items.some((i) => i.category === "shoes");
+
     // Filter with logging so when an outfit drops we can see why in
     // server logs (and surface it in the response for debugging).
     const drops: { ids: string[]; reason: string }[] = [];
@@ -628,6 +639,27 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       if (s._violations.duplicateSub) {
         drops.push({ ids: s._ids, reason: "duplicate subcategory" });
         return false;
+      }
+      // Cold weather without outerwear is the single most-reported bug —
+      // the AI sometimes skips the jacket even under <12°C. If the user
+      // has outerwear in the wardrobe we drop the outfit and let the
+      // 5-outfit slack replace it.
+      if (weather && typeof weather.temp === "number" && weather.temp < 12 && wardrobeHasOuterwear) {
+        const hasOuterwear = s.items.some((i) => i.category === "outerwear");
+        if (!hasOuterwear) {
+          drops.push({ ids: s._ids, reason: "cold without outerwear" });
+          return false;
+        }
+      }
+      // Shoes are required for every occasion except at-home. If the
+      // user has shoes in the wardrobe but the outfit is missing them,
+      // drop it.
+      if (occasion !== "at-home" && wardrobeHasShoes) {
+        const hasShoes = s.items.some((i) => i.category === "shoes");
+        if (!hasShoes) {
+          drops.push({ ids: s._ids, reason: "missing shoes" });
+          return false;
+        }
       }
       // At-home + warm scarf is a rule violation: a chunky wool / knit
       // scarf with warmth >= 3 belongs to going-outside looks, not
