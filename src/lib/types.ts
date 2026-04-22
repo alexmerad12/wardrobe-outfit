@@ -54,6 +54,17 @@ export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-si
 
 export type BagSize = "clutch" | "small" | "medium" | "large" | "tote";
 
+export type DressSilhouette =
+  | "a-line"
+  | "sheath"
+  | "bodycon"
+  | "wrap"
+  | "slip"
+  | "fit-and-flare"
+  | "shift"
+  | "empire"
+  | "mermaid";
+
 export type Neckline = "crew" | "v-neck" | "scoop" | "square" | "boat" | "turtleneck" | "mock-neck" | "halter" | "one-shoulder" | "off-shoulder" | "asymmetric" | "collared" | "henley" | "cowl" | "sweetheart" | "other";
 
 export type SleeveLength = "strapless" | "spaghetti" | "thin-strap" | "wide-strap" | "sleeveless" | "cap" | "short" | "elbow" | "three-quarter" | "long" | "other";
@@ -122,6 +133,7 @@ export interface ClothingItem {
   belt_style: BeltStyle | null;
   metal_finish: MetalFinish | null;
   bag_size: BagSize | null;
+  dress_silhouette: DressSilhouette | null;
   formality: Formality | Formality[];
   seasons: Season[];
   occasions: Occasion[];
@@ -386,6 +398,20 @@ export const BAG_SIZE_LABELS: Record<BagSize, string> = {
   medium: "Medium",
   large: "Large",
   tote: "Tote",
+};
+
+// Silhouette = the overall shape / cut of a dress. Used by the outfit
+// engine to match dresses to body type, occasion, and weather.
+export const DRESS_SILHOUETTE_LABELS: Record<DressSilhouette, string> = {
+  "a-line": "A-Line",
+  sheath: "Sheath",
+  bodycon: "Bodycon",
+  wrap: "Wrap",
+  "fit-and-flare": "Fit-and-Flare",
+  slip: "Slip",
+  shift: "Shift",
+  empire: "Empire Waist",
+  mermaid: "Mermaid",
 };
 
 // Hybrid order: most common necklines first, rest alphabetical.

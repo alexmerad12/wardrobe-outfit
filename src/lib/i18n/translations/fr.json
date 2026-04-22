@@ -441,6 +441,17 @@
     "large": "Grand",
     "tote": "Cabas"
   },
+  "dressSilhouette": {
+    "a-line": "Ligne A",
+    "sheath": "Fourreau",
+    "bodycon": "Moulante",
+    "wrap": "Portefeuille",
+    "fit-and-flare": "Ajustée et évasée",
+    "slip": "Nuisette",
+    "shift": "Droite",
+    "empire": "Taille empire",
+    "mermaid": "Sirène"
+  },
   "neckline": {
     "crew": "Ras du cou",
     "v-neck": "Col en V",
@@ -697,6 +708,7 @@
     "beltStyle": "Style de ceinture",
     "metalFinish": "Finition métal",
     "bagSize": "Taille du sac",
+    "dressSilhouette": "Silhouette de la robe",
     "neckline": "Col / Encolure",
     "sleeveLength": "Longueur des manches",
     "closure": "Fermeture",

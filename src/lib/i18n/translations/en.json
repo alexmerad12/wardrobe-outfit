@@ -436,6 +436,17 @@
     "large": "Large",
     "tote": "Tote"
   },
+  "dressSilhouette": {
+    "a-line": "A-Line",
+    "sheath": "Sheath",
+    "bodycon": "Bodycon",
+    "wrap": "Wrap",
+    "fit-and-flare": "Fit-and-Flare",
+    "slip": "Slip",
+    "shift": "Shift",
+    "empire": "Empire Waist",
+    "mermaid": "Mermaid"
+  },
   "neckline": {
     "crew": "Crew Neck",
     "v-neck": "V-Neck",
@@ -692,6 +703,7 @@
     "beltStyle": "Belt Style",
     "metalFinish": "Metal Finish",
     "bagSize": "Bag Size",
+    "dressSilhouette": "Dress Silhouette",
     "neckline": "Neckline",
     "sleeveLength": "Sleeve Length",
     "closure": "Closure",

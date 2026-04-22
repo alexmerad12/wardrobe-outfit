@@ -142,6 +142,7 @@ function buildItemPayload(imageUrl: string, a: AutoFillResult) {
     closure: a.closure ?? null,
     metal_finish: a.metal_finish ?? null,
     bag_size: a.bag_size ?? null,
+    dress_silhouette: a.dress_silhouette ?? null,
     formality: a.formality?.length ? a.formality : ["casual"],
     seasons: a.seasons ?? [],
     occasions: a.occasions ?? [],

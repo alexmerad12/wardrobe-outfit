@@ -229,6 +229,18 @@ export const BAG_SIZES = [
   "tote",
 ] as const;
 
+export const DRESS_SILHOUETTES = [
+  "a-line",
+  "sheath",
+  "bodycon",
+  "wrap",
+  "fit-and-flare",
+  "slip",
+  "shift",
+  "empire",
+  "mermaid",
+] as const;
+
 export const NECKLINES = [
   "crew",
   "v-neck",

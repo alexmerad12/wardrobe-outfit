@@ -48,6 +48,7 @@ create table clothing_items (
   belt_style text,
   metal_finish text,
   bag_size text check (bag_size in ('clutch','small','medium','large','tote')),
+  dress_silhouette text check (dress_silhouette in ('a-line','sheath','bodycon','wrap','fit-and-flare','slip','shift','empire','mermaid')),
 
   seasons text[] default '{}'::text[],
   occasions text[] default '{}'::text[],

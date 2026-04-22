@@ -25,6 +25,7 @@ import type {
   BeltStyle,
   MetalFinish,
   BagSize,
+  DressSilhouette,
   Formality,
   Season,
   Occasion,
@@ -113,6 +114,7 @@ export default function ItemDetailPage() {
   const [editBeltPosition, setEditBeltPosition] = useState<BeltPosition>("waist");
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editBagSize, setEditBagSize] = useState<BagSize | null>(null);
+  const [editDressSilhouette, setEditDressSilhouette] = useState<DressSilhouette | null>(null);
   const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
   const [editSleeveLength, setEditSleeveLength] = useState<SleeveLength | null>(null);
   const [editClosure, setEditClosure] = useState<Closure | null>(null);
@@ -180,6 +182,7 @@ export default function ItemDetailPage() {
     setEditBeltPosition(item.belt_position ?? "waist");
     setEditMetalFinish(item.metal_finish ?? null);
     setEditBagSize(item.bag_size ?? null);
+    setEditDressSilhouette(item.dress_silhouette ?? null);
     setEditNeckline(item.neckline ?? null);
     setEditSleeveLength(item.sleeve_length ?? null);
     setEditClosure(item.closure ?? null);
@@ -289,6 +292,7 @@ export default function ItemDetailPage() {
           belt_style: editShowBeltPosition ? editBeltStyle : null,
           metal_finish: editShowMetalFinish ? editMetalFinish : null,
           bag_size: editCategory === "bag" ? editBagSize : null,
+          dress_silhouette: editCategory === "dress" ? editDressSilhouette : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
           closure: editShowClosure ? editClosure : null,
@@ -859,6 +863,18 @@ export default function ItemDetailPage() {
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.BAG_SIZE) as BagSize[]).map((b) => (
                   <button key={b} type="button" onClick={() => setEditBagSize(editBagSize === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagSize === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_SIZE[b]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Dress Silhouette - only for dresses */}
+          {editCategory === "dress" && (
+            <div className="space-y-1">
+              <Label>{t("addItem.dressSilhouette")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.DRESS_SILHOUETTE) as DressSilhouette[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditDressSilhouette(editDressSilhouette === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editDressSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.DRESS_SILHOUETTE[s]}</button>
                 ))}
               </div>
             </div>

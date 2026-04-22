@@ -43,6 +43,7 @@ ENUMS:
 - belt_style (accessory belts only): "plain" | "studded" | "perforated" | "woven" | "braided" | "chain" | "embellished" | "other"
 - metal_finish (shoes/accessory hardware): "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none"
 - bag_size (only for category="bag"): "clutch" | "small" | "medium" | "large" | "tote". Clutch = evening / wristlet-size. Small = mini bag / small crossbody. Medium = everyday handbag. Large = shoulder bag that holds a laptop. Tote = oversized carry-all / weekender.
+- dress_silhouette (only for category="dress"): "a-line" | "sheath" | "bodycon" | "wrap" | "fit-and-flare" | "slip" | "shift" | "empire" | "mermaid". A-line = fitted bodice, triangle-flare skirt. Sheath = straight-cut, follows body without defined waist. Bodycon = clingy stretch. Wrap = V-neck with tie waist (DVF style). Fit-and-flare = nipped waist + full skirt. Slip = minimal lingerie-style with thin straps. Shift = straight 60s cut, no waist definition. Empire = seam under the bust. Mermaid = fitted through hips, dramatic flare below knee. Pick the single best match; if unsure between sheath and bodycon, default to sheath.
 
 OTHER FIELDS:
 - name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")

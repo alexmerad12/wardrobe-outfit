@@ -23,6 +23,7 @@ import type {
   BeltStyle,
   MetalFinish,
   BagSize,
+  DressSilhouette,
   Neckline,
   SleeveLength,
   Closure,
@@ -92,6 +93,7 @@ export default function AddItemPage() {
   const [beltPosition, setBeltPosition] = useState<BeltPosition>("waist");
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [bagSize, setBagSize] = useState<BagSize | null>(null);
+  const [dressSilhouette, setDressSilhouette] = useState<DressSilhouette | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
@@ -207,6 +209,7 @@ export default function AddItemPage() {
     if (r.belt_style) setBeltStyle(r.belt_style);
     if (r.metal_finish) setMetalFinish(r.metal_finish);
     if (r.bag_size) setBagSize(r.bag_size);
+    if (r.dress_silhouette) setDressSilhouette(r.dress_silhouette);
     if (r.formality?.length) setFormalities(r.formality);
     if (r.seasons?.length) setSeasons(r.seasons);
     if (r.occasions?.length) setOccasions(r.occasions);
@@ -566,6 +569,7 @@ export default function AddItemPage() {
           closure: showClosure ? closure : null,
           metal_finish: showMetalFinish ? metalFinish : null,
           bag_size: category === "bag" ? bagSize : null,
+          dress_silhouette: category === "dress" ? dressSilhouette : null,
           formality: formalities,
           seasons,
           occasions,
@@ -1375,6 +1379,30 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.BAG_SIZE[b]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dress Silhouette - only for dresses */}
+        {category === "dress" && (
+          <div className="space-y-2">
+            <Label>{t("addItem.dressSilhouette")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.DRESS_SILHOUETTE) as DressSilhouette[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDressSilhouette(dressSilhouette === s ? null : s)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    dressSilhouette === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.DRESS_SILHOUETTE[s]}
                 </button>
               ))}
             </div>
