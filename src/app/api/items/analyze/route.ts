@@ -46,7 +46,7 @@ ENUMS:
 OTHER FIELDS:
 - name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")
 - colors: array of { hex: "#rrggbb", name: "Plain English color name in Title Case" } — up to 3 dominant colors. Use Title Case ("Black", "Navy Blue", "Dark Brown") not lowercase or ALL CAPS.
-- warmth_rating: integer 1–5 (1 = tank top / sandals, 3 = shirt / jeans, 5 = parka / heavy boots)
+- warmth_rating: number from 1 to 5 in 0.5 increments (1, 1.5, 2, 2.5, ... 5). 1 = tank top / sandals / thin bandana, 3 = shirt / jeans, 5 = parka / heavy boots / chunky winter scarf. Scarves span the whole range: a silk or cotton bandana is 1–2, a knit winter scarf is 4–5.
 - rain_appropriate: true if the item is rainwear or a raincoat / waterproof shoe
 - is_layering_piece: true only for open cardigans, vests, blazers, lightweight outerwear worn over a base layer
 - belt_compatible: true for pants/skirts/dresses with visible belt loops or a defined waist
@@ -73,7 +73,7 @@ MATERIAL GUIDANCE:
 - Default to ONE material entry. Only add a second if two are clearly visible (e.g. cotton shirt with lace trim)
 
 FIT/WARMTH INTUITION:
-- warmth_rating: 1 = tank/sandals/shorts, 2 = light tee/skirt, 3 = long-sleeve shirt/jeans, 4 = sweater/wool coat, 5 = heavy parka/insulated boots
+- warmth_rating (0.5 steps): 1 = tank/sandals/shorts/thin bandana, 2 = light tee/skirt, 3 = long-sleeve shirt/jeans, 4 = sweater/wool coat, 5 = heavy parka/insulated boots/chunky winter scarf — use the half-steps (1.5, 2.5, 3.5, 4.5) when the item sits between categories
 - is_layering_piece: open cardigans, blazers, open-drape/vest pieces. NOT crewneck sweaters or pullovers.
 
 RULES:

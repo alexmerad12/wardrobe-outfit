@@ -235,8 +235,10 @@ export default function ItemDetailPage() {
   const editShowWarmth =
     !!editCategory &&
     editCategory !== "shoes" &&
-    editCategory !== "accessory" &&
-    editCategory !== "bag";
+    editCategory !== "bag" &&
+    (editCategory !== "accessory" || editSubcategory === "scarf");
+  const editShowMetalFinish =
+    ["shoes", "accessory"].includes(editCategory) && editSubcategory !== "scarf";
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -281,7 +283,7 @@ export default function ItemDetailPage() {
           shoe_closure: editShowShoeFields ? editShoeClosure : null,
           belt_position: editShowBeltPosition ? editBeltPosition : null,
           belt_style: editShowBeltPosition ? editBeltStyle : null,
-          metal_finish: ["shoes", "accessory"].includes(editCategory) ? editMetalFinish : null,
+          metal_finish: editShowMetalFinish ? editMetalFinish : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
           closure: editShowClosure ? editClosure : null,
@@ -833,8 +835,8 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Metal Finish - shoes and accessories */}
-          {["shoes", "accessory"].includes(editCategory) && (
+          {/* Metal Finish - shoes and accessories (excluding scarf) */}
+          {editShowMetalFinish && (
             <div className="space-y-1">
               <Label>{t("addItem.metalFinish")}</Label>
               <div className="flex flex-wrap gap-2">
@@ -931,14 +933,27 @@ export default function ItemDetailPage() {
             </div>
           </div>
 
-          {/* Warmth - hidden for shoes, accessories, bags */}
+          {/* Warmth - shoes, bags, non-scarf accessories excluded */}
           {editShowWarmth && (
-            <div className="space-y-1">
-              <Label>{t("addItem.warmth")}</Label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" onClick={() => setEditWarmth(n)} className={cn("flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors", editWarmth === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{n}</button>
-                ))}
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between">
+                <Label>{t("addItem.warmth")}</Label>
+                <span className="text-sm font-semibold tabular-nums text-primary">
+                  {editWarmth.toFixed(1)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={0.5}
+                value={editWarmth}
+                onChange={(e) => setEditWarmth(Number(e.target.value))}
+                className="w-full accent-primary"
+                aria-label={t("addItem.warmth")}
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
               </div>
             </div>
           )}

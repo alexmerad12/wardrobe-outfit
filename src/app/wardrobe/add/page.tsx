@@ -208,7 +208,9 @@ export default function AddItemPage() {
     if (r.seasons?.length) setSeasons(r.seasons);
     if (r.occasions?.length) setOccasions(r.occasions);
     if (typeof r.warmth_rating === "number") {
-      setWarmthRating(Math.max(1, Math.min(5, Math.round(r.warmth_rating))));
+      // Round AI-suggested warmth to nearest 0.5 step (matches the slider's
+      // increments so the UI and the value agree after autofill).
+      setWarmthRating(Math.max(1, Math.min(5, Math.round(r.warmth_rating * 2) / 2)));
     }
     if (typeof r.rain_appropriate === "boolean") setRainAppropriate(r.rain_appropriate);
     if (typeof r.is_layering_piece === "boolean") setIsLayeringPiece(r.is_layering_piece);
@@ -278,8 +280,10 @@ export default function AddItemPage() {
   const showWarmth =
     !!category &&
     category !== "shoes" &&
-    category !== "accessory" &&
-    category !== "bag";
+    category !== "bag" &&
+    (category !== "accessory" || subcategory === "scarf");
+  const showMetalFinish =
+    !!category && ["shoes", "accessory"].includes(category) && subcategory !== "scarf";
   // Neckline: hide for hoodies (hooded) and cardigans (open front)
   const showNeckline =
     ["top", "dress", "one-piece", "outerwear"].includes(category as string) &&
@@ -558,7 +562,7 @@ export default function AddItemPage() {
           neckline: showNeckline ? neckline : null,
           sleeve_length: showSleeveLength ? sleeveLength : null,
           closure: showClosure ? closure : null,
-          metal_finish: ["shoes", "accessory"].includes(category) ? metalFinish : null,
+          metal_finish: showMetalFinish ? metalFinish : null,
           formality: formalities,
           seasons,
           occasions,
@@ -1326,8 +1330,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Metal Finish - shoes & accessories */}
-        {category && ["shoes", "accessory"].includes(category) && (
+        {/* Metal Finish - shoes & accessories (excluding scarf) */}
+        {showMetalFinish && (
           <div className="space-y-2">
             <Label>{t("addItem.metalFinish")}</Label>
             <div className="flex flex-wrap gap-2">
@@ -1460,26 +1464,27 @@ export default function AddItemPage() {
           </div>
         </div>
 
-        {/* Warmth Rating - hidden for shoes, accessories, bags */}
+        {/* Warmth Rating - hidden for shoes, bags, non-scarf accessories */}
         {category && showWarmth && (
           <div className="space-y-2">
-            <Label>{t("addItem.warmth")}</Label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setWarmthRating(n)}
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors",
-                    warmthRating === n
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {n}
-                </button>
-              ))}
+            <div className="flex items-baseline justify-between">
+              <Label>{t("addItem.warmth")}</Label>
+              <span className="text-sm font-semibold tabular-nums text-primary">
+                {warmthRating.toFixed(1)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={5}
+              step={0.5}
+              value={warmthRating}
+              onChange={(e) => setWarmthRating(Number(e.target.value))}
+              className="w-full accent-primary"
+              aria-label={t("addItem.warmth")}
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
             </div>
           </div>
         )}
