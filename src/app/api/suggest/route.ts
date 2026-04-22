@@ -446,21 +446,50 @@ STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when 
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Respond with ONLY valid JSON. The "outfits" array must have exactly 4 entries, each:
-{
-  "item_ids": ["id1","id2","id3"],
-  "name": "Short 2-4 word name in ${languageName} (no material / color words)",
-  "reasoning": "ONE short sentence in ${languageName} — why this look works for the mood / occasion / weather. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). NEVER name materials (leather, silk, satin, denim, suede, cotton, wool), colors, subcategories (moto, biker, bomber, maxi, midi, crop, tank, blouse, jeans, trousers, boots, heels), or brands.",
-  "styling_tip": "ONE short sentence in ${languageName} with a concrete styling action (tuck, cuff, half-button, layer open, cinch). Same generic vocab rules as reasoning. Return null if no useful action fits."
-}
-Top-level: { "outfits": [...4 entries], "wardrobe_gap": "One short sentence about a missing staple, or null" }
+Call the propose_outfits tool with exactly 4 outfits. Per outfit:
+- item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
+- name: Short 2-4 word look name in ${languageName}, no material / color words.
+- reasoning: ONE short sentence in ${languageName} on why this look works for the mood / occasion / weather. Refer to pieces by broad category ONLY (the dress, the bottoms, the jacket, the shoes, the belt). NEVER name materials (leather, silk, satin, denim, suede, cotton, wool), colors, subcategories (moto, biker, bomber, maxi, midi, crop, tank, blouse, jeans, trousers, boots, heels), or brands.
+- styling_tip: ONE short sentence in ${languageName} with a concrete styling action (tuck, cuff, half-button, layer open, cinch). Same generic vocab rules as reasoning. null if nothing useful fits.
 
-Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
+wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe is covered.`;
 
+    // Use Anthropic's tool_use with a JSON schema instead of asking for raw
+    // JSON in a text response. Free-form JSON was failing to parse ~30% of
+    // the time because the AI slipped unescaped quotes / dashes into the
+    // reasoning and styling_tip strings; tool_use returns structured data
+    // already validated against the schema so parse errors can't happen.
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       temperature: 1,
+      tools: [
+        {
+          name: "propose_outfits",
+          description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              outfits: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    item_ids: { type: "array", items: { type: "string" } },
+                    name: { type: "string" },
+                    reasoning: { type: "string" },
+                    styling_tip: { type: ["string", "null"] },
+                  },
+                  required: ["item_ids", "name", "reasoning"],
+                },
+              },
+              wardrobe_gap: { type: ["string", "null"] },
+            },
+            required: ["outfits"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: "propose_outfits" },
       messages: [
         {
           role: "user",
@@ -472,21 +501,20 @@ Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
       ],
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
+    const toolUse = message.content.find((c) => c.type === "tool_use");
+    if (!toolUse || toolUse.type !== "tool_use") {
+      console.error("[suggest] AI returned no tool_use block", message.stop_reason);
       return NextResponse.json({ suggestions: [], message: "Failed to parse AI response" });
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = toolUse.input as {
       outfits: {
         item_ids: string[];
         name?: string;
         reasoning?: string | null;
         styling_tip?: string | null;
       }[];
-      wardrobe_gap: string | null;
+      wardrobe_gap?: string | null;
     };
 
     // Strip material / color / brand words from an AI-written name. The
