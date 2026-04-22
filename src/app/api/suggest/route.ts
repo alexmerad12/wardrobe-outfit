@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
@@ -7,31 +8,214 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 const anthropic = new Anthropic();
 
-// High-signal category words — when these appear in the AI's text but the
-// corresponding category is NOT in item_ids, it's a visible hallucination
-// the user will see as "where is the jacket?". We only guard the structural
-// pieces (outerwear / bottom / dress / one-piece) so harmless vocab slips
-// on tops and shoes don't nuke otherwise-fine outfits.
-const CATEGORY_SIGNAL_WORDS: Record<string, string[]> = {
-  bottom: ["jeans", "trousers", "leggings", "sweatpants", "chinos", "slacks"],
-  dress: ["maxi dress", "midi dress", "mini dress", "sundress", "gown"],
-  "one-piece": ["jumpsuit", "overalls", "romper"],
-  outerwear: ["jacket", "blazer", "coat", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
-};
+// ─────────────────────────────────────────────────────────────────
+// Server-side description builder. We used to let the AI write the
+// reasoning and styling_tip, but the AI hallucinated categories that
+// weren't in item_ids ("the moto jacket" when there was no jacket).
+// Every prompt tweak to stop this either left the hallucination intact
+// or made the validator drop outfits, so we stopped asking the AI for
+// prose and now compose a short sentence from the actual item_ids.
+// Always accurate; nothing to hallucinate.
+// ─────────────────────────────────────────────────────────────────
+type Locale = "en" | "fr";
 
-function textMentionsMissingCategory(items: ClothingItem[], text: string): boolean {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  const present = new Set(items.map((i) => i.category));
-  for (const [cat, words] of Object.entries(CATEGORY_SIGNAL_WORDS)) {
-    if (present.has(cat as ClothingItem["category"])) continue;
-    for (const w of words) {
-      const escaped = w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&");
-      const rx = new RegExp(`\\b${escaped}s?\\b`, "i");
-      if (rx.test(lower)) return true;
+function pieceLabel(item: ClothingItem, locale: Locale): string {
+  const cat = item.category;
+  const sub = item.subcategory ?? "";
+  if (locale === "fr") {
+    if (cat === "dress") return "la robe";
+    if (cat === "one-piece") return sub === "overalls" ? "la salopette" : "la combinaison";
+    if (cat === "top") return "le haut";
+    if (cat === "bottom") {
+      if (sub === "skirt") return "la jupe";
+      if (sub === "shorts") return "le short";
+      return "le pantalon";
     }
+    if (cat === "outerwear") {
+      if (sub === "blazer") return "le blazer";
+      if (sub === "coat" || sub === "trench-coat" || sub === "peacoat" || sub === "parka") return "le manteau";
+      if (sub === "vest") return "le gilet";
+      return "la veste";
+    }
+    if (cat === "shoes") return "les chaussures";
+    if (cat === "bag") return "le sac";
+    if (cat === "accessory") {
+      if (sub === "belt") return "la ceinture";
+      if (sub === "scarf") return "l'écharpe";
+      if (sub === "hat") return "le chapeau";
+      return "l'accessoire";
+    }
+    return "la pièce";
   }
-  return false;
+  // English
+  if (cat === "dress") return "the dress";
+  if (cat === "one-piece") return sub === "overalls" ? "the overalls" : "the jumpsuit";
+  if (cat === "top") return "the top";
+  if (cat === "bottom") {
+    if (sub === "skirt") return "the skirt";
+    if (sub === "shorts") return "the shorts";
+    return "the bottoms";
+  }
+  if (cat === "outerwear") {
+    if (sub === "blazer") return "the blazer";
+    if (sub === "coat" || sub === "trench-coat" || sub === "peacoat" || sub === "parka") return "the coat";
+    if (sub === "vest") return "the vest";
+    return "the jacket";
+  }
+  if (cat === "shoes") return "the shoes";
+  if (cat === "bag") return "the bag";
+  if (cat === "accessory") {
+    if (sub === "belt") return "the belt";
+    if (sub === "scarf") return "the scarf";
+    if (sub === "hat") return "the hat";
+    return "the accessory";
+  }
+  return "the piece";
+}
+
+// Read the outfit's pieces in a natural order (base → layers → feet →
+// extras) so the resulting sentence flows the way a person would read
+// the outfit top-to-bottom.
+function orderedPieces(items: ClothingItem[]): ClothingItem[] {
+  const rank: Record<string, number> = {
+    dress: 0,
+    "one-piece": 0,
+    top: 1,
+    bottom: 2,
+    outerwear: 3,
+    shoes: 4,
+    bag: 5,
+    accessory: 6,
+  };
+  return [...items].sort(
+    (a, b) => (rank[a.category] ?? 9) - (rank[b.category] ?? 9)
+  );
+}
+
+function joinList(parts: string[], locale: Locale): string {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  const and = locale === "fr" ? " et " : " and ";
+  return parts.slice(0, -1).join(", ") + and + parts[parts.length - 1];
+}
+
+function moodTone(mood: Mood, locale: Locale): string {
+  if (locale === "fr") {
+    const map: Record<Mood, string> = {
+      energized: "plein d'énergie",
+      confident: "soigné",
+      playful: "ludique",
+      cozy: "douillet",
+      chill: "décontracté",
+      bold: "affirmé",
+      period: "tout en confort",
+      sad: "tout en douceur",
+    };
+    return map[mood];
+  }
+  const map: Record<Mood, string> = {
+    energized: "fresh",
+    confident: "polished",
+    playful: "playful",
+    cozy: "cozy",
+    chill: "easy",
+    bold: "statement-ready",
+    period: "comfort-first",
+    sad: "soft and gentle",
+  };
+  return map[mood];
+}
+
+function occasionLabelLocalized(occasion: Occasion, locale: Locale): string {
+  if (locale === "fr") {
+    const map: Record<Occasion, string> = {
+      "at-home": "à la maison",
+      casual: "un look casual",
+      hangout: "un moment entre amis",
+      brunch: "un brunch",
+      sport: "le sport",
+      outdoor: "une sortie en plein air",
+      travel: "un voyage",
+      "dinner-out": "un dîner dehors",
+      work: "le travail",
+      date: "un rendez-vous",
+      party: "une soirée",
+      formal: "un événement habillé",
+    };
+    return map[occasion];
+  }
+  // Existing OCCASION_LABELS gives Title-Case nouns; lowercase them so
+  // they read naturally mid-sentence ("polished for dinner out").
+  return OCCASION_LABELS[occasion].toLowerCase();
+}
+
+function buildReasoning(
+  items: ClothingItem[],
+  mood: Mood,
+  occasion: Occasion,
+  weather: WeatherData | null,
+  locale: Locale
+): string {
+  const ordered = orderedPieces(items);
+  const labels = ordered.map((i) => pieceLabel(i, locale));
+  const piecesList = joinList(labels, locale);
+  const tone = moodTone(mood, locale);
+  const occ = occasionLabelLocalized(occasion, locale);
+  const temp = weather?.temp;
+  const includeTemp = typeof temp === "number" && (temp <= 12 || temp >= 25);
+
+  if (locale === "fr") {
+    const capitalized = piecesList.charAt(0).toUpperCase() + piecesList.slice(1);
+    return includeTemp
+      ? `${capitalized} — ${tone} pour ${occ} à ${temp}°C.`
+      : `${capitalized} — ${tone} pour ${occ}.`;
+  }
+  const capitalized = piecesList.charAt(0).toUpperCase() + piecesList.slice(1);
+  return includeTemp
+    ? `${capitalized} — ${tone} for ${occ} at ${temp}°C.`
+    : `${capitalized} — ${tone} for ${occ}.`;
+}
+
+function buildStylingTip(items: ClothingItem[], locale: Locale): string | null {
+  const outerwear = items.find((i) => i.category === "outerwear");
+  const hasBase =
+    items.some((i) => i.category === "dress") ||
+    items.some((i) => i.category === "one-piece") ||
+    (items.some((i) => i.category === "top") &&
+      items.some((i) => i.category === "bottom"));
+  const belt = items.find((i) => i.category === "accessory" && i.subcategory === "belt");
+  const overalls = items.find((i) => i.category === "one-piece" && i.subcategory === "overalls");
+  const topTuckable = items.some(
+    (i) =>
+      i.category === "top" &&
+      !i.is_layering_piece &&
+      i.subcategory !== "hoodie" &&
+      i.subcategory !== "sweater"
+  );
+  const hasBottom = items.some((i) => i.category === "bottom");
+
+  if (outerwear && hasBase) {
+    const ow = pieceLabel(outerwear, locale);
+    return locale === "fr"
+      ? `Porte ${ow} ouvert·e par-dessus la base pour du mouvement.`
+      : `Wear ${ow} open over the base for movement.`;
+  }
+  if (belt && hasBottom && topTuckable) {
+    return locale === "fr"
+      ? `Rentre le haut à l'avant et cinch avec la ceinture.`
+      : `Tuck the top at the front and cinch with the belt.`;
+  }
+  if (overalls) {
+    return locale === "fr"
+      ? `Laisse les bretelles un peu lâches pour un tombé plus décontracté.`
+      : `Leave the straps slightly loose for an easy fit.`;
+  }
+  if (topTuckable && hasBottom) {
+    return locale === "fr"
+      ? `Rentre simplement le devant du haut dans le bas.`
+      : `Tuck just the front of the top into the bottoms.`;
+  }
+  return null;
 }
 
 function describeItem(item: ClothingItem): string {
@@ -91,6 +275,16 @@ export async function POST(request: NextRequest) {
     };
 
     const languageName = locale === "fr" ? "French" : "English";
+
+    // KV-backed short-term memory of outfits we've SUGGESTED to this user.
+    // The `recent_outfits` table tracks worn outfits; it wouldn't catch the
+    // user mashing "Suggest" four times in five minutes and getting the
+    // same three looks each time. We cap at 25 remembered sets with a 12h
+    // TTL so stale bans don't accumulate forever.
+    const suggestionsKey = `recent-suggestions:${userId}`;
+    const kvRecentSuggestions = (await kv
+      .get<string[][]>(suggestionsKey)
+      .catch(() => null)) ?? [];
 
     const [itemsRes, prefsRes, outfitsRes, recentRes] = await Promise.all([
       supabase.from("clothing_items").select("*").eq("is_stored", false),
@@ -168,115 +362,63 @@ export async function POST(request: NextRequest) {
       ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}`).join("\n")}`
       : "";
 
-    // Anti-repetition signal: surface the last ~10 worn item-id sets so
-    // the model can deliberately bring NEW combinations rather than recycle
-    // the same handful of safe pairings every session.
-    const recentSection = recentItemSets.length > 0
-      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets — do NOT propose the same combinations; the user has already seen these):\n${recentItemSets.map((r, i) => `${i + 1}. [${r.item_ids.join(", ")}]`).join("\n")}`
+    // Anti-repetition signal: combine KV-tracked recent SUGGESTIONS (across
+    // "Suggest" clicks in the last 12h) with worn looks from recent_outfits.
+    // Together they stop the model from recycling the same 3 pairings.
+    const allRecentSets: string[][] = [
+      ...kvRecentSuggestions,
+      ...recentItemSets.map((r) => r.item_ids),
+    ];
+    const recentSection = allRecentSets.length > 0
+      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets the user has already seen — your 3 outfits MUST each differ from every one of these by at least 2 items):\n${allRecentSets.map((ids, i) => `${i + 1}. [${ids.join(", ")}]`).join("\n")}`
       : "";
 
-    const cachedPrefix = `You are Yav, an expert personal stylist AI — think senior editor at a fashion magazine, not a polite assistant. You compose outfits with: real color theory (complementary, analogous, monochromatic, tonal), proportion (rule of thirds, balance fitted with loose, cropped with high-waist), silhouette discipline (one focal point per look — never compete a statement piece against another), texture variety (mix matte/shine, structured/flowy, knit/leather), and editorial intent (looks should feel intentional and considered, never random or 'safe-but-boring'). You know when to break rules: a single 'wrong' element done with confidence (oversized blazer with slip dress, sneakers with a gown) reads as styling. Cluttered piling-on does not.
+    const cachedPrefix = `You are Yav, a sharp personal stylist. Build outfits that are complete, weather-appropriate, and visually intentional — color story, proportion, one focal point.
 
 WARDROBE:
 ${wardrobeList}${favoritesSection}${recentSection}`;
+
+    // Variation nonce in the dynamic suffix only — keeps the cached prefix
+    // hot while giving Claude a different starting context so we don't get
+    // the same three outfits every call.
+    const iterationNonce = `iter-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
     const dynamicSuffix = `
 
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
-MOOD: ${moodInfo.emoji} ${moodInfo.label} - ${moodInfo.description}
-OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: The user specifically wants to wear the item with id [${anchorItemId}]. EVERY outfit MUST include this item. Build each look around it.` : ""}
+MOOD: ${moodInfo.label} — ${moodInfo.description}
+OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}
+ITERATION: ${iterationNonce}
 
-LANGUAGE: Write the outfit "name" and "reasoning" fields in ${languageName}. Item IDs stay as-is.
+Return exactly 3 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN.
 
-Create exactly 3 outfit suggestions from the wardrobe items above. Each outfit should be a complete look that matches ALL THREE of: the WEATHER (temperature + conditions), the MOOD, and the OCCASION above. Weather is not optional — a cozy look at −5°C must actually handle the cold; an at-home look on a 30°C day must not include a wool coat.
+HARD RULES — do not violate:
+1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over.
+2. Overalls are the one exception: they require a "top" underneath.
+3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom. Top alone is not an outfit.
+4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes, etc).
+5. Match weather: cold (<12°C) = long sleeves + closed shoes + warm pieces; warm (>22°C) = light materials, no heavy coats. Always return 3 outfits — work with what the wardrobe has.
+6. Occasion sets formality; mood sets the energy. At-home = comfort wear, no bag; work/date/party/dinner = include shoes.
 
-THE 3 OUTFITS MUST BE GENUINELY DIFFERENT FROM EACH OTHER. Not three variations of the same combo. Vary at least 2 of these dimensions across the set: silhouette (e.g. one with a dress, one with trousers, one with a skirt), color story (one bold/saturated, one neutral/tonal, one monochrome), structure (one tailored, one relaxed, one effortless). Avoid repeating the same anchor pair (same top + same bottom) twice. If the wardrobe has limited variety, still find genuinely different looks rather than three near-duplicates.${styleWishes.length > 0 ? ` The user specifically wants: ${styleWishes.join(", ")}. Prioritize these styling wishes.` : ""}${anchorItemId ? ` CRITICAL: Every outfit must include the anchor item [${anchorItemId}]. Style DIFFERENT looks around it (different bottoms, shoes, layering) so the user sees variety in how to wear that piece.` : ""}
+STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when the wardrobe has it and it fits the weather. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
-⚠️ HARD RULES - BREAKING THESE IS UNACCEPTABLE:
+Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-1. DRESSES AND ONE-PIECE GARMENTS ARE STANDALONE.
-   - A dress or jumpsuit is worn ALONE on the body. It MUST NOT be combined with a "top" category item (crop-tops, tank-tops, blouses, tees, shirts, sweaters, hoodies, cardigans — NONE of these go on top of a dress or jumpsuit). It MUST NOT be combined with a "bottom" category item (jeans, trousers, shorts, skirts, leggings, sweatpants — none).
-   - Only an OUTERWEAR category piece (jacket / blazer / coat / vest / bomber / trench / puffer / parka) can be layered over a dress or jumpsuit. That is the only layering allowed.
-   - OVERALLS are the single exception: they require ONE top underneath (t-shirt, tank, blouse). Never style overalls without a top.
-   - If you have a dress in item_ids, SCAN the list — if anything from "top" (crop-top, blouse, tank-top, t-shirt, shirt, sweater, hoodie, cardigan) is also in there, REMOVE it before finalizing.
-
-2. EVERY OUTFIT NEEDS A COMPLETE BASE:
-   - Each outfit MUST have exactly ONE foundation, and it MUST be complete. Valid bases:
-     (a) a dress (mini/midi/maxi), OR
-     (b) a jumpsuit, OR
-     (c) an overalls + one top underneath, OR
-     (d) one top + one bottom (jeans/trousers/skirt/shorts/leggings/sweatpants).
-   - Never combine a dress/jumpsuit with a bottom. Overalls are the only exception: they ALWAYS pair with a top.
-   - A top alone is NOT an outfit. A top + shoes is NOT an outfit. If you can't find a suitable bottom in the wardrobe, skip that outfit entirely rather than sending something incomplete.
-
-3. NO DUPLICATES — MAX ONE ITEM PER SUBCATEGORY:
-   - Don't include two tops, two bottoms, two dresses, two pairs of shoes, two belts, two hats, two bags, etc. EVER. One per subcategory across the whole outfit.
-   - EXCEPTIONS:
-     a. One TOP marked '(layering piece)' (vest, cardigan, open shirt) can go OVER a base top — counts as 1 layering top + 1 base top, not duplicates.
-     b. ONE outerwear piece (jacket / blazer / coat / cardigan-as-outerwear) layered over a top is normal styling, NOT a duplicate.
-   - Two pieces of the SAME subcategory (two belts, two scarves, two pairs of boots) are forbidden no matter what.
-
-4. CATEGORY CHECK:
-   - Before finalizing each outfit, verify: does it violate any rule above? If yes, remove the violating item or drop the outfit.
-
-5. WEATHER FIT (use the WEATHER value at the top as a guide — pick pieces that make sense for it, but ALWAYS return 3 outfits even if the wardrobe forces compromises):
-   - Cold (<12°C): lean toward warmer pieces, long sleeves, closed shoes; avoid tank-tops-as-only-top, sandals, shorts. Outerwear is a nice finisher when it fits the look.
-   - Mild (12–22°C): flexible — long or short sleeves, light layering optional.
-   - Warm (>22°C): lighter pieces, breathable materials, avoid heavy coats / wool / heavy boots.
-   - Rain chance ≥ 40%: prefer items marked "Rain-proof" when available.
-   - Don't refuse to generate an outfit just because the wardrobe is missing the ideal weather piece — work with what's there and note the gap in wardrobe_gap.
-
-OCCASION-SPECIFIC GUIDANCE:
-- "At Home" (loungewear): prioritize soft, stretchy, comfortable pieces (sweatpants, leggings, hoodies, cozy knits, oversized tees, lounge sets). Shoes are OPTIONAL and should be skipped unless the user has truly casual indoor shoes (slippers, house sneakers) — don't force heels / boots / formal shoes. Bags should NOT appear in at-home outfits. Keep layering minimal; at home you want one top max, not sweater + cardigan.
-- "Work" / "Date Night" / "Party" / "Dinner Out": shoes complete the look, include them.
-
-MOOD-SPECIFIC GUIDANCE:
-- "Comfort Day" / "Cozy" / "Need a Hug": prefer soft, stretchy, warm materials (knit, fleece, cotton, jersey). AVOID stiff denim, fitted tailoring, and multiple layers stacked together. One cozy piece is enough — don't put a cardigan over a heavy sweater.
-- "Bold" / "Confident" / "Playful": statement pieces, bolder color combos, more thoughtful layering.
-- "Chill": relaxed fits, simple pairings, nothing fussy.
-
-STYLING PRINCIPLES (real-stylist logic, not generic safe pairings):
-- One focal point per outfit. The standout item (statement coat, bold print, sequined piece, sculptural shoe) carries the look — surround it with quieter pieces. Two statement items in the same outfit fight each other.
-- Texture is what makes 'simple' look intentional. Mix at least two textures: denim + silk, leather + knit, cotton + satin, wool + leather. All-cotton head-to-toe reads flat.
-- Proportion math: fitted with loose, cropped with high-waist, voluminous top with slim bottom (or vice versa). Avoid same-fit head-to-toe unless monochrome and intentional.
-- Color stories: pick ONE — monochromatic (one color, varied tones), tonal (close neighbors), complementary (one accent against neutrals), or true contrast (a confident bold pop). Don't just throw colors together.
-- Hardware + accessories cohere: match metals (silver with silver, gold with gold) and tonal hardware (cool tones with cool, warm with warm).
-- Layering is a styling MOVE, not just warmth: open over base, contrast textures, let an undershirt peek out, push sleeves up, leave a button undone. The styling_tip is where these moves live.
-- USE THE OUTERWEAR. If the wardrobe has jackets, blazers, vests, or coats, they are style finishers — not just weather gear. A blazer over a tee elevates the look. A denim jacket adds texture. An open cardigan adds depth. Across 3 outfits, default to including outerwear in at least 2 of them when the user has options. Skip only when the temperature is genuinely too warm (>22°C) or the silhouette is already fully developed (e.g., a statement dress that doesn't need a layer).
-- Tucking, cuffing, half-buttoning, sleeve-pushing — these small actions are what separate 'wearing clothes' from 'styled'. Always include at least one specific action in styling_tip when there's room.
-- Don't pile on. Empty space is a tool. Outfits with too many pieces (5+ small details, layered + belt + scarf + jewelry + bag) feel cluttered, not curated.
-- The occasion sets the floor for formality, the mood sets the energy, the weather sets the materials. All three must align.
-- Lean into the user's favorites for what to repeat (silhouette, color preference, formality level), but always bring at least one fresh angle they haven't seen yet.
-- Match warmth ratings to the weather; don't mix warmth-1 and warmth-5 in the same outfit unless one is genuine outerwear over a base.
-- Respect the occasion's formality (see OCCASION-SPECIFIC GUIDANCE) and the mood (see MOOD-SPECIFIC GUIDANCE).
-- Include shoes when the occasion calls for them (everything except At Home).
-
-Wardrobe gap: BEFORE suggesting any gap, COUNT the items the user already has in each category (top / bottom / dress / outerwear / shoes / accessory). If the user has ANY outerwear (jacket, blazer, coat, etc.), DO NOT suggest "a blazer" or "a jacket" as a gap. If they have dresses, do not suggest a dress. Only name a gap when that category is genuinely empty or missing a specific staple type the user lacks. If the wardrobe is covered, set wardrobe_gap to null.
-
-Respond with ONLY valid JSON in this exact format:
+Respond with ONLY valid JSON:
 {
   "outfits": [
-    {
-      "item_ids": ["id1", "id2", "id3"],
-      "reasoning": "ONE short sentence — the why. Note in passing how it suits the weather / mood / occasion. Refer to pieces GENERICALLY by category or shape (the dress, the boots, the blazer, the tee), NEVER by brand, color, material, or specific item name. Keep it tight.",
-      "styling_tip": "ONE concrete how-to-wear sentence with specific layering / styling actions for THIS outfit. Refer to pieces GENERICALLY (the cardigan, the jeans, the blouse) — NEVER by brand, color, or material. Examples: 'Tuck the front of the tee into the bottoms and roll the cuffs once', 'Wear the blazer open over the dress with sleeves pushed up', 'Layer the cardigan over the top and leave it unbuttoned'. If there's nothing useful to add (the outfit is just a dress + shoes), set this to null.",
-      "name": "A short creative name for this look"
-    }
+    { "item_ids": ["id1","id2","id3"], "name": "Short look name (2-4 words, in ${languageName}, no material/color words)" }
   ],
-  "wardrobe_gap": "One sentence suggesting a staple piece to add, or null if the wardrobe is complete"
+  "wardrobe_gap": "One short sentence about a missing staple, or null"
 }
 
-⚠️ DESCRIPTION, STYLING_TIP, NAME — CONSISTENCY IS MANDATORY:
-- The "name", "reasoning", and "styling_tip" must reference ONLY the categories present in this outfit's item_ids. If there is no outerwear in item_ids, do not mention a jacket / coat / blazer / moto / bomber / parka. If there is no top, do not mention a tee / tank / blouse / sweater / cardigan. If there is no bottom, do not mention jeans / pants / skirt / shorts.
-- Use generic category words only: "the dress", "the shoes", "the jacket", "the top", "the bottom", "the belt". Do not name materials (leather, suede, satin, silk, denim, wool, cotton), colors, or brands in any of the three fields. The name must not invent materials either — no "Suede & Satin Edge" unless both suede and satin are actually in the outfit.
-- A post-parse validator will DROP your outfit if its name, reasoning, or styling_tip references a category that isn't in item_ids. Stay conservative with the text.
-
-Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 items per outfit.`;
+Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
 
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
+      temperature: 1,
       messages: [
         {
           role: "user",
@@ -296,8 +438,24 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {
-      outfits: { item_ids: string[]; reasoning: string; styling_tip?: string | null; name: string }[];
+      outfits: { item_ids: string[]; name?: string }[];
       wardrobe_gap: string | null;
+    };
+
+    // Strip material / color / brand words from an AI-written name. The
+    // AI sometimes writes "Suede & Satin Edge" when there's no suede in
+    // the outfit; rather than drop the outfit, just scrub those words
+    // from the name and fall back to a generic label if nothing's left.
+    const NAME_STRIP_WORDS = /\b(?:suede|satin|silk|leather|denim|wool|cotton|linen|knit|mesh|lace|velvet|corduroy|faux(?:-|\s)leather|faux(?:-|\s)suede|patent(?:-|\s)leather|moto|biker|bomber|maxi|midi|mini|crop|cropped|flared|skinny|slim|oversized|tapered|bootcut|wide(?:-|\s)leg)s?\b/gi;
+    const cleanName = (raw: string | undefined, fallback: string): string => {
+      if (!raw) return fallback;
+      const cleaned = raw
+        .replace(NAME_STRIP_WORDS, "")
+        .replace(/\s+/g, " ")
+        .replace(/\s*([&+,])\s*/g, " $1 ")
+        .replace(/^\s*[&+,]+\s*|\s*[&+,]+\s*$/g, "")
+        .trim();
+      return cleaned.length >= 3 ? cleaned : fallback;
     };
 
     const suggestions = parsed.outfits
@@ -306,10 +464,9 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           .map((id) => items.find((i) => i.id === id))
           .filter(Boolean) as ClothingItem[];
 
-        // Detect rule violations. If ANY rule is broken we drop the whole
-        // outfit below — silently stripping items leaves the reasoning /
-        // styling_tip text referencing pieces that aren't in the outfit
-        // anymore, which is the hallucination bug the user saw.
+        // Structural rule violations. Compared to the AI's text-hallucination
+        // concerns (which we no longer have — we generate the text ourselves),
+        // these are real photo-vs-items mismatches we still need to reject.
         const hasDress = outfitItems.some((i) => i.category === "dress");
         const hasJumpsuit = outfitItems.some(
           (i) => i.category === "one-piece" && i.subcategory !== "overalls"
@@ -320,8 +477,6 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           (i) => i.category === "top" && !i.is_layering_piece
         );
         const dressWithBottom = (hasDress || hasOnePiece) && hasBottom;
-        // Dress / jumpsuit + a top is the crop-top-over-maxi-dress bug.
-        // Overalls are the only one-piece that take a top, so they're exempt.
         const dressWithTop = (hasDress || hasJumpsuit) && hasNonLayeringTop;
 
         const seenSubs = new Set<string>();
@@ -335,33 +490,28 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
           seenSubs.add(i.subcategory);
         }
 
-        // Text-vs-items validation: reject outfits whose AI-written text
-        // references categories that aren't actually in the outfit (e.g.
-        // styling_tip mentions "moto jacket" but no outerwear is in items).
-        const combinedText = `${s.name ?? ""} ${s.reasoning ?? ""} ${s.styling_tip ?? ""}`;
-        const textHallucinates = textMentionsMissingCategory(outfitItems, combinedText);
+        const reasoning = buildReasoning(outfitItems, mood, occasion, weather, locale);
+        const styling_tip = buildStylingTip(outfitItems, locale);
+        const nameFallback = locale === "fr" ? `${moodInfo.label} look` : `${moodInfo.label} look`;
+        const name = cleanName(s.name, nameFallback);
 
         return {
           items: outfitItems,
           score: 1,
-          reasoning: s.reasoning,
-          styling_tip: s.styling_tip ?? null,
+          reasoning,
+          styling_tip,
           color_harmony: "ai-styled",
           mood_match: mood,
-          name: s.name,
+          name,
           weather_temp: weather?.temp ?? null,
           weather_condition: weather?.condition ?? null,
-          _violations: { dressWithBottom, dressWithTop, duplicateSub, textHallucinates },
+          _violations: { dressWithBottom, dressWithTop, duplicateSub },
         };
       })
-      // Drop any outfit that violates hard rules OR has text that references
-      // items it doesn't actually contain. Silent fixes would leave the user
-      // with a description that doesn't match the photo strip.
       .filter((s) => {
         if (s._violations.dressWithBottom) return false;
         if (s._violations.dressWithTop) return false;
         if (s._violations.duplicateSub) return false;
-        if (s._violations.textHallucinates) return false;
         const hasDress = s.items.some((i) => i.category === "dress");
         const hasOnePiece = s.items.some((i) => i.category === "one-piece");
         const hasTop = s.items.some((i) => i.category === "top");
@@ -375,26 +525,42 @@ Use ONLY item IDs from the wardrobe list above (the [id] values). Include 3-6 it
       })
       .map(({ _violations: _v, ...rest }) => rest);
 
-    // Scrub wardrobe_gap if the AI suggested a category the user already has
-    // populated. Keeps the AI from recommending "a blazer" when her wardrobe
-    // already has jackets.
+    // Scrub wardrobe_gap if the AI suggested a category the user already
+    // has populated. Keeps the AI from recommending "a blazer" when the
+    // wardrobe already has jackets.
     const userCategoryCounts = items.reduce<Record<string, number>>((acc, i) => {
       acc[i.category] = (acc[i.category] ?? 0) + 1;
       return acc;
     }, {});
+    const GAP_CATEGORY_WORDS: Record<string, string[]> = {
+      bottom: ["jeans", "trousers", "pants", "leggings", "sweatpants", "skirt", "chinos", "slacks"],
+      dress: ["dress", "gown", "sundress"],
+      "one-piece": ["jumpsuit", "overalls", "romper"],
+      outerwear: ["jacket", "blazer", "coat", "windbreaker", "puffer", "bomber", "trench", "peacoat", "parka"],
+      shoes: ["sneaker", "boot", "heel", "sandal", "loafer"],
+      bag: ["handbag", "tote", "backpack", "clutch", "crossbody", "purse"],
+    };
     const gapMentionsOwnedCategory = (gap: string): boolean => {
       const lower = gap.toLowerCase();
-      for (const [cat, words] of Object.entries(CATEGORY_SIGNAL_WORDS)) {
+      for (const [cat, words] of Object.entries(GAP_CATEGORY_WORDS)) {
         if ((userCategoryCounts[cat] ?? 0) === 0) continue;
         for (const w of words) {
-          const escaped = w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&");
-          if (new RegExp(`\\b${escaped}s?\\b`, "i").test(lower)) return true;
+          if (new RegExp(`\\b${w}s?\\b`, "i").test(lower)) return true;
         }
       }
       return false;
     };
     const rawGap = parsed.wardrobe_gap ?? null;
     const wardrobe_gap = rawGap && gapMentionsOwnedCategory(rawGap) ? null : rawGap;
+
+    // Remember what we just showed so subsequent "Suggest" clicks bring
+    // fresh combinations. Best-effort — a KV hiccup shouldn't block the
+    // response.
+    if (suggestions.length > 0) {
+      const newSets = suggestions.map((s) => s.items.map((i) => i.id));
+      const merged = [...newSets, ...kvRecentSuggestions].slice(0, 25);
+      kv.set(suggestionsKey, merged, { ex: 60 * 60 * 12 }).catch(() => {});
+    }
 
     return NextResponse.json({
       suggestions,
