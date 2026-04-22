@@ -605,10 +605,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
 
       // Auto-inject an outerwear piece when the outfit is cold but missing
-      // one and the wardrobe has outerwear available. The AI skips jackets
-      // repeatedly despite the HARD RULE; this is the backstop. We pick
-      // the closest-warmth-match outerwear from the wardrobe so the user
-      // always sees a jacket/coat in cold weather.
+      // one. Pick closest-warmth-match; bias the fit so we don't layer a
+      // slim jacket over an oversized sweater (the proportion is off and
+      // physically the sweater bunches under the jacket).
       if (
         weather &&
         typeof weather.temp === "number" &&
@@ -621,16 +620,29 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         if (available.length > 0) {
           const targetWarmth =
             weather.temp < 5 ? 4.5 : weather.temp < 10 ? 3.5 : 2.5;
-          let best = available[0];
+          // If the base top is oversized / loose, the outerwear must NOT
+          // be slim or fitted — a slim jacket won't close over it and the
+          // silhouette reads wrong.
+          const baseTopFit = stripped.find(
+            (i) => i.category === "top" && !i.is_layering_piece
+          )?.fit;
+          const needsLoose =
+            baseTopFit === "oversized" || baseTopFit === "loose";
+          const fitCompatible = (o: ClothingItem) => {
+            if (!needsLoose) return true;
+            return o.fit !== "slim";
+          };
+          const preferred = available.filter(fitCompatible);
+          const pool = preferred.length > 0 ? preferred : available;
+          let best = pool[0];
           let bestDist = Math.abs((best.warmth_rating ?? 3) - targetWarmth);
-          for (const o of available.slice(1)) {
+          for (const o of pool.slice(1)) {
             const d = Math.abs((o.warmth_rating ?? 3) - targetWarmth);
             if (d < bestDist) {
               best = o;
               bestDist = d;
             }
           }
-          // Avoid re-injecting the same subcategory we already have.
           const alreadySub = stripped.some(
             (i) => i.subcategory && i.subcategory === best.subcategory
           );
@@ -638,6 +650,27 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             stripped = [...stripped, best];
             fixes.push(`injected outerwear: ${best.subcategory ?? "jacket"}`);
           }
+        }
+      }
+
+      // Auto-inject shoes when the outfit is non-at-home but missing them
+      // and the wardrobe has shoes available. The AI skips shoes about as
+      // often as it skips jackets. Match the current occasion's vibe via
+      // the shoe's occasions array; fall back to any shoe.
+      if (
+        occasion !== "at-home" &&
+        !stripped.some((i) => i.category === "shoes")
+      ) {
+        const availableShoes = items.filter(
+          (i) => i.category === "shoes" && !i.is_stored
+        );
+        if (availableShoes.length > 0) {
+          const occasionMatches = availableShoes.filter((s) =>
+            Array.isArray(s.occasions) && s.occasions.includes(occasion as Occasion)
+          );
+          const best = occasionMatches[0] ?? availableShoes[0];
+          stripped = [...stripped, best];
+          fixes.push(`injected shoes: ${best.subcategory ?? "shoes"}`);
         }
       }
 
@@ -779,9 +812,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return true;
     });
 
-    // Dedupe hard-valid outfits by exact item set.
+    // Dedupe hard-valid outfits. Exact-set dedup first, then fuzzy:
+    // two outfits sharing >=60% items (Jaccard index) are too similar —
+    // drop the second so the user sees visually different looks.
     const seenSets = new Set<string>();
-    const dedupedHard = hardValid.filter((s) => {
+    const exactDeduped = hardValid.filter((s) => {
       const key = [...s._ids].sort().join("|");
       if (seenSets.has(key)) {
         drops.push({ ids: s._ids, reason: "duplicate of another outfit" });
@@ -790,6 +825,23 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       seenSets.add(key);
       return true;
     });
+    const jaccard = (a: string[], b: string[]): number => {
+      const setB = new Set(b);
+      const intersection = a.filter((x) => setB.has(x)).length;
+      const union = new Set([...a, ...b]).size;
+      return union === 0 ? 0 : intersection / union;
+    };
+    const dedupedHard: typeof exactDeduped = [];
+    for (const s of exactDeduped) {
+      const tooSimilar = dedupedHard.some(
+        (kept) => jaccard(kept._ids, s._ids) >= 0.6
+      );
+      if (tooSimilar) {
+        drops.push({ ids: s._ids, reason: "too similar to another outfit" });
+        continue;
+      }
+      dedupedHard.push(s);
+    }
 
     // If hard-valid outfits leave us with fewer than 3, admit soft-dropped
     // outfits back with an appended styling tip. Base-warmth mismatches
