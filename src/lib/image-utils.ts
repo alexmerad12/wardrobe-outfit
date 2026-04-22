@@ -80,14 +80,16 @@ export async function flattenOntoWhite(
     const imageData = workCtx.getImageData(0, 0, srcW, srcH);
     const data = imageData.data;
 
-    // Fringe cleanup: any pixel with alpha below FRINGE_CUT is almost
-    // certainly the model's soft transition between subject and
-    // background. Snapping those to opaque white removes the tinted
-    // halo that was visible against the pure-white backdrop. Pixels
-    // above the cut keep their alpha so the subject's true edge still
-    // anti-aliases smoothly.
-    const FRINGE_CUT = 120;
-    const SUBJECT_CUT = 30; // anything below this is treated as bg for bbox
+    // Binarise the alpha mask. Any partial transparency (the model's soft
+    // transition between subject and background) carries some of the
+    // original background's color, which renders as a grey halo when
+    // alpha-blended onto the final white backdrop. Snap every pixel to
+    // either fully white (alpha was mostly transparent) or fully opaque
+    // subject (alpha was mostly solid). No fringe pixels survive to blend.
+    // A threshold of 128 gives the tightest silhouette; the 1280 px output
+    // is large enough that the 1-pixel aliasing this introduces is
+    // imperceptible.
+    const BINARY_CUT = 128;
     let minX = srcW;
     let minY = srcH;
     let maxX = -1;
@@ -97,20 +99,16 @@ export async function flattenOntoWhite(
       for (let x = 0; x < srcW; x++) {
         const idx = (y * srcW + x) * 4;
         const a = data[idx + 3];
-        if (a < FRINGE_CUT) {
+        if (a < BINARY_CUT) {
           data[idx] = 255;
           data[idx + 1] = 255;
           data[idx + 2] = 255;
           data[idx + 3] = 255;
-          if (a >= SUBJECT_CUT) {
-            // fringe was still close enough to count as subject
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
           continue;
         }
+        // Subject pixel — keep its color but force alpha to fully opaque
+        // so the output has no semi-transparent pixels anywhere.
+        data[idx + 3] = 255;
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
