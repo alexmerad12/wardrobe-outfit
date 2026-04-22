@@ -551,39 +551,55 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     };
 
     const mapped = parsed.outfits.map((s) => {
-      const outfitItems = s.item_ids
+      const rawItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
 
-      const hasDress = outfitItems.some((i) => i.category === "dress");
-      const hasJumpsuit = outfitItems.some(
+      // Auto-fix fixable structural violations instead of dropping outfits.
+      // The AI routinely breaks the "dress + top/bottom" and "max one per
+      // subcategory" rules despite the prompt; dropping those outfits was
+      // starving the UI (sometimes 0 outfits reached the user). Silent
+      // strip keeps the outfit alive; the hybrid text validator still
+      // swaps in template prose when the AI's description references
+      // stripped items.
+      const rawHasDress = rawItems.some((i) => i.category === "dress");
+      const rawHasJumpsuit = rawItems.some(
         (i) => i.category === "one-piece" && i.subcategory !== "overalls"
       );
-      const hasOnePiece = outfitItems.some((i) => i.category === "one-piece");
-      const hasBottom = outfitItems.some((i) => i.category === "bottom");
-      // A top "over" a dress is only nonsensical if it's a regular top
-      // (tee, blouse, tank, crop top). Cardigans and anything explicitly
-      // flagged as a layering piece are legitimate over-dress layers —
-      // don't drop the outfit for them.
-      const hasNonLayeringTop = outfitItems.some(
-        (i) =>
-          i.category === "top" &&
-          !i.is_layering_piece &&
-          i.subcategory !== "cardigan"
-      );
-      const dressWithBottom = (hasDress || hasOnePiece) && hasBottom;
-      const dressWithTop = (hasDress || hasJumpsuit) && hasNonLayeringTop;
+      const rawHasOnePiece = rawItems.some((i) => i.category === "one-piece");
+      const fixes: string[] = [];
 
-      const seenSubs = new Set<string>();
-      let duplicateSub = false;
-      for (const i of outfitItems) {
-        if (!i.subcategory) continue;
-        if (seenSubs.has(i.subcategory)) {
-          duplicateSub = true;
-          break;
-        }
-        seenSubs.add(i.subcategory);
+      let stripped = rawItems;
+      // Strip bottoms when a dress or one-piece is present.
+      if ((rawHasDress || rawHasOnePiece) && stripped.some((i) => i.category === "bottom")) {
+        stripped = stripped.filter((i) => i.category !== "bottom");
+        fixes.push("stripped bottom (dress/jumpsuit present)");
       }
+      // Strip non-layering tops when a dress or non-overalls jumpsuit is present.
+      if ((rawHasDress || rawHasJumpsuit) && stripped.some(
+        (i) => i.category === "top" && !i.is_layering_piece && i.subcategory !== "cardigan"
+      )) {
+        stripped = stripped.filter(
+          (i) => i.category !== "top" || i.is_layering_piece || i.subcategory === "cardigan"
+        );
+        fixes.push("stripped non-layering top (dress/jumpsuit present)");
+      }
+      // Dedupe subcategories — keep first of each.
+      {
+        const seen = new Set<string>();
+        const deduped: ClothingItem[] = [];
+        for (const i of stripped) {
+          if (i.subcategory && seen.has(i.subcategory)) continue;
+          if (i.subcategory) seen.add(i.subcategory);
+          deduped.push(i);
+        }
+        if (deduped.length !== stripped.length) {
+          fixes.push("deduped subcategories");
+        }
+        stripped = deduped;
+      }
+
+      const outfitItems = stripped;
 
       // Hybrid text: prefer the AI's one-sentence prose; fall back to the
       // server template ONLY when the AI slips a hallucinated category
@@ -612,7 +628,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         name,
         weather_temp: weather?.temp ?? null,
         weather_condition: weather?.condition ?? null,
-        _violations: { dressWithBottom, dressWithTop, duplicateSub },
+        _fixes: fixes,
         _ids: outfitItems.map((i) => i.id),
       };
     });
@@ -624,36 +640,16 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     const wardrobeHasOuterwear = items.some((i) => i.category === "outerwear");
     const wardrobeHasShoes = items.some((i) => i.category === "shoes");
 
-    // Filter with logging so when an outfit drops we can see why in
-    // server logs (and surface it in the response for debugging).
+    // Separate rigid drops (truly broken outfits) from soft drops
+    // (cold-without-outerwear — a quality issue, not a structural bug).
+    // If hard drops leave us with fewer than 3 outfits, we admit the
+    // soft-dropped ones back so the user always sees 3 suggestions, and
+    // the styling_tip can note the missing staple.
     const drops: { ids: string[]; reason: string }[] = [];
-    const validOutfits = mapped.filter((s) => {
-      if (s._violations.dressWithBottom) {
-        drops.push({ ids: s._ids, reason: "dress+bottom" });
-        return false;
-      }
-      if (s._violations.dressWithTop) {
-        drops.push({ ids: s._ids, reason: "dress+top" });
-        return false;
-      }
-      if (s._violations.duplicateSub) {
-        drops.push({ ids: s._ids, reason: "duplicate subcategory" });
-        return false;
-      }
-      // Cold weather without outerwear is the single most-reported bug —
-      // the AI sometimes skips the jacket even under <12°C. If the user
-      // has outerwear in the wardrobe we drop the outfit and let the
-      // 5-outfit slack replace it.
-      if (weather && typeof weather.temp === "number" && weather.temp < 12 && wardrobeHasOuterwear) {
-        const hasOuterwear = s.items.some((i) => i.category === "outerwear");
-        if (!hasOuterwear) {
-          drops.push({ ids: s._ids, reason: "cold without outerwear" });
-          return false;
-        }
-      }
-      // Shoes are required for every occasion except at-home. If the
-      // user has shoes in the wardrobe but the outfit is missing them,
-      // drop it.
+    const softCold: typeof mapped = [];
+
+    const hardValid = mapped.filter((s) => {
+      // Shoes required for every occasion except at-home (if wardrobe has shoes).
       if (occasion !== "at-home" && wardrobeHasShoes) {
         const hasShoes = s.items.some((i) => i.category === "shoes");
         if (!hasShoes) {
@@ -661,10 +657,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // At-home + warm scarf is a rule violation: a chunky wool / knit
-      // scarf with warmth >= 3 belongs to going-outside looks, not
-      // loungewear. Thin bandanas (warmth <= 2) are fine as a decorative
-      // touch at home.
+      // At-home + warm scarf or turtleneck + scarf — user-flagged.
       if (occasion === "at-home") {
         const scarf = s.items.find(
           (i) => i.category === "accessory" && i.subcategory === "scarf"
@@ -673,8 +666,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           drops.push({ ids: s._ids, reason: "at-home with warm scarf" });
           return false;
         }
-        // Turtleneck already covers the neck — pairing it with any scarf
-        // for at-home is redundant styling the user has flagged.
         const turtleneckTop = s.items.find(
           (i) => i.category === "top" && i.neckline === "turtleneck"
         );
@@ -683,6 +674,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
+      // Base completeness — this is structural, always enforced.
       const hasDress = s.items.some((i) => i.category === "dress");
       const hasOnePiece = s.items.some((i) => i.category === "one-piece");
       const hasTop = s.items.some((i) => i.category === "top");
@@ -690,20 +682,36 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       const isOveralls = s.items.some(
         (i) => i.category === "one-piece" && i.subcategory === "overalls"
       );
-      if (hasDress) return true;
-      if (hasOnePiece) {
-        if (!isOveralls || hasTop) return true;
-        drops.push({ ids: s._ids, reason: "overalls without top" });
+      if (!hasDress && hasOnePiece) {
+        if (isOveralls && !hasTop) {
+          drops.push({ ids: s._ids, reason: "overalls without top" });
+          return false;
+        }
+      } else if (!hasDress && !hasOnePiece) {
+        if (!(hasTop && hasBottom)) {
+          drops.push({ ids: s._ids, reason: "incomplete base" });
+          return false;
+        }
+      }
+      // Cold-weather outerwear: SOFT drop. The AI keeps skipping the
+      // jacket; we prefer outfits that have it, but if filtering would
+      // leave <3 outfits we admit these back below.
+      if (
+        weather &&
+        typeof weather.temp === "number" &&
+        weather.temp < 12 &&
+        wardrobeHasOuterwear &&
+        !s.items.some((i) => i.category === "outerwear")
+      ) {
+        softCold.push(s);
         return false;
       }
-      if (hasTop && hasBottom) return true;
-      drops.push({ ids: s._ids, reason: "incomplete base" });
-      return false;
+      return true;
     });
 
-    // Dedupe: if two of the 4 share the exact same item set, keep only one.
+    // Dedupe hard-valid outfits by exact item set.
     const seenSets = new Set<string>();
-    const deduped = validOutfits.filter((s) => {
+    const dedupedHard = hardValid.filter((s) => {
       const key = [...s._ids].sort().join("|");
       if (seenSets.has(key)) {
         drops.push({ ids: s._ids, reason: "duplicate of another outfit" });
@@ -713,16 +721,46 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return true;
     });
 
+    // If hard-valid outfits leave us with fewer than 3, admit soft-cold
+    // outfits back — we'd rather show a cold-weather outfit without a
+    // jacket than no outfit at all. The server-generated styling_tip
+    // will note the gap.
+    let final = dedupedHard;
+    if (final.length < 3 && softCold.length > 0) {
+      const needed = 3 - final.length;
+      for (const s of softCold) {
+        if (final.length >= 3) break;
+        const key = [...s._ids].sort().join("|");
+        if (seenSets.has(key)) continue;
+        seenSets.add(key);
+        // Augment the styling_tip server-side so the user sees the gap
+        // called out explicitly ("Add a jacket for the cold").
+        const coldTip =
+          locale === "fr"
+            ? "Ajoute une veste ou un manteau pour le froid."
+            : "Add a jacket or coat to handle the cold.";
+        const tipped = {
+          ...s,
+          styling_tip: s.styling_tip ? `${s.styling_tip} ${coldTip}` : coldTip,
+        };
+        final.push(tipped);
+      }
+      drops.push({
+        ids: [],
+        reason: `soft-admitted ${3 - dedupedHard.length}/${needed} cold-no-outerwear to fill to 3`,
+      });
+    }
+
     if (drops.length > 0) {
       console.log(
-        `[suggest] returned=${parsed.outfits.length} valid=${validOutfits.length} deduped=${deduped.length} drops=${JSON.stringify(drops)}`
+        `[suggest] returned=${parsed.outfits.length} hard=${hardValid.length} softCold=${softCold.length} final=${final.length} drops=${JSON.stringify(drops)}`
       );
     }
 
-    // Show at most 3 — the AI was asked for 4 so we have slack.
-    const suggestions = deduped
+    // Show at most 3.
+    const suggestions = final
       .slice(0, 3)
-      .map(({ _violations: _v, _ids: _ids2, ...rest }) => rest);
+      .map(({ _fixes: _f, _ids: _ids2, ...rest }) => rest);
 
     // Scrub wardrobe_gap if the AI suggested a category the user already
     // has populated. Keeps the AI from recommending "a blazer" when the
