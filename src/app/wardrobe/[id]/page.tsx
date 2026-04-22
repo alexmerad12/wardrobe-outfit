@@ -236,7 +236,6 @@ export default function ItemDetailPage() {
   const editShowBeltPosition = editCategory === "accessory" && editSubcategory === "belt";
   const editShowWarmth =
     !!editCategory &&
-    editCategory !== "shoes" &&
     editCategory !== "bag" &&
     (editCategory !== "accessory" || editSubcategory === "scarf");
   const editShowMetalFinish =

@@ -279,7 +279,6 @@ export default function AddItemPage() {
   const showBeltPosition = category === "accessory" && subcategory === "belt";
   const showWarmth =
     !!category &&
-    category !== "shoes" &&
     category !== "bag" &&
     (category !== "accessory" || subcategory === "scarf");
   const showMetalFinish =
