@@ -270,7 +270,17 @@ export default function FavoritesPage() {
               <CardContent className="p-0">
                 {expandedId === outfit.id ? (
                   /* ===== EXPANDED VIEW ===== */
-                  <div>
+                  <div className="relative">
+                    {!selectMode && (
+                      <button
+                        type="button"
+                        aria-label={t("itemDetail.close")}
+                        onClick={(e) => { e.stopPropagation(); setExpandedId(null); }}
+                        className="absolute right-2 top-2 z-10 rounded-full bg-background/90 p-1.5 text-muted-foreground shadow-sm hover:bg-muted"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                     {/* Large item images grid — each links to the item's
                         detail page (disabled in select mode so the
                         multi-select UX doesn't fight nav). */}

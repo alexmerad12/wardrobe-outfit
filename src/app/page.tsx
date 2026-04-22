@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherWidget } from "@/components/weather-widget";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown } from "lucide-react";
+import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown, X } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { MOOD_ICONS } from "@/lib/mood-icons";
@@ -199,12 +199,18 @@ export default function HomePage() {
                   once the user taps in — keeps the collapsed card compact. */}
               <div className="flex items-center justify-between">
                 <p className="font-semibold">{todayOutfit.name || t("home.todaysLook")}</p>
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-muted-foreground transition-transform",
-                    todayExpanded && "rotate-180"
-                  )}
-                />
+                {todayExpanded ? (
+                  <button
+                    type="button"
+                    aria-label={t("itemDetail.close")}
+                    onClick={(e) => { e.stopPropagation(); setTodayExpanded(false); }}
+                    className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
               </div>
 
               {/* Item photos. Collapsed: horizontal scroll (compact).
@@ -231,17 +237,15 @@ export default function HomePage() {
               ) : (
                 <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                   {todayItems.map((item) => (
-                    <Link
+                    <div
                       key={item.id}
-                      href={`/wardrobe/${item.id}`}
-                      onClick={(e) => e.stopPropagation()}
                       className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30"
                     >
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1.5" sizes="112px" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
                         <p className="truncate text-[10px] text-white">{item.name}</p>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}
@@ -403,7 +407,15 @@ export default function HomePage() {
                   <CardContent className="p-0">
                     {isExpanded ? (
                       /* ===== EXPANDED VIEW (mirrors favorites) ===== */
-                      <div>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          aria-label={t("itemDetail.close")}
+                          onClick={(e) => { e.stopPropagation(); setExpandedRecent(null); }}
+                          className="absolute right-2 top-2 z-10 rounded-full bg-background/90 p-1.5 text-muted-foreground shadow-sm hover:bg-muted"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                         <div className="grid grid-cols-2 gap-1 p-1">
                           {outfit.items.map((item) => (
                             <Link
