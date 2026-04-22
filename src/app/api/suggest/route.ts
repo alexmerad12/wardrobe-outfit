@@ -441,7 +441,7 @@ HARD RULES — do not violate:
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes, etc).
 5. Match weather: cold (<12°C) = long sleeves + closed shoes + warm pieces; warm (>22°C) = light materials, no heavy coats. Always return 3 outfits — work with what the wardrobe has.
 6. Occasion sets formality; mood sets the energy. At-home = comfort wear, no bag; work/date/party/dinner = include shoes.
-7. AT-HOME + SCARF: only include a scarf in an at-home outfit if its Warmth is 2 or lower (thin bandana, silk kerchief). Never include a wool / knit / warm scarf (warmth 3+) for at-home — those are for going out.
+7. AT-HOME + SCARF: only include a scarf in an at-home outfit if its Warmth is 2 or lower (thin bandana, silk kerchief). Never include a wool / knit / warm scarf (warmth 3+) for at-home — those are for going out. Also: never pair a turtleneck top with a scarf at home — the neck is already covered, the combo is redundant.
 
 STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when the wardrobe has it and it fits the weather. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
@@ -634,14 +634,20 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       // loungewear. Thin bandanas (warmth <= 2) are fine as a decorative
       // touch at home.
       if (occasion === "at-home") {
-        const warmScarf = s.items.find(
-          (i) =>
-            i.category === "accessory" &&
-            i.subcategory === "scarf" &&
-            (i.warmth_rating ?? 0) >= 3
+        const scarf = s.items.find(
+          (i) => i.category === "accessory" && i.subcategory === "scarf"
         );
-        if (warmScarf) {
+        if (scarf && (scarf.warmth_rating ?? 0) >= 3) {
           drops.push({ ids: s._ids, reason: "at-home with warm scarf" });
+          return false;
+        }
+        // Turtleneck already covers the neck — pairing it with any scarf
+        // for at-home is redundant styling the user has flagged.
+        const turtleneckTop = s.items.find(
+          (i) => i.category === "top" && i.neckline === "turtleneck"
+        );
+        if (scarf && turtleneckTop) {
+          drops.push({ ids: s._ids, reason: "at-home: turtleneck + scarf" });
           return false;
         }
       }
