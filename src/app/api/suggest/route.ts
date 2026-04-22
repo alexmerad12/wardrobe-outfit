@@ -708,10 +708,37 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         aiReasoning && textIsConsistent(outfitItems, aiReasoning)
           ? aiReasoning
           : buildReasoning(outfitItems, mood, occasion, weather, locale);
-      const styling_tip =
+      let styling_tip: string | null =
         aiTip && textIsConsistent(outfitItems, aiTip)
           ? aiTip
           : buildStylingTip(outfitItems, locale);
+
+      // Tights nudge: when it's cold and the outfit has an exposed-leg
+      // piece (mini/midi dress, skirt, shorts), append a reminder to
+      // layer opaque tights. Skips if the dress is a maxi (legs already
+      // covered) or the outfit is at-home.
+      if (
+        weather &&
+        typeof weather.temp === "number" &&
+        weather.temp < 12 &&
+        occasion !== "at-home"
+      ) {
+        const hasExposedLegPiece = outfitItems.some((i) => {
+          if (i.category === "dress") return i.subcategory !== "maxi-dress";
+          if (i.category === "bottom") {
+            return i.subcategory === "skirt" || i.subcategory === "shorts";
+          }
+          return false;
+        });
+        if (hasExposedLegPiece) {
+          const tightsTip =
+            locale === "fr"
+              ? "Ajoute des collants opaques pour tenir le froid."
+              : "Layer opaque tights underneath for warmth.";
+          styling_tip = styling_tip ? `${styling_tip} ${tightsTip}` : tightsTip;
+        }
+      }
+
       const nameFallback = `${moodInfo.label} look`;
       const name = cleanName(s.name, nameFallback);
 
