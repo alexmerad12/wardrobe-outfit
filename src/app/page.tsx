@@ -402,64 +402,91 @@ export default function HomePage() {
                   onClick={() => setExpandedRecent(isExpanded ? null : outfit.outfit_id)}
                 >
                   <CardContent className="p-0">
+                    {/* Header row — always visible. Chevron-down collapsed,
+                        X expanded (same swap as today's outfit). */}
+                    <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
+                      <p className="font-medium text-sm min-w-0 flex-1 truncate">
+                        {outfit.name || t("favorites.saved")}
+                      </p>
+                      <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
+                      {isExpanded ? (
+                        <button
+                          type="button"
+                          aria-label={t("itemDetail.close")}
+                          onClick={(e) => { e.stopPropagation(); setExpandedRecent(null); }}
+                          className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    {/* Image strip (collapsed) or grid (expanded) */}
                     {isExpanded ? (
-                      /* ===== EXPANDED VIEW (mirrors favorites) ===== */
-                      <div>
-                        <div className="grid grid-cols-2 gap-1 p-1">
-                          {outfit.items.map((item) => (
-                            <Link
-                              key={item.id}
-                              href={`/wardrobe/${item.id}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
-                            >
-                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                                <p className="text-xs text-white truncate">{item.name}</p>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-
-                        <div className="p-3 space-y-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm min-w-0 flex-1 truncate">
-                              {outfit.name || t("favorites.saved")}
-                            </p>
-                            <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
-                            <button
-                              type="button"
-                              aria-label={t("itemDetail.close")}
-                              onClick={(e) => { e.stopPropagation(); setExpandedRecent(null); }}
-                              className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
+                      <div className="grid grid-cols-2 gap-1 p-1">
+                        {outfit.items.map((item) => (
+                          <Link
+                            key={item.id}
+                            href={`/wardrobe/${item.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
+                          >
+                            <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                              <p className="text-xs text-white truncate">{item.name}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex h-28 gap-0.5">
+                        {outfit.items.slice(0, 5).map((item) => (
+                          <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                            <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                           </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {
-                              const MoodIcon = MOOD_ICONS[outfit.mood as Mood];
-                              return (
-                                <Badge variant="secondary" className="text-xs gap-1">
-                                  <MoodIcon className="h-3 w-3" />
-                                  {t(`mood.${outfit.mood}.label`)}
-                                </Badge>
-                              );
-                            })()}
-                            {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
-                              <Badge variant="outline" className="text-xs gap-0.5">
-                                <Thermometer className="h-3 w-3" />
-                                {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"} {outfit.weather_condition || ""}
-                              </Badge>
-                            )}
-                            {outfit.occasion && (
-                              <Badge variant="outline" className="text-xs">
-                                {t(`occasion.${outfit.occasion}`)}
-                              </Badge>
-                            )}
+                        ))}
+                        {outfit.items.length === 0 && (
+                          <div className="flex-1 bg-muted/20 flex items-center justify-center">
+                            <p className="text-xs text-muted-foreground">No items</p>
                           </div>
+                        )}
+                      </div>
+                    )}
 
+                    {/* Badges row — always visible, sized by state */}
+                    <div className="px-3 pt-2 pb-3">
+                      <div className={cn(
+                        "flex flex-wrap items-center gap-1.5",
+                        isExpanded ? "" : ""
+                      )}>
+                        {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {
+                          const MoodIcon = MOOD_ICONS[outfit.mood as Mood];
+                          return (
+                            <Badge variant="secondary" className={cn("gap-1", isExpanded ? "text-xs" : "text-[10px]")}>
+                              <MoodIcon className="h-3 w-3" />
+                              {t(`mood.${outfit.mood}.label`)}
+                            </Badge>
+                          );
+                        })()}
+                        {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
+                          <Badge variant="outline" className={cn("gap-0.5", isExpanded ? "text-xs" : "text-[10px]")}>
+                            <Thermometer className={isExpanded ? "h-3 w-3" : "h-2.5 w-2.5"} />
+                            {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}
+                            {isExpanded && outfit.weather_condition ? ` ${outfit.weather_condition}` : ""}
+                          </Badge>
+                        )}
+                        {outfit.occasion && (
+                          <Badge variant="outline" className={isExpanded ? "text-xs" : "text-[10px]"}>
+                            {t(`occasion.${outfit.occasion}`)}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Expanded-only details */}
+                      {isExpanded && (
+                        <div className="space-y-3 mt-3">
                           {outfit.reasoning && (
                             <p className="text-sm text-muted-foreground leading-relaxed">
                               {outfit.reasoning}
@@ -484,54 +511,8 @@ export default function HomePage() {
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      /* ===== COLLAPSED VIEW (mirrors favorites) ===== */
-                      <>
-                        <div className="flex h-28 gap-0.5">
-                          {outfit.items.slice(0, 5).map((item) => (
-                            <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
-                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
-                            </div>
-                          ))}
-                          {outfit.items.length === 0 && (
-                            <div className="flex-1 bg-muted/20 flex items-center justify-center">
-                              <p className="text-xs text-muted-foreground">No items</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-medium text-sm">
-                              {outfit.name || t("favorites.saved")}
-                            </p>
-                            <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {
-                              const MoodIcon = MOOD_ICONS[outfit.mood as Mood];
-                              return (
-                                <Badge variant="secondary" className="text-[10px] gap-1">
-                                  <MoodIcon className="h-3 w-3" />
-                                  {t(`mood.${outfit.mood}.label`)}
-                                </Badge>
-                              );
-                            })()}
-                            {outfit.weather_temp !== null && outfit.weather_temp !== undefined && (
-                              <Badge variant="outline" className="text-[10px] gap-0.5">
-                                <Thermometer className="h-2.5 w-2.5" />
-                                {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}
-                              </Badge>
-                            )}
-                            {outfit.occasion && (
-                              <Badge variant="outline" className="text-[10px]">
-                                {t(`occasion.${outfit.occasion}`)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );
