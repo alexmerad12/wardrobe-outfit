@@ -176,6 +176,47 @@ function buildReasoning(
     : `${capitalized} — ${tone} for ${occ}.`;
 }
 
+// Trim AI prose down to a single sentence. Anthropic sometimes returns
+// two or three sentences even when we ask for one; this captures the
+// first clause up through its terminal punctuation.
+function oneSentence(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const text = raw.trim();
+  const match = text.match(/^[\s\S]*?[.!?](?=\s|$)/);
+  return (match ? match[0] : text).trim();
+}
+
+// Every category-signal word that would betray a hallucination. If the AI
+// writes "the moto jacket" when no outerwear is in item_ids, we swap in
+// server-built text instead of showing the mismatch. Unlike the previous
+// round of validation this list is broader — we trust the fallback so we
+// can afford to reject more aggressively without starving the UI.
+const HALLUCINATION_WORDS: Record<string, string[]> = {
+  top: ["t-shirt", "tshirt", "tee", "tank", "blouse", "shirt", "sweater", "hoodie", "cardigan", "pullover"],
+  bottom: ["jeans", "trousers", "pants", "leggings", "sweatpants", "shorts", "skirt", "chinos", "slacks"],
+  dress: ["dress", "gown", "sundress", "maxi dress", "midi dress", "mini dress"],
+  "one-piece": ["jumpsuit", "overalls", "romper"],
+  outerwear: ["jacket", "blazer", "coat", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
+  shoes: ["boot", "sneaker", "heel", "sandal", "loafer", "mule", "oxford", "pump"],
+  bag: ["handbag", "backpack", "tote", "clutch", "crossbody", "purse"],
+  accessory: ["belt", "scarf", "beanie"],
+};
+
+function textIsConsistent(items: ClothingItem[], text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const present = new Set(items.map((i) => i.category));
+  for (const [cat, words] of Object.entries(HALLUCINATION_WORDS)) {
+    if (present.has(cat as ClothingItem["category"])) continue;
+    for (const w of words) {
+      const escaped = w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(`\\b${escaped}s?\\b`, "i");
+      if (rx.test(lower)) return false;
+    }
+  }
+  return true;
+}
+
 function buildStylingTip(items: ClothingItem[], locale: Locale): string | null {
   const outerwear = items.find((i) => i.category === "outerwear");
   const hasBase =
@@ -405,13 +446,14 @@ STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when 
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Respond with ONLY valid JSON. The "outfits" array must have exactly 4 entries:
+Respond with ONLY valid JSON. The "outfits" array must have exactly 4 entries, each:
 {
-  "outfits": [
-    { "item_ids": ["id1","id2","id3"], "name": "Short look name (2-4 words, in ${languageName}, no material/color words)" }
-  ],
-  "wardrobe_gap": "One short sentence about a missing staple, or null"
+  "item_ids": ["id1","id2","id3"],
+  "name": "Short 2-4 word name in ${languageName} (no material / color words)",
+  "reasoning": "ONE short sentence in ${languageName} — why this look works for the mood / occasion / weather. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). NEVER name materials (leather, silk, satin, denim, suede, cotton, wool), colors, subcategories (moto, biker, bomber, maxi, midi, crop, tank, blouse, jeans, trousers, boots, heels), or brands.",
+  "styling_tip": "ONE short sentence in ${languageName} with a concrete styling action (tuck, cuff, half-button, layer open, cinch). Same generic vocab rules as reasoning. Return null if no useful action fits."
 }
+Top-level: { "outfits": [...4 entries], "wardrobe_gap": "One short sentence about a missing staple, or null" }
 
 Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
 
@@ -438,7 +480,12 @@ Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
     }
 
     const parsed = JSON.parse(jsonMatch[0]) as {
-      outfits: { item_ids: string[]; name?: string }[];
+      outfits: {
+        item_ids: string[];
+        name?: string;
+        reasoning?: string | null;
+        styling_tip?: string | null;
+      }[];
       wardrobe_gap: string | null;
     };
 
@@ -493,8 +540,20 @@ Use ONLY [id] values from the WARDROBE. Each outfit: 3-6 items.`;
         seenSubs.add(i.subcategory);
       }
 
-      const reasoning = buildReasoning(outfitItems, mood, occasion, weather, locale);
-      const styling_tip = buildStylingTip(outfitItems, locale);
+      // Hybrid text: prefer the AI's one-sentence prose; fall back to the
+      // server template ONLY when the AI slips a hallucinated category
+      // word into the text (the "moto jacket" bug). Keeps creative voice
+      // where it's safe, guarantees consistency where it isn't.
+      const aiReasoning = oneSentence(s.reasoning);
+      const aiTip = oneSentence(s.styling_tip);
+      const reasoning =
+        aiReasoning && textIsConsistent(outfitItems, aiReasoning)
+          ? aiReasoning
+          : buildReasoning(outfitItems, mood, occasion, weather, locale);
+      const styling_tip =
+        aiTip && textIsConsistent(outfitItems, aiTip)
+          ? aiTip
+          : buildStylingTip(outfitItems, locale);
       const nameFallback = `${moodInfo.label} look`;
       const name = cleanName(s.name, nameFallback);
 
