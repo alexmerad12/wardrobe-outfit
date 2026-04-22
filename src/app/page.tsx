@@ -324,14 +324,19 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Forgotten Items */}
+      {/* Forgotten Items — tap jumps to Suggest with that item as
+          anchor, so the user can style the unworn piece in one tap. */}
       {forgottenItems.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2">{t("home.forgottenInWardrobe")}</h2>
           <p className="text-xs text-muted-foreground mb-3">{t("home.forgottenHint")}</p>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {forgottenItems.map((item) => (
-              <Link key={item.id} href={`/wardrobe/${item.id}`} className="flex-shrink-0 w-24">
+              <Link
+                key={item.id}
+                href={`/suggest?item=${item.id}`}
+                className="flex-shrink-0 w-24"
+              >
                 <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30 mb-1">
                   <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
                 </div>
