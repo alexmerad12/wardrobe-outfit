@@ -246,14 +246,11 @@ export default function FavoritesPage() {
             <Card
               key={outfit.id}
               className={cn(
-                "overflow-hidden cursor-pointer relative",
+                "overflow-hidden relative",
+                selectMode && "cursor-pointer",
                 selectMode && selected.has(outfit.id) && "ring-2 ring-primary"
               )}
-              onClick={() =>
-                selectMode
-                  ? toggleSelect(outfit.id)
-                  : setExpandedId(expandedId === outfit.id ? null : outfit.id)
-              }
+              onClick={selectMode ? () => toggleSelect(outfit.id) : undefined}
             >
               {selectMode && (
                 <div
@@ -268,8 +265,7 @@ export default function FavoritesPage() {
                 </div>
               )}
               <CardContent className="p-0">
-                {/* Header row — always visible. Chevron-down collapsed,
-                    X expanded (same swap as today's outfit). */}
+                {/* Header row — only the chevron expands / closes. */}
                 <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
                   <p className="font-medium text-sm min-w-0 flex-1 truncate">
                     {outfit.name || t("favorites.saved")}
@@ -285,7 +281,14 @@ export default function FavoritesPage() {
                         <X className="h-4 w-4" />
                       </button>
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <button
+                        type="button"
+                        aria-label={t("common.expand")}
+                        onClick={(e) => { e.stopPropagation(); setExpandedId(outfit.id); }}
+                        className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
                     )
                   )}
                 </div>

@@ -190,26 +190,30 @@ export default function HomePage() {
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-3">{t("home.todaysOutfit")}</h2>
-          <Card
-            className="overflow-hidden cursor-pointer"
-            onClick={() => setTodayExpanded((v) => !v)}
-          >
+          <Card className="overflow-hidden">
             <CardContent className="p-4 space-y-4">
-              {/* Outfit name + expand chevron. Action buttons only appear
-                  once the user taps in — keeps the collapsed card compact. */}
+              {/* Outfit name + expand/collapse control. Only the chevron
+                  expands; tapping the card body does nothing. */}
               <div className="flex items-center justify-between">
                 <p className="font-semibold">{todayOutfit.name || t("home.todaysLook")}</p>
                 {todayExpanded ? (
                   <button
                     type="button"
                     aria-label={t("itemDetail.close")}
-                    onClick={(e) => { e.stopPropagation(); setTodayExpanded(false); }}
+                    onClick={() => setTodayExpanded(false)}
                     className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <button
+                    type="button"
+                    aria-label={t("common.expand")}
+                    onClick={() => setTodayExpanded(true)}
+                    className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
                 )}
               </div>
 
@@ -398,12 +402,10 @@ export default function HomePage() {
               return (
                 <Card
                   key={outfit.outfit_id}
-                  className="overflow-hidden cursor-pointer"
-                  onClick={() => setExpandedRecent(isExpanded ? null : outfit.outfit_id)}
+                  className="overflow-hidden"
                 >
                   <CardContent className="p-0">
-                    {/* Header row — always visible. Chevron-down collapsed,
-                        X expanded (same swap as today's outfit). */}
+                    {/* Header row — only the chevron expands / closes. */}
                     <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
                       <p className="font-medium text-sm min-w-0 flex-1 truncate">
                         {outfit.name || t("favorites.saved")}
@@ -413,13 +415,20 @@ export default function HomePage() {
                         <button
                           type="button"
                           aria-label={t("itemDetail.close")}
-                          onClick={(e) => { e.stopPropagation(); setExpandedRecent(null); }}
+                          onClick={() => setExpandedRecent(null)}
                           className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <button
+                          type="button"
+                          aria-label={t("common.expand")}
+                          onClick={() => setExpandedRecent(outfit.outfit_id)}
+                          className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
                       )}
                     </div>
 
