@@ -432,7 +432,7 @@ MOOD: ${moodInfo.label} — ${moodInfo.description}
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}
 ITERATION: ${iterationNonce}
 
-Return exactly 4 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; the 4th is a backup in case one gets filtered out.)
+Return exactly 5 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; extras are backups in case some get filtered out.)
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over.
@@ -441,12 +441,13 @@ HARD RULES — do not violate:
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes, etc).
 5. Match weather: cold (<12°C) = long sleeves + closed shoes + warm pieces; warm (>22°C) = light materials, no heavy coats. Always return 3 outfits — work with what the wardrobe has.
 6. Occasion sets formality; mood sets the energy. At-home = comfort wear, no bag; work/date/party/dinner = include shoes.
+7. AT-HOME + SCARF: only include a scarf in an at-home outfit if its Warmth is 2 or lower (thin bandana, silk kerchief). Never include a wool / knit / warm scarf (warmth 3+) for at-home — those are for going out.
 
 STYLING INTENT: One focal point. Mix textures. Use outerwear as a finisher when the wardrobe has it and it fits the weather. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Call the propose_outfits tool with exactly 4 outfits. Per outfit:
+Call the propose_outfits tool with exactly 5 outfits. Per outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}, no material / color words.
 - reasoning: ONE short sentence in ${languageName} on why this look works for the mood / occasion / weather. Refer to pieces by broad category ONLY (the dress, the bottoms, the jacket, the shoes, the belt). NEVER name materials (leather, silk, satin, denim, suede, cotton, wool), colors, subcategories (moto, biker, bomber, maxi, midi, crop, tank, blouse, jeans, trousers, boots, heels), or brands.
@@ -461,7 +462,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // already validated against the schema so parse errors can't happen.
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
+      max_tokens: 2048,
       temperature: 1,
       tools: [
         {
@@ -508,7 +509,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     }
 
     const parsed = toolUse.input as {
-      outfits: {
+      outfits?: {
         item_ids: string[];
         name?: string;
         reasoning?: string | null;
@@ -516,6 +517,18 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }[];
       wardrobe_gap?: string | null;
     };
+
+    // Defensive: the schema requires outfits to be an array but Anthropic
+    // has returned malformed input occasionally (outfits missing or as an
+    // object). Guard so we return gracefully instead of throwing.
+    if (!Array.isArray(parsed.outfits)) {
+      console.error("[suggest] tool_use input missing outfits array", parsed);
+      return NextResponse.json({
+        suggestions: [],
+        wardrobe_gap: parsed.wardrobe_gap ?? null,
+        message: "AI returned an unexpected shape — try again",
+      });
+    }
 
     // Strip material / color / brand words from an AI-written name. The
     // AI sometimes writes "Suede & Satin Edge" when there's no suede in
@@ -615,6 +628,22 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       if (s._violations.duplicateSub) {
         drops.push({ ids: s._ids, reason: "duplicate subcategory" });
         return false;
+      }
+      // At-home + warm scarf is a rule violation: a chunky wool / knit
+      // scarf with warmth >= 3 belongs to going-outside looks, not
+      // loungewear. Thin bandanas (warmth <= 2) are fine as a decorative
+      // touch at home.
+      if (occasion === "at-home") {
+        const warmScarf = s.items.find(
+          (i) =>
+            i.category === "accessory" &&
+            i.subcategory === "scarf" &&
+            (i.warmth_rating ?? 0) >= 3
+        );
+        if (warmScarf) {
+          drops.push({ ids: s._ids, reason: "at-home with warm scarf" });
+          return false;
+        }
       }
       const hasDress = s.items.some((i) => i.category === "dress");
       const hasOnePiece = s.items.some((i) => i.category === "one-piece");
