@@ -604,6 +604,28 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         stripped = deduped;
       }
 
+      // At-home scarf stripping. The AI sometimes fixates on one warm scarf
+      // and sticks it into every outfit, which previously caused the
+      // at-home filter to nuke the whole batch. Strip-instead-of-drop:
+      //   - Remove any warm scarf (warmth >= 3) from at-home outfits.
+      //   - Remove any scarf if the outfit also has a turtleneck top
+      //     (neck is already covered — redundant styling).
+      if (occasion === "at-home") {
+        const hasTurtleneck = stripped.some(
+          (i) => i.category === "top" && i.neckline === "turtleneck"
+        );
+        const beforeLen = stripped.length;
+        stripped = stripped.filter((i) => {
+          if (i.category !== "accessory" || i.subcategory !== "scarf") return true;
+          if ((i.warmth_rating ?? 0) >= 3) return false;
+          if (hasTurtleneck) return false;
+          return true;
+        });
+        if (stripped.length !== beforeLen) {
+          fixes.push("stripped scarf (at-home rule)");
+        }
+      }
+
       // Auto-inject an outerwear piece when the outfit is cold but missing
       // one. Pick closest-warmth-match; bias the fit so we don't layer a
       // slim jacket over an oversized sweater (the proportion is off and
@@ -756,23 +778,8 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // At-home + warm scarf or turtleneck + scarf — user-flagged.
-      if (occasion === "at-home") {
-        const scarf = s.items.find(
-          (i) => i.category === "accessory" && i.subcategory === "scarf"
-        );
-        if (scarf && (scarf.warmth_rating ?? 0) >= 3) {
-          drops.push({ ids: s._ids, reason: "at-home with warm scarf" });
-          return false;
-        }
-        const turtleneckTop = s.items.find(
-          (i) => i.category === "top" && i.neckline === "turtleneck"
-        );
-        if (scarf && turtleneckTop) {
-          drops.push({ ids: s._ids, reason: "at-home: turtleneck + scarf" });
-          return false;
-        }
-      }
+      // (At-home scarf rules handled in the map phase via strip-instead-
+      // of-drop; the filter doesn't need to re-check them here.)
       // Base completeness — this is structural, always enforced.
       const hasDress = s.items.some((i) => i.category === "dress");
       const hasOnePiece = s.items.some((i) => i.category === "one-piece");
