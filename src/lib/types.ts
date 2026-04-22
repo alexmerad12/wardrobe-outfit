@@ -331,6 +331,7 @@ export const WAIST_HEIGHT_LABELS: Record<WaistHeight, string> = {
   low: "Low Waist",
 };
 
+// Hybrid order: common first, rest alphabetical.
 export const WAIST_CLOSURE_LABELS: Record<WaistClosure, string> = {
   "button-zip": "Button & Zip",
   elastic: "Elastic",
@@ -359,14 +360,15 @@ export const HEEL_TYPE_LABELS: Record<HeelType, string> = {
   wedge: "Wedge",
 };
 
+// Hybrid order: common first, rest alphabetical.
 export const SHOE_CLOSURE_LABELS: Record<ShoeClosure, string> = {
   laces: "Laces",
-  velcro: "Velcro",
   "slip-on": "Slip-on",
   zip: "Zipper",
+  strap: "Strap",
   buckle: "Buckle",
   elastic: "Elastic",
-  strap: "Strap",
+  velcro: "Velcro",
   other: "Other",
 };
 
@@ -376,29 +378,33 @@ export const BELT_POSITION_LABELS: Record<BeltPosition, string> = {
   both: "Both",
 };
 
+// Hybrid order: common first (plain covers ~70% of belts), rest alphabetical.
 export const BELT_STYLE_LABELS: Record<BeltStyle, string> = {
   plain: "Plain",
-  studded: "Studded",
-  perforated: "Perforated / Cutouts",
-  woven: "Woven",
-  braided: "Braided",
   chain: "Chain",
   embellished: "Embellished",
+  woven: "Woven",
+  braided: "Braided",
+  perforated: "Perforated / Cutouts",
+  studded: "Studded",
   other: "Other",
 };
 
+// Hybrid order: the 5 finishes that cover ~99% of styling decisions at
+// the top, niche finishes (matte / chrome / brass / bronze / gunmetal)
+// at the tail in alphabetical order.
 export const METAL_FINISH_LABELS: Record<MetalFinish, string> = {
   silver: "Silver",
   gold: "Gold",
   "rose-gold": "Rose Gold",
-  chrome: "Chrome",
-  "matte-silver": "Matte Silver",
-  "matte-gold": "Matte Gold",
-  brass: "Brass",
-  bronze: "Bronze",
-  gunmetal: "Gunmetal",
   mixed: "Mixed Metals",
   none: "None",
+  brass: "Brass",
+  bronze: "Bronze",
+  chrome: "Chrome",
+  gunmetal: "Gunmetal",
+  "matte-gold": "Matte Gold",
+  "matte-silver": "Matte Silver",
 };
 
 export const BAG_SIZE_LABELS: Record<BagSize, string> = {
@@ -452,17 +458,19 @@ export const NECKLINE_LABELS: Record<Neckline, string> = {
   other: "Other",
 };
 
+// Hybrid order: everyday sleeve lengths first (short / long / 3/4 /
+// sleeveless), strap variants (less frequently needed) grouped at the tail.
 export const SLEEVE_LENGTH_LABELS: Record<SleeveLength, string> = {
+  short: "Short Sleeve",
+  long: "Long Sleeve",
+  "three-quarter": "3/4 Sleeve",
+  sleeveless: "Sleeveless",
+  cap: "Cap Sleeve",
+  elbow: "Elbow",
   strapless: "Strapless",
   spaghetti: "Spaghetti Strap",
   "thin-strap": "Thin Strap",
   "wide-strap": "Wide Strap",
-  sleeveless: "Sleeveless",
-  cap: "Cap Sleeve",
-  short: "Short Sleeve",
-  elbow: "Elbow",
-  "three-quarter": "3/4 Sleeve",
-  long: "Long Sleeve",
   other: "Other",
 };
 
