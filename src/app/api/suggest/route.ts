@@ -300,6 +300,20 @@ function describeItem(item: ClothingItem): string {
   parts.push(`Warmth: ${item.warmth_rating}/5`);
   if (item.rain_appropriate) parts.push("Rain-proof");
   if (item.brand) parts.push(`Brand: ${item.brand}`);
+  // Wear-frequency signal: lets the AI prefer under-rotated pieces
+  // when choosing between comparable options.
+  const wornCount = item.times_worn ?? 0;
+  if (wornCount === 0) {
+    parts.push("Never worn");
+  } else {
+    parts.push(`Worn ${wornCount}x`);
+    if (item.last_worn_date) {
+      const days = Math.floor(
+        (Date.now() - new Date(item.last_worn_date).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      parts.push(`Last worn ${days}d ago`);
+    }
+  }
 
   return parts.join(" | ");
 }
@@ -320,11 +334,12 @@ export async function POST(request: NextRequest) {
 
     const languageName = locale === "fr" ? "French" : "English";
 
-    // KV-backed short-term memory of outfits we've SUGGESTED to this user.
+    // KV-backed medium-term memory of outfits we've SUGGESTED to this user.
     // The `recent_outfits` table tracks worn outfits; it wouldn't catch the
     // user mashing "Suggest" four times in five minutes and getting the
-    // same three looks each time. We cap at 25 remembered sets with a 12h
-    // TTL so stale bans don't accumulate forever.
+    // same three looks each time. We cap at 40 remembered sets with a 7d
+    // TTL so the anti-repetition window covers a normal usage cadence
+    // (few-times-per-week) without ossifying forever.
     const suggestionsKey = `recent-suggestions:${userId}`;
     const kvRecentSuggestions = (await kv
       .get<string[][]>(suggestionsKey)
@@ -455,6 +470,8 @@ HARD RULES — do not violate:
 11. BAG × FORMALITY: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel → "tote" or "large" is fine; at-home → no bag at all. Use Bag size field when available on the item.
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
+
+ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Never worn", "Worn 3x", "Last worn 21d ago"). When choosing between two comparable options that both fit the rules above, prefer the LESS-WORN one. Across 6 outfits, deliberately include at least 2 pieces that are "Never worn" or haven't been worn in 30+ days IF the wardrobe has any — don't default to the same anchor items every call.
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
@@ -956,8 +973,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // response.
     if (suggestions.length > 0) {
       const newSets = suggestions.map((s) => s.items.map((i) => i.id));
-      const merged = [...newSets, ...kvRecentSuggestions].slice(0, 25);
-      kv.set(suggestionsKey, merged, { ex: 60 * 60 * 12 }).catch(() => {});
+      const merged = [...newSets, ...kvRecentSuggestions].slice(0, 40);
+      // 7-day TTL: short enough that stale bans don't ossify the
+      // rotation, long enough that someone suggesting a few times a
+      // week keeps a continuous anti-repetition memory.
+      kv.set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {});
     }
 
     return NextResponse.json({
