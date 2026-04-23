@@ -37,7 +37,6 @@ export default function HomePage() {
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [todayExpanded, setTodayExpanded] = useState(false);
-  const [forgottenItems, setForgottenItems] = useState<ClothingItem[]>([]);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
 
@@ -50,21 +49,6 @@ export default function HomePage() {
         ]);
 
         const allItems: ClothingItem[] = itemsRes.ok ? await itemsRes.json() : [];
-
-        // Find forgotten items (not worn in 3+ weeks, or never worn and added 1+ week ago)
-        const now = Date.now();
-        const threeWeeks = 21 * 24 * 60 * 60 * 1000;
-        const oneWeek = 7 * 24 * 60 * 60 * 1000;
-        const forgotten = allItems.filter((item) => {
-          if (item.last_worn_date) {
-            return now - new Date(item.last_worn_date).getTime() > threeWeeks;
-          }
-          // Never worn - only nudge if added more than a week ago
-          return now - new Date(item.created_at).getTime() > oneWeek;
-        });
-        // Shuffle and take up to 3
-        const shuffled = forgotten.sort(() => Math.random() - 0.5);
-        setForgottenItems(shuffled.slice(0, 3));
 
         if (todayRes.ok) {
           const { today, recent } = await todayRes.json();
@@ -324,33 +308,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Forgotten Items — tap jumps to Suggest with that item as
-          anchor, so the user can style the unworn piece in one tap. */}
-      {forgottenItems.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2">{t("home.forgottenInWardrobe")}</h2>
-          <p className="text-xs text-muted-foreground mb-3">{t("home.forgottenHint")}</p>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {forgottenItems.map((item) => (
-              <Link
-                key={item.id}
-                href={`/suggest?item=${item.id}`}
-                className="flex-shrink-0 w-24"
-              >
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted/30 mb-1">
-                  <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
-                </div>
-                <p className="text-[11px] font-medium truncate">{item.name}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {item.last_worn_date
-                    ? t("home.lastWorn", { days: Math.round((Date.now() - new Date(item.last_worn_date).getTime()) / (1000 * 60 * 60 * 24)) })
-                    : t("home.neverWorn")}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Quick Actions */}
       <div className="grid gap-3 mb-8">
