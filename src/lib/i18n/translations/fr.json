@@ -851,6 +851,8 @@
     "languageSub": "Tu pourras la changer à tout moment dans ton profil.",
     "cityTitle": "Où habites-tu ?",
     "citySub": "On utilise ta ville pour la météo.",
+    "tempTitle": "Comment tu gères le froid ?",
+    "tempSub": "On t'habille plus chaud ou plus léger que ce que la température suggère.",
     "genderTitle": "Comment t'adresser ?",
     "genderSub": "Ça nous aide à ajuster le ton.",
     "next": "Suivant",

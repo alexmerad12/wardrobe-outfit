@@ -468,12 +468,25 @@ ${wardrobeList}${favoritesSection}${recentSection}`;
     // the same three outfits every call.
     const iterationNonce = `iter-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+    // Temperature-sensitivity preference: shifts the AI's perceived
+    // weather so a "runs hot" person doesn't get a coat at 12°C and a
+    // "runs cold" person isn't sent out in shirtsleeves at 18°C.
+    // Qualitative ~3°C shift — meaningful enough to cross the prompt's
+    // weather bands (cold <12°C / mild 12-22°C / warm >22°C).
+    const sensitivity = prefs?.temperature_sensitivity ?? "normal";
+    const sensitivityLine =
+      sensitivity === "runs-hot"
+        ? "USER PREFERENCE: runs HOT — treat the temperature as ~3°C warmer than reported. Skip outerwear unless temp is genuinely cold (<9°C). Avoid heavy knits/wool unless <12°C. Lean lighter."
+        : sensitivity === "runs-cold"
+        ? "USER PREFERENCE: runs COLD — treat the temperature as ~3°C cooler than reported. Require outerwear at <15°C (not <12°C). Layer earlier. Avoid sandals until >25°C. Lean warmer."
+        : "";
+
     const dynamicSuffix = `
 
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
 MOOD: ${moodInfo.label} — ${moodInfo.description}
-OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}
+OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
 ITERATION: ${iterationNonce}
 
 Return exactly 6 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; extras are backups in case some get filtered out.)

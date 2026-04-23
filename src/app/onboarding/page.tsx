@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Languages, User, Loader2 } from "lucide-react";
+import { MapPin, Languages, User, Thermometer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Language, Gender } from "@/lib/types";
+import type { Language, Gender, TemperatureSensitivity } from "@/lib/types";
 import { detectLocale, translate, type Locale } from "@/lib/i18n";
 
 interface CityResult {
@@ -25,7 +25,7 @@ interface CityResult {
   longitude: number;
 }
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -36,6 +36,7 @@ export default function OnboardingPage() {
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
+  const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
   const [gender, setGender] = useState<Gender>("not-specified");
 
   const [cityQuery, setCityQuery] = useState("");
@@ -101,7 +102,8 @@ export default function OnboardingPage() {
   const canAdvance =
     (step === 1) ||
     (step === 2 && city && cityLat !== 0) ||
-    (step === 3);
+    (step === 3) ||
+    (step === 4);
 
   async function handleFinish() {
     setSaving(true);
@@ -113,6 +115,7 @@ export default function OnboardingPage() {
           location: city ? { city, lat: cityLat, lng: cityLng } : null,
           language,
           gender,
+          temperature_sensitivity: tempSensitivity,
         }),
       });
       try {
@@ -243,6 +246,45 @@ export default function OnboardingPage() {
             )}
 
             {step === 3 && (
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-medium">
+                    {t("onboarding.tempTitle")}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("onboarding.tempSub")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Thermometer className="h-3.5 w-3.5" />
+                    {t("profile.tempSensitivity")}
+                  </Label>
+                  <Select
+                    value={tempSensitivity}
+                    onValueChange={(v) => setTempSensitivity(v as TemperatureSensitivity)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue>
+                        {(value) => {
+                          if (value === "runs-hot") return t("profile.runsHot");
+                          if (value === "normal") return t("profile.normal");
+                          if (value === "runs-cold") return t("profile.runsCold");
+                          return null;
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="runs-hot">{t("profile.runsHot")}</SelectItem>
+                      <SelectItem value="normal">{t("profile.normal")}</SelectItem>
+                      <SelectItem value="runs-cold">{t("profile.runsCold")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
               <div className="space-y-3">
                 <div>
                   <h2 className="text-lg font-medium">

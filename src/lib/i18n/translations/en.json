@@ -846,6 +846,8 @@
     "languageSub": "You can change this anytime in your profile.",
     "cityTitle": "Where do you live?",
     "citySub": "We use your city to check the weather.",
+    "tempTitle": "How do you handle the cold?",
+    "tempSub": "We'll dress you warmer or lighter than the temperature suggests.",
     "genderTitle": "How should we address you?",
     "genderSub": "This helps us tailor wording for you.",
     "next": "Next",
