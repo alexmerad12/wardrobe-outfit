@@ -348,12 +348,14 @@ export async function POST(request: NextRequest) {
     const [itemsRes, prefsRes, outfitsRes, recentRes] = await Promise.all([
       supabase.from("clothing_items").select("*").eq("is_stored", false),
       supabase.from("user_preferences").select("*").eq("user_id", userId).maybeSingle(),
+      // Fetch up to 30 favorites (we sample a subset per call once the
+      // pool is large enough — see sample-threshold logic below).
       supabase
         .from("outfits")
         .select("*")
         .eq("is_favorite", true)
         .order("created_at", { ascending: false })
-        .limit(5),
+        .limit(30),
       // Last ~10 worn looks — used as the 'don't recycle these' signal
       // so the user gets fresh combinations across sessions.
       supabase
@@ -393,7 +395,15 @@ export async function POST(request: NextRequest) {
 
     const currentSeason = getSeasonFromMonth(new Date().getMonth() + 1);
 
-    const favorites = favoriteOutfits
+    // Favorite-sampling rules to prevent aesthetic lock-in:
+    //   - 0 to 3 favorites: skip the favorites block entirely (too small
+    //     a sample to represent taste; one "I favorited the first look I
+    //     saw" entry would anchor every future suggestion).
+    //   - exactly 4: include all 4 (sampling would always drop one and
+    //     give the AI an incomplete picture at this size).
+    //   - 5 or more: randomly sample 3 per call, so the reference set
+    //     varies between calls and every favorite eventually rotates in.
+    const allFavorites = favoriteOutfits
       .map((o) => {
         const outfitItems = (o.item_ids as string[])
           .map((id: string) => items.find((i) => i.id === id))
@@ -407,6 +417,22 @@ export async function POST(request: NextRequest) {
         };
       })
       .filter((f) => f.items.length > 0);
+
+    let favorites: typeof allFavorites;
+    if (allFavorites.length < 4) {
+      favorites = [];
+    } else if (allFavorites.length === 4) {
+      favorites = allFavorites;
+    } else {
+      // Fisher-Yates shuffle + take 3 so we sample a different subset
+      // each call. Randomness happens on the server per request.
+      const shuffled = [...allFavorites];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      favorites = shuffled.slice(0, 3);
+    }
 
     const wardrobeList = items.map(describeItem).join("\n");
 
