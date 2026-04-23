@@ -507,6 +507,7 @@ HARD RULES — do not violate:
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
 11. BAG × FORMALITY: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel → "tote" or "large" is fine; at-home → no bag at all. Use Bag size field when available on the item.
+12. HOODIE / SWEATER UNDERLAYER: when the only top is a hoodie or sweater (subcategory "hoodie" or "sweater"), add a t-shirt or tank as a base underneath if the wardrobe has any. A hoodie or sweater alone over jeans reads casual but incomplete — the base t-shirt completes the silhouette. Skip only if no suitable base top exists in the wardrobe.
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
@@ -751,6 +752,37 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           const best = occasionMatches[0] ?? availableShoes[0];
           stripped = [...stripped, best];
           fixes.push(`injected shoes: ${best.subcategory ?? "shoes"}`);
+        }
+      }
+
+      // Auto-inject a base t-shirt / tank when the only top in the outfit
+      // is a hoodie or sweater. Hoodie + jeans alone reads incomplete
+      // (especially for men's looks per user feedback) — a base layer
+      // underneath completes the silhouette. Skips dress / one-piece
+      // outfits since they don't need a top at all.
+      const tops = stripped.filter((i) => i.category === "top");
+      const hasDressOrOnePiece = stripped.some(
+        (i) => i.category === "dress" || i.category === "one-piece"
+      );
+      if (
+        !hasDressOrOnePiece &&
+        tops.length === 1 &&
+        (tops[0].subcategory === "hoodie" || tops[0].subcategory === "sweater")
+      ) {
+        const baseTops = items.filter(
+          (i) =>
+            i.category === "top" &&
+            !i.is_stored &&
+            (i.subcategory === "t-shirt" ||
+              i.subcategory === "tank-top" ||
+              i.subcategory === "crop-top")
+        );
+        if (baseTops.length > 0) {
+          // Prefer a t-shirt; fall back to whatever base top exists.
+          const tee =
+            baseTops.find((b) => b.subcategory === "t-shirt") ?? baseTops[0];
+          stripped = [...stripped, tee];
+          fixes.push(`injected base top under hoodie/sweater`);
         }
       }
 
