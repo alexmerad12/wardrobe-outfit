@@ -22,7 +22,7 @@ export type Subcategory =
   // Accessories
   | "belt" | "scarf" | "hat" | "jewelry" | "sunglasses" | "watch";
 
-export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embroidery" | "other";
+export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other";
 
 export type Material = "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other";
 
@@ -540,7 +540,7 @@ export const PATTERN_LABELS: Record<Pattern, string> = {
   abstract: "Abstract",
   "animal-print": "Animal Print",
   camo: "Camo",
-  embroidery: "Embroidery",
+  embellished: "Embellished",
   "polka-dot": "Polka Dot",
   other: "Other",
 };

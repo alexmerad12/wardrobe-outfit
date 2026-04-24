@@ -22,7 +22,7 @@ ENUMS:
   • shoes: "sneakers" | "boots" | "combat-boots" | "western-boots" | "chelsea-boots" | "ankle-boots" | "knee-boots" | "heels" | "sandals" | "flats" | "ballet-flats" | "loafers" | "mules" | "espadrilles"
   • bag: "handbag" | "backpack" | "tote" | "clutch" | "crossbody"
   • accessory: "belt" | "scarf" | "hat" | "jewelry" | "sunglasses" | "watch"
-- pattern (array): "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embroidery" | "other"
+- pattern (array): "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other" — "embellished" covers embroidery, beading, sequins, appliqué, stud work (any visually-textured decoration). Combine with a motif tag (e.g. ["embellished","floral"]) when the embellishment forms a recognizable motif.
 - material (array): "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other"
 - formality (array): "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal"
 - seasons (array): "spring" | "summer" | "fall" | "winter"

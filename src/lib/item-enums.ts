@@ -91,7 +91,7 @@ export const PATTERNS = [
   "animal-print",
   "camo",
   "abstract",
-  "embroidery",
+  "embellished",
   "other",
 ] as const;
 
