@@ -29,6 +29,7 @@ import {
   Archive,
   Camera,
   ImageIcon,
+  Search,
   Sparkles,
   Loader2,
   AlertCircle,
@@ -83,6 +84,8 @@ function WardrobePageInner() {
   const [creatingOutfit, setCreatingOutfit] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const [outfitNameDraft, setOutfitNameDraft] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const { t } = useLocale();
   // Ref to the active category pill so we can scroll it into view when
@@ -260,12 +263,19 @@ function WardrobePageInner() {
 
   const storedCount = items.filter((i) => i.is_stored).length;
 
-  const filteredItems =
+  const categoryFiltered =
     activeCategory === "stored"
       ? items.filter((item) => item.is_stored)
       : activeCategory === "all"
       ? items.filter((item) => !item.is_stored)
       : items.filter((item) => item.category === activeCategory && !item.is_stored);
+
+  // Name search is applied after the category filter so users can narrow
+  // to "dresses" first and then type a keyword. Empty query = no filter.
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const filteredItems = trimmedQuery
+    ? categoryFiltered.filter((item) => item.name.toLowerCase().includes(trimmedQuery))
+    : categoryFiltered;
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
@@ -329,6 +339,22 @@ function WardrobePageInner() {
             </div>
             <div className="flex gap-2 shrink-0">
               <>
+              {items.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  aria-label={t("wardrobe.search")}
+                  onClick={() => {
+                    setSearchOpen((v) => {
+                      if (v) setSearchQuery("");
+                      return !v;
+                    });
+                  }}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              )}
               {items.length > 0 && (
                 <Button
                   size="sm"
@@ -439,6 +465,30 @@ function WardrobePageInner() {
             </>
             </div>
           </div>
+          {/* Collapsible search input — opens below the header when the
+              search button is toggled on. Auto-clears when closed. */}
+          {searchOpen && (
+            <div className="mt-3 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t("wardrobe.searchPlaceholder")}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label={t("common.cancel")}
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

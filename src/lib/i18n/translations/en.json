@@ -650,6 +650,8 @@
     "add": "Add",
     "select": "Select",
     "outfit": "Outfit",
+    "search": "Search",
+    "searchPlaceholder": "Search by name...",
     "nameOutfitTitle": "Name this outfit",
     "nameOutfitPlaceholder": "e.g. Sunday brunch, Office Monday...",
     "create": "Create",
