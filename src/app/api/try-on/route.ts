@@ -126,14 +126,25 @@ export async function POST(request: NextRequest) {
       .eq("is_stored", false);
     const wardrobe = (wardrobeData ?? []) as ClothingItem[];
 
-    // 3. Similar items: require SUBCATEGORY match — not just category. A
-    // sleeveless vest shouldn't show up as similar to a long-sleeve jacket
-    // just because both are "outerwear". Color overlap still boosts
-    // ranking but never substitutes for a subcategory match.
+    // 3. Similar items: subcategory must match AND at least one of
+    // (pattern overlap, color overlap). Subcategory alone is too blunt —
+    // a leopard-print blouse matched plain blouses just because both
+    // were subcategory=blouse. Requiring pattern OR color overlap means
+    // a leopard top only matches other animal-print / tan-brown pieces.
     const phantomColors = (attrs.colors ?? []).map((c) => ({
       hex: c.hex,
       name: c.name,
     }));
+    const phantomPatterns = Array.isArray(attrs.pattern)
+      ? attrs.pattern
+      : attrs.pattern
+      ? [attrs.pattern]
+      : [];
+    const patternsOverlap = (a: string[], b: string[]): boolean => {
+      if (a.length === 0 || b.length === 0) return false;
+      const setA = new Set(a);
+      return b.some((p) => setA.has(p));
+    };
     const similarItems = wardrobe
       .filter(
         (item) =>
@@ -142,9 +153,14 @@ export async function POST(request: NextRequest) {
           item.subcategory === attrs.subcategory
       )
       .map((item) => {
+        const itemPatterns = Array.isArray(item.pattern)
+          ? item.pattern
+          : [item.pattern];
+        const patternMatch = patternsOverlap(phantomPatterns, itemPatterns) ? 1 : 0;
         const colorMatch = colorsOverlap(phantomColors, item.colors) ? 1 : 0;
-        return { item, score: colorMatch };
+        return { item, score: patternMatch + colorMatch };
       })
+      .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
       .map((x) => x.item);
