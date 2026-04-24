@@ -139,7 +139,7 @@ async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> 
 // the weather's emotional cue (pale gold for sun, slate for rain, bone for
 // snow). Low-saturation tints so the card reads as refined, not loud.
 const STRIP_BASE =
-  "relative overflow-hidden rounded-xl px-5 py-4 transition-colors duration-500";
+  "relative overflow-hidden rounded-xl px-5 py-3 transition-colors duration-500";
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -250,25 +250,25 @@ export function WeatherWidget() {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-1">
-            <span className="font-heading italic text-5xl font-medium leading-none tracking-tight text-foreground">
+            <span className="font-heading italic text-4xl font-medium leading-none tracking-tight text-foreground">
               {convertTemp(weather.temp, unit)}°
             </span>
             <span className="text-xs text-foreground/50">
               {unit === "fahrenheit" ? "F" : "C"}
             </span>
           </div>
-          <p className="editorial-label mt-2 text-foreground/70">
+          <p className="editorial-label mt-1.5 text-foreground/70">
             {conditionLabel}
           </p>
-          <p className="font-heading italic text-xs mt-0.5 text-foreground/60">
+          <p className="font-heading italic text-xs text-foreground/60">
             {t("weatherWidget.feelsLike", { temp: convertTemp(weather.feels_like, unit) })}
           </p>
         </div>
-        <Icon className="h-7 w-7 text-foreground/50 shrink-0 mt-1" strokeWidth={1.5} />
+        <Icon className="h-6 w-6 text-foreground/50 shrink-0 mt-1" strokeWidth={1.5} />
       </div>
 
       {/* Bottom row: hairline + metrics */}
-      <div className="mt-4 flex items-center gap-5 border-t border-foreground/10 pt-2.5">
+      <div className="mt-2.5 flex items-center gap-5 border-t border-foreground/10 pt-2">
         {weather.precipitation_probability > 0 && (
           <div className="flex items-center gap-1.5">
             <Droplets className="h-3.5 w-3.5 text-foreground/40" strokeWidth={1.75} />

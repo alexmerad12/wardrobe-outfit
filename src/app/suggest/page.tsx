@@ -207,7 +207,7 @@ function SuggestContent() {
   return (
     <div className="mx-auto max-w-md px-4 pt-4">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -238,7 +238,7 @@ function SuggestContent() {
       )}
 
       {/* Weather context */}
-      <div className="mb-6">
+      <div className="mb-4">
         <WeatherWidget />
       </div>
 
@@ -306,9 +306,9 @@ function SuggestContent() {
 
       {/* Step 3: Occasion selection */}
       {step === "occasion" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div>
-            <h2 className="text-base font-semibold mb-3">
+            <h2 className="text-base font-semibold mb-2">
               {t("suggest.whatsOccasionShort")}
             </h2>
             <div className="grid grid-cols-2 gap-2">
@@ -318,7 +318,7 @@ function SuggestContent() {
                     key={occ}
                     onClick={() => setOccasion(occ)}
                     className={cn(
-                      "rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all",
+                      "rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all",
                       occasion === occ
                         ? "border-primary bg-primary/5"
                         : "border-transparent bg-muted/50 hover:bg-muted"
