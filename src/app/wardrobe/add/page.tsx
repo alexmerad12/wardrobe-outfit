@@ -52,7 +52,6 @@ import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
-import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -61,8 +60,6 @@ export default function AddItemPage() {
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLocale();
   const labels = useLabels();
-  const { addFiles: addPending } = usePendingUploads();
-
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -436,24 +433,6 @@ export default function AddItemPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Multi-select from the library → user clearly wants bulk, hand it
-    // off to the background queue and show them the full-screen
-    // processing page (same flow as the main + picker).
-    if (files.length > 1) {
-      const result = addPending(files);
-      if (result.rejected > 0) {
-        alert(
-          `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
-        );
-      }
-      if (result.accepted > 0) {
-        router.push("/wardrobe/uploading");
-      } else {
-        router.push("/wardrobe");
-      }
-      return;
-    }
-
     const file = files[0];
 
     // Reset per-image state so auto-fill re-runs for the new photo
@@ -612,29 +591,6 @@ export default function AddItemPage() {
         <h1 className="font-heading text-2xl font-medium tracking-tight">{t("addItem.title")}</h1>
       </div>
 
-      {/* Bulk upload shortcut — visible before user picks a photo, so the
-          "I have 30 items to add" crowd doesn't slog through one form at a
-          time. */}
-      {!imagePreview && (
-        <button
-          type="button"
-          onClick={() => router.push("/wardrobe/bulk")}
-          className="mb-5 w-full rounded-xl border border-border px-4 py-3 text-left transition-colors hover:bg-muted/30"
-        >
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
-            <div className="flex-1">
-              <p className="text-sm font-medium">
-                Got a bunch of photos? Bulk upload
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                AI tags each one automatically — just drop them in and walk away.
-              </p>
-            </div>
-          </div>
-        </button>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo upload */}
         {imagePreview ? (
@@ -673,10 +629,7 @@ export default function AddItemPage() {
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
               >
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm font-medium">Choose photo(s)</span>
-                <span className="text-[10px] text-muted-foreground">
-                  Up to 5 at once
-                </span>
+                <span className="text-sm font-medium">Choose photo</span>
               </button>
             </div>
             {/* Same tips shown on the uploading page, here too — the
@@ -709,7 +662,6 @@ export default function AddItemPage() {
           ref={libraryInputRef}
           type="file"
           accept="image/*"
-          multiple
           className="hidden"
           onChange={handleImageChange}
         />

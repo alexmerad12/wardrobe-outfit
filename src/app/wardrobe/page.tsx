@@ -27,8 +27,6 @@ import {
   CheckSquare,
   Combine,
   Archive,
-  Camera,
-  ImageIcon,
   Search,
   Sparkles,
   Loader2,
@@ -37,7 +35,6 @@ import {
 import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
 import {
-  MAX_BATCH,
   usePendingUploads,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
@@ -95,15 +92,12 @@ function WardrobePageInner() {
 
   const {
     items: pending,
-    addFiles,
     retry,
     dismiss,
     dismissAllFailed,
     clearReady,
     onItemSaved,
   } = usePendingUploads();
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   const refetchItems = useCallback(async () => {
     try {
@@ -376,25 +370,24 @@ function WardrobePageInner() {
                 />
                 <DropdownMenuContent align="end" className="w-72">
                   <DropdownMenuItem
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="gap-2"
+                    onClick={() => router.push("/wardrobe/bulk")}
+                    className="gap-2 items-start py-2.5"
                   >
-                    <Camera className="h-4 w-4" />
-                    {t("wardrobe.takePhoto")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => libraryInputRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    {t("wardrobe.chooseFromLibrary")}
+                    <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{t("wardrobe.addInBulk")}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("wardrobe.addInBulkHint")}</p>
+                    </div>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => router.push("/wardrobe/add")}
-                    className="gap-2 text-muted-foreground"
+                    className="gap-2 items-start py-2.5"
                   >
-                    <Plus className="h-4 w-4" />
-                    {t("wardrobe.fillInManually")}
+                    <Plus className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{t("wardrobe.addManually")}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("wardrobe.addManuallyHint")}</p>
+                    </div>
                   </DropdownMenuItem>
                   {/* Photo tips — keep this tight. Users read it once,
                       skim it forever; a wall of text hurts more than
@@ -415,50 +408,6 @@ function WardrobePageInner() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {/* Camera: single shot straight from the device camera */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) {
-                    const result = addFiles(e.target.files);
-                    if (result.rejected > 0) {
-                      alert(
-                        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
-                      );
-                    }
-                    if (result.accepted > 0) {
-                      router.push("/wardrobe/uploading");
-                    }
-                  }
-                  if (cameraInputRef.current) cameraInputRef.current.value = "";
-                }}
-              />
-              {/* Library: multi-select */}
-              <input
-                ref={libraryInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) {
-                    const result = addFiles(e.target.files);
-                    if (result.rejected > 0) {
-                      alert(
-                        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
-                      );
-                    }
-                    if (result.accepted > 0) {
-                      router.push("/wardrobe/uploading");
-                    }
-                  }
-                  if (libraryInputRef.current) libraryInputRef.current.value = "";
-                }}
-              />
             </>
             </div>
           </div>
@@ -547,7 +496,7 @@ function WardrobePageInner() {
             <Button
               variant="outline"
               className="gap-1.5"
-              onClick={() => libraryInputRef.current?.click()}
+              onClick={() => router.push("/wardrobe/bulk")}
             >
               <Plus className="h-4 w-4" />
               {t("wardrobe.addFirstItem")}
