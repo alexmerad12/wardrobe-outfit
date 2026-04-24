@@ -292,20 +292,26 @@ export default function AddItemPage() {
     (category !== "accessory" || subcategory === "scarf");
   const showMetalFinish =
     !!category && ["shoes", "accessory"].includes(category) && subcategory !== "scarf";
-  // Neckline: hide for hoodies (hooded) and cardigans (open front)
+  // Neckline: hide for hoodies (hooded), cardigans (open front), and
+  // overalls (the bib isn't a neckline — it's the underneath top that
+  // determines the visual neckline).
   const showNeckline =
     ["top", "dress", "one-piece", "outerwear"].includes(category as string) &&
     subcategory !== "hoodie" &&
-    subcategory !== "cardigan";
-  // Sleeve length: hide for tank tops (always straps/sleeveless by nature)
+    subcategory !== "cardigan" &&
+    subcategory !== "overalls";
+  // Sleeve length: hide for tank tops and overalls (both sleeveless
+  // by nature — overalls are bib + shoulder straps).
   const showSleeveLength =
     ["top", "dress", "one-piece", "outerwear"].includes(category as string) &&
-    subcategory !== "tank-top";
+    subcategory !== "tank-top" &&
+    subcategory !== "overalls";
   // Closure: only for tops/outerwear where there's an actual opening,
-  // and for dresses (wrap dress, button-up, zipper, etc.)
+  // and for dresses (wrap dress, button-up, zipper, etc.). Overalls
+  // have side buttons but it's a minor detail with no styling impact.
   const showClosure =
     category === "dress" ||
-    category === "one-piece" ||
+    (category === "one-piece" && subcategory !== "overalls") ||
     category === "outerwear" ||
     (category === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(subcategory));
 

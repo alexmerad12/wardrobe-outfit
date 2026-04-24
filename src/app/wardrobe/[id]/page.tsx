@@ -314,13 +314,15 @@ export default function ItemDetailPage() {
   const editShowNeckline =
     ["top", "dress", "one-piece", "outerwear"].includes(editCategory) &&
     editSubcategory !== "hoodie" &&
-    editSubcategory !== "cardigan";
+    editSubcategory !== "cardigan" &&
+    editSubcategory !== "overalls";
   const editShowSleeveLength =
     ["top", "dress", "one-piece", "outerwear"].includes(editCategory) &&
-    editSubcategory !== "tank-top";
+    editSubcategory !== "tank-top" &&
+    editSubcategory !== "overalls";
   const editShowClosure =
     editCategory === "dress" ||
-    editCategory === "one-piece" ||
+    (editCategory === "one-piece" && editSubcategory !== "overalls") ||
     editCategory === "outerwear" ||
     (editCategory === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(editSubcategory));
   const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
