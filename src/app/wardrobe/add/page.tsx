@@ -716,7 +716,7 @@ export default function AddItemPage() {
             pre-fill) as one clear progress message so the user always knows
             what's happening instead of watching a silent form. */}
         {imagePreview && (removingBg || autoFilling || autoFillApplied) && (
-          <div className="flex items-center justify-center gap-2 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2.5 text-xs text-[#7c2d3a]">
+          <div className="flex items-center justify-center gap-2 rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-xs text-muted-foreground">
             {removingBg || autoFilling ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
             ) : (

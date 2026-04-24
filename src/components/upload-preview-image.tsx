@@ -32,11 +32,11 @@ export function UploadPreviewImage({
     return (
       <div
         className={cn(
-          "flex items-center justify-center bg-gradient-to-br from-[#fdf2f4] to-[#f4d3d9]",
+          "flex items-center justify-center bg-muted",
           className
         )}
       >
-        <ImageIcon className="h-6 w-6 text-[#9b4050]/40" />
+        <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
       </div>
     );
   }

@@ -609,12 +609,6 @@ function WardrobePageInner() {
   );
 }
 
-// Burgundy palette — keeps AI/Yav surfaces consistent across the app.
-const BURGUNDY_BG = "bg-[#fdf2f4]";
-const BURGUNDY_BORDER = "border-[#e8b4bc]";
-const BURGUNDY_TEXT = "text-[#7c2d3a]";
-const BURGUNDY_SUBTLE = "text-[#9b4050]/80";
-
 const MAX_INLINE_TILES = 6;
 
 function PendingStrip({
@@ -660,7 +654,7 @@ function PendingStrip({
   }
 
   return (
-    <div className={cn("mb-4 rounded-xl px-4 py-3", BURGUNDY_BG, "border", BURGUNDY_BORDER)}>
+    <div className="mb-4 rounded-xl border border-border px-4 py-3 bg-muted/30">
       {/* Review CTA — shown prominently when there are just-saved items
           waiting to be reviewed. Clicking it steps through each item's
           edit form one at a time. */}
@@ -668,7 +662,7 @@ function PendingStrip({
         <button
           type="button"
           onClick={() => onStartReview(readyIds[0], readyIds.slice(1))}
-          className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg bg-[#7c2d3a] px-4 py-2.5 text-left text-white shadow-sm hover:bg-[#6b2430] transition-colors"
+          className="mb-3 flex w-full items-center justify-between gap-2 rounded-lg bg-foreground px-4 py-2.5 text-left text-background shadow-sm hover:bg-foreground/90 transition-colors"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="h-4 w-4 shrink-0" />
@@ -684,8 +678,8 @@ function PendingStrip({
         <>
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className={cn("h-4 w-4 shrink-0", BURGUNDY_TEXT)} />
-              <span className={cn("text-sm font-medium truncate", BURGUNDY_TEXT)}>
+              <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+              <span className="text-sm font-medium truncate">
                 {processing > 0
                   ? t(processing === 1 ? "wardrobe.yavIsAdding" : "wardrobe.yavIsAddingPlural", { count: processing })
                   : t("wardrobe.someUploadsNeedAttention")}
@@ -695,7 +689,7 @@ function PendingStrip({
             {inFlight.length > MAX_INLINE_TILES && (
               <Link
                 href="/wardrobe/bulk"
-                className={cn("shrink-0 text-xs font-medium hover:underline", BURGUNDY_TEXT)}
+                className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
               >
                 {t("wardrobe.viewAll")}
               </Link>
@@ -713,7 +707,7 @@ function PendingStrip({
             {overflow > 0 && (
               <Link
                 href="/wardrobe/bulk"
-                className="relative aspect-square overflow-hidden rounded-lg bg-[#f4d3d9] flex items-center justify-center text-[#7c2d3a] text-xs font-medium"
+                className="relative aspect-square overflow-hidden rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs font-medium hover:bg-muted/80"
               >
                 +{overflow}
               </Link>
@@ -746,7 +740,7 @@ function PendingStrip({
           </div>
         </div>
       ) : (
-        <p className={cn("mt-2 text-[11px]", BURGUNDY_SUBTLE)}>
+        <p className="mt-2 text-[11px] text-muted-foreground">
           {t("wardrobe.keepUsingClosette")}
         </p>
       )}

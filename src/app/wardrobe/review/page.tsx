@@ -397,7 +397,7 @@ function ReviewBatchPage() {
                           key={m}
                           type="button"
                           onClick={() => toggleMaterial(m)}
-                          className="rounded-full bg-[#7c2d3a] text-white px-2 py-0.5 text-[11px]"
+                          className="rounded-full bg-foreground text-white px-2 py-0.5 text-[11px]"
                         >
                           {m} ×
                         </button>
@@ -412,8 +412,8 @@ function ReviewBatchPage() {
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[11px] border transition-colors",
                             on
-                              ? "bg-[#7c2d3a] text-white border-[#7c2d3a]"
-                              : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-[#7c2d3a] hover:text-[#7c2d3a]"
+                              ? "bg-foreground text-white border-foreground"
+                              : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-foreground hover:text-foreground"
                           )}
                         >
                           {m}
@@ -434,7 +434,7 @@ function ReviewBatchPage() {
                           key={p}
                           type="button"
                           onClick={() => togglePattern(p)}
-                          className="rounded-full bg-[#7c2d3a] text-white px-2 py-0.5 text-[11px]"
+                          className="rounded-full bg-foreground text-white px-2 py-0.5 text-[11px]"
                         >
                           {p} ×
                         </button>
@@ -449,8 +449,8 @@ function ReviewBatchPage() {
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[11px] border transition-colors",
                             on
-                              ? "bg-[#7c2d3a] text-white border-[#7c2d3a]"
-                              : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-[#7c2d3a] hover:text-[#7c2d3a]"
+                              ? "bg-foreground text-white border-foreground"
+                              : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-foreground hover:text-foreground"
                           )}
                         >
                           {p}
@@ -474,7 +474,7 @@ function ReviewBatchPage() {
                   </div>
                   <Link
                     href={`/wardrobe/${item.id}?edit=1`}
-                    className="ml-auto text-[11px] text-[#7c2d3a] hover:underline inline-flex items-center gap-1"
+                    className="ml-auto text-[11px] text-foreground hover:underline inline-flex items-center gap-1"
                   >
                     <Pencil className="h-3 w-3" />
                     Edit all details

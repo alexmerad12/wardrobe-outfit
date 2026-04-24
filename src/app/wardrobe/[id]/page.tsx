@@ -646,13 +646,11 @@ export default function ItemDetailPage() {
 
       {/* Review wizard progress bar */}
       {hasNext && editing && (
-        <div className="mb-3 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2 text-xs text-[#7c2d3a]">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-medium">Reviewing your upload</span>
-            <span className="text-[#9b4050]/80">
-              {nextIds.length} more to go
-            </span>
-          </div>
+        <div className="mb-3 border-t border-b border-border py-2 flex items-center justify-between gap-2">
+          <span className="editorial-label">Reviewing your upload</span>
+          <span className="text-xs text-muted-foreground">
+            {nextIds.length} more to go
+          </span>
         </div>
       )}
 
