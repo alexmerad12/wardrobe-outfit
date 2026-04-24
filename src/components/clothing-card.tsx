@@ -5,22 +5,8 @@ import Link from "next/link";
 import type { ClothingItem } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Check, Clock } from "lucide-react";
+import { Heart, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Rule mirrors the home page's "forgotten items" logic: an item is
-// considered unworn if it was last worn >60 days ago, or it's never
-// been worn and was added >30 days ago (shorter grace than the
-// 3-week home-page nudge; here the badge is ambient, so we want it
-// to only appear on genuinely neglected pieces).
-function isUnworn(item: ClothingItem): boolean {
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-  if (item.last_worn_date) {
-    return now - new Date(item.last_worn_date).getTime() > 60 * DAY;
-  }
-  return now - new Date(item.created_at).getTime() > 30 * DAY;
-}
 
 interface ClothingCardProps {
   item: ClothingItem;
@@ -74,14 +60,6 @@ export function ClothingCard({
         {!selectMode && item.is_favorite && (
           <div className="absolute right-2 top-2">
             <Heart className="h-4 w-4 fill-red-500 text-red-500" />
-          </div>
-        )}
-        {!selectMode && !item.is_favorite && isUnworn(item) && (
-          <div
-            className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-amber-700"
-            title="Not worn recently"
-          >
-            <Clock className="h-3 w-3" />
           </div>
         )}
       </div>

@@ -169,18 +169,6 @@ export default function ProfilePage() {
       .slice(0, 5);
   }, [allItems]);
 
-  const leastWornItems = useMemo(() => {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return allItems
-      .filter((item) => {
-        if (item.times_worn !== 0) return false;
-        const created = new Date(item.created_at);
-        return created < sevenDaysAgo;
-      })
-      .slice(0, 3);
-  }, [allItems]);
-
   const maxColorCount = colorDistribution.length > 0 ? colorDistribution[0].count : 1;
   const maxCategoryCount = categoryBreakdown.length > 0 ? categoryBreakdown[0].count : 1;
 
@@ -377,33 +365,6 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {mostWornItems.length > 0 && leastWornItems.length > 0 && <Separator />}
-
-            {/* Least Worn Items */}
-            {leastWornItems.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">{t("profile.forgottenPieces")}</p>
-                <div className="space-y-2">
-                  {leastWornItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
-                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                        <Image
-                          src={item.thumbnail_url ?? item.image_url}
-                          alt={item.name}
-                          fill
-                          className="object-contain p-0.5"
-                          sizes="40px"
-                        />
-                      </div>
-                      <span className="text-sm flex-1 truncate">{item.name}</span>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {t("profile.neverWorn")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
