@@ -147,13 +147,13 @@ export default function UploadingPage() {
             practice: bg removal leaves artefacts when the backdrop
             is cluttered, the AI mislabels when multiple items are
             in frame, and cropped shots lose sleeves/hems. */}
-        <div className="mb-4 rounded-lg bg-[#fdf2f4] border border-[#e8b4bc] px-3 py-2.5 text-xs text-[#7c2d3a]">
-          <p className="font-medium mb-1">Tips for clean backgrounds</p>
-          <ul className="space-y-0.5 text-[#9b4050]/90">
-            <li>• One item per photo, fully visible (no cropped edges)</li>
-            <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
-            <li>• Hanger for coats, blazers, dresses, long skirts</li>
-            <li>• Good light, no strong shadows</li>
+        <div className="mb-4 border-t border-b border-border py-3">
+          <p className="editorial-label mb-2">Photo tips</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li>One item per photo, fully visible</li>
+            <li>Flat surface for tops, pants, knits — bed, table, floor</li>
+            <li>Hanger for coats, blazers, dresses, long skirts</li>
+            <li>Good light, no strong shadows</li>
           </ul>
         </div>
 
