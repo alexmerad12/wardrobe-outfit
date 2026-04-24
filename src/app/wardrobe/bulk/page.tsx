@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -29,6 +29,7 @@ export default function BulkUploadPage() {
   const { items, addFiles, retry, dismiss } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
+  const [navigatedToReview, setNavigatedToReview] = useState(false);
 
   // Kick off the imgly WASM download as soon as the user lands here —
   // without preloading, the first item's pipeline stalls for up to 10s
@@ -36,6 +37,31 @@ export default function BulkUploadPage() {
   useEffect(() => {
     void preloadBgRemoval().catch(() => {});
   }, []);
+
+  // Auto-forward to the per-item review wizard once every upload has
+  // settled. AI tagging isn't always right — the wizard steps through
+  // each saved item in edit mode (first id in URL, rest chained via
+  // ?next=) so the user can correct attributes before moving on.
+  // Only errors → stay here and show the retry UI. Once we've handed
+  // off, flag the state so we don't bounce the user back into the
+  // wizard after they return.
+  useEffect(() => {
+    if (navigatedToReview) return;
+    if (items.length === 0) return;
+    const settled = items.every(
+      (i) => i.stage === "ready" || i.stage === "error"
+    );
+    if (!settled) return;
+    const readyIds = items
+      .filter((i) => i.stage === "ready" && i.savedItemId)
+      .map((i) => i.savedItemId!);
+    if (readyIds.length === 0) return;
+    setNavigatedToReview(true);
+    const [firstId, ...rest] = readyIds;
+    const qs = new URLSearchParams({ edit: "1" });
+    if (rest.length > 0) qs.set("next", rest.join(","));
+    router.replace(`/wardrobe/${firstId}?${qs.toString()}`);
+  }, [items, navigatedToReview, router]);
 
   const counts = useMemo(() => {
     let ready = 0,
