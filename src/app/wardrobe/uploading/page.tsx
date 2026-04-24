@@ -150,10 +150,10 @@ export default function UploadingPage() {
         <div className="mb-4 border-t border-b border-border py-3">
           <p className="editorial-label mb-2">Photo tips</p>
           <ul className="space-y-1 text-xs text-muted-foreground">
-            <li>One item per photo, fully visible</li>
-            <li>Flat surface for tops, pants, knits — bed, table, floor</li>
-            <li>Hanger for coats, blazers, dresses, long skirts</li>
-            <li>Good light, no strong shadows</li>
+            <li>• One item per photo, fully visible</li>
+            <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
+            <li>• Hanger for coats, blazers, dresses, long skirts</li>
+            <li>• Good light, no strong shadows</li>
           </ul>
         </div>
 
