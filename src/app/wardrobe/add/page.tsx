@@ -23,6 +23,7 @@ import type {
   BeltStyle,
   MetalFinish,
   BagSize,
+  BagTexture,
   DressSilhouette,
   ToeShape,
   Neckline,
@@ -91,6 +92,7 @@ export default function AddItemPage() {
   const [beltPosition, setBeltPosition] = useState<BeltPosition>("waist");
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [bagSize, setBagSize] = useState<BagSize | null>(null);
+  const [bagTexture, setBagTexture] = useState<BagTexture | null>(null);
   const [dressSilhouette, setDressSilhouette] = useState<DressSilhouette | null>(null);
   const [toeShape, setToeShape] = useState<ToeShape | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
@@ -208,6 +210,7 @@ export default function AddItemPage() {
     if (r.belt_style) setBeltStyle(r.belt_style);
     if (r.metal_finish) setMetalFinish(r.metal_finish);
     if (r.bag_size) setBagSize(r.bag_size);
+    if (r.bag_texture) setBagTexture(r.bag_texture);
     if (r.dress_silhouette) setDressSilhouette(r.dress_silhouette);
     if (r.toe_shape) setToeShape(r.toe_shape);
     if (r.formality?.length) setFormalities(r.formality);
@@ -551,6 +554,7 @@ export default function AddItemPage() {
           closure: showClosure ? closure : null,
           metal_finish: showMetalFinish ? metalFinish : null,
           bag_size: category === "bag" ? bagSize : null,
+          bag_texture: category === "bag" ? bagTexture : null,
           dress_silhouette: category === "dress" ? dressSilhouette : null,
           toe_shape: category === "shoes" ? toeShape : null,
           formality: formalities,
@@ -1336,6 +1340,30 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.BAG_SIZE[b]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bag Texture - only for bags */}
+        {category === "bag" && (
+          <div className="space-y-2">
+            <Label>{t("addItem.bagTexture")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.BAG_TEXTURE) as BagTexture[]).map((tx) => (
+                <button
+                  key={tx}
+                  type="button"
+                  onClick={() => setBagTexture(bagTexture === tx ? null : tx)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    bagTexture === tx
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.BAG_TEXTURE[tx]}
                 </button>
               ))}
             </div>

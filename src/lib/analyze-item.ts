@@ -19,6 +19,7 @@ import type {
   BeltStyle,
   MetalFinish,
   BagSize,
+  BagTexture,
   DressSilhouette,
   ToeShape,
   Neckline,
@@ -54,6 +55,7 @@ export type AutoFillResult = {
   belt_style?: BeltStyle;
   metal_finish?: MetalFinish;
   bag_size?: BagSize;
+  bag_texture?: BagTexture;
   dress_silhouette?: DressSilhouette;
   toe_shape?: ToeShape;
   warmth_rating?: number;

@@ -229,6 +229,17 @@ export const BAG_SIZES = [
   "tote",
 ] as const;
 
+export const BAG_TEXTURES = [
+  "smooth",
+  "woven",
+  "quilted",
+  "pebbled",
+  "croc-embossed",
+  "snake-embossed",
+  "fringed",
+  "other",
+] as const;
+
 export const DRESS_SILHOUETTES = [
   "a-line",
   "sheath",

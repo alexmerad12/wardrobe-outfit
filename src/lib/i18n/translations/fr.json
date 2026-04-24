@@ -443,6 +443,16 @@
     "large": "Grand",
     "tote": "Cabas"
   },
+  "bagTexture": {
+    "smooth": "Lisse",
+    "woven": "Tressé",
+    "quilted": "Matelassé",
+    "pebbled": "Grainé",
+    "croc-embossed": "Effet croco",
+    "snake-embossed": "Effet python",
+    "fringed": "À franges",
+    "other": "Autre"
+  },
   "dressSilhouette": {
     "a-line": "Ligne A",
     "sheath": "Fourreau",
@@ -724,6 +734,7 @@
     "beltStyle": "Style de ceinture",
     "metalFinish": "Finition métal",
     "bagSize": "Taille du sac",
+    "bagTexture": "Texture du sac",
     "dressSilhouette": "Silhouette de la robe",
     "toeShape": "Forme du bout",
     "neckline": "Col / Encolure",

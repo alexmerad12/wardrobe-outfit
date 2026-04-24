@@ -25,6 +25,7 @@ import type {
   BeltStyle,
   MetalFinish,
   BagSize,
+  BagTexture,
   DressSilhouette,
   ToeShape,
   Formality,
@@ -117,6 +118,7 @@ export default function ItemDetailPage() {
   const [editBeltPosition, setEditBeltPosition] = useState<BeltPosition>("waist");
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editBagSize, setEditBagSize] = useState<BagSize | null>(null);
+  const [editBagTexture, setEditBagTexture] = useState<BagTexture | null>(null);
   const [editDressSilhouette, setEditDressSilhouette] = useState<DressSilhouette | null>(null);
   const [editToeShape, setEditToeShape] = useState<ToeShape | null>(null);
   const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
@@ -270,6 +272,7 @@ export default function ItemDetailPage() {
     setEditBeltPosition(item.belt_position ?? "waist");
     setEditMetalFinish(item.metal_finish ?? null);
     setEditBagSize(item.bag_size ?? null);
+    setEditBagTexture(item.bag_texture ?? null);
     setEditDressSilhouette(item.dress_silhouette ?? null);
     setEditToeShape(item.toe_shape ?? null);
     setEditNeckline(item.neckline ?? null);
@@ -381,6 +384,7 @@ export default function ItemDetailPage() {
           belt_style: editShowBeltPosition ? editBeltStyle : null,
           metal_finish: editShowMetalFinish ? editMetalFinish : null,
           bag_size: editCategory === "bag" ? editBagSize : null,
+          bag_texture: editCategory === "bag" ? editBagTexture : null,
           dress_silhouette: editCategory === "dress" ? editDressSilhouette : null,
           toe_shape: editCategory === "shoes" ? editToeShape : null,
           neckline: editShowNeckline ? editNeckline : null,
@@ -952,6 +956,18 @@ export default function ItemDetailPage() {
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.BAG_SIZE) as BagSize[]).map((b) => (
                   <button key={b} type="button" onClick={() => setEditBagSize(editBagSize === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagSize === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_SIZE[b]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bag Texture - only for bags */}
+          {editCategory === "bag" && (
+            <div className="space-y-1">
+              <Label>{t("addItem.bagTexture")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.BAG_TEXTURE) as BagTexture[]).map((tx) => (
+                  <button key={tx} type="button" onClick={() => setEditBagTexture(editBagTexture === tx ? null : tx)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagTexture === tx ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_TEXTURE[tx]}</button>
                 ))}
               </div>
             </div>

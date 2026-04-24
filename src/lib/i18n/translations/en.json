@@ -438,6 +438,16 @@
     "large": "Large",
     "tote": "Tote"
   },
+  "bagTexture": {
+    "smooth": "Smooth",
+    "woven": "Woven",
+    "quilted": "Quilted",
+    "pebbled": "Pebbled",
+    "croc-embossed": "Croc-embossed",
+    "snake-embossed": "Snake-embossed",
+    "fringed": "Fringed",
+    "other": "Other"
+  },
   "dressSilhouette": {
     "a-line": "A-Line",
     "sheath": "Sheath",
@@ -719,6 +729,7 @@
     "beltStyle": "Belt Style",
     "metalFinish": "Metal Finish",
     "bagSize": "Bag Size",
+    "bagTexture": "Bag Texture",
     "dressSilhouette": "Dress Silhouette",
     "toeShape": "Toe Shape",
     "neckline": "Neckline",

@@ -54,6 +54,16 @@ export type MetalFinish = "silver" | "gold" | "rose-gold" | "chrome" | "matte-si
 
 export type BagSize = "clutch" | "small" | "medium" | "large" | "tote";
 
+export type BagTexture =
+  | "smooth"
+  | "woven"
+  | "quilted"
+  | "pebbled"
+  | "croc-embossed"
+  | "snake-embossed"
+  | "fringed"
+  | "other";
+
 export type DressSilhouette =
   | "a-line"
   | "sheath"
@@ -141,6 +151,7 @@ export interface ClothingItem {
   belt_style: BeltStyle | null;
   metal_finish: MetalFinish | null;
   bag_size: BagSize | null;
+  bag_texture: BagTexture | null;
   dress_silhouette: DressSilhouette | null;
   toe_shape: ToeShape | null;
   formality: Formality | Formality[];
@@ -413,6 +424,17 @@ export const BAG_SIZE_LABELS: Record<BagSize, string> = {
   medium: "Medium",
   large: "Large",
   tote: "Tote",
+};
+
+export const BAG_TEXTURE_LABELS: Record<BagTexture, string> = {
+  smooth: "Smooth",
+  woven: "Woven",
+  quilted: "Quilted",
+  pebbled: "Pebbled",
+  "croc-embossed": "Croc-embossed",
+  "snake-embossed": "Snake-embossed",
+  fringed: "Fringed",
+  other: "Other",
 };
 
 // Silhouette = the overall shape / cut of a dress. Used by the outfit
