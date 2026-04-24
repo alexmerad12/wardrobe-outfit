@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check, ChevronDown } from "lucide-react";
+import { orderOutfitItems } from "@/lib/outfit-order";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
@@ -43,14 +44,18 @@ export default function FavoritesPage() {
 
         const outfitData = outfitRes.ok ? ((await outfitRes.json()) as Outfit[]) : [];
 
-        // Only show favorited outfits, resolve items
+        // Only show favorited outfits, resolve items, and apply the
+        // canonical head-to-toe display order so favorites read the
+        // same as Suggest results and today/recent on the home page.
         const resolved = outfitData
           .filter((o) => o.is_favorite)
           .map((outfit) => ({
             ...outfit,
-            items: outfit.item_ids
-              .map((id) => items.find((item) => item.id === id))
-              .filter(Boolean) as ClothingItem[],
+            items: orderOutfitItems(
+              outfit.item_ids
+                .map((id) => items.find((item) => item.id === id))
+                .filter(Boolean) as ClothingItem[]
+            ),
           }));
 
         setOutfits(resolved);

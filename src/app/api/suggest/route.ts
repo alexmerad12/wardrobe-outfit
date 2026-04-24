@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
+import { orderOutfitItems } from "@/lib/outfit-order";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
@@ -786,7 +787,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
 
-      const outfitItems = stripped;
+      // Apply the canonical display order so every consumer of this
+      // suggestion sees items head-to-toe (top, bottom, outerwear,
+      // shoes, bag, accessories).
+      const outfitItems = orderOutfitItems(stripped);
 
       // Hybrid text: prefer the AI's one-sentence prose; fall back to the
       // server template ONLY when the AI slips a hallucinated category

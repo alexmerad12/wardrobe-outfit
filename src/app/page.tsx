@@ -12,6 +12,7 @@ import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { MOOD_ICONS } from "@/lib/mood-icons";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
+import { orderOutfitItems } from "@/lib/outfit-order";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
@@ -56,9 +57,11 @@ export default function HomePage() {
           if (today) {
             setTodayOutfit(today);
             setTodayItems(
-              today.item_ids
-                .map((id: string) => allItems.find((i) => i.id === id))
-                .filter(Boolean) as ClothingItem[]
+              orderOutfitItems(
+                today.item_ids
+                  .map((id: string) => allItems.find((i) => i.id === id))
+                  .filter(Boolean) as ClothingItem[]
+              )
             );
           }
 
@@ -66,9 +69,11 @@ export default function HomePage() {
             setRecentOutfits(
               recent.map((r: TodayOutfit) => ({
                 ...r,
-                items: r.item_ids
-                  .map((id) => allItems.find((i) => i.id === id))
-                  .filter(Boolean) as ClothingItem[],
+                items: orderOutfitItems(
+                  r.item_ids
+                    .map((id) => allItems.find((i) => i.id === id))
+                    .filter(Boolean) as ClothingItem[]
+                ),
               }))
             );
           }
