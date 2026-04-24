@@ -69,10 +69,14 @@ export default function FavoritesPage() {
   }, []);
 
   async function wearFavoriteToday(outfit: Outfit) {
+    // Pass outfit_id so the wear log links back to this favorite —
+    // without it the profile's wear count can't match the log entry
+    // to any outfit row.
     await fetch("/api/today", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        outfit_id: outfit.id,
         item_ids: outfit.item_ids,
         name: outfit.name,
         reasoning: outfit.ai_reasoning,

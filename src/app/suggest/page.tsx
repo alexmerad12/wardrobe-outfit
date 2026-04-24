@@ -135,11 +135,11 @@ function SuggestContent() {
   async function wearToday(suggestion: AISuggestion) {
     setSaving(true);
     try {
-      // Persist the outfit so the wear log can reference it, but don't
-      // auto-favorite — wearing an outfit for the day and loving it enough
-      // to keep it are separate actions (the user can still tap the heart
-      // to favorite if they want).
-      await fetch("/api/outfits", {
+      // Persist the outfit first, then pass its id into the today
+      // endpoint so the outfit_log entry references the real outfit
+      // row. Without this link the profile's "AI outfits worn" count
+      // stays at 0 — the log's outfit_id doesn't match any outfit.
+      const outfitRes = await fetch("/api/outfits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,12 +158,17 @@ function SuggestContent() {
           source: "ai",
         }),
       });
+      const savedOutfit = outfitRes.ok
+        ? ((await outfitRes.json()) as { id?: string })
+        : null;
 
-      // Set as today's outfit
+      // Set as today's outfit — pass outfit_id so the wear log links
+      // back to the outfit we just created.
       await fetch("/api/today", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          outfit_id: savedOutfit?.id,
           item_ids: suggestion.items.map((i) => i.id),
           name: suggestion.name,
           reasoning: suggestion.reasoning,

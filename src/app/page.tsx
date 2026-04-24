@@ -101,6 +101,10 @@ export default function HomePage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        // Link the new wear log entry to the same outfit row this
+        // recent entry came from — otherwise the profile wear count
+        // can't match the log back to any outfit.
+        outfit_id: outfit.outfit_id,
         item_ids: outfit.item_ids,
         name: outfit.name,
         reasoning: outfit.reasoning,
