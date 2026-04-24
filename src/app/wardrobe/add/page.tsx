@@ -24,6 +24,7 @@ import type {
   MetalFinish,
   BagSize,
   BagTexture,
+  SunglassesStyle,
   DressSilhouette,
   ToeShape,
   Neckline,
@@ -93,6 +94,7 @@ export default function AddItemPage() {
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [bagSize, setBagSize] = useState<BagSize | null>(null);
   const [bagTexture, setBagTexture] = useState<BagTexture | null>(null);
+  const [sunglassesStyle, setSunglassesStyle] = useState<SunglassesStyle | null>(null);
   const [dressSilhouette, setDressSilhouette] = useState<DressSilhouette | null>(null);
   const [toeShape, setToeShape] = useState<ToeShape | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
@@ -211,6 +213,7 @@ export default function AddItemPage() {
     if (r.metal_finish) setMetalFinish(r.metal_finish);
     if (r.bag_size) setBagSize(r.bag_size);
     if (r.bag_texture) setBagTexture(r.bag_texture);
+    if (r.sunglasses_style) setSunglassesStyle(r.sunglasses_style);
     if (r.dress_silhouette) setDressSilhouette(r.dress_silhouette);
     if (r.toe_shape) setToeShape(r.toe_shape);
     if (r.formality?.length) setFormalities(r.formality);
@@ -271,7 +274,16 @@ export default function AddItemPage() {
   const showPantsLength =
     category === "bottom" &&
     ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
-  const showWaistStyle = ["top", "bottom", "dress", "one-piece", "outerwear"].includes(category as string);
+  // Waist style: where it actually means something. On tops only on
+  // shirt/blouse (peplum, fitted, elastic-waist blouse). On outerwear
+  // only on belted-style coats (trench, peacoat). Bottoms / dresses /
+  // jumpsuit always have a meaningful waist.
+  const showWaistStyle =
+    category === "bottom" ||
+    category === "dress" ||
+    (category === "top" && ["shirt", "blouse"].includes(subcategory)) ||
+    (category === "one-piece" && subcategory === "jumpsuit") ||
+    (category === "outerwear" && ["trench-coat", "peacoat"].includes(subcategory));
   const showWaistHeight = category === "bottom" && isJeansTrousers;
   // Waist Closure: for all pants (jeans, trousers, leggings, sweatpants)
   const showWaistClosure =
@@ -285,13 +297,28 @@ export default function AddItemPage() {
     category === "outerwear";
   const showLayeringPiece = category === "top" || category === "outerwear";
   const showShoeFields = category === "shoes";
+  // Shoe height (low / ankle / mid / knee / over-knee) only varies on
+  // boots — every other shoe type is "low" by definition.
+  const showShoeHeight =
+    category === "shoes" &&
+    ["boots", "combat-boots", "western-boots", "chelsea-boots", "ankle-boots", "knee-boots"].includes(subcategory);
   const showBeltPosition = category === "accessory" && subcategory === "belt";
   const showWarmth =
     !!category &&
     category !== "bag" &&
     (category !== "accessory" || subcategory === "scarf");
+  // Metal finish: shoes (buckles / zippers) + belt / jewelry / watch.
+  // Hide on hat, sunglasses, scarf where hardware isn't a styling driver.
   const showMetalFinish =
-    !!category && ["shoes", "accessory"].includes(category) && subcategory !== "scarf";
+    category === "shoes" ||
+    (category === "accessory" && ["belt", "jewelry", "watch"].includes(subcategory));
+  // Material: hide on sunglasses / jewelry / watch where it's ambiguous
+  // (frame vs lens vs strap vs case) and not stylistically meaningful.
+  const showMaterial = !(
+    category === "accessory" && ["sunglasses", "jewelry", "watch"].includes(subcategory)
+  );
+  // Sunglasses style — aviator / wayfarer / cat-eye / etc.
+  const showSunglassesStyle = category === "accessory" && subcategory === "sunglasses";
   // Neckline: hide for hoodies (hooded), cardigans (open front), and
   // overalls (the bib isn't a neckline — it's the underneath top that
   // determines the visual neckline).
@@ -540,7 +567,7 @@ export default function AddItemPage() {
           dominant_color_hsl,
           is_neutral: isNeutralColor(dominantHex),
           pattern: patterns,
-          material: materials,
+          material: showMaterial ? materials : [],
           fit: showGenericFit ? fit : null,
           bottom_fit: showBottomFit ? bottomFit : null,
           length: showLength ? length : null,
@@ -550,7 +577,7 @@ export default function AddItemPage() {
           waist_closure: showWaistClosure ? waistClosure : null,
           belt_compatible: beltCompatible,
           is_layering_piece: isLayeringPiece,
-          shoe_height: showShoeFields ? shoeHeight : null,
+          shoe_height: showShoeHeight ? shoeHeight : null,
           heel_type: showShoeFields ? heelType : null,
           shoe_closure: showShoeFields ? shoeClosure : null,
           belt_position: showBeltPosition ? beltPosition : null,
@@ -561,6 +588,7 @@ export default function AddItemPage() {
           metal_finish: showMetalFinish ? metalFinish : null,
           bag_size: category === "bag" ? bagSize : null,
           bag_texture: category === "bag" ? bagTexture : null,
+          sunglasses_style: showSunglassesStyle ? sunglassesStyle : null,
           dress_silhouette: category === "dress" ? dressSilhouette : null,
           toe_shape: category === "shoes" ? toeShape : null,
           formality: formalities,
@@ -1208,8 +1236,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Shoe Height - shoes only */}
-        {category && showShoeFields && (
+        {/* Shoe Height - boots only */}
+        {showShoeHeight && (
           <div className="space-y-2">
             <Label>{t("addItem.shoeHeight")}</Label>
             <div className="grid grid-cols-3 gap-2">
@@ -1376,6 +1404,30 @@ export default function AddItemPage() {
           </div>
         )}
 
+        {/* Sunglasses Style - only for sunglasses */}
+        {showSunglassesStyle && (
+          <div className="space-y-2">
+            <Label>{t("addItem.sunglassesStyle")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.SUNGLASSES_STYLE) as SunglassesStyle[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSunglassesStyle(sunglassesStyle === s ? null : s)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    sunglassesStyle === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.SUNGLASSES_STYLE[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Dress Silhouette - only for dresses */}
         {category === "dress" && (
           <div className="space-y-2">
@@ -1425,6 +1477,7 @@ export default function AddItemPage() {
         )}
 
         {/* Material */}
+        {showMaterial && (
         <div className="space-y-2">
           <Label>{t("addItem.materialSelect")}</Label>
           <div className="flex flex-wrap gap-2">
@@ -1445,6 +1498,7 @@ export default function AddItemPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Pattern */}
         <div className="space-y-2">

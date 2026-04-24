@@ -16,6 +16,7 @@ import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { getLocalDateString } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { useScrollDirection } from "@/lib/use-scroll-direction";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ export default function FavoritesPage() {
   const unit = useTemperatureUnit();
   const { t } = useLocale();
   const router = useRouter();
+  const scrollDir = useScrollDirection();
 
   useEffect(() => {
     async function fetchFavorites() {
@@ -198,9 +200,15 @@ export default function FavoritesPage() {
         )}
       </div>
 
-      {/* Occasion filter tabs */}
+      {/* Occasion filter tabs — sticky strip that hides on scroll-down
+          and slides back into view on scroll-up. */}
       {!loading && outfits.length > 0 && (
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div
+          className={cn(
+            "sticky top-[92px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+            scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
+          )}
+        >
           {(
             [
               { key: "all", label: t("category.all") },

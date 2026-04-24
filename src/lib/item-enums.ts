@@ -240,6 +240,18 @@ export const BAG_TEXTURES = [
   "other",
 ] as const;
 
+export const SUNGLASSES_STYLES = [
+  "aviator",
+  "wayfarer",
+  "cat-eye",
+  "round",
+  "oversized",
+  "rectangle",
+  "sport",
+  "shield",
+  "other",
+] as const;
+
 export const DRESS_SILHOUETTES = [
   "a-line",
   "sheath",

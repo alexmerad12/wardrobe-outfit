@@ -35,6 +35,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { useScrollDirection } from "@/lib/use-scroll-direction";
 import { cn } from "@/lib/utils";
 import {
   MAX_BATCH,
@@ -92,6 +93,7 @@ function WardrobePageInner() {
   // the page mounts on a non-default category (e.g. returning from an
   // item detail on the Shoes tab).
   const activeCategoryRef = useRef<HTMLButtonElement | null>(null);
+  const scrollDir = useScrollDirection();
 
   const {
     items: pending,
@@ -477,8 +479,15 @@ function WardrobePageInner() {
         </div>
       )}
 
-      {/* Category filters */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+      {/* Category filters — sticky strip that hides on scroll-down
+          and slides back into view on scroll-up so users can switch
+          tabs without scrolling all the way to the top. */}
+      <div
+        className={cn(
+          "sticky top-[92px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+          scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
+        )}
+      >
         {ALL_CATEGORIES.map((cat) => (
           <button
             key={cat}

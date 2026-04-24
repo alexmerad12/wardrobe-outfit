@@ -453,6 +453,17 @@
     "fringed": "À franges",
     "other": "Autre"
   },
+  "sunglassesStyle": {
+    "aviator": "Aviateur",
+    "wayfarer": "Wayfarer",
+    "cat-eye": "Œil de chat",
+    "round": "Ronde",
+    "oversized": "Oversize",
+    "rectangle": "Rectangulaire",
+    "sport": "Sport",
+    "shield": "Masque",
+    "other": "Autre"
+  },
   "dressSilhouette": {
     "a-line": "Ligne A",
     "sheath": "Fourreau",
@@ -735,6 +746,7 @@
     "metalFinish": "Finition métal",
     "bagSize": "Taille du sac",
     "bagTexture": "Texture du sac",
+    "sunglassesStyle": "Style de lunettes",
     "dressSilhouette": "Silhouette de la robe",
     "toeShape": "Forme du bout",
     "neckline": "Col / Encolure",

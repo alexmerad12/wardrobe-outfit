@@ -448,6 +448,17 @@
     "fringed": "Fringed",
     "other": "Other"
   },
+  "sunglassesStyle": {
+    "aviator": "Aviator",
+    "wayfarer": "Wayfarer",
+    "cat-eye": "Cat-eye",
+    "round": "Round",
+    "oversized": "Oversized",
+    "rectangle": "Rectangle",
+    "sport": "Sport",
+    "shield": "Shield",
+    "other": "Other"
+  },
   "dressSilhouette": {
     "a-line": "A-Line",
     "sheath": "Sheath",
@@ -730,6 +741,7 @@
     "metalFinish": "Metal Finish",
     "bagSize": "Bag Size",
     "bagTexture": "Bag Texture",
+    "sunglassesStyle": "Sunglasses Style",
     "dressSilhouette": "Dress Silhouette",
     "toeShape": "Toe Shape",
     "neckline": "Neckline",

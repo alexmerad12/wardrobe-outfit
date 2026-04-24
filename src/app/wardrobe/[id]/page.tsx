@@ -26,6 +26,7 @@ import type {
   MetalFinish,
   BagSize,
   BagTexture,
+  SunglassesStyle,
   DressSilhouette,
   ToeShape,
   Formality,
@@ -119,6 +120,7 @@ export default function ItemDetailPage() {
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editBagSize, setEditBagSize] = useState<BagSize | null>(null);
   const [editBagTexture, setEditBagTexture] = useState<BagTexture | null>(null);
+  const [editSunglassesStyle, setEditSunglassesStyle] = useState<SunglassesStyle | null>(null);
   const [editDressSilhouette, setEditDressSilhouette] = useState<DressSilhouette | null>(null);
   const [editToeShape, setEditToeShape] = useState<ToeShape | null>(null);
   const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
@@ -273,6 +275,7 @@ export default function ItemDetailPage() {
     setEditMetalFinish(item.metal_finish ?? null);
     setEditBagSize(item.bag_size ?? null);
     setEditBagTexture(item.bag_texture ?? null);
+    setEditSunglassesStyle(item.sunglasses_style ?? null);
     setEditDressSilhouette(item.dress_silhouette ?? null);
     setEditToeShape(item.toe_shape ?? null);
     setEditNeckline(item.neckline ?? null);
@@ -325,7 +328,12 @@ export default function ItemDetailPage() {
     (editCategory === "one-piece" && editSubcategory !== "overalls") ||
     editCategory === "outerwear" ||
     (editCategory === "top" && ["shirt", "blouse", "cardigan", "hoodie"].includes(editSubcategory));
-  const editShowWaistStyle = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
+  const editShowWaistStyle =
+    editCategory === "bottom" ||
+    editCategory === "dress" ||
+    (editCategory === "top" && ["shirt", "blouse"].includes(editSubcategory)) ||
+    (editCategory === "one-piece" && editSubcategory === "jumpsuit") ||
+    (editCategory === "outerwear" && ["trench-coat", "peacoat"].includes(editSubcategory));
   const editShowWaistHeight = editCategory === "bottom" && editIsJeansTrousers;
   const editShowWaistClosure =
     editCategory === "bottom" &&
@@ -333,13 +341,21 @@ export default function ItemDetailPage() {
   const editShowBeltCompatible = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowLayeringPiece = editCategory === "top" || editCategory === "outerwear";
   const editShowShoeFields = editCategory === "shoes";
+  const editShowShoeHeight =
+    editCategory === "shoes" &&
+    ["boots", "combat-boots", "western-boots", "chelsea-boots", "ankle-boots", "knee-boots"].includes(editSubcategory);
   const editShowBeltPosition = editCategory === "accessory" && editSubcategory === "belt";
   const editShowWarmth =
     !!editCategory &&
     editCategory !== "bag" &&
     (editCategory !== "accessory" || editSubcategory === "scarf");
   const editShowMetalFinish =
-    ["shoes", "accessory"].includes(editCategory) && editSubcategory !== "scarf";
+    editCategory === "shoes" ||
+    (editCategory === "accessory" && ["belt", "jewelry", "watch"].includes(editSubcategory));
+  const editShowMaterial = !(
+    editCategory === "accessory" && ["sunglasses", "jewelry", "watch"].includes(editSubcategory)
+  );
+  const editShowSunglassesStyle = editCategory === "accessory" && editSubcategory === "sunglasses";
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -379,7 +395,7 @@ export default function ItemDetailPage() {
           waist_closure: editShowWaistClosure ? editWaistClosure : null,
           belt_compatible: editBeltCompatible,
           is_layering_piece: editLayering,
-          shoe_height: editShowShoeFields ? editShoeHeight : null,
+          shoe_height: editShowShoeHeight ? editShoeHeight : null,
           heel_type: editShowShoeFields ? editHeelType : null,
           shoe_closure: editShowShoeFields ? editShoeClosure : null,
           belt_position: editShowBeltPosition ? editBeltPosition : null,
@@ -387,13 +403,14 @@ export default function ItemDetailPage() {
           metal_finish: editShowMetalFinish ? editMetalFinish : null,
           bag_size: editCategory === "bag" ? editBagSize : null,
           bag_texture: editCategory === "bag" ? editBagTexture : null,
+          sunglasses_style: editShowSunglassesStyle ? editSunglassesStyle : null,
           dress_silhouette: editCategory === "dress" ? editDressSilhouette : null,
           toe_shape: editCategory === "shoes" ? editToeShape : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
           closure: editShowClosure ? editClosure : null,
           pattern: editPatterns,
-          material: editMaterials,
+          material: editShowMaterial ? editMaterials : [],
           formality: editFormalities,
           seasons: editSeasons,
           occasions: editOccasions,
@@ -879,8 +896,8 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Shoe Height - shoes only */}
-          {editShowShoeFields && (
+          {/* Shoe Height - boots only */}
+          {editShowShoeHeight && (
             <div className="space-y-1">
               <Label>{t("addItem.shoeHeight")}</Label>
               <div className="grid grid-cols-3 gap-2">
@@ -975,6 +992,18 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Sunglasses Style - only for sunglasses */}
+          {editShowSunglassesStyle && (
+            <div className="space-y-1">
+              <Label>{t("addItem.sunglassesStyle")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.SUNGLASSES_STYLE) as SunglassesStyle[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditSunglassesStyle(editSunglassesStyle === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSunglassesStyle === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SUNGLASSES_STYLE[s]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Dress Silhouette - only for dresses */}
           {editCategory === "dress" && (
             <div className="space-y-1">
@@ -1036,14 +1065,16 @@ export default function ItemDetailPage() {
           )}
 
           {/* Material */}
-          <div className="space-y-1">
-            <Label>{t("addItem.materialSelect")}</Label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(labels.MATERIAL) as Material[]).map((m) => (
-                <button key={m} type="button" onClick={() => setEditMaterials(toggleArr(editMaterials, m))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMaterials.includes(m) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.MATERIAL[m]}</button>
-              ))}
+          {editShowMaterial && (
+            <div className="space-y-1">
+              <Label>{t("addItem.materialSelect")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.MATERIAL) as Material[]).map((m) => (
+                  <button key={m} type="button" onClick={() => setEditMaterials(toggleArr(editMaterials, m))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMaterials.includes(m) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.MATERIAL[m]}</button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Pattern */}
           <div className="space-y-1">

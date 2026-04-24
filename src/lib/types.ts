@@ -64,6 +64,17 @@ export type BagTexture =
   | "fringed"
   | "other";
 
+export type SunglassesStyle =
+  | "aviator"
+  | "wayfarer"
+  | "cat-eye"
+  | "round"
+  | "oversized"
+  | "rectangle"
+  | "sport"
+  | "shield"
+  | "other";
+
 export type DressSilhouette =
   | "a-line"
   | "sheath"
@@ -152,6 +163,7 @@ export interface ClothingItem {
   metal_finish: MetalFinish | null;
   bag_size: BagSize | null;
   bag_texture: BagTexture | null;
+  sunglasses_style: SunglassesStyle | null;
   dress_silhouette: DressSilhouette | null;
   toe_shape: ToeShape | null;
   formality: Formality | Formality[];
@@ -434,6 +446,18 @@ export const BAG_TEXTURE_LABELS: Record<BagTexture, string> = {
   "croc-embossed": "Croc-embossed",
   "snake-embossed": "Snake-embossed",
   fringed: "Fringed",
+  other: "Other",
+};
+
+export const SUNGLASSES_STYLE_LABELS: Record<SunglassesStyle, string> = {
+  aviator: "Aviator",
+  wayfarer: "Wayfarer",
+  "cat-eye": "Cat-eye",
+  round: "Round",
+  oversized: "Oversized",
+  rectangle: "Rectangle",
+  sport: "Sport",
+  shield: "Shield",
   other: "Other",
 };
 
