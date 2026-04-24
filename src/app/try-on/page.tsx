@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -46,6 +46,20 @@ export default function TryOnPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TryOnResult | null>(null);
+  const [analyzingStep, setAnalyzingStep] = useState(0);
+
+  // Cycle through three status messages while analyzing so the 15-20s
+  // wait doesn't feel frozen on a single "Analyzing..." label.
+  useEffect(() => {
+    if (!analyzing) {
+      setAnalyzingStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setAnalyzingStep((s) => (s + 1) % 3);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [analyzing]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -162,7 +176,13 @@ export default function TryOnPage() {
               {analyzing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm font-medium">{t("tryOn.analyzing")}</p>
+                  <p className="text-sm font-medium transition-opacity duration-300">
+                    {analyzingStep === 0
+                      ? t("tryOn.analyzingStep1")
+                      : analyzingStep === 1
+                      ? t("tryOn.analyzingStep2")
+                      : t("tryOn.analyzingStep3")}
+                  </p>
                 </div>
               )}
             </div>

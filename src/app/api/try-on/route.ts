@@ -126,11 +126,12 @@ export async function POST(request: NextRequest) {
       .eq("is_stored", false);
     const wardrobe = (wardrobeData ?? []) as ClothingItem[];
 
-    // 3. Similar items: subcategory must match AND at least one of
-    // (pattern overlap, color overlap). Subcategory alone is too blunt —
-    // a leopard-print blouse matched plain blouses just because both
-    // were subcategory=blouse. Requiring pattern OR color overlap means
-    // a leopard top only matches other animal-print / tan-brown pieces.
+    // 3. Similar items: subcategory match is required; then require AT
+    // LEAST TWO additional attribute matches from (pattern, color,
+    // neckline, sleeve length). One attribute alone is too loose — a
+    // leopard blouse and a plain one-shoulder blouse share a color
+    // (e.g. black) but are visually different. Two attributes converge
+    // on genuine visual similarity.
     const phantomColors = (attrs.colors ?? []).map((c) => ({
       hex: c.hex,
       name: c.name,
@@ -140,6 +141,8 @@ export async function POST(request: NextRequest) {
       : attrs.pattern
       ? [attrs.pattern]
       : [];
+    const phantomNeckline = attrs.neckline ?? null;
+    const phantomSleeve = attrs.sleeve_length ?? null;
     const patternsOverlap = (a: string[], b: string[]): boolean => {
       if (a.length === 0 || b.length === 0) return false;
       const setA = new Set(a);
@@ -158,9 +161,17 @@ export async function POST(request: NextRequest) {
           : [item.pattern];
         const patternMatch = patternsOverlap(phantomPatterns, itemPatterns) ? 1 : 0;
         const colorMatch = colorsOverlap(phantomColors, item.colors) ? 1 : 0;
-        return { item, score: patternMatch + colorMatch };
+        const necklineMatch =
+          phantomNeckline && item.neckline && phantomNeckline === item.neckline
+            ? 1
+            : 0;
+        const sleeveMatch =
+          phantomSleeve && item.sleeve_length && phantomSleeve === item.sleeve_length
+            ? 1
+            : 0;
+        return { item, score: patternMatch + colorMatch + necklineMatch + sleeveMatch };
       })
-      .filter((x) => x.score > 0)
+      .filter((x) => x.score >= 2)
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
       .map((x) => x.item);
