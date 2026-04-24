@@ -159,13 +159,13 @@ export default function TryOnPage() {
                 sizes="400px"
                 unoptimized
               />
+              {analyzing && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm font-medium">{t("tryOn.analyzing")}</p>
+                </div>
+              )}
             </div>
-            {analyzing && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("tryOn.analyzing")}
-              </div>
-            )}
           </CardContent>
         </Card>
       )}

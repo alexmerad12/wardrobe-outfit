@@ -126,18 +126,24 @@ export async function POST(request: NextRequest) {
       .eq("is_stored", false);
     const wardrobe = (wardrobeData ?? []) as ClothingItem[];
 
-    // 3. Similar items: same category; rank by color overlap + subcategory match.
+    // 3. Similar items: require SUBCATEGORY match — not just category. A
+    // sleeveless vest shouldn't show up as similar to a long-sleeve jacket
+    // just because both are "outerwear". Color overlap still boosts
+    // ranking but never substitutes for a subcategory match.
     const phantomColors = (attrs.colors ?? []).map((c) => ({
       hex: c.hex,
       name: c.name,
     }));
     const similarItems = wardrobe
-      .filter((item) => item.category === attrs.category)
+      .filter(
+        (item) =>
+          item.category === attrs.category &&
+          !!attrs.subcategory &&
+          item.subcategory === attrs.subcategory
+      )
       .map((item) => {
-        const subMatch =
-          attrs.subcategory && item.subcategory === attrs.subcategory ? 1 : 0;
         const colorMatch = colorsOverlap(phantomColors, item.colors) ? 1 : 0;
-        return { item, score: subMatch * 2 + colorMatch };
+        return { item, score: colorMatch };
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
