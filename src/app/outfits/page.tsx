@@ -184,14 +184,13 @@ export default function FavoritesPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1.5"
+                  aria-label={t("wardrobe.select")}
                   onClick={() => {
                     setSelectMode(true);
                     setExpandedId(null);
                   }}
                 >
                   <CheckSquare className="h-4 w-4" />
-                  {t("wardrobe.select")}
                 </Button>
               )}
             </div>
