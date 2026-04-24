@@ -359,11 +359,10 @@ function WardrobePageInner() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1.5"
+                  aria-label={t("wardrobe.select")}
                   onClick={() => setSelectMode(true)}
                 >
                   <CheckSquare className="h-4 w-4" />
-                  {t("wardrobe.select")}
                 </Button>
               )}
               <DropdownMenu>
