@@ -27,6 +27,8 @@ import {
   CheckSquare,
   Combine,
   Archive,
+  Camera,
+  ImageIcon,
   Search,
   Sparkles,
   Loader2,
@@ -35,6 +37,7 @@ import {
 import { useLocale } from "@/lib/i18n/use-locale";
 import { cn } from "@/lib/utils";
 import {
+  MAX_BATCH,
   usePendingUploads,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
@@ -92,12 +95,34 @@ function WardrobePageInner() {
 
   const {
     items: pending,
+    addFiles,
     retry,
     dismiss,
     dismissAllFailed,
     clearReady,
     onItemSaved,
   } = usePendingUploads();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
+
+  // Unified picker handler — routes by photo count so the UX matches
+  // intent without asking: a single photo goes to the review screen
+  // where the user can edit AI-pre-filled attributes; multiple photos
+  // go to the bulk grid where they can tap any tile to tweak.
+  function handlePickedFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const result = addFiles(files);
+    if (result.rejected > 0) {
+      alert(
+        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
+      );
+    }
+    if (result.accepted > 0) {
+      router.push("/wardrobe/bulk");
+    }
+    e.target.value = "";
+  }
 
   const refetchItems = useCallback(async () => {
     try {
@@ -370,24 +395,18 @@ function WardrobePageInner() {
                 />
                 <DropdownMenuContent align="end" className="w-72">
                   <DropdownMenuItem
-                    onClick={() => router.push("/wardrobe/bulk")}
-                    className="gap-2 items-start py-2.5"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="gap-2"
                   >
-                    <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{t("wardrobe.addInBulk")}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{t("wardrobe.addInBulkHint")}</p>
-                    </div>
+                    <Camera className="h-4 w-4" />
+                    {t("wardrobe.takePhoto")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => router.push("/wardrobe/add")}
-                    className="gap-2 items-start py-2.5"
+                    onClick={() => libraryInputRef.current?.click()}
+                    className="gap-2"
                   >
-                    <Plus className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{t("wardrobe.addManually")}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{t("wardrobe.addManuallyHint")}</p>
-                    </div>
+                    <ImageIcon className="h-4 w-4" />
+                    {t("wardrobe.chooseFromLibrary")}
                   </DropdownMenuItem>
                   {/* Photo tips — keep this tight. Users read it once,
                       skim it forever; a wall of text hurts more than
@@ -408,6 +427,26 @@ function WardrobePageInner() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {/* Hidden file inputs — routed by photo count: a single
+                  photo lands on the manual Add page for review/edit,
+                  multiple go to the Bulk page for grid-based batch
+                  management. Unified entry, intent inferred. */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePickedFiles}
+              />
+              <input
+                ref={libraryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handlePickedFiles}
+              />
             </>
             </div>
           </div>

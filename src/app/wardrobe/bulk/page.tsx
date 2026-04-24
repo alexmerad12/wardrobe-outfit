@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,6 +20,7 @@ import {
   type PendingItem,
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
+import { preloadBgRemoval } from "@/lib/bg-removal";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 export default function BulkUploadPage() {
@@ -28,6 +29,13 @@ export default function BulkUploadPage() {
   const { items, addFiles, retry, dismiss } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
+
+  // Kick off the imgly WASM download as soon as the user lands here —
+  // without preloading, the first item's pipeline stalls for up to 10s
+  // on mobile while the ~45MB model downloads.
+  useEffect(() => {
+    void preloadBgRemoval().catch(() => {});
+  }, []);
 
   const counts = useMemo(() => {
     let ready = 0,

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { orderOutfitItems } from "@/lib/outfit-order";
 import { convertTemp } from "@/lib/temperature";
 import { getLocalDateString, getStaleBeforeTimestamp } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +36,7 @@ interface TodayOutfit {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [todayOutfit, setTodayOutfit] = useState<TodayOutfit | null>(null);
   const [todayItems, setTodayItems] = useState<ClothingItem[]>([]);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
@@ -41,6 +44,28 @@ export default function HomePage() {
   const [todayExpanded, setTodayExpanded] = useState(false);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
+  const { addFiles } = usePendingUploads();
+  const addPickerRef = useRef<HTMLInputElement>(null);
+
+  // Unified add-item picker — opens the native file picker (camera +
+  // library on mobile). Same behavior as the Wardrobe "+ Add" so users
+  // get a consistent flow from any entry point. Routes to /bulk where
+  // AI tagging runs; single-photo users can tap their one tile to
+  // review, multi-photo users get the batch grid automatically.
+  function handleAddItemPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const result = addFiles(files);
+    if (result.rejected > 0) {
+      alert(
+        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
+      );
+    }
+    if (result.accepted > 0) {
+      router.push("/wardrobe/bulk");
+    }
+    e.target.value = "";
+  }
 
   useEffect(() => {
     async function load() {
@@ -339,12 +364,23 @@ export default function HomePage() {
         </Link>
 
         <div className="grid grid-cols-3 gap-3">
-          <Link href="/wardrobe/add">
-            <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
-              <Plus className="h-4 w-4" />
-              {t("home.addItem")}
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            className="w-full h-12 gap-1 text-xs"
+            size="lg"
+            onClick={() => addPickerRef.current?.click()}
+          >
+            <Plus className="h-4 w-4" />
+            {t("home.addItem")}
+          </Button>
+          <input
+            ref={addPickerRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleAddItemPick}
+          />
           <Link href="/wardrobe">
             <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
               <Shirt className="h-4 w-4" />
