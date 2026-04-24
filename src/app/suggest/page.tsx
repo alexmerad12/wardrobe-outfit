@@ -210,7 +210,7 @@ function SuggestContent() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">{t("suggest.title")}</h1>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">{t("suggest.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {step === "results"
               ? t("suggest.suggestionCounter", { current: currentIndex + 1, total: suggestions.length })
@@ -386,9 +386,9 @@ function SuggestContent() {
 
           {/* Wardrobe gap suggestion from AI */}
           {wardrobeGap && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mt-2">
-              <p className="text-xs font-semibold text-amber-800 mb-1">{t("suggest.stylistTip")}</p>
-              <p className="text-sm text-amber-700">{wardrobeGap}</p>
+            <div className="mt-2 border-t border-b border-border py-3">
+              <p className="editorial-label mb-1.5">{t("suggest.stylistTip")}</p>
+              <p className="stylist-quote text-sm">{wardrobeGap}</p>
             </div>
           )}
         </div>

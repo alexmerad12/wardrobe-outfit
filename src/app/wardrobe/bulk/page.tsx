@@ -52,7 +52,7 @@ export default function BulkUploadPage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-medium">{t("bulk.title")}</h1>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">{t("bulk.title")}</h1>
       </div>
 
       {/* Empty state */}

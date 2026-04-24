@@ -734,6 +734,7 @@
     "occasions": "Occasions (select all that apply)",
     "warmth": "Warmth (1 = very light, 5 = heavy winter)",
     "rainAppropriate": "Rain appropriate",
+    "rainAppropriateHint": "We'll favor this piece when rain is in the forecast",
     "stored": "Pack away",
     "storedOn": "Packed away",
     "storedHint": "Hides from your wardrobe and keeps it out of suggestions",

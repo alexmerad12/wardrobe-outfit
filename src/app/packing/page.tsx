@@ -18,7 +18,6 @@ import {
   Plane,
   MapPin,
   Cloud,
-  Lightbulb,
   ChevronDown,
   ChevronUp,
   Trash2,
@@ -253,7 +252,7 @@ export default function PackingPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">
             {viewingTrip ? viewingTrip.destination : t("packing.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -317,10 +316,7 @@ export default function PackingPage() {
           )}
 
           {viewingTrip.packing_tips && (
-            <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <Lightbulb className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-amber-700">{viewingTrip.packing_tips}</p>
-            </div>
+            <p className="stylist-quote text-sm">{viewingTrip.packing_tips}</p>
           )}
 
           <Button
@@ -528,10 +524,7 @@ export default function PackingPage() {
           )}
 
           {packingTips && (
-            <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <Lightbulb className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-amber-700">{packingTips}</p>
-            </div>
+            <p className="stylist-quote text-sm">{packingTips}</p>
           )}
 
           <div className="flex gap-2">

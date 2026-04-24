@@ -42,7 +42,7 @@ export function OutfitCard({
     <Card className="overflow-hidden">
       <CardContent className="p-4">
         {name && (
-          <h3 className="font-semibold text-sm mb-3">{name}</h3>
+          <h3 className="font-heading text-lg font-medium mb-3 tracking-tight">{name}</h3>
         )}
 
         {/* Outfit items grid */}
@@ -67,15 +67,15 @@ export function OutfitCard({
         </div>
 
         {/* Styling note */}
-        <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+        <p className="stylist-quote text-sm mb-3">
           {reasoning}
         </p>
 
         {/* Stylist's how-to-wear tip — only shown when the AI provided one. */}
         {stylingTip && (
-          <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
-            <p className="text-xs text-amber-900 leading-relaxed">{stylingTip}</p>
+          <div className="mb-4 border-t border-b border-border py-2.5">
+            <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>
+            <p className="text-xs leading-relaxed">{stylingTip}</p>
           </div>
         )}
 

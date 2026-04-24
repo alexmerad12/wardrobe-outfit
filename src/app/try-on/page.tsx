@@ -107,7 +107,7 @@ export default function TryOnPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-semibold">{t("tryOn.title")}</h1>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">{t("tryOn.title")}</h1>
           <p className="text-xs text-muted-foreground">{t("tryOn.subtitle")}</p>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function TryOnPage() {
           {/* Identified item attributes */}
           <Card>
             <CardContent className="p-4 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="editorial-label">
                 {t("tryOn.identifiedAs")}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
@@ -239,7 +239,7 @@ export default function TryOnPage() {
           <Card>
             <CardContent className="p-4 space-y-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="editorial-label">
                   {t("tryOn.similarInWardrobe")}
                 </p>
                 <p className="text-sm mt-1">
@@ -282,7 +282,7 @@ export default function TryOnPage() {
           <Card>
             <CardContent className="p-4 space-y-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="editorial-label">
                   {t("tryOn.outfitsYouCouldBuild")}
                 </p>
                 <p className="text-sm mt-1">

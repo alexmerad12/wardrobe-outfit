@@ -253,20 +253,20 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-md px-4 pt-6">
-      <h1 className="text-2xl font-bold tracking-tight mb-6">{t("profile.title")}</h1>
+      <h1 className="font-heading text-3xl font-medium tracking-tight mb-6">{t("profile.title")}</h1>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold">{itemCount}</p>
-            <p className="text-sm text-muted-foreground">{t("profile.wardrobeItems")}</p>
+            <p className="font-heading text-4xl font-medium leading-tight">{itemCount}</p>
+            <p className="editorial-label mt-1">{t("profile.wardrobeItems")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold">{outfitCount}</p>
-            <p className="text-sm text-muted-foreground">{t("profile.savedOutfits")}</p>
+            <p className="font-heading text-4xl font-medium leading-tight">{outfitCount}</p>
+            <p className="editorial-label mt-1">{t("profile.savedOutfits")}</p>
           </CardContent>
         </Card>
       </div>

@@ -609,7 +609,7 @@ export default function AddItemPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-bold">{t("addItem.title")}</h1>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">{t("addItem.title")}</h1>
       </div>
 
       {/* Bulk upload shortcut — visible before user picks a photo, so the
@@ -1584,9 +1584,12 @@ export default function AddItemPage() {
                 : "border-muted-foreground/30"
             )}
           />
-          <Label className="cursor-pointer" onClick={() => setRainAppropriate(!rainAppropriate)}>
-            {t("addItem.rainAppropriate")}
-          </Label>
+          <div>
+            <Label className="cursor-pointer" onClick={() => setRainAppropriate(!rainAppropriate)}>
+              {t("addItem.rainAppropriate")}
+            </Label>
+            <p className="text-xs text-muted-foreground">{t("addItem.rainAppropriateHint")}</p>
+          </div>
         </div>
 
         {/* Brand (optional) */}

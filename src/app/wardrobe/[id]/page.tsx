@@ -479,20 +479,6 @@ export default function ItemDetailPage() {
     }
   }
 
-  async function handleRemoveBackground() {
-    // Works on either the new image or the current item image
-    const sourceUrl = newImagePreview || item?.image_url;
-    if (!sourceUrl) return;
-    try {
-      const response = await fetch(sourceUrl);
-      const imageBlob = await response.blob();
-      await runBgRemoval(imageBlob);
-    } catch (err) {
-      console.error("Background removal failed:", err);
-      setBgError("Couldn't remove the background. You can keep the original or try again.");
-    }
-  }
-
   if (loading) {
     return (
       <div className="mx-auto max-w-md px-4 pt-4">
@@ -702,30 +688,8 @@ export default function ItemDetailPage() {
         </div>
       )}
 
-      {/* Remove background button - edit mode */}
-      {editing && (
-        <div className="mb-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={handleRemoveBackground}
-            disabled={removingBg}
-          >
-            {removingBg ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("itemDetail.removingBackground")}
-              </>
-            ) : (
-              t("itemDetail.removeBackground")
-            )}
-          </Button>
-          {bgError && (
-            <p className="mt-2 text-xs text-red-600 text-center">{bgError}</p>
-          )}
-        </div>
+      {editing && bgError && (
+        <p className="mb-4 text-xs text-red-600 text-center">{bgError}</p>
       )}
 
       {editing ? (
@@ -1131,7 +1095,10 @@ export default function ItemDetailPage() {
           {/* Rain + Brand */}
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setEditRain(!editRain)} className={cn("h-5 w-5 rounded border-2 transition-colors", editRain ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-            <Label className="cursor-pointer" onClick={() => setEditRain(!editRain)}>{t("addItem.rainAppropriate")}</Label>
+            <div>
+              <Label className="cursor-pointer" onClick={() => setEditRain(!editRain)}>{t("addItem.rainAppropriate")}</Label>
+              <p className="text-xs text-muted-foreground">{t("addItem.rainAppropriateHint")}</p>
+            </div>
           </div>
 
           {/* Stored */}
@@ -1174,7 +1141,7 @@ export default function ItemDetailPage() {
         /* ==================== VIEW MODE ==================== */
         <>
           {/* Name & category */}
-          <h1 className="text-xl font-bold mb-1">{item.name}</h1>
+          <h1 className="font-heading text-2xl font-medium mb-1 tracking-tight">{item.name}</h1>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <Badge variant="secondary">{labels.CATEGORY[item.category]}</Badge>
             {item.subcategory && <Badge variant="outline">{item.subcategory}</Badge>}
@@ -1359,7 +1326,7 @@ export default function ItemDetailPage() {
             </Card>
             <Card>
               <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.formality")}</p>
+                <p className="editorial-label mb-0.5">{t("itemDetail.formality")}</p>
                 <p className="text-sm font-medium">{formalityDisplay}</p>
               </CardContent>
             </Card>
@@ -1372,8 +1339,8 @@ export default function ItemDetailPage() {
                 <CardContent className="p-3 flex items-center gap-2">
                   <Thermometer className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-muted-foreground">{t("itemDetail.warmth")}</p>
-                    <p className="text-sm font-medium">{item.warmth_rating}/5</p>
+                    <p className="editorial-label">{t("itemDetail.warmth")}</p>
+                    <p className="font-heading text-lg leading-none">{item.warmth_rating}<span className="text-muted-foreground text-sm">/5</span></p>
                   </div>
                 </CardContent>
               </Card>
@@ -1382,8 +1349,8 @@ export default function ItemDetailPage() {
               <CardContent className="p-3 flex items-center gap-2">
                 <Droplets className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-xs text-muted-foreground">{t("itemDetail.rainProof")}</p>
-                  <p className="text-sm font-medium">{item.rain_appropriate ? t("common.yes") : t("common.no")}</p>
+                  <p className="editorial-label">{t("itemDetail.rainProof")}</p>
+                  <p className="font-heading text-lg leading-none">{item.rain_appropriate ? t("common.yes") : t("common.no")}</p>
                 </div>
               </CardContent>
             </Card>

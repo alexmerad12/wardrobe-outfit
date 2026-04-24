@@ -739,6 +739,7 @@
     "occasions": "Occasions (coche toutes celles qui s'appliquent)",
     "warmth": "Chaleur (1 = très léger, 5 = gros hiver)",
     "rainAppropriate": "Adapté à la pluie",
+    "rainAppropriateHint": "On privilégiera cette pièce quand il est prévu de pleuvoir",
     "stored": "Ranger",
     "storedOn": "Rangé",
     "storedHint": "Cache cet item de ton dressing et l'exclut des suggestions",

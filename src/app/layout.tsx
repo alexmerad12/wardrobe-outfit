@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Playfair_Display } from "next/font/google";
+import { DM_Sans, Bodoni_Moda } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
 import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
@@ -10,10 +10,11 @@ const dmSans = DM_Sans({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const playfair = Playfair_Display({
+const bodoni = Bodoni_Moda({
   variable: "--font-heading",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -67,7 +68,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${playfair.variable} h-full antialiased`}
+      className={`${dmSans.variable} ${bodoni.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background font-[family-name:var(--font-sans)]">
         <PendingUploadsProvider>

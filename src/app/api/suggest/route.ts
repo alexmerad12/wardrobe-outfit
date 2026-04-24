@@ -519,8 +519,8 @@ Wardrobe gap: before suggesting one, count what the user ALREADY has per categor
 Call the propose_outfits tool with exactly 6 outfits. Per outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
-- reasoning: ONE short sentence in ${languageName} on why this look works for the mood / occasion / weather. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt).
-- styling_tip: ONE short sentence in ${languageName} with a concrete styling action (tuck, cuff, half-button, layer open, cinch). If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
+- reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (fitted + loose, long + cropped), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like Vogue, not like a bot. Skip filler like "perfect for" or "this outfit works because".
+- styling_tip: ONE short sentence in ${languageName} with a concrete styling ACTION (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar). If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
 
 wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe is covered.`;
 

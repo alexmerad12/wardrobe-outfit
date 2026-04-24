@@ -167,16 +167,16 @@ export default function FavoritesPage() {
         ) : (
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold tracking-tight">{t("favorites.title")}</h1>
+              <h1 className="truncate font-heading text-3xl font-medium tracking-tight">{t("favorites.title")}</h1>
               <p className="truncate text-sm text-muted-foreground">{t("favorites.subtitle")}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {/* Heart + count, sized like a button so it sits on the same
                   baseline as the Select action — same line-icon family as
                   the mood / weather icons elsewhere in the app. */}
-              <div className="flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground">
+              <div className="flex h-8 items-center gap-1 rounded-md px-2 text-foreground">
                 <Heart className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-                {outfits.length}
+                <span className="font-heading text-base">{outfits.length}</span>
               </div>
               {outfits.length > 0 && (
                 <Button
@@ -276,7 +276,7 @@ export default function FavoritesPage() {
               <CardContent className="p-0">
                 {/* Header row — only the chevron expands / closes. */}
                 <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
-                  <p className="font-medium text-sm min-w-0 flex-1 truncate">
+                  <p className="font-heading text-base font-medium min-w-0 flex-1 truncate tracking-tight">
                     {outfit.name || t("favorites.saved")}
                   </p>
                   {!selectMode && (
@@ -393,15 +393,15 @@ export default function FavoritesPage() {
                   {expandedId === outfit.id && (
                     <div className="space-y-3 mt-3">
                       {outfit.ai_reasoning && (
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="stylist-quote text-sm">
                           {outfit.ai_reasoning}
                         </p>
                       )}
 
                       {outfit.styling_tip && (
-                        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
-                          <p className="text-xs text-amber-900 leading-relaxed">{outfit.styling_tip}</p>
+                        <div className="border-t border-b border-border py-2.5">
+                          <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>
+                          <p className="text-xs leading-relaxed">{outfit.styling_tip}</p>
                         </div>
                       )}
 

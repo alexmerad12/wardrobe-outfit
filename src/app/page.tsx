@@ -182,13 +182,13 @@ export default function HomePage() {
       {/* Today's Outfit */}
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-3">{t("home.todaysOutfit")}</h2>
+          <h2 className="font-heading text-xl font-medium tracking-tight mb-3">{t("home.todaysOutfit")}</h2>
           <Card className="overflow-hidden">
             <CardContent className="p-4 space-y-4">
               {/* Outfit name + expand/collapse control. Only the chevron
                   expands; tapping the card body does nothing. */}
               <div className="flex items-center justify-between">
-                <p className="font-semibold">{todayOutfit.name || t("home.todaysLook")}</p>
+                <p className="font-heading text-lg font-medium tracking-tight">{todayOutfit.name || t("home.todaysLook")}</p>
                 {todayExpanded ? (
                   <button
                     type="button"
@@ -285,14 +285,14 @@ export default function HomePage() {
               {todayExpanded && (
                 <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                   {todayOutfit.reasoning && (
-                    <p className="text-xs text-muted-foreground leading-relaxed italic">
-                      &ldquo;{todayOutfit.reasoning}&rdquo;
+                    <p className="stylist-quote text-xs">
+                      {todayOutfit.reasoning}
                     </p>
                   )}
                   {todayOutfit.styling_tip && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
-                      <p className="text-xs text-amber-900 leading-relaxed">{todayOutfit.styling_tip}</p>
+                    <div className="border-t border-b border-border py-2.5">
+                      <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>
+                      <p className="text-xs leading-relaxed">{todayOutfit.styling_tip}</p>
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -363,7 +363,7 @@ export default function HomePage() {
 
       {/* Recent Outfits */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">{t("home.recentOutfits")}</h2>
+        <h2 className="font-heading text-xl font-medium tracking-tight mb-3">{t("home.recentOutfits")}</h2>
         {recentOutfits.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
             <p className="text-muted-foreground text-sm">
@@ -390,7 +390,7 @@ export default function HomePage() {
                   <CardContent className="p-0">
                     {/* Header row — only the chevron expands / closes. */}
                     <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
-                      <p className="font-medium text-sm min-w-0 flex-1 truncate">
+                      <p className="font-heading text-base font-medium min-w-0 flex-1 truncate tracking-tight">
                         {outfit.name || t("favorites.saved")}
                       </p>
                       <p className="text-xs text-muted-foreground shrink-0">{dateLabel}</p>
@@ -480,15 +480,15 @@ export default function HomePage() {
                       {isExpanded && (
                         <div className="space-y-3 mt-3">
                           {outfit.reasoning && (
-                            <p className="text-sm text-muted-foreground leading-relaxed">
+                            <p className="stylist-quote text-sm">
                               {outfit.reasoning}
                             </p>
                           )}
 
                           {outfit.styling_tip && (
-                            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 mb-0.5">{t("suggest.stylistTip")}</p>
-                              <p className="text-xs text-amber-900 leading-relaxed">{outfit.styling_tip}</p>
+                            <div className="border-t border-b border-border py-2.5">
+                              <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>
+                              <p className="text-xs leading-relaxed">{outfit.styling_tip}</p>
                             </div>
                           )}
 

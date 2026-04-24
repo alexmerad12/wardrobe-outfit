@@ -237,7 +237,7 @@ function ReviewBatchPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold">Review your uploads</h1>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">Review your uploads</h1>
           <p className="text-xs text-muted-foreground">
             {items.length} item{items.length === 1 ? "" : "s"} — tweak anything
             that looks off, then save.
