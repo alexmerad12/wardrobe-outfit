@@ -649,7 +649,7 @@
     "Indigo Denim": "Denim indigo"
   },
   "wardrobe": {
-    "title": "Mon dressing",
+    "title": "Dressing",
     "items": "item",
     "itemsPlural": "items",
     "add": "Ajouter",
@@ -686,7 +686,7 @@
     "removeFromList": "Retirer de la liste"
   },
   "favorites": {
-    "title": "Tenues favorites",
+    "title": "Favoris",
     "subtitle": "Des tenues qui te ressemblent",
     "none": "Aucune tenue favorite pour le moment",
     "noneHint": "Demande des suggestions et enregistre celles que tu aimes. Tes favoris aident l'IA à apprendre ton style !",

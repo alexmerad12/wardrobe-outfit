@@ -64,26 +64,27 @@ function roundCoord(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-// Map Open-Meteo condition strings (see src/lib/weather.ts) to a Lucide icon
-// and a tint color. The tint colors only the icon so the card itself stays
-// neutral and the frosted-glass backdrop reads as atmospheric, not loud.
-function iconForCondition(condition: string): { Icon: LucideIcon; tint: string } {
+// Editorial "color mood" map — low-saturation tints that read like a
+// fashion-spread color palette rather than a weather-app icon set. Each
+// condition gets a monochrome Lucide icon in a muted foreground tint;
+// the mood comes from the card background, not from saturated icons.
+function iconForCondition(condition: string): { Icon: LucideIcon; bg: string } {
   const c = condition.toLowerCase();
-  if (c.includes("thunder")) return { Icon: CloudLightning, tint: "text-violet-500" };
+  if (c.includes("thunder")) return { Icon: CloudLightning, bg: "bg-[#d8d3df]" };
   if (c.includes("snow grains") || c.includes("heavy snow"))
-    return { Icon: Snowflake, tint: "text-sky-400" };
-  if (c.includes("snow")) return { Icon: CloudSnow, tint: "text-sky-400" };
+    return { Icon: Snowflake, bg: "bg-[#eaeef2]" };
+  if (c.includes("snow")) return { Icon: CloudSnow, bg: "bg-[#eaeef2]" };
   if (c.includes("heavy rain") || c.includes("violent"))
-    return { Icon: CloudRainWind, tint: "text-blue-500" };
-  if (c.includes("drizzle")) return { Icon: CloudDrizzle, tint: "text-blue-400" };
+    return { Icon: CloudRainWind, bg: "bg-[#c5d1db]" };
+  if (c.includes("drizzle")) return { Icon: CloudDrizzle, bg: "bg-[#d1dae2]" };
   if (c.includes("rain") || c.includes("shower"))
-    return { Icon: CloudRain, tint: "text-blue-500" };
-  if (c.includes("fog") || c.includes("rime")) return { Icon: CloudFog, tint: "text-slate-400" };
-  if (c.includes("overcast")) return { Icon: Cloud, tint: "text-slate-400" };
-  if (c.includes("partly cloudy")) return { Icon: CloudSun, tint: "text-amber-400" };
+    return { Icon: CloudRain, bg: "bg-[#d1dae2]" };
+  if (c.includes("fog") || c.includes("rime")) return { Icon: CloudFog, bg: "bg-[#dfdedb]" };
+  if (c.includes("overcast")) return { Icon: Cloud, bg: "bg-[#d8d5d0]" };
+  if (c.includes("partly cloudy")) return { Icon: CloudSun, bg: "bg-[#e5e3dc]" };
   if (c.includes("clear") || c.includes("mainly clear"))
-    return { Icon: Sun, tint: "text-amber-400" };
-  return { Icon: Thermometer, tint: "text-muted-foreground" };
+    return { Icon: Sun, bg: "bg-[#f1e8d2]" };
+  return { Icon: Thermometer, bg: "bg-muted" };
 }
 
 function readCachedCoords(): Coords | null {
@@ -134,13 +135,11 @@ async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> 
   return (await res.json()) as WeatherData;
 }
 
-// Frosted-glass card that matches the bottom-nav treatment (bg-background
-// with a backdrop-blur, lighter opacity on browsers that support it). You
-// vaguely see whatever is behind the card through the frost, same feel as
-// the tab bar when scrolling the favorites grid.
-const GLASS_CLASSES =
-  "relative overflow-hidden rounded-xl border bg-background/95 p-5 backdrop-blur " +
-  "supports-[backdrop-filter]:bg-background/60";
+// Editorial "mood strip" — a horizontal band whose background color carries
+// the weather's emotional cue (pale gold for sun, slate for rain, bone for
+// snow). Low-saturation tints so the card reads as refined, not loud.
+const STRIP_BASE =
+  "relative overflow-hidden rounded-xl px-5 py-4 transition-colors duration-500";
 
 export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -214,13 +213,13 @@ export function WeatherWidget() {
 
   if (loading) {
     return (
-      <div className={`${GLASS_CLASSES} animate-pulse`}>
+      <div className={`${STRIP_BASE} bg-muted animate-pulse`}>
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-10 w-24 rounded-lg bg-muted" />
-            <div className="h-4 w-32 rounded bg-muted" />
+            <div className="h-12 w-24 rounded bg-muted-foreground/10" />
+            <div className="h-3 w-32 rounded bg-muted-foreground/10" />
           </div>
-          <div className="h-14 w-14 rounded-full bg-muted" />
+          <div className="h-10 w-10 rounded-full bg-muted-foreground/10" />
         </div>
       </div>
     );
@@ -228,7 +227,7 @@ export function WeatherWidget() {
 
   if (error || !weather) {
     return (
-      <div className={GLASS_CLASSES}>
+      <div className={`${STRIP_BASE} bg-muted`}>
         <div className="flex items-center gap-3">
           <Thermometer className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
@@ -239,56 +238,54 @@ export function WeatherWidget() {
     );
   }
 
-  const { Icon, tint } = iconForCondition(weather.condition);
+  const { Icon, bg } = iconForCondition(weather.condition);
   const conditionKey = CONDITION_KEYS[weather.condition];
   const conditionLabel = conditionKey
     ? t(`weatherCondition.${conditionKey}`)
     : weather.condition;
 
   return (
-    <div className={GLASS_CLASSES}>
-      {/* Top row: temp + icon */}
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-3xl font-medium tracking-tight leading-none">
+    <div className={`${STRIP_BASE} ${bg}`}>
+      {/* Top row: hero Bodoni temp + condition label + minimal icon */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-1">
+            <span className="font-heading italic text-5xl font-medium leading-none tracking-tight text-foreground">
               {convertTemp(weather.temp, unit)}°
             </span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs text-foreground/50">
               {unit === "fahrenheit" ? "F" : "C"}
             </span>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="editorial-label mt-2 text-foreground/70">
+            {conditionLabel}
+          </p>
+          <p className="font-heading italic text-xs mt-0.5 text-foreground/60">
             {t("weatherWidget.feelsLike", { temp: convertTemp(weather.feels_like, unit) })}
           </p>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <Icon className={`h-9 w-9 ${tint}`} strokeWidth={1.75} />
-          <span className="max-w-[90px] text-center text-xs font-medium text-muted-foreground">
-            {conditionLabel}
-          </span>
-        </div>
+        <Icon className="h-7 w-7 text-foreground/50 shrink-0 mt-1" strokeWidth={1.5} />
       </div>
 
-      {/* Bottom row: details */}
-      <div className="flex items-center gap-4 border-t pt-3">
+      {/* Bottom row: hairline + metrics */}
+      <div className="mt-4 flex items-center gap-5 border-t border-foreground/10 pt-2.5">
         {weather.precipitation_probability > 0 && (
           <div className="flex items-center gap-1.5">
-            <Droplets className="h-3.5 w-3.5 text-blue-500" />
-            <span className="text-xs text-muted-foreground">
+            <Droplets className="h-3.5 w-3.5 text-foreground/40" strokeWidth={1.75} />
+            <span className="text-xs text-foreground/60">
               {weather.precipitation_probability}%
             </span>
           </div>
         )}
         <div className="flex items-center gap-1.5">
-          <Wind className="h-3.5 w-3.5 text-sky-500" />
-          <span className="text-xs text-muted-foreground">
+          <Wind className="h-3.5 w-3.5 text-foreground/40" strokeWidth={1.75} />
+          <span className="text-xs text-foreground/60">
             {weather.wind_speed} km/h
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Droplet className="h-3.5 w-3.5 text-blue-400" />
-          <span className="text-xs text-muted-foreground">
+          <Droplet className="h-3.5 w-3.5 text-foreground/40" strokeWidth={1.75} />
+          <span className="text-xs text-foreground/60">
             {weather.humidity}%
           </span>
         </div>

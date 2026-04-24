@@ -644,7 +644,7 @@
     "Yellow": "Yellow"
   },
   "wardrobe": {
-    "title": "My Wardrobe",
+    "title": "Wardrobe",
     "items": "item",
     "itemsPlural": "items",
     "add": "Add",
@@ -681,7 +681,7 @@
     "removeFromList": "Remove from list"
   },
   "favorites": {
-    "title": "Favorite Outfits",
+    "title": "Favorites",
     "subtitle": "Outfits that feel like you",
     "none": "No favorite outfits yet",
     "noneHint": "Get outfit suggestions and save the ones you love. Your favorites help the AI learn your style!",

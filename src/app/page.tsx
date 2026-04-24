@@ -232,13 +232,10 @@ export default function HomePage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {todayItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="relative aspect-square w-28 flex-shrink-0 overflow-hidden rounded-lg bg-muted/30"
-                    >
-                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-1.5" sizes="112px" />
+                <div className="flex h-28 gap-0.5 -mx-4 overflow-hidden">
+                  {todayItems.slice(0, 5).map((item) => (
+                    <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                     </div>
                   ))}
                 </div>
