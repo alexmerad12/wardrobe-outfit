@@ -14,7 +14,7 @@ import { MOOD_ICONS } from "@/lib/mood-icons";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { convertTemp } from "@/lib/temperature";
-import { getLocalDateString } from "@/lib/local-date";
+import { getLocalDateString, getStaleBeforeTimestamp } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,7 @@ export default function HomePage() {
     async function load() {
       try {
         const [todayRes, itemsRes] = await Promise.all([
-          fetch(`/api/today?date=${getLocalDateString()}`),
+          fetch(`/api/today?date=${getLocalDateString()}&staleBefore=${getStaleBeforeTimestamp()}`),
           fetch("/api/items"),
         ]);
 
