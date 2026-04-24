@@ -14,6 +14,7 @@ import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check, Che
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
+import { getLocalDateString } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,7 @@ export default function FavoritesPage() {
         weather_temp: outfit.weather_temp,
         weather_condition: outfit.weather_condition,
         is_favorite: true,
+        date: getLocalDateString(),
       }),
     });
     router.push("/");

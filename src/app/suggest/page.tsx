@@ -12,6 +12,7 @@ import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StylistLoader } from "@/components/stylist-loader";
+import { getLocalDateString } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 interface AISuggestion {
@@ -178,6 +179,7 @@ function SuggestContent() {
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
           is_favorite: false,
+          date: getLocalDateString(),
         }),
       });
 

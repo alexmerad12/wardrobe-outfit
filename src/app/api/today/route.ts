@@ -3,12 +3,16 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 const RECENT_CAP = 14;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  const today = new Date().toISOString().split("T")[0];
+  // Client passes its LOCAL date (YYYY-MM-DD) so rotation fires at the
+  // user's midnight, not UTC's. Fallback to UTC when absent (API clients
+  // without a browser context).
+  const clientDate = request.nextUrl.searchParams.get("date");
+  const today = clientDate ?? new Date().toISOString().split("T")[0];
 
   // Fetch today row and the recent list in parallel
   const [todayRes, recentRes] = await Promise.all([
@@ -37,8 +41,18 @@ export async function GET() {
   let todayOutfit = todayRes.data;
   let recent = recentRes.data ?? [];
 
-  // Rotate stale today_outfit → recent_outfits
-  if (todayOutfit && todayOutfit.date !== today) {
+  // Rotate stale today_outfit → recent_outfits.
+  // Two triggers:
+  //  1. Stored date doesn't match the user's current local date (normal case).
+  //  2. Safety net — `updated_at` is over 20h old. Catches edge cases
+  //     where the stored date was saved in UTC while the user's local
+  //     clock was on a different day, so the date string can match but
+  //     the outfit is genuinely from yesterday.
+  const updatedAt = todayOutfit?.updated_at
+    ? new Date(todayOutfit.updated_at).getTime()
+    : 0;
+  const stale = todayOutfit && Date.now() - updatedAt > 20 * 60 * 60 * 1000;
+  if (todayOutfit && (todayOutfit.date !== today || stale)) {
     await supabase.from("recent_outfits").insert({
       user_id: userId,
       outfit_id: todayOutfit.outfit_id,
@@ -89,7 +103,11 @@ export async function POST(request: NextRequest) {
   const { supabase, userId } = ctx;
 
   const body = await request.json();
-  const today = new Date().toISOString().split("T")[0];
+  // Prefer the client's local date so the stored "date" reflects the
+  // user's wearing day, not the server's UTC day.
+  const today = (typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date))
+    ? body.date
+    : new Date().toISOString().split("T")[0];
 
   const row = {
     user_id: userId,

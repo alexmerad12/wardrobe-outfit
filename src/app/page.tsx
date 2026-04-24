@@ -14,6 +14,7 @@ import { MOOD_ICONS } from "@/lib/mood-icons";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { convertTemp } from "@/lib/temperature";
+import { getLocalDateString } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
@@ -45,7 +46,7 @@ export default function HomePage() {
     async function load() {
       try {
         const [todayRes, itemsRes] = await Promise.all([
-          fetch("/api/today"),
+          fetch(`/api/today?date=${getLocalDateString()}`),
           fetch("/api/items"),
         ]);
 
@@ -113,11 +114,12 @@ export default function HomePage() {
         weather_temp: outfit.weather_temp,
         weather_condition: outfit.weather_condition,
         is_favorite: outfit.is_favorite ?? false,
+        date: getLocalDateString(),
       }),
     });
     setTodayOutfit({
       ...outfit,
-      date: new Date().toISOString().split("T")[0],
+      date: getLocalDateString(),
     });
     setTodayItems(outfit.items);
     setExpandedRecent(null);
