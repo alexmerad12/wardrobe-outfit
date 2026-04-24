@@ -6,6 +6,14 @@ import Link from "next/link";
 import type { ClothingItem, Category } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +81,8 @@ function WardrobePageInner() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [creatingOutfit, setCreatingOutfit] = useState(false);
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const [outfitNameDraft, setOutfitNameDraft] = useState("");
   const router = useRouter();
   const { t } = useLocale();
   // Ref to the active category pill so we can scroll it into view when
@@ -185,8 +195,15 @@ function WardrobePageInner() {
     }
   }
 
+  function openOutfitNameDialog() {
+    if (selected.size < 2) return;
+    setOutfitNameDraft("");
+    setNameDialogOpen(true);
+  }
+
   async function handleCreateOutfit() {
     if (selected.size < 2) return;
+    const trimmed = outfitNameDraft.trim();
     setCreatingOutfit(true);
     try {
       const res = await fetch("/api/outfits", {
@@ -194,7 +211,7 @@ function WardrobePageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "default",
-          name: null,
+          name: trimmed.length > 0 ? trimmed.slice(0, 80) : null,
           item_ids: Array.from(selected),
           occasions: [],
           seasons: [],
@@ -208,6 +225,7 @@ function WardrobePageInner() {
         }),
       });
       if (res.ok) {
+        setNameDialogOpen(false);
         exitSelectMode();
         router.push("/outfits");
       }
@@ -273,7 +291,7 @@ function WardrobePageInner() {
                 size="sm"
                 className="gap-1.5"
                 disabled={selected.size < 2 || creatingOutfit}
-                onClick={handleCreateOutfit}
+                onClick={openOutfitNameDialog}
               >
                 <Combine className="h-4 w-4" />
                 {t("wardrobe.outfit")}
@@ -503,6 +521,46 @@ function WardrobePageInner() {
           ))}
         </div>
       )}
+
+      {/* Name dialog when creating a custom outfit. */}
+      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("wardrobe.nameOutfitTitle")}</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder={t("wardrobe.nameOutfitPlaceholder")}
+            value={outfitNameDraft}
+            onChange={(e) => setOutfitNameDraft(e.target.value)}
+            maxLength={80}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !creatingOutfit) {
+                handleCreateOutfit();
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNameDialogOpen(false)}
+              disabled={creatingOutfit}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleCreateOutfit} disabled={creatingOutfit}>
+              {creatingOutfit ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("wardrobe.creating")}
+                </>
+              ) : (
+                t("wardrobe.create")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
