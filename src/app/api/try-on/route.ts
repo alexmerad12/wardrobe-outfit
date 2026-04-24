@@ -48,9 +48,35 @@ function describeItemForPrompt(item: ClothingItem, idLabel: string): string {
   return parts.join(" | ");
 }
 
-function colorsOverlap(a: { name: string }[], b: { name: string }[]): boolean {
-  const setA = new Set(a.map((c) => c.name.toLowerCase().trim()));
-  return b.some((c) => setA.has(c.name.toLowerCase().trim()));
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Loose color match: name equality OR Euclidean RGB distance under a
+// generous threshold. The AI generates fresh color names per photo
+// ("Black" vs "Onyx" vs "Charcoal" for the same bag in different
+// lighting), so name equality alone misses too many true duplicates.
+// Hex closeness catches identical items photographed twice.
+function colorsOverlap(
+  a: { hex: string; name: string }[],
+  b: { hex: string; name: string }[]
+): boolean {
+  const namesA = new Set(a.map((c) => c.name.toLowerCase().trim()));
+  if (b.some((c) => namesA.has(c.name.toLowerCase().trim()))) return true;
+  const rgbsA = a.map((c) => hexToRgb(c.hex)).filter(Boolean) as [number, number, number][];
+  const rgbsB = b.map((c) => hexToRgb(c.hex)).filter(Boolean) as [number, number, number][];
+  for (const ra of rgbsA) {
+    for (const rb of rgbsB) {
+      const d = Math.sqrt(
+        (ra[0] - rb[0]) ** 2 + (ra[1] - rb[1]) ** 2 + (ra[2] - rb[2]) ** 2
+      );
+      if (d < 60) return true;
+    }
+  }
+  return false;
 }
 
 export async function POST(request: NextRequest) {
@@ -126,12 +152,16 @@ export async function POST(request: NextRequest) {
       .eq("is_stored", false);
     const wardrobe = (wardrobeData ?? []) as ClothingItem[];
 
-    // 3. Similar items: subcategory match is required; then require AT
-    // LEAST TWO additional attribute matches from (pattern, color,
-    // neckline, sleeve length). One attribute alone is too loose — a
-    // leopard blouse and a plain one-shoulder blouse share a color
-    // (e.g. black) but are visually different. Two attributes converge
-    // on genuine visual similarity.
+    // 3. Similar items: subcategory match is required, then require
+    // attribute matches from (pattern, color, material, neckline,
+    // sleeve length). The threshold is category-aware: tops, dresses,
+    // outerwear, one-piece have all five attributes available so we
+    // require 2+ — one alone (e.g. shared "black" color) is too loose.
+    // Bags, shoes, accessories, bottoms have no neckline/sleeve at
+    // all, so 1+ match suffices to surface the duplicate. Color
+    // matching is loose (name OR hex closeness) so the same physical
+    // item photographed twice doesn't get missed because the AI named
+    // its color differently.
     const phantomColors = (attrs.colors ?? []).map((c) => ({
       hex: c.hex,
       name: c.name,
@@ -141,6 +171,11 @@ export async function POST(request: NextRequest) {
       : attrs.pattern
       ? [attrs.pattern]
       : [];
+    const phantomMaterials = Array.isArray(attrs.material)
+      ? attrs.material
+      : attrs.material
+      ? [attrs.material]
+      : [];
     const phantomNeckline = attrs.neckline ?? null;
     const phantomSleeve = attrs.sleeve_length ?? null;
     const patternsOverlap = (a: string[], b: string[]): boolean => {
@@ -148,6 +183,11 @@ export async function POST(request: NextRequest) {
       const setA = new Set(a);
       return b.some((p) => setA.has(p));
     };
+    const hasShapeAttrs = attrs.category === "top" ||
+      attrs.category === "dress" ||
+      attrs.category === "outerwear" ||
+      attrs.category === "one-piece";
+    const minScore = hasShapeAttrs ? 2 : 1;
     const similarItems = wardrobe
       .filter(
         (item) =>
@@ -159,8 +199,14 @@ export async function POST(request: NextRequest) {
         const itemPatterns = Array.isArray(item.pattern)
           ? item.pattern
           : [item.pattern];
+        const itemMaterials = Array.isArray(item.material)
+          ? item.material
+          : item.material
+          ? [item.material]
+          : [];
         const patternMatch = patternsOverlap(phantomPatterns, itemPatterns) ? 1 : 0;
         const colorMatch = colorsOverlap(phantomColors, item.colors) ? 1 : 0;
+        const materialMatch = patternsOverlap(phantomMaterials, itemMaterials) ? 1 : 0;
         const necklineMatch =
           phantomNeckline && item.neckline && phantomNeckline === item.neckline
             ? 1
@@ -169,9 +215,12 @@ export async function POST(request: NextRequest) {
           phantomSleeve && item.sleeve_length && phantomSleeve === item.sleeve_length
             ? 1
             : 0;
-        return { item, score: patternMatch + colorMatch + necklineMatch + sleeveMatch };
+        return {
+          item,
+          score: patternMatch + colorMatch + materialMatch + necklineMatch + sleeveMatch,
+        };
       })
-      .filter((x) => x.score >= 2)
+      .filter((x) => x.score >= minScore)
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
       .map((x) => x.item);
