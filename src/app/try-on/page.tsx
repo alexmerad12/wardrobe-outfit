@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Upload, Sparkles, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { Camera, Upload, Sparkles, ArrowLeft, Loader2, AlertCircle, ChevronDown, X } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { downscaleImage } from "@/lib/image-utils";
@@ -47,6 +47,7 @@ export default function TryOnPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TryOnResult | null>(null);
   const [analyzingStep, setAnalyzingStep] = useState(0);
+  const [expandedOutfit, setExpandedOutfit] = useState<number | null>(null);
 
   // Cycle through three status messages while analyzing so the 15-20s
   // wait doesn't feel frozen on a single "Analyzing..." label.
@@ -298,46 +299,81 @@ export default function TryOnPage() {
               </div>
               {result.outfits.length > 0 && (
                 <div className="space-y-3">
-                  {result.outfits.map((outfit, idx) => (
-                    <div key={idx} className="rounded-lg border p-2 space-y-2">
-                      <div className="grid grid-cols-4 gap-1">
-                        {outfit.items.slice(0, 4).map((item) => (
-                          <div
-                            key={item.id}
-                            className={`relative aspect-square rounded-md overflow-hidden bg-white ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
+                  {result.outfits.map((outfit, idx) => {
+                    const isExpanded = expandedOutfit === idx;
+                    return (
+                      <div key={idx} className="rounded-lg border overflow-hidden">
+                        {/* Header: outfit label + chevron/X toggle */}
+                        <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-1.5">
+                          <p className="editorial-label">
+                            Nº {String(idx + 1).padStart(2, "0")}
+                          </p>
+                          <button
+                            type="button"
+                            aria-label={isExpanded ? t("itemDetail.close") : t("common.expand")}
+                            onClick={() => setExpandedOutfit(isExpanded ? null : idx)}
+                            className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
                           >
-                            {item.id === result.phantomId ? (
-                              previewUrl ? (
+                            {isExpanded ? <X className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </button>
+                        </div>
+
+                        {/* Items grid — compact 4-col when collapsed,
+                            bigger 2-col with names when expanded. The
+                            phantom item keeps its primary ring in both
+                            states so the user can see at a glance
+                            which piece is the new one. */}
+                        <div className={isExpanded ? "grid grid-cols-2 gap-1.5 px-2 pb-2" : "grid grid-cols-4 gap-1 px-2 pb-2"}>
+                          {outfit.items.slice(0, isExpanded ? outfit.items.length : 4).map((item) => (
+                            <div
+                              key={item.id}
+                              className={`relative aspect-square rounded-md overflow-hidden bg-white ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
+                            >
+                              {item.id === result.phantomId ? (
+                                previewUrl ? (
+                                  <Image
+                                    src={previewUrl}
+                                    alt={item.name}
+                                    fill
+                                    className="object-contain p-1"
+                                    sizes={isExpanded ? "(max-width: 640px) 50vw, 250px" : "80px"}
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-center h-full text-xs">
+                                    {t("tryOn.newItem")}
+                                  </div>
+                                )
+                              ) : (
                                 <Image
-                                  src={previewUrl}
+                                  src={item.image_url}
                                   alt={item.name}
                                   fill
                                   className="object-contain p-1"
-                                  sizes="80px"
-                                  unoptimized
+                                  sizes={isExpanded ? "(max-width: 640px) 50vw, 250px" : "80px"}
                                 />
-                              ) : (
-                                <div className="flex items-center justify-center h-full text-xs">
-                                  {t("tryOn.newItem")}
+                              )}
+                              {isExpanded && (
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
+                                  <p className="truncate text-[10px] text-white">
+                                    {item.id === result.phantomId ? t("tryOn.newItem") : item.name}
+                                  </p>
                                 </div>
-                              )
-                            ) : (
-                              <Image
-                                src={item.image_url}
-                                alt={item.name}
-                                fill
-                                className="object-contain p-1"
-                                sizes="80px"
-                              />
-                            )}
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {outfit.reason && (
+                          <div className="px-3 pb-3">
+                            <p className={isExpanded ? "stylist-quote text-xs" : "text-xs text-muted-foreground"}>
+                              {outfit.reason}
+                            </p>
                           </div>
-                        ))}
+                        )}
                       </div>
-                      {outfit.reason && (
-                        <p className="text-xs text-muted-foreground">{outfit.reason}</p>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
