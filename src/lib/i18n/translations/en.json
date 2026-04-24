@@ -71,7 +71,7 @@
   "bulk": {
     "title": "Bulk upload",
     "subtitle": "Upload a batch at once",
-    "description": "Pick as many photos as you want. Yav will remove the background, read every detail, and save each one to your wardrobe. Keep using the app while it works — just don't close the tab.",
+    "description": "Pick as many photos as you want. We'll remove the background, read every detail, and save each one to your wardrobe. Keep using the app while it works — just don't close the tab.",
     "takePhoto": "Take photo",
     "chooseFromLibrary": "Choose from library",
     "allProcessed": "All {count} item processed",

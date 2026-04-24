@@ -57,15 +57,13 @@ export default function BulkUploadPage() {
 
       {/* Empty state */}
       {items.length === 0 && (
-        <div className="rounded-2xl border-2 border-dashed border-[#e8b4bc] bg-[#fdf2f4]/40 p-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f4d3d9]">
-            <Sparkles className="h-7 w-7 text-[#7c2d3a]" />
-          </div>
-          <h2 className="text-base font-medium mb-1">{t("bulk.subtitle")}</h2>
-          <p className="mb-2 text-sm text-muted-foreground">
+        <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center">
+          <Sparkles className="h-8 w-8 mx-auto mb-4 text-muted-foreground" strokeWidth={1.5} />
+          <h2 className="font-heading text-xl font-medium tracking-tight mb-2">{t("bulk.subtitle")}</h2>
+          <p className="mb-2 text-sm text-muted-foreground max-w-md mx-auto">
             {t("bulk.description")}
           </p>
-          <p className="mb-6 text-xs text-muted-foreground/80">
+          <p className="mb-6 text-xs text-muted-foreground/70 max-w-md mx-auto">
             Pick however many — items process one at a time and stay safe even if the connection drops.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
@@ -92,12 +90,12 @@ export default function BulkUploadPage() {
 
       {/* Progress summary */}
       {items.length > 0 && (
-        <div className="mb-4 rounded-xl bg-[#fdf2f4] border border-[#e8b4bc] px-4 py-3 text-sm text-[#7c2d3a]">
-          <div className="flex items-center gap-2">
+        <div className="mb-4 border-t border-b border-border py-3">
+          <div className="flex items-center gap-2 text-sm">
             {allDone ? (
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             )}
             <span className="font-medium">
               {allDone
@@ -110,7 +108,7 @@ export default function BulkUploadPage() {
             </span>
           </div>
           {!allDone && (
-            <p className="mt-1 text-xs text-[#9b4050]/80">
+            <p className="mt-1 text-xs text-muted-foreground">
               {t("bulk.keepBrowsing")}
             </p>
           )}
@@ -132,7 +130,7 @@ export default function BulkUploadPage() {
           <button
             type="button"
             onClick={() => libraryInputRef.current?.click()}
-            className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground hover:border-[#c98695] hover:bg-[#fdf2f4] transition-colors"
+            className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex flex-col items-center justify-center text-muted-foreground hover:border-muted-foreground/60 hover:bg-muted/40 transition-colors"
           >
             <Plus className="h-6 w-6 mb-1" />
             <span className="text-xs font-medium">{t("bulk.addMore")}</span>

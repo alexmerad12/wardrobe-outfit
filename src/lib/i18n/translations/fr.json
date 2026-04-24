@@ -71,7 +71,7 @@
   "bulk": {
     "title": "Téléchargement groupé",
     "subtitle": "Télécharge un lot d'un coup",
-    "description": "Choisis autant de photos que tu veux. Yav enlèvera l'arrière-plan, analysera chaque détail, et les enregistrera dans ton dressing. Continue à utiliser l'app pendant ce temps — ne ferme juste pas l'onglet.",
+    "description": "Choisis autant de photos que tu veux. On enlèvera l'arrière-plan, on analysera chaque détail, et on enregistrera chaque pièce dans ton dressing. Continue à utiliser l'app pendant ce temps — ne ferme juste pas l'onglet.",
     "takePhoto": "Prendre une photo",
     "chooseFromLibrary": "Choisir dans la galerie",
     "allProcessed": "{count} item traité",
