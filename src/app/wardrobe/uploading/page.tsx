@@ -151,7 +151,8 @@ export default function UploadingPage() {
           <p className="font-medium mb-1">Tips for clean backgrounds</p>
           <ul className="space-y-0.5 text-[#9b4050]/90">
             <li>• One item per photo, fully visible (no cropped edges)</li>
-            <li>• Flat surface (bed, table, floor) or a hanger for coats, blazers, dresses</li>
+            <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
+            <li>• Hanger for coats, blazers, dresses, long skirts</li>
             <li>• Good light, no strong shadows</li>
           </ul>
         </div>
