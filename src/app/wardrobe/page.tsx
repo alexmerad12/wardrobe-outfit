@@ -404,15 +404,13 @@ function WardrobePageInner() {
                       multi-item shots confuse AI tagging, and the
                       5-at-a-time cap catches people who select 20 in
                       their library. */}
-                  <div className="border-t mt-1 pt-2 px-2 pb-2 text-[11px] leading-relaxed text-muted-foreground">
-                    <p className="font-medium text-foreground mb-1">
-                      For best results
-                    </p>
-                    <ul className="space-y-0.5">
-                      <li>• One item per photo, fully in frame</li>
-                      <li>• Flat, plain surface (bed, table, floor)</li>
-                      <li>• Good light, avoid shadows & clutter</li>
-                      <li>• Up to 5 at a time</li>
+                  <div className="border-t mt-1 pt-2 px-2 pb-2 text-[11px] leading-relaxed">
+                    <p className="editorial-label mb-1.5">Photo tips</p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li>One item per photo, fully visible</li>
+                      <li>Flat surface for tops, pants, knits — bed, table, floor</li>
+                      <li>Hanger for coats, blazers, dresses, long skirts</li>
+                      <li>Good light, no strong shadows</li>
                     </ul>
                   </div>
                 </DropdownMenuContent>

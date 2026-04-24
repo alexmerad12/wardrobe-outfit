@@ -619,15 +619,15 @@ export default function AddItemPage() {
         <button
           type="button"
           onClick={() => router.push("/wardrobe/bulk")}
-          className="mb-5 w-full rounded-xl border border-[#e8b4bc] bg-[#fdf2f4] px-4 py-3 text-left transition-colors hover:bg-[#f9e3e7]"
+          className="mb-5 w-full rounded-xl border border-border px-4 py-3 text-left transition-colors hover:bg-muted/30"
         >
           <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 shrink-0 text-[#7c2d3a]" />
+            <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
             <div className="flex-1">
-              <p className="text-sm font-medium text-[#7c2d3a]">
+              <p className="text-sm font-medium">
                 Got a bunch of photos? Bulk upload
               </p>
-              <p className="text-xs text-[#9b4050]/80">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 AI tags each one automatically — just drop them in and walk away.
               </p>
             </div>
