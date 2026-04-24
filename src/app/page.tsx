@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WeatherWidget } from "@/components/weather-widget";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown, X } from "lucide-react";
+import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown, X, ShoppingBag } from "lucide-react";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { MOOD_ICONS } from "@/lib/mood-icons";
@@ -324,6 +324,18 @@ export default function HomePage() {
           <Button className="w-full h-14 text-base gap-2" size="lg">
             <Sparkles className="h-5 w-5" />
             {todayOutfit ? t("home.getMoreSuggestions") : t("home.whatShouldIWear")}
+          </Button>
+        </Link>
+
+        {/* Shopping helper — analyze an item before buying. Secondary CTA
+            so it doesn't compete with the main Suggest button. */}
+        <Link href="/try-on">
+          <Button
+            variant="outline"
+            className="w-full h-12 text-sm gap-2"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            {t("home.tryBeforeBuying")}
           </Button>
         </Link>
 
