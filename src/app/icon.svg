@@ -1,13 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <title>Closette — Ivory Noir</title>
+  <!-- Ivory ground, rounded square (iOS-style) -->
   <rect width="512" height="512" fill="#ebe0c8" rx="92" ry="92"/>
+  <!-- Solid ivory disc covers the would-be wallpaper so the C sits clean -->
   <circle cx="256" cy="256" r="224" fill="#ebe0c8"/>
+  <!-- Outer hairline ring -->
   <circle cx="256" cy="256" r="224" fill="none" stroke="#0a0806" stroke-width="3.5" opacity="0.92"/>
+  <!-- Inner thin ring -->
   <circle cx="256" cy="256" r="204" fill="none" stroke="#0a0806" stroke-width="1.4" opacity="0.55"/>
-  <circle cx="256" cy="42"  r="3.6" fill="#0a0806" opacity="0.85"/>
+  <!-- Four cardinal dots — maison label feel -->
+  <circle cx="256" cy="42" r="3.6" fill="#0a0806" opacity="0.85"/>
   <circle cx="256" cy="470" r="3.6" fill="#0a0806" opacity="0.85"/>
   <circle cx="42"  cy="256" r="3.6" fill="#0a0806" opacity="0.85"/>
   <circle cx="470" cy="256" r="3.6" fill="#0a0806" opacity="0.85"/>
+  <!-- The C — Bodoni Moda with Didot/Times fallbacks for OSes that don't ship it.
+       y=256 + dominant-baseline=central matches the geometric centering used in
+       the in-app SVG monogram. -->
   <text x="256" y="256"
         text-anchor="middle"
         dominant-baseline="central"

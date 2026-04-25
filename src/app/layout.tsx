@@ -38,13 +38,9 @@ export const metadata: Metadata = {
       { url: "/splash/ipad-12-9.png", media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" },
     ],
   },
-  icons: {
-    icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
+  // Icons come from app/icon.svg + app/apple-icon.tsx (Next file conventions),
+  // which now render the Ivory · Noir mark. Manifest still references the
+  // PWA-specific PNGs in /public for installed-app icons.
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
@@ -53,7 +49,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0d1a2b",
+  // Ivory · Noir brand color — matches manifest.json + the launch page so
+  // the iOS status bar / Android chrome / PWA splash all carry the maison.
+  themeColor: "#ebe0c8",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
