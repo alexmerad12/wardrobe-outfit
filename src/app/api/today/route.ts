@@ -13,11 +13,6 @@ export async function GET(request: NextRequest) {
   // without a browser context).
   const clientDate = request.nextUrl.searchParams.get("date");
   const today = clientDate ?? new Date().toISOString().split("T")[0];
-  // Client also computes the "most recent 2am local" cutoff — any outfit
-  // updated before this is stale, even if its stored date string happens
-  // to match today (covers the "wore something at 1am" edge case).
-  const staleBeforeRaw = request.nextUrl.searchParams.get("staleBefore");
-  const staleBefore = staleBeforeRaw ? Number(staleBeforeRaw) : 0;
 
   // Fetch today row and the recent list in parallel
   const [todayRes, recentRes] = await Promise.all([
@@ -46,17 +41,10 @@ export async function GET(request: NextRequest) {
   let todayOutfit = todayRes.data;
   let recent = recentRes.data ?? [];
 
-  // Rotate stale today_outfit → recent_outfits.
-  // Two triggers:
-  //  1. Stored date doesn't match the user's current local date (normal case).
-  //  2. Outfit was last updated before the user's "2am local today" cutoff
-  //     — handles the edge case where the stored date string matches
-  //     today's local date but the outfit is genuinely from last night.
-  const updatedAt = todayOutfit?.updated_at
-    ? new Date(todayOutfit.updated_at).getTime()
-    : 0;
-  const stale = todayOutfit && staleBefore > 0 && updatedAt < staleBefore;
-  if (todayOutfit && (todayOutfit.date !== today || stale)) {
+  // Rotate stale today_outfit → recent_outfits when the stored date
+  // doesn't match the user's current local date. The client always
+  // sends its LOCAL date so the comparison is timezone-correct.
+  if (todayOutfit && todayOutfit.date !== today) {
     await supabase.from("recent_outfits").insert({
       user_id: userId,
       outfit_id: todayOutfit.outfit_id,
