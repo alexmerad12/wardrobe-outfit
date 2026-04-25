@@ -486,7 +486,7 @@ ${wardrobeList}${favoritesSection}${recentSection}`;
 
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
-MOOD (apply Rule 12 — every outfit must visibly express this): ${moodInfo.label} — ${moodInfo.description}
+MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.label} — ${moodInfo.description}
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
 ITERATION: ${iterationNonce}
 
@@ -508,7 +508,11 @@ HARD RULES — do not violate:
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
 11. BAG × FORMALITY: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel → "tote" or "large" is fine; at-home → no bag at all. Use Bag size field when available on the item.
-12. MOOD (must be visibly expressed in EVERY outfit — different moods + same occasion MUST produce visibly different outfits):
+12. STYLE DIRECTION (when present, treat item-specific phrases as anchors):
+   - If STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it.
+   - If the wardrobe has no matching piece, ignore that specific phrase. Don't invent. Use the rest of the STYLE DIRECTION as soft vibe.
+   - Vibe phrases that DON'T name a specific piece ("more drapey", "less colorful", "office chic", "all black", "mix patterns", "dress day") stay as soft hints — bias the outfits toward them but no hard anchor.
+13. MOOD (must be visibly expressed in EVERY outfit — different moods + same occasion MUST produce visibly different outfits):
    - Energized → at least one saturated bright (red, orange, yellow, fuchsia, electric blue, kelly green). No all-neutral palette.
    - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions.
    - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory, contrast color. Not a safe monochrome.
