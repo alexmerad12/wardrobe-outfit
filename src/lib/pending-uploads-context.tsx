@@ -296,11 +296,42 @@ export function PendingUploadsProvider({
         finalFile = downscaledFile;
       }
 
+      // Final size guard. Vercel Hobby rejects request bodies > 4.5 MB
+      // at the edge — the function never runs, the connection is reset
+      // before any byte is read, and XHR surfaces it as "Upload network
+      // error, no bytes sent" with no further detail. That's the
+      // deterministic "same photo always fails" failure mode.
+      // It hits when BOTH (a) bg-removal failed (so we're on the
+      // downscale fallback) and (b) downscaleImage's createImageBitmap
+      // call also failed on the same source (broken EXIF, an HEIC
+      // variant the browser can't decode, low-memory device under
+      // load) — in which case downscaleImage silently passes the raw
+      // 4-8 MB camera file straight through. Re-encode here as the
+      // backstop so nothing oversized reaches the wire.
+      const SAFE_UPLOAD_SIZE = 2_000_000;
+      if (finalFile.size > SAFE_UPLOAD_SIZE) {
+        bgLog(`finalFile too large — forcing JPEG re-encode`, {
+          beforeBytes: finalFile.size,
+        });
+        try {
+          const shrunk = await flattenOntoWhite(finalFile, 1280, 0.85);
+          finalFile = new File([shrunk], `${baseName}.jpg`, {
+            type: "image/jpeg",
+          });
+          bgLog(`re-encoded`, { afterBytes: finalFile.size });
+        } catch (err) {
+          bgLog("force re-encode failed — proceeding anyway", err);
+        }
+      }
+
       // 4. Single upload + single save. Previously we did 2 uploads
       //    (raw + cleaned) and 2 DB writes (POST + PATCH) per item;
       //    uploading only the final image cuts ~3-5s of network I/O
       //    per item.
-      bgLog("uploading final image");
+      bgLog("uploading final image", {
+        size: finalFile.size,
+        type: finalFile.type,
+      });
       const uploadT0 = performance.now();
       // Don't re-wrap the error with another "Upload:" prefix — the
       // upload helper already prefixes its errors, and doubling them
