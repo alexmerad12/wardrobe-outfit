@@ -48,3 +48,7 @@ playwright-report/
 
 # claude code local state
 .claude/
+
+# local-only design / logo experimentation — not for prod
+.closette-design-tmp/
+src/app/logo-lab/
