@@ -892,12 +892,70 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     const drops: { ids: string[]; reason: string }[] = [];
     const softMismatch: typeof mapped = [];
 
+    // Detect preset wishes from the user's STYLE DIRECTION text. Claude
+    // is told these are hard rules but doesn't always honor them — we
+    // enforce post-parse so non-compliant outfits get dropped.
+    const wishText = styleWishes.join(" ").toLowerCase();
+    const wantsAllBlack = /all[ -]?black|tout en noir/i.test(wishText);
+    const wantsDressDay = /dress[ -]?day|journ[ée]e robe/i.test(wishText);
+    const wantsMixPatterns = /mix[ -]?patterns?|mixer les motifs/i.test(wishText);
+
+    // Hex-based "is this item dark/near-black?" check. Accepts items
+    // whose primary color is named black/jet/onyx/charcoal OR whose
+    // hex sum is below ~90 (avg <30 per channel — true black-to-charcoal
+    // band, excludes navy and dark brown which read as colors).
+    function isDarkItem(item: { colors: { hex: string; name: string }[] }): boolean {
+      const primary = item.colors?.[0];
+      if (!primary) return false;
+      const name = (primary.name ?? "").toLowerCase();
+      if (/black|jet|onyx|noir|ebony|obsidian|raven/.test(name)) return true;
+      const m = /^#?([0-9a-f]{6})$/i.exec((primary.hex ?? "").trim());
+      if (!m) return false;
+      const n = parseInt(m[1], 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return r + g + b < 90;
+    }
+
     const hardValid = mapped.filter((s) => {
       // Shoes required for every occasion except at-home (if wardrobe has shoes).
       if (occasion !== "at-home" && wardrobeHasShoes) {
         const hasShoes = s.items.some((i) => i.category === "shoes");
         if (!hasShoes) {
           drops.push({ ids: s._ids, reason: "missing shoes" });
+          return false;
+        }
+      }
+      // Preset enforcement — Claude says it follows these but the AI is
+      // unreliable. Drop any outfit that breaks a hard preset rule.
+      if (wantsAllBlack) {
+        const offender = s.items.find((i) => !isDarkItem(i));
+        if (offender) {
+          drops.push({
+            ids: s._ids,
+            reason: `all-black: "${offender.name}" primary color "${offender.colors?.[0]?.name}" not dark`,
+          });
+          return false;
+        }
+      }
+      if (wantsDressDay) {
+        const hasDress = s.items.some((i) => i.category === "dress");
+        if (!hasDress) {
+          drops.push({ ids: s._ids, reason: "dress-day preset but no dress" });
+          return false;
+        }
+      }
+      if (wantsMixPatterns) {
+        const nonSolidCount = s.items.filter((i) => {
+          const patterns = Array.isArray(i.pattern) ? i.pattern : [i.pattern];
+          return patterns.some((p) => p && p !== "solid");
+        }).length;
+        if (nonSolidCount < 2) {
+          drops.push({
+            ids: s._ids,
+            reason: `mix-patterns: only ${nonSolidCount} non-solid item(s)`,
+          });
           return false;
         }
       }

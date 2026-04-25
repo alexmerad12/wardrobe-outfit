@@ -1,4 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
+
+// Pick up STRESS_TEST_EMAIL / STRESS_TEST_PASSWORD and any other secrets
+// from .env.local (gitignored). Without this, process.env in a spec file
+// is empty during a Playwright run.
+loadEnv({ path: path.resolve(__dirname, ".env.local") });
 
 // Smoke tests for the bulk-upload / review flow, run against a local
 // dev server. Serial because the test user is shared.
