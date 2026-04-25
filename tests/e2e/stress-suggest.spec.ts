@@ -275,8 +275,8 @@ test("stress-suggest sweep", async ({ page }) => {
           styleWishes: scenario.styleWishes,
           locale: "en",
         },
-        // Longer timeout — the new shape-failure retry can double a
-        // single call's wall time (two AI calls back-to-back).
+        // Generous timeout — Sonnet calls run 5-10s, give headroom for
+        // tail-latency outliers without flaking the suite.
         timeout: 120_000,
       });
 

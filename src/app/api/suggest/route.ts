@@ -556,7 +556,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 2048,
+        max_tokens: 1400,
         temperature: 1,
         tools: [
           {
@@ -602,29 +602,20 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return { parsed: toolUse.input as ParsedShape, stopReason: message.stop_reason };
     }
 
-    // Anthropic occasionally returns a tool_use input with `outfits`
-    // missing or shaped as a non-array (~5-10% of calls). One retry
-    // catches the transient ones cheaply — gives the user a real
-    // result instead of an empty list and "try again" message.
-    let parsed: ParsedShape | null = null;
-    let lastStopReason: string | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const r = await callAi();
-      lastStopReason = r.stopReason;
-      if (r.parsed && Array.isArray(r.parsed.outfits)) {
-        parsed = r.parsed;
-        break;
-      }
-      console.error(
-        `[suggest] AI returned unexpected shape on attempt ${attempt + 1}; stop=${r.stopReason}`,
-        r.parsed
-      );
-    }
-
+    // Single attempt — Sonnet's bad-shape rate is <1% with structured
+    // tool_use, so the second retry mostly just doubled tail latency.
+    // If the rare bad shape comes back, surface it; the UI shows a
+    // "try again" button.
+    const r = await callAi();
+    const parsed = r.parsed;
     if (!parsed || !Array.isArray(parsed.outfits)) {
+      console.error(
+        `[suggest] AI returned unexpected shape; stop=${r.stopReason}`,
+        parsed
+      );
       return NextResponse.json({
         suggestions: [],
-        message: `AI returned an unexpected shape after retry — stop=${lastStopReason}`,
+        message: `AI returned an unexpected shape — stop=${r.stopReason}`,
       });
     }
     const parsedOutfits = parsed.outfits;

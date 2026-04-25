@@ -345,7 +345,14 @@ function SuggestContent() {
               onClick={generateSuggestions}
             >
               {loading ? (
-                <StylistLoader size="sm" />
+                <StylistLoader
+                  size="sm"
+                  phases={[
+                    t("suggest.yavStylingPhase1"),
+                    t("suggest.yavStylingPhase2"),
+                    t("suggest.yavStylingPhase3"),
+                  ]}
+                />
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />

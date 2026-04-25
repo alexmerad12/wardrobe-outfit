@@ -11,13 +11,26 @@ interface StylistLoaderProps {
   className?: string;
   size?: "sm" | "md" | "lg";
   label?: string;
+  // Optional rotating copy: advances through phases at ~2.2s each, then
+  // holds on the last entry. Falls back to `label` / yavIsStyling when omitted.
+  phases?: string[];
 }
 
-export function StylistLoader({ className, size = "md", label }: StylistLoaderProps) {
+export function StylistLoader({ className, size = "md", label, phases }: StylistLoaderProps) {
   const { t } = useLocale();
-  const effectiveLabel = label ?? t("suggest.yavIsStyling");
   const [index, setIndex] = useState(0);
   const [entering, setEntering] = useState(true);
+  const [phaseIndex, setPhaseIndex] = useState(0);
+
+  useEffect(() => {
+    if (!phases || phases.length === 0) return;
+    if (phaseIndex >= phases.length - 1) return;
+    const tick = setTimeout(() => setPhaseIndex((i) => i + 1), 2200);
+    return () => clearTimeout(tick);
+  }, [phases, phaseIndex]);
+
+  const effectiveLabel =
+    phases && phases.length > 0 ? phases[Math.min(phaseIndex, phases.length - 1)] : (label ?? t("suggest.yavIsStyling"));
 
   useEffect(() => {
     // Cycle: visible ~310ms, fade out ~140ms, swap
