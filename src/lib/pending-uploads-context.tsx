@@ -256,32 +256,11 @@ export function PendingUploadsProvider({
       const bgLog = (stage: string, extra?: unknown) =>
         console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
       const t0 = performance.now();
-
-      // Skip bg-removal entirely on low-memory devices. The imgly model
-      // is ~50 MB, plus the decoded full-resolution bitmap it holds in a
-      // Web Worker. Combined with a 5-item queue (each File 4-8 MB),
-      // analyze in flight, and Chrome's baseline overhead, that peaks
-      // past what a 4 GB Android can allocate — surfacing as 'Upload
-      // network error, no bytes sent' on whatever operation runs next.
-      // navigator.deviceMemory is bucketed (0.25/0.5/1/2/4/8); 4 means
-      // 4-7 GB, 8 means 8+ GB. Skip at <= 4. iOS Safari doesn't expose
-      // the API → default 8 (assume high-mem).
-      // Tradeoff: photos retain their original background instead of
-      // a clean white cutout. Uploading reliably > pretty backgrounds.
-      const deviceMemory = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
-      const lowMemoryDevice = (deviceMemory ?? 8) <= 4;
-
-      bgLog(
-        lowMemoryDevice
-          ? `skipping imgly bg-removal (low-mem device, deviceMemory=${deviceMemory ?? "?"})`
-          : "starting imgly bg-removal"
-      );
-      const cleanedOrNull = lowMemoryDevice
-        ? null
-        : await removeBg(downscaledFile).catch((err) => {
-            bgLog("imgly failed — keeping original", err);
-            return null;
-          });
+      bgLog("starting imgly bg-removal");
+      const cleanedOrNull = await removeBg(downscaledFile).catch((err) => {
+        bgLog("imgly failed — keeping original", err);
+        return null;
+      });
       bgLog("starting Claude analyze");
       const attrsRaw = await analyzeItem(downscaledFile).catch((err) => {
         console.warn(`[pending ${item.id}] analyze failed, using defaults`, err);
