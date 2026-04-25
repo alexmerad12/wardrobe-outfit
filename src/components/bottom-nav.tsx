@@ -18,13 +18,14 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useLocale();
 
-  // Hide nav on auth + legal pages
+  // Hide nav on auth + legal + design-preview pages
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
-    pathname.startsWith("/auth")
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/design")
   ) {
     return null;
   }

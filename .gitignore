@@ -52,3 +52,5 @@ playwright-report/
 # local-only design / logo experimentation — not for prod
 .closette-design-tmp/
 src/app/logo-lab/
+src/app/design/
+public/design-assets/
