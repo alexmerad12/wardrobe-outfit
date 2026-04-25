@@ -490,7 +490,7 @@ MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.labe
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
 ITERATION: ${iterationNonce}
 
-Return exactly 4 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; the extra 1 is a backup in case one gets filtered out.)
+Return exactly 2 complete outfit candidates from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 1 to the user; the second is a backup in case the first gets filtered out by post-validation.)
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over.
@@ -527,11 +527,11 @@ HARD RULES — do not violate:
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
-ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Never worn", "Worn 3x", "Last worn 21d ago"). When choosing between two comparable options that both fit the rules above, prefer the LESS-WORN one. Across 4 outfits, deliberately include at least 2 pieces that are "Never worn" or haven't been worn in 30+ days IF the wardrobe has any — don't default to the same anchor items every call.
+ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Never worn", "Worn 3x", "Last worn 21d ago"). When choosing between two comparable options that both fit the rules above, prefer the LESS-WORN one. If the wardrobe has any pieces that are "Never worn" or haven't been worn in 30+ days, lean toward including at least one of them — don't default to the same anchor items every call.
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Call the propose_outfits tool with exactly 4 outfits. Per outfit:
+Call the propose_outfits tool with exactly 2 outfits. Per outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (fitted + loose, long + cropped), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like Vogue, not like a bot. Skip filler like "perfect for" or "this outfit works because".
@@ -556,12 +556,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1400,
+        max_tokens: 800,
         temperature: 1,
         tools: [
           {
             name: "propose_outfits",
-            description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
+            description: "Return the 2 outfit candidates and an optional wardrobe gap.",
             input_schema: {
               type: "object" as const,
               properties: {
@@ -1041,7 +1041,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // outfits back with an appended styling tip. Base-warmth mismatches
     // are the one soft bucket left (cold-without-outerwear is auto-injected
     // upstream now).
-    let final = dedupedHard;
+    const final = dedupedHard;
     const mismatchTip =
       locale === "fr"
         ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
@@ -1049,7 +1049,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
 
     const admit = (bucket: typeof mapped, tip: string) => {
       for (const s of bucket) {
-        if (final.length >= 3) return;
+        if (final.length >= 1) return;
         const key = [...s._ids].sort().join("|");
         if (seenSets.has(key)) continue;
         seenSets.add(key);
@@ -1061,7 +1061,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
     };
 
-    if (final.length < 3) admit(softMismatch, mismatchTip);
+    if (final.length < 1) admit(softMismatch, mismatchTip);
 
     if (softMismatch.length > 0) {
       drops.push({
@@ -1076,9 +1076,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       );
     }
 
-    // Show at most 3.
+    // Show 1 outfit; the model generates 2 candidates so the second
+    // can backfill if the first hits a hard-validation drop. Tap
+    // "Show me another" in the UI to roll a fresh pair.
     const suggestions = final
-      .slice(0, 3)
+      .slice(0, 1)
       .map(({ _fixes: _f, _ids: _ids2, ...rest }) => rest);
 
     // Scrub wardrobe_gap if the AI suggested a category the user already

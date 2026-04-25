@@ -191,12 +191,6 @@ function SuggestContent() {
     }
   }
 
-  function handleNext() {
-    if (currentIndex < suggestions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  }
-
   function handleStartOver() {
     setStep("mood");
     setMood(null);
@@ -215,7 +209,7 @@ function SuggestContent() {
           <h1 className="font-heading text-2xl font-medium tracking-tight">{t("suggest.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {step === "results"
-              ? t("suggest.suggestionCounter", { current: currentIndex + 1, total: suggestions.length })
+              ? t("suggest.yavsPick")
               : t("suggest.stepTagline")}
           </p>
         </div>
@@ -367,34 +361,59 @@ function SuggestContent() {
         </div>
       )}
 
-      {/* Step 3: Results */}
+      {/* Step 3: Results — single outfit + "Show me another" refresh. */}
       {step === "results" && suggestions.length > 0 && (
         <div className="space-y-4">
           <OutfitCard
-            items={suggestions[currentIndex].items}
-            reasoning={suggestions[currentIndex].reasoning}
-            stylingTip={suggestions[currentIndex].styling_tip}
-            name={suggestions[currentIndex].name}
+            items={suggestions[0].items}
+            reasoning={suggestions[0].reasoning}
+            stylingTip={suggestions[0].styling_tip}
+            name={suggestions[0].name}
             saving={saving}
-            isFavorited={favoritedIndices.has(currentIndex)}
-            onNext={handleNext}
-            onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-            canNext={currentIndex < suggestions.length - 1}
-            canPrev={currentIndex > 0}
-            onSave={() => saveFavorite(suggestions[currentIndex])}
-            onWearToday={() => wearToday(suggestions[currentIndex])}
+            isFavorited={favoritedIndices.has(0)}
+            onNext={() => {}}
+            onPrev={() => {}}
+            canNext={false}
+            canPrev={false}
+            onSave={() => saveFavorite(suggestions[0])}
+            onWearToday={() => wearToday(suggestions[0])}
           />
 
-          {currentIndex >= suggestions.length - 1 && (
-            <div className="text-center space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {t("suggest.thatsAll")}
-              </p>
-              <Button variant="outline" onClick={handleStartOver}>
-                {t("suggest.startOver")}
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 h-12"
+              disabled={loading}
+              onClick={generateSuggestions}
+            >
+              {loading ? (
+                <StylistLoader
+                  size="sm"
+                  phases={[
+                    t("suggest.yavStylingPhase1"),
+                    t("suggest.yavStylingPhase2"),
+                    t("suggest.yavStylingPhase3"),
+                    t("suggest.yavStylingPhase4"),
+                    t("suggest.yavStylingPhase5"),
+                    t("suggest.yavStylingPhase6"),
+                  ]}
+                />
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  {t("suggest.showMeAnother")}
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-12"
+              disabled={loading}
+              onClick={handleStartOver}
+            >
+              {t("suggest.startOver")}
+            </Button>
+          </div>
 
           {/* Wardrobe gap suggestion from AI */}
           {wardrobeGap && (
