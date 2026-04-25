@@ -28,7 +28,14 @@ export default defineConfig({
     },
   ],
   webServer: {
+    // Bump Node heap from the default ~2GB to 4GB. Long stress runs
+    // (~35 AI calls + many compiled routes + bg-removal WASM in
+    // memory) trip the default limit and crash the dev server mid-
+    // sweep with "JavaScript heap out of memory".
     command: "npm run dev",
+    env: {
+      NODE_OPTIONS: "--max-old-space-size=4096",
+    },
     url: "http://localhost:3000",
     timeout: 120 * 1000,
     reuseExistingServer: true,

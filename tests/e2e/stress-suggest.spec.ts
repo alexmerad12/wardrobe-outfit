@@ -275,7 +275,9 @@ test("stress-suggest sweep", async ({ page }) => {
           styleWishes: scenario.styleWishes,
           locale: "en",
         },
-        timeout: 60_000,
+        // Longer timeout — the new shape-failure retry can double a
+        // single call's wall time (two AI calls back-to-back).
+        timeout: 120_000,
       });
 
       if (!res.ok()) {
