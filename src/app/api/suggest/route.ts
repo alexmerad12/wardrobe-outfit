@@ -544,55 +544,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // the time because the AI slipped unescaped quotes / dashes into the
     // reasoning and styling_tip strings; tool_use returns structured data
     // already validated against the schema so parse errors can't happen.
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
-      temperature: 1,
-      tools: [
-        {
-          name: "propose_outfits",
-          description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
-          input_schema: {
-            type: "object" as const,
-            properties: {
-              outfits: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    item_ids: { type: "array", items: { type: "string" } },
-                    name: { type: "string" },
-                    reasoning: { type: "string" },
-                    styling_tip: { type: ["string", "null"] },
-                  },
-                  required: ["item_ids", "name", "reasoning"],
-                },
-              },
-              wardrobe_gap: { type: ["string", "null"] },
-            },
-            required: ["outfits"],
-          },
-        },
-      ],
-      tool_choice: { type: "tool", name: "propose_outfits" },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
-            { type: "text", text: dynamicSuffix },
-          ],
-        },
-      ],
-    });
-
-    const toolUse = message.content.find((c) => c.type === "tool_use");
-    if (!toolUse || toolUse.type !== "tool_use") {
-      console.error("[suggest] AI returned no tool_use block", message.stop_reason);
-      return NextResponse.json({ suggestions: [], message: "Failed to parse AI response" });
-    }
-
-    const parsed = toolUse.input as {
+    type ParsedShape = {
       outfits?: {
         item_ids: string[];
         name?: string;
@@ -601,18 +553,81 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }[];
       wardrobe_gap?: string | null;
     };
+    async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
+      const message = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        temperature: 1,
+        tools: [
+          {
+            name: "propose_outfits",
+            description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
+            input_schema: {
+              type: "object" as const,
+              properties: {
+                outfits: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      item_ids: { type: "array", items: { type: "string" } },
+                      name: { type: "string" },
+                      reasoning: { type: "string" },
+                      styling_tip: { type: ["string", "null"] },
+                    },
+                    required: ["item_ids", "name", "reasoning"],
+                  },
+                },
+                wardrobe_gap: { type: ["string", "null"] },
+              },
+              required: ["outfits"],
+            },
+          },
+        ],
+        tool_choice: { type: "tool", name: "propose_outfits" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
+              { type: "text", text: dynamicSuffix },
+            ],
+          },
+        ],
+      });
+      const toolUse = message.content.find((c) => c.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        return { parsed: null, stopReason: message.stop_reason };
+      }
+      return { parsed: toolUse.input as ParsedShape, stopReason: message.stop_reason };
+    }
 
-    // Defensive: the schema requires outfits to be an array but Anthropic
-    // has returned malformed input occasionally (outfits missing or as an
-    // object). Guard so we return gracefully instead of throwing.
-    if (!Array.isArray(parsed.outfits)) {
-      console.error("[suggest] tool_use input missing outfits array", parsed);
+    // Anthropic occasionally returns a tool_use input with `outfits`
+    // missing or shaped as a non-array (~5-10% of calls). One retry
+    // catches the transient ones cheaply — gives the user a real
+    // result instead of an empty list and "try again" message.
+    let parsed: ParsedShape | null = null;
+    let lastStopReason: string | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const r = await callAi();
+      lastStopReason = r.stopReason;
+      if (r.parsed && Array.isArray(r.parsed.outfits)) {
+        parsed = r.parsed;
+        break;
+      }
+      console.error(
+        `[suggest] AI returned unexpected shape on attempt ${attempt + 1}; stop=${r.stopReason}`,
+        r.parsed
+      );
+    }
+
+    if (!parsed || !Array.isArray(parsed.outfits)) {
       return NextResponse.json({
         suggestions: [],
-        wardrobe_gap: parsed.wardrobe_gap ?? null,
-        message: "AI returned an unexpected shape — try again",
+        message: `AI returned an unexpected shape after retry — stop=${lastStopReason}`,
       });
     }
+    const parsedOutfits = parsed.outfits;
 
     // Strip material / color / brand words from an AI-written name. The
     // AI sometimes writes "Suede & Satin Edge" when there's no suede in
@@ -630,7 +645,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return cleaned.length >= 3 ? cleaned : fallback;
     };
 
-    const mapped = parsed.outfits.map((s) => {
+    const mapped = parsedOutfits.map((s) => {
       const rawItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
@@ -1066,7 +1081,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
 
     if (drops.length > 0) {
       console.log(
-        `[suggest] returned=${parsed.outfits.length} hard=${hardValid.length} softMismatch=${softMismatch.length} final=${final.length} drops=${JSON.stringify(drops)}`
+        `[suggest] returned=${parsedOutfits.length} hard=${hardValid.length} softMismatch=${softMismatch.length} final=${final.length} drops=${JSON.stringify(drops)}`
       );
     }
 
