@@ -11,8 +11,12 @@ interface StylistLoaderProps {
   className?: string;
   size?: "sm" | "md" | "lg";
   label?: string;
-  // Optional rotating copy: advances through phases at ~2.2s each, then
-  // holds on the last entry. Falls back to `label` / yavIsStyling when omitted.
+  // Optional rotating copy: advances through phases at ~2.2s each. After
+  // reaching the last phase, oscillates between the final two so long
+  // calls keep showing motion ("still polishing") instead of resetting
+  // to "Reviewing wardrobe" (would feel dishonest) or freezing on
+  // "Final touches" (would feel stuck). Falls back to `label` /
+  // yavIsStyling when omitted.
   phases?: string[];
 }
 
@@ -24,8 +28,13 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
 
   useEffect(() => {
     if (!phases || phases.length === 0) return;
-    if (phaseIndex >= phases.length - 1) return;
-    const tick = setTimeout(() => setPhaseIndex((i) => i + 1), 2200);
+    const tick = setTimeout(() => {
+      setPhaseIndex((i) => {
+        if (phases.length < 2) return i;
+        if (i < phases.length - 1) return i + 1;
+        return phases.length - 2;
+      });
+    }, 2200);
     return () => clearTimeout(tick);
   }, [phases, phaseIndex]);
 

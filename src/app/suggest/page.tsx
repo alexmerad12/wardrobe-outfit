@@ -351,6 +351,9 @@ function SuggestContent() {
                     t("suggest.yavStylingPhase1"),
                     t("suggest.yavStylingPhase2"),
                     t("suggest.yavStylingPhase3"),
+                    t("suggest.yavStylingPhase4"),
+                    t("suggest.yavStylingPhase5"),
+                    t("suggest.yavStylingPhase6"),
                   ]}
                 />
               ) : (
