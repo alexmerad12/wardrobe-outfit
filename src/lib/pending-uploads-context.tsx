@@ -78,15 +78,19 @@ export function usePendingUploads(): ContextValue {
 }
 
 // Concurrency has to balance throughput vs. reliability on mobile.
-// 3 simultaneous uploads was triggering timeouts on the user's phone
-// — three streams contending for one weak cell radio, plus three
-// concurrent Claude analyses hitting our server at once, was enough
-// to push individual requests past the 60 s per-attempt ceiling.
-// 2 gives each stream meaningful bandwidth and keeps imgly's
-// single-worker queue from piling up 3 deep; real-world wall-clock
-// for a 5-item batch is only marginally slower than 3 but the
-// transient-failure rate drops to near zero.
-const CONCURRENCY = 2;
+// History: 3 → 2 → 1.
+// 3 was triggering timeouts on the user's Samsung — three streams
+// contending for one weak cell radio. 2 helped but Samsung Internet
+// users still saw "Upload network error, no bytes sent" on 4/5 items
+// per batch: two same-origin POSTs sharing one HTTP/2 connection,
+// one stalls on a Vercel cold-start, the other stream gets reset.
+// 1 fully serializes the upload step and matches what the device's
+// radio + the platform's cold-start behavior can actually deliver.
+// A 5-item batch goes from ~15-20s to ~25-35s — slower-but-completes
+// is the right tradeoff for a feature that's worse than useless when
+// it fails. Bg-removal and AI-analyze still run in parallel on-device
+// per item; this just gates the network handoff.
+const CONCURRENCY = 1;
 
 // Hard ceiling per item. Upload's own retry budget is now up to
 // 5 × 90 s + ~37 s of backoff ≈ 8 min on a genuinely broken
