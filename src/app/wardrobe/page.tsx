@@ -425,6 +425,7 @@ function WardrobePageInner() {
                       <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
                       <li>• Hanger for coats, blazers, dresses, long skirts</li>
                       <li>• Good light, no strong shadows</li>
+                      <li>• Up to 5 photos at a time</li>
                     </ul>
                   </div>
                 </DropdownMenuContent>
