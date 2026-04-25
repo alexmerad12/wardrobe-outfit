@@ -293,25 +293,7 @@ test("stress-suggest sweep", async ({ page }) => {
         continue;
       }
 
-      // /api/suggest is now an NDJSON stream — collect "outfit" events
-      // and the trailing "gap" event into the legacy SuggestResponse
-      // shape so the rest of the test logic doesn't change.
-      const body = await res.text();
-      const json: SuggestResponse = { suggestions: [], wardrobe_gap: null };
-      for (const line of body.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          const event = JSON.parse(trimmed) as { type: string; data?: unknown };
-          if (event.type === "outfit" && event.data) {
-            json.suggestions.push(event.data as SuggestResponse["suggestions"][number]);
-          } else if (event.type === "gap") {
-            json.wardrobe_gap = (event.data as string | null) ?? null;
-          }
-        } catch {
-          // skip unparseable lines
-        }
-      }
+      const json = (await res.json()) as SuggestResponse;
 
       if (!Array.isArray(json.suggestions) || json.suggestions.length === 0) {
         allFailures.push({
