@@ -54,9 +54,11 @@ import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
+import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
 
 export default function AddItemPage() {
   const router = useRouter();
+  const { addFiles } = usePendingUploads();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -469,6 +471,22 @@ export default function AddItemPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // Multi-photo selection → hand off to the bulk pipeline. Single-photo
+    // stays here for review/edit with AI pre-fill.
+    if (files.length > 1) {
+      const result = addFiles(files);
+      if (result.rejected > 0) {
+        alert(
+          `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
+        );
+      }
+      if (result.accepted > 0) {
+        router.push("/wardrobe/bulk");
+      }
+      e.target.value = "";
+      return;
+    }
+
     const file = files[0];
 
     // Reset per-image state so auto-fill re-runs for the new photo
@@ -696,11 +714,12 @@ export default function AddItemPage() {
           onChange={handleImageChange}
         />
         {/* Library: multi-select — if more than one, the handler hands them
-            off to the pending-uploads queue and redirects to /wardrobe. */}
+            off to the pending-uploads queue and redirects to /wardrobe/bulk. */}
         <input
           ref={libraryInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleImageChange}
         />
