@@ -235,26 +235,37 @@ export function PendingUploadsProvider({
         { type: downOutMime }
       );
 
-      // 2. imgly bg removal + Claude analyze in parallel. imgly runs
-      //    entirely on-device (serialized through a single Web
-      //    Worker), analyze is a server round-trip — the two don't
-      //    contend, so racing them shaves 2-4s off each item's total.
-      //    imgly failures fall back to the original image rather
-      //    than erroring the whole item.
+      // 2. imgly bg removal + Claude analyze, run SEQUENTIALLY.
+      //    Earlier this was Promise.all to overlap the on-device
+      //    bg-removal with the server round-trip, but on a 4 GB
+      //    Android 10 device that overlap was the actual cause of
+      //    the 'Upload network error, no bytes sent' failures users
+      //    were seeing. The combination of (a) bg-removal's ~50 MB
+      //    ML model, (b) a decoded full-resolution bitmap held in
+      //    memory, and (c) a parallel multipart fetch buffering a
+      //    multi-MB body was pushing the browser past what the OS
+      //    could allocate — `createImageBitmap` would fail, the
+      //    fetch and XHR would refuse to even start (TypeError /
+      //    onerror within 30 ms of send), and the user just saw
+      //    'Failed' on every tile. Diagnostic at /debug-upload
+      //    proved the network and pipeline both work in isolation;
+      //    only the parallel combination breaks. Sequential keeps
+      //    peak memory roughly halved and the failure mode
+      //    disappears. Costs ~3-5 s of wall-clock per item — a
+      //    fine tradeoff for actually completing.
       const bgLog = (stage: string, extra?: unknown) =>
         console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
       const t0 = performance.now();
-      bgLog("starting imgly + analyze in parallel");
-      const [cleanedOrNull, attrsRaw] = await Promise.all([
-        removeBg(downscaledFile).catch((err) => {
-          bgLog("imgly failed — keeping original", err);
-          return null;
-        }),
-        analyzeItem(downscaledFile).catch((err) => {
-          console.warn(`[pending ${item.id}] analyze failed, using defaults`, err);
-          return {} as AutoFillResult;
-        }),
-      ]);
+      bgLog("starting imgly bg-removal");
+      const cleanedOrNull = await removeBg(downscaledFile).catch((err) => {
+        bgLog("imgly failed — keeping original", err);
+        return null;
+      });
+      bgLog("starting Claude analyze");
+      const attrsRaw = await analyzeItem(downscaledFile).catch((err) => {
+        console.warn(`[pending ${item.id}] analyze failed, using defaults`, err);
+        return {} as AutoFillResult;
+      });
       const attrs = sanitizeAutoFill(attrsRaw);
 
       // 3. Pick the final image: cleaned PNG if imgly worked, raw
