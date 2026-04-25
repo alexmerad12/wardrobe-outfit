@@ -508,10 +508,13 @@ HARD RULES — do not violate:
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
 11. BAG × FORMALITY: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel → "tote" or "large" is fine; at-home → no bag at all. Use Bag size field when available on the item.
-12. STYLE DIRECTION (when present, treat item-specific phrases as anchors):
-   - If STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it.
-   - If the wardrobe has no matching piece, ignore that specific phrase. Don't invent. Use the rest of the STYLE DIRECTION as soft vibe.
-   - Vibe phrases that DON'T name a specific piece ("more drapey", "less colorful", "office chic", "all black", "mix patterns", "dress day") stay as soft hints — bias the outfits toward them but no hard anchor.
+12. STYLE DIRECTION (when present):
+   a) ITEM ANCHOR: if STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it. If the wardrobe has no matching piece, ignore that specific phrase (don't invent).
+   b) HARD-ENFORCED PRESETS — treat these as non-negotiable when present anywhere in STYLE DIRECTION (English or French, case-insensitive):
+      - "all black" / "tout en noir" / "all-black": EVERY visible item in the outfit must be black or near-black (charcoal, jet, ink). No denim, no beige, no white sneakers, no pastels. If you can't build a complete all-black outfit from the wardrobe, skip this outfit slot rather than break the rule.
+      - "mix patterns" / "mixer les motifs" / "mix-patterns": at least 2 items in the outfit must have a non-solid pattern (striped, plaid, floral, animal-print, etc.). Solid pieces are fine as the third/fourth.
+      - "dress day" / "journée robe" / "dress-day": the outfit must be built around a dress (category="dress"). Exception: if the wardrobe has zero dresses, fall back gracefully.
+   c) SOFT VIBE: any other phrase ("more drapey", "less colorful", "office chic", custom user text) is a hint — bias the outfits toward it but no hard requirement.
 13. MOOD (must be visibly expressed in EVERY outfit — different moods + same occasion MUST produce visibly different outfits):
    - Energized → at least one saturated bright (red, orange, yellow, fuchsia, electric blue, kelly green). No all-neutral palette.
    - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions.
@@ -674,6 +677,24 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           fixes.push("deduped subcategories");
         }
         stripped = deduped;
+      }
+      // Single-piece categories: shoes / bag / bottom / dress / one-piece
+      // — keep at most one item from each. The subcategory dedupe above
+      // misses the "one pair of sneakers + one pair of boots" case
+      // (different subcategories, both shoes — still wrong).
+      {
+        const SINGLE_PIECE = new Set<string>(["shoes", "bag", "bottom", "dress", "one-piece"]);
+        const seenCat = new Set<string>();
+        const dedupedByCat: ClothingItem[] = [];
+        for (const i of stripped) {
+          if (SINGLE_PIECE.has(i.category) && seenCat.has(i.category)) continue;
+          if (SINGLE_PIECE.has(i.category)) seenCat.add(i.category);
+          dedupedByCat.push(i);
+        }
+        if (dedupedByCat.length !== stripped.length) {
+          fixes.push("deduped single-piece categories");
+        }
+        stripped = dedupedByCat;
       }
 
       // At-home scarf stripping. The AI sometimes fixates on one warm scarf
