@@ -6,8 +6,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { PatternRoseDamask, type Palette } from "@/app/logo-lab/patterns";
-import { Monogram } from "@/app/logo-lab/monogram";
+import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
+import { Monogram } from "@/components/brand/monogram";
 
 // The committed brand palette — same shape the Rose & Damask renderer
 // expects: [bg, petalHi, _, _, _, _, stem, damaskMotif].

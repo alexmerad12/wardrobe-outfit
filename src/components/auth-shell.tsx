@@ -5,8 +5,8 @@
 "use client";
 
 import * as React from "react";
-import { PatternRoseDamask, type Palette } from "@/app/logo-lab/patterns";
-import { Monogram } from "@/app/logo-lab/monogram";
+import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
+import { Monogram } from "@/components/brand/monogram";
 
 const BRAND_PALETTE: Palette = [
   "#ebe0c8", // bg
