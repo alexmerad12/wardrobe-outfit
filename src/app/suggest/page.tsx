@@ -75,6 +75,11 @@ function SuggestContent() {
 
   async function generateSuggestions() {
     setLoading(true);
+    // Reset state up-front; outfits then stream in progressively.
+    setSuggestions([]);
+    setWardrobeGap(null);
+    setCurrentIndex(0);
+    setFavoritedIndices(new Set());
 
     try {
       const allWishes = [...styleWishes];
@@ -86,13 +91,47 @@ function SuggestContent() {
         body: JSON.stringify({ mood, occasion, styleWishes: allWishes, anchorItemId, locale }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(data.suggestions);
-        setWardrobeGap(data.wardrobe_gap ?? null);
-        setCurrentIndex(0);
-        setFavoritedIndices(new Set());
-        setStep("results");
+      if (!res.ok || !res.body) return;
+
+      // Read the NDJSON stream — each line is a complete event:
+      //   { type: "outfit", data: AISuggestion }
+      //   { type: "gap", data: string | null }
+      //   { type: "done" }
+      //   { type: "error", message: string }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let stepFlipped = false;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let newlineIdx;
+        while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, newlineIdx).trim();
+          buffer = buffer.slice(newlineIdx + 1);
+          if (!line) continue;
+          let event: { type: string; data?: unknown; message?: string };
+          try {
+            event = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (event.type === "outfit") {
+            setSuggestions((prev) => [...prev, event.data as AISuggestion]);
+            // Flip to the results screen the moment outfit #1 lands —
+            // that's the whole point of streaming.
+            if (!stepFlipped) {
+              setStep("results");
+              stepFlipped = true;
+            }
+          } else if (event.type === "gap") {
+            setWardrobeGap((event.data as string | null) ?? null);
+          } else if (event.type === "error") {
+            console.error("Stream error:", event.message);
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to generate suggestions:", err);

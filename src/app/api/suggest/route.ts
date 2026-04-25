@@ -553,72 +553,64 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }[];
       wardrobe_gap?: string | null;
     };
-    async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1400,
-        temperature: 1,
-        tools: [
-          {
-            name: "propose_outfits",
-            description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
-            input_schema: {
-              type: "object" as const,
-              properties: {
-                outfits: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      item_ids: { type: "array", items: { type: "string" } },
-                      name: { type: "string" },
-                      reasoning: { type: "string" },
-                      styling_tip: { type: ["string", "null"] },
-                    },
-                    required: ["item_ids", "name", "reasoning"],
-                  },
-                },
-                wardrobe_gap: { type: ["string", "null"] },
-              },
-              required: ["outfits"],
-            },
-          },
-        ],
-        tool_choice: { type: "tool", name: "propose_outfits" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
-              { type: "text", text: dynamicSuffix },
-            ],
-          },
-        ],
-      });
-      const toolUse = message.content.find((c) => c.type === "tool_use");
-      if (!toolUse || toolUse.type !== "tool_use") {
-        return { parsed: null, stopReason: message.stop_reason };
-      }
-      return { parsed: toolUse.input as ParsedShape, stopReason: message.stop_reason };
+    type RawOutfit = NonNullable<ParsedShape["outfits"]>[number];
+    type MappedOutfit = {
+      items: ClothingItem[];
+      score: number;
+      reasoning: string;
+      styling_tip: string | null;
+      color_harmony: string;
+      mood_match: Mood;
+      name: string;
+      weather_temp: number | null;
+      weather_condition: string | null;
+      _fixes: string[];
+      _ids: string[];
+    };
+    type CandidateResult =
+      | { kind: "hard"; outfit: MappedOutfit }
+      | { kind: "soft"; outfit: MappedOutfit }
+      | { kind: "drop"; reason: string; ids: string[] };
+
+    const wardrobeHasShoes = items.some((i) => i.category === "shoes");
+
+    const wishText = styleWishes.join(" ").toLowerCase();
+    const wantsAllBlack = /all[ -]?black|tout en noir/i.test(wishText);
+    const wantsDressDay = /dress[ -]?day|journ[ée]e robe/i.test(wishText);
+    const wantsMixPatterns = /mix[ -]?patterns?|mixer les motifs/i.test(wishText);
+
+    function isDarkItem(item: { colors: { hex: string; name: string }[] }): boolean {
+      const primary = item.colors?.[0];
+      if (!primary) return false;
+      const name = (primary.name ?? "").toLowerCase();
+      if (/black|jet|onyx|noir|ebony|obsidian|raven/.test(name)) return true;
+      const m = /^#?([0-9a-f]{6})$/i.exec((primary.hex ?? "").trim());
+      if (!m) return false;
+      const n = parseInt(m[1], 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return r + g + b < 90;
     }
 
-    // Single attempt — Sonnet's bad-shape rate is <1% with structured
-    // tool_use, so the second retry mostly just doubled tail latency.
-    // If the rare bad shape comes back, surface it; the UI shows a
-    // "try again" button.
-    const r = await callAi();
-    const parsed = r.parsed;
-    if (!parsed || !Array.isArray(parsed.outfits)) {
-      console.error(
-        `[suggest] AI returned unexpected shape; stop=${r.stopReason}`,
-        parsed
+    const baseWarmth = (outfit: ClothingItem[]): number => {
+      const dress = outfit.find((i) => i.category === "dress");
+      if (dress) return dress.warmth_rating ?? 3;
+      const jumpsuit = outfit.find(
+        (i) => i.category === "one-piece" && i.subcategory !== "overalls"
       );
-      return NextResponse.json({
-        suggestions: [],
-        message: `AI returned an unexpected shape — stop=${r.stopReason}`,
-      });
-    }
-    const parsedOutfits = parsed.outfits;
+      if (jumpsuit) return jumpsuit.warmth_rating ?? 3;
+      const warmths: number[] = [];
+      const overalls = outfit.find(
+        (i) => i.category === "one-piece" && i.subcategory === "overalls"
+      );
+      if (overalls) warmths.push(overalls.warmth_rating ?? 3);
+      const top = outfit.find((i) => i.category === "top");
+      const bottom = outfit.find((i) => i.category === "bottom");
+      if (top) warmths.push(top.warmth_rating ?? 3);
+      if (bottom) warmths.push(bottom.warmth_rating ?? 3);
+      return warmths.length > 0 ? Math.min(...warmths) : 3;
+    };
 
     // Strip material / color / brand words from an AI-written name. The
     // AI sometimes writes "Suede & Satin Edge" when there's no suede in
@@ -636,18 +628,15 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return cleaned.length >= 3 ? cleaned : fallback;
     };
 
-    const mapped = parsedOutfits.map((s) => {
+    // Per-outfit pipeline: combines the auto-fix map phase and the
+    // hard-validation filter phase from the pre-streaming version. Pure
+    // function of the candidate + closed-over wardrobe context, so we
+    // can call it incrementally as outfits stream in from Anthropic.
+    function processCandidate(s: RawOutfit): CandidateResult {
       const rawItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
 
-      // Auto-fix fixable structural violations instead of dropping outfits.
-      // The AI routinely breaks the "dress + top/bottom" and "max one per
-      // subcategory" rules despite the prompt; dropping those outfits was
-      // starving the UI (sometimes 0 outfits reached the user). Silent
-      // strip keeps the outfit alive; the hybrid text validator still
-      // swaps in template prose when the AI's description references
-      // stripped items.
       const rawHasDress = rawItems.some((i) => i.category === "dress");
       const rawHasJumpsuit = rawItems.some(
         (i) => i.category === "one-piece" && i.subcategory !== "overalls"
@@ -656,12 +645,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       const fixes: string[] = [];
 
       let stripped = rawItems;
-      // Strip bottoms when a dress or one-piece is present.
       if ((rawHasDress || rawHasOnePiece) && stripped.some((i) => i.category === "bottom")) {
         stripped = stripped.filter((i) => i.category !== "bottom");
         fixes.push("stripped bottom (dress/jumpsuit present)");
       }
-      // Strip non-layering tops when a dress or non-overalls jumpsuit is present.
       if ((rawHasDress || rawHasJumpsuit) && stripped.some(
         (i) => i.category === "top" && !i.is_layering_piece && i.subcategory !== "cardigan"
       )) {
@@ -670,7 +657,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         );
         fixes.push("stripped non-layering top (dress/jumpsuit present)");
       }
-      // Dedupe subcategories — keep first of each.
       {
         const seen = new Set<string>();
         const deduped: ClothingItem[] = [];
@@ -679,15 +665,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           if (i.subcategory) seen.add(i.subcategory);
           deduped.push(i);
         }
-        if (deduped.length !== stripped.length) {
-          fixes.push("deduped subcategories");
-        }
+        if (deduped.length !== stripped.length) fixes.push("deduped subcategories");
         stripped = deduped;
       }
-      // Single-piece categories: shoes / bag / bottom / dress / one-piece
-      // — keep at most one item from each. The subcategory dedupe above
-      // misses the "one pair of sneakers + one pair of boots" case
-      // (different subcategories, both shoes — still wrong).
       {
         const SINGLE_PIECE = new Set<string>(["shoes", "bag", "bottom", "dress", "one-piece"]);
         const seenCat = new Set<string>();
@@ -697,18 +677,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           if (SINGLE_PIECE.has(i.category)) seenCat.add(i.category);
           dedupedByCat.push(i);
         }
-        if (dedupedByCat.length !== stripped.length) {
-          fixes.push("deduped single-piece categories");
-        }
+        if (dedupedByCat.length !== stripped.length) fixes.push("deduped single-piece categories");
         stripped = dedupedByCat;
       }
 
-      // At-home scarf stripping. The AI sometimes fixates on one warm scarf
-      // and sticks it into every outfit, which previously caused the
-      // at-home filter to nuke the whole batch. Strip-instead-of-drop:
-      //   - Remove any warm scarf (warmth >= 3) from at-home outfits.
-      //   - Remove any scarf if the outfit also has a turtleneck top
-      //     (neck is already covered — redundant styling).
       if (occasion === "at-home") {
         const hasTurtleneck = stripped.some(
           (i) => i.category === "top" && i.neckline === "turtleneck"
@@ -720,15 +692,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           if (hasTurtleneck) return false;
           return true;
         });
-        if (stripped.length !== beforeLen) {
-          fixes.push("stripped scarf (at-home rule)");
-        }
+        if (stripped.length !== beforeLen) fixes.push("stripped scarf (at-home rule)");
       }
 
-      // Auto-inject an outerwear piece when the outfit is cold but missing
-      // one. Pick closest-warmth-match; bias the fit so we don't layer a
-      // slim jacket over an oversized sweater (the proportion is off and
-      // physically the sweater bunches under the jacket).
       if (
         weather &&
         typeof weather.temp === "number" &&
@@ -741,9 +707,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         if (available.length > 0) {
           const targetWarmth =
             weather.temp < 5 ? 4.5 : weather.temp < 10 ? 3.5 : 2.5;
-          // If the base top is oversized / loose, the outerwear must NOT
-          // be slim or fitted — a slim jacket won't close over it and the
-          // silhouette reads wrong.
           const baseTopFit = stripped.find(
             (i) => i.category === "top" && !i.is_layering_piece
           )?.fit;
@@ -774,10 +737,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
 
-      // Auto-inject shoes when the outfit is non-at-home but missing them
-      // and the wardrobe has shoes available. The AI skips shoes about as
-      // often as it skips jackets. Match the current occasion's vibe via
-      // the shoe's occasions array; fall back to any shoe.
       if (
         occasion !== "at-home" &&
         !stripped.some((i) => i.category === "shoes")
@@ -786,8 +745,8 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           (i) => i.category === "shoes" && !i.is_stored
         );
         if (availableShoes.length > 0) {
-          const occasionMatches = availableShoes.filter((s) =>
-            Array.isArray(s.occasions) && s.occasions.includes(occasion as Occasion)
+          const occasionMatches = availableShoes.filter((sh) =>
+            Array.isArray(sh.occasions) && sh.occasions.includes(occasion as Occasion)
           );
           const best = occasionMatches[0] ?? availableShoes[0];
           stripped = [...stripped, best];
@@ -795,15 +754,8 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
 
-// Apply the canonical display order so every consumer of this
-      // suggestion sees items head-to-toe (top, bottom, outerwear,
-      // shoes, bag, accessories).
       const outfitItems = orderOutfitItems(stripped);
 
-      // Hybrid text: prefer the AI's one-sentence prose; fall back to the
-      // server template ONLY when the AI slips a hallucinated category
-      // word into the text (the "moto jacket" bug). Keeps creative voice
-      // where it's safe, guarantees consistency where it isn't.
       const aiReasoning = oneSentence(s.reasoning);
       const aiTip = oneSentence(s.styling_tip);
       const reasoning =
@@ -815,10 +767,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           ? aiTip
           : buildStylingTip(outfitItems, locale);
 
-      // Tights nudge: when it's cold and the outfit has an exposed-leg
-      // piece (mini/midi dress, skirt, shorts), append a reminder to
-      // layer opaque tights. Skips if the dress is a maxi (legs already
-      // covered) or the outfit is at-home.
       if (
         weather &&
         typeof weather.temp === "number" &&
@@ -844,7 +792,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       const nameFallback = `${moodInfo.label} look`;
       const name = cleanName(s.name, nameFallback);
 
-      return {
+      const mapped: MappedOutfit = {
         items: outfitItems,
         score: 1,
         reasoning,
@@ -857,233 +805,76 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         _fixes: fixes,
         _ids: outfitItems.map((i) => i.id),
       };
-    });
 
-    // Wardrobe-availability flags used by the post-parse filters. If the
-    // user's wardrobe doesn't have any outerwear, we can't demand a
-    // jacket for cold weather; same for shoes. Best-effort is better than
-    // no suggestions.
-    const wardrobeHasOuterwear = items.some((i) => i.category === "outerwear");
-    const wardrobeHasShoes = items.some((i) => i.category === "shoes");
-
-    // Compute the "base layer" warmth — the warmth of what sits directly
-    // against the skin. For cold weather this matters more than the
-    // outerwear's warmth: a warmth-1 mini floral dress under a warmth-5
-    // coat is still wrong, because the dress itself can't handle the
-    // temperature when the coat comes off indoors.
-    const baseWarmth = (outfit: ClothingItem[]): number => {
-      const dress = outfit.find((i) => i.category === "dress");
-      if (dress) return dress.warmth_rating ?? 3;
-      const jumpsuit = outfit.find(
-        (i) => i.category === "one-piece" && i.subcategory !== "overalls"
-      );
-      if (jumpsuit) return jumpsuit.warmth_rating ?? 3;
-      const warmths: number[] = [];
-      const overalls = outfit.find(
-        (i) => i.category === "one-piece" && i.subcategory === "overalls"
-      );
-      if (overalls) warmths.push(overalls.warmth_rating ?? 3);
-      const top = outfit.find((i) => i.category === "top");
-      const bottom = outfit.find((i) => i.category === "bottom");
-      if (top) warmths.push(top.warmth_rating ?? 3);
-      if (bottom) warmths.push(bottom.warmth_rating ?? 3);
-      return warmths.length > 0 ? Math.min(...warmths) : 3;
-    };
-
-    // Rigid drops (truly broken outfits) vs soft drops (quality issues —
-    // base-layer warmth mismatch). If hard drops leave us with fewer than
-    // 3, we admit soft-dropped outfits back with a styling tip explaining
-    // the gap. Cold-without-outerwear is now handled upstream via auto-
-    // injection in the map phase.
-    const drops: { ids: string[]; reason: string }[] = [];
-    const softMismatch: typeof mapped = [];
-
-    // Detect preset wishes from the user's STYLE DIRECTION text. Claude
-    // is told these are hard rules but doesn't always honor them — we
-    // enforce post-parse so non-compliant outfits get dropped.
-    const wishText = styleWishes.join(" ").toLowerCase();
-    const wantsAllBlack = /all[ -]?black|tout en noir/i.test(wishText);
-    const wantsDressDay = /dress[ -]?day|journ[ée]e robe/i.test(wishText);
-    const wantsMixPatterns = /mix[ -]?patterns?|mixer les motifs/i.test(wishText);
-
-    // Hex-based "is this item dark/near-black?" check. Accepts items
-    // whose primary color is named black/jet/onyx/charcoal OR whose
-    // hex sum is below ~90 (avg <30 per channel — true black-to-charcoal
-    // band, excludes navy and dark brown which read as colors).
-    function isDarkItem(item: { colors: { hex: string; name: string }[] }): boolean {
-      const primary = item.colors?.[0];
-      if (!primary) return false;
-      const name = (primary.name ?? "").toLowerCase();
-      if (/black|jet|onyx|noir|ebony|obsidian|raven/.test(name)) return true;
-      const m = /^#?([0-9a-f]{6})$/i.exec((primary.hex ?? "").trim());
-      if (!m) return false;
-      const n = parseInt(m[1], 16);
-      const r = (n >> 16) & 255;
-      const g = (n >> 8) & 255;
-      const b = n & 255;
-      return r + g + b < 90;
-    }
-
-    const hardValid = mapped.filter((s) => {
-      // Shoes required for every occasion except at-home (if wardrobe has shoes).
+      // Hard validation — same checks as the pre-streaming filter phase.
       if (occasion !== "at-home" && wardrobeHasShoes) {
-        const hasShoes = s.items.some((i) => i.category === "shoes");
-        if (!hasShoes) {
-          drops.push({ ids: s._ids, reason: "missing shoes" });
-          return false;
+        if (!mapped.items.some((i) => i.category === "shoes")) {
+          return { kind: "drop", reason: "missing shoes", ids: mapped._ids };
         }
       }
-      // Preset enforcement — Claude says it follows these but the AI is
-      // unreliable. Drop any outfit that breaks a hard preset rule.
       if (wantsAllBlack) {
-        const offender = s.items.find((i) => !isDarkItem(i));
+        const offender = mapped.items.find((i) => !isDarkItem(i));
         if (offender) {
-          drops.push({
-            ids: s._ids,
+          return {
+            kind: "drop",
             reason: `all-black: "${offender.name}" primary color "${offender.colors?.[0]?.name}" not dark`,
-          });
-          return false;
+            ids: mapped._ids,
+          };
         }
       }
       if (wantsDressDay) {
-        const hasDress = s.items.some((i) => i.category === "dress");
-        if (!hasDress) {
-          drops.push({ ids: s._ids, reason: "dress-day preset but no dress" });
-          return false;
+        if (!mapped.items.some((i) => i.category === "dress")) {
+          return { kind: "drop", reason: "dress-day preset but no dress", ids: mapped._ids };
         }
       }
       if (wantsMixPatterns) {
-        const nonSolidCount = s.items.filter((i) => {
+        const nonSolidCount = mapped.items.filter((i) => {
           const patterns = Array.isArray(i.pattern) ? i.pattern : [i.pattern];
           return patterns.some((p) => p && p !== "solid");
         }).length;
         if (nonSolidCount < 2) {
-          drops.push({
-            ids: s._ids,
+          return {
+            kind: "drop",
             reason: `mix-patterns: only ${nonSolidCount} non-solid item(s)`,
-          });
-          return false;
+            ids: mapped._ids,
+          };
         }
       }
-      // (At-home scarf rules handled in the map phase via strip-instead-
-      // of-drop; the filter doesn't need to re-check them here.)
-      // Base completeness — this is structural, always enforced.
-      const hasDress = s.items.some((i) => i.category === "dress");
-      const hasOnePiece = s.items.some((i) => i.category === "one-piece");
-      const hasTop = s.items.some((i) => i.category === "top");
-      const hasBottom = s.items.some((i) => i.category === "bottom");
-      const isOveralls = s.items.some(
+      const hasDress = mapped.items.some((i) => i.category === "dress");
+      const hasOnePiece = mapped.items.some((i) => i.category === "one-piece");
+      const hasTop = mapped.items.some((i) => i.category === "top");
+      const hasBottom = mapped.items.some((i) => i.category === "bottom");
+      const isOveralls = mapped.items.some(
         (i) => i.category === "one-piece" && i.subcategory === "overalls"
       );
       if (!hasDress && hasOnePiece) {
-        if (isOveralls && !hasTop) {
-          drops.push({ ids: s._ids, reason: "overalls without top" });
-          return false;
-        }
+        if (isOveralls && !hasTop) return { kind: "drop", reason: "overalls without top", ids: mapped._ids };
       } else if (!hasDress && !hasOnePiece) {
-        if (!(hasTop && hasBottom)) {
-          drops.push({ ids: s._ids, reason: "incomplete base" });
-          return false;
-        }
+        if (!(hasTop && hasBottom)) return { kind: "drop", reason: "incomplete base", ids: mapped._ids };
       }
-      // (Cold-weather outerwear is handled by auto-injection in the map
-      // phase — if an outfit reaches this filter without outerwear in
-      // cold weather, the wardrobe genuinely doesn't have any to inject.)
-      // Base-layer weather mismatch: SOFT drop. A mini summer dress (warmth
-      // 1-1.5) under a winter coat is still wrong — the coat comes off,
-      // the dress doesn't handle 5°C. Require base warmth >= 2 for temp
-      // <10°C and >= 2.5 for temp <5°C. Soft-admit back if we'd end under 3.
       if (weather && typeof weather.temp === "number") {
-        const baseW = baseWarmth(s.items);
+        const baseW = baseWarmth(mapped.items);
         if (
           (weather.temp < 5 && baseW < 2.5) ||
           (weather.temp < 10 && baseW < 2)
         ) {
-          softMismatch.push(s);
-          return false;
+          return { kind: "soft", outfit: mapped };
         }
       }
-      return true;
-    });
+      return { kind: "hard", outfit: mapped };
+    }
 
-    // Dedupe hard-valid outfits. Exact-set dedup first, then fuzzy:
-    // two outfits sharing >=60% items (Jaccard index) are too similar —
-    // drop the second so the user sees visually different looks.
-    const seenSets = new Set<string>();
-    const exactDeduped = hardValid.filter((s) => {
-      const key = [...s._ids].sort().join("|");
-      if (seenSets.has(key)) {
-        drops.push({ ids: s._ids, reason: "duplicate of another outfit" });
-        return false;
-      }
-      seenSets.add(key);
-      return true;
-    });
     const jaccard = (a: string[], b: string[]): number => {
       const setB = new Set(b);
       const intersection = a.filter((x) => setB.has(x)).length;
       const union = new Set([...a, ...b]).size;
       return union === 0 ? 0 : intersection / union;
     };
-    const dedupedHard: typeof exactDeduped = [];
-    for (const s of exactDeduped) {
-      const tooSimilar = dedupedHard.some(
-        (kept) => jaccard(kept._ids, s._ids) >= 0.6
-      );
-      if (tooSimilar) {
-        drops.push({ ids: s._ids, reason: "too similar to another outfit" });
-        continue;
-      }
-      dedupedHard.push(s);
-    }
 
-    // If hard-valid outfits leave us with fewer than 3, admit soft-dropped
-    // outfits back with an appended styling tip. Base-warmth mismatches
-    // are the one soft bucket left (cold-without-outerwear is auto-injected
-    // upstream now).
-    let final = dedupedHard;
-    const mismatchTip =
-      locale === "fr"
-        ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
-        : "This piece runs light for the weather — pair with thick tights and a warm coat.";
-
-    const admit = (bucket: typeof mapped, tip: string) => {
-      for (const s of bucket) {
-        if (final.length >= 3) return;
-        const key = [...s._ids].sort().join("|");
-        if (seenSets.has(key)) continue;
-        seenSets.add(key);
-        const tipped = {
-          ...s,
-          styling_tip: s.styling_tip ? `${s.styling_tip} ${tip}` : tip,
-        };
-        final.push(tipped);
-      }
-    };
-
-    if (final.length < 3) admit(softMismatch, mismatchTip);
-
-    if (softMismatch.length > 0) {
-      drops.push({
-        ids: [],
-        reason: `softMismatch=${softMismatch.length} → final=${final.length}`,
-      });
-    }
-
-    if (drops.length > 0) {
-      console.log(
-        `[suggest] returned=${parsedOutfits.length} hard=${hardValid.length} softMismatch=${softMismatch.length} final=${final.length} drops=${JSON.stringify(drops)}`
-      );
-    }
-
-    // Show at most 3.
-    const suggestions = final
-      .slice(0, 3)
-      .map(({ _fixes: _f, _ids: _ids2, ...rest }) => rest);
-
-    // Scrub wardrobe_gap if the AI suggested a category the user already
-    // has populated. Keeps the AI from recommending "a blazer" when the
-    // wardrobe already has jackets.
+    // Wardrobe-gap scrubber: drop the AI's gap suggestion if it names a
+    // category the user already owns ("a blazer" when the wardrobe has
+    // jackets). Built from item categories at request time so it scales
+    // with their actual closet.
     const userCategoryCounts = items.reduce<Record<string, number>>((acc, i) => {
       acc[i.category] = (acc[i.category] ?? 0) + 1;
       return acc;
@@ -1106,24 +897,220 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
       return false;
     };
-    const rawGap = parsed.wardrobe_gap ?? null;
-    const wardrobe_gap = rawGap && gapMentionsOwnedCategory(rawGap) ? null : rawGap;
 
-    // Remember what we just showed so subsequent "Suggest" clicks bring
-    // fresh combinations. Best-effort — a KV hiccup shouldn't block the
-    // response.
-    if (suggestions.length > 0) {
-      const newSets = suggestions.map((s) => s.items.map((i) => i.id));
-      const merged = [...newSets, ...kvRecentSuggestions].slice(0, 40);
-      // 7-day TTL: short enough that stale bans don't ossify the
-      // rotation, long enough that someone suggesting a few times a
-      // week keeps a continuous anti-repetition memory.
-      kv.set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {});
-    }
+    const mismatchTip =
+      locale === "fr"
+        ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
+        : "This piece runs light for the weather — pair with thick tights and a warm coat.";
 
-    return NextResponse.json({
-      suggestions,
-      wardrobe_gap,
+    // Stream outfits to the client as Anthropic generates them. Each
+    // completed outfit runs through processCandidate + cross-outfit
+    // dedup and is emitted the moment it passes — so the UI sees outfit
+    // #1 around 3s instead of waiting ~10s for the whole batch.
+    const encoder = new TextEncoder();
+    const responseStream = new ReadableStream({
+      async start(controller) {
+        const send = (event: object) => {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        };
+
+        const seenSets = new Set<string>();
+        const dedupedHard: MappedOutfit[] = [];
+        const softMismatch: MappedOutfit[] = [];
+        const drops: { ids: string[]; reason: string }[] = [];
+        let totalReturned = 0;
+
+        const handleCompleted = (raw: RawOutfit | null | undefined) => {
+          if (!raw || !Array.isArray(raw.item_ids)) return;
+          totalReturned++;
+          const result = processCandidate(raw);
+          if (result.kind === "drop") {
+            drops.push({ ids: result.ids, reason: result.reason });
+            return;
+          }
+          if (result.kind === "soft") {
+            softMismatch.push(result.outfit);
+            return;
+          }
+          const ids = result.outfit._ids;
+          const key = [...ids].sort().join("|");
+          if (seenSets.has(key)) {
+            drops.push({ ids, reason: "duplicate of another outfit" });
+            return;
+          }
+          const tooSimilar = dedupedHard.some(
+            (kept) => jaccard(kept._ids, ids) >= 0.6
+          );
+          if (tooSimilar) {
+            drops.push({ ids, reason: "too similar to another outfit" });
+            return;
+          }
+          seenSets.add(key);
+          dedupedHard.push(result.outfit);
+          if (dedupedHard.length <= 3) {
+            const { _fixes: _f, _ids: _i, ...rest } = result.outfit;
+            send({ type: "outfit", data: rest });
+          }
+        };
+
+        try {
+          const stream = anthropic.messages.stream({
+            model: "claude-sonnet-4-6",
+            max_tokens: 1400,
+            temperature: 1,
+            tools: [
+              {
+                name: "propose_outfits",
+                description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
+                input_schema: {
+                  type: "object" as const,
+                  properties: {
+                    outfits: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          item_ids: { type: "array", items: { type: "string" } },
+                          name: { type: "string" },
+                          reasoning: { type: "string" },
+                          styling_tip: { type: ["string", "null"] },
+                        },
+                        required: ["item_ids", "name", "reasoning"],
+                      },
+                    },
+                    wardrobe_gap: { type: ["string", "null"] },
+                  },
+                  required: ["outfits"],
+                },
+              },
+            ],
+            tool_choice: { type: "tool", name: "propose_outfits" },
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
+                  { type: "text", text: dynamicSuffix },
+                ],
+              },
+            ],
+          });
+
+          // The SDK's inputJson event fires with a partial-JSON snapshot
+          // as the tool input streams in. An outfit at index N is fully
+          // populated once index N+1 begins (the streaming JSON parser
+          // only advances past an array element once it closes), so we
+          // process [0..emittedCount) eagerly and handle the last one
+          // at end-of-stream.
+          let emittedCount = 0;
+          let latestSnapshot: ParsedShape | null = null;
+          stream.on("inputJson", (_partialJson, jsonSnapshot) => {
+            if (
+              !jsonSnapshot ||
+              typeof jsonSnapshot !== "object" ||
+              !("outfits" in jsonSnapshot) ||
+              !Array.isArray((jsonSnapshot as ParsedShape).outfits)
+            ) {
+              return;
+            }
+            latestSnapshot = jsonSnapshot as ParsedShape;
+            const outs = latestSnapshot.outfits ?? [];
+            while (outs.length > emittedCount + 1) {
+              handleCompleted(outs[emittedCount]);
+              emittedCount++;
+            }
+          });
+
+          const finalMsg = await stream.finalMessage();
+          const toolUse = finalMsg.content.find((c) => c.type === "tool_use");
+          const finalInput =
+            toolUse && toolUse.type === "tool_use"
+              ? (toolUse.input as ParsedShape)
+              : null;
+
+          // Drain remaining outfits — the length-trigger above never
+          // fires for the final array element.
+          const snapOutfits =
+            latestSnapshot === null ? [] : (latestSnapshot as ParsedShape).outfits ?? [];
+          const finalOutfits = finalInput?.outfits ?? snapOutfits;
+          while (emittedCount < finalOutfits.length) {
+            handleCompleted(finalOutfits[emittedCount]);
+            emittedCount++;
+          }
+
+          if (totalReturned === 0) {
+            console.error(
+              `[suggest] AI returned unexpected shape; stop=${finalMsg.stop_reason}`,
+              finalInput
+            );
+            send({
+              type: "error",
+              message: `AI returned an unexpected shape — stop=${finalMsg.stop_reason}`,
+            });
+            controller.close();
+            return;
+          }
+
+          // Soft fallback: if hard-valid alone is short of 3, admit
+          // base-warmth-mismatch outfits with the tip appended.
+          if (dedupedHard.length < 3) {
+            for (const s of softMismatch) {
+              if (dedupedHard.length >= 3) break;
+              const key = [...s._ids].sort().join("|");
+              if (seenSets.has(key)) continue;
+              seenSets.add(key);
+              const tipped: MappedOutfit = {
+                ...s,
+                styling_tip: s.styling_tip ? `${s.styling_tip} ${mismatchTip}` : mismatchTip,
+              };
+              dedupedHard.push(tipped);
+              const { _fixes: _f, _ids: _i, ...rest } = tipped;
+              send({ type: "outfit", data: rest });
+            }
+          }
+          if (softMismatch.length > 0) {
+            drops.push({
+              ids: [],
+              reason: `softMismatch=${softMismatch.length} → final=${dedupedHard.length}`,
+            });
+          }
+
+          if (drops.length > 0) {
+            console.log(
+              `[suggest] returned=${totalReturned} hard=${dedupedHard.length} softMismatch=${softMismatch.length} drops=${JSON.stringify(drops)}`
+            );
+          }
+
+          // Wardrobe gap (scrubbed) is sent after all outfits.
+          const rawGap = finalInput?.wardrobe_gap ?? null;
+          const wardrobe_gap = rawGap && gapMentionsOwnedCategory(rawGap) ? null : rawGap;
+          send({ type: "gap", data: wardrobe_gap });
+
+          // Remember what we just showed so subsequent "Suggest" clicks
+          // bring fresh combinations. Best-effort — a KV hiccup
+          // shouldn't block the response.
+          const finalSuggestions = dedupedHard.slice(0, 3);
+          if (finalSuggestions.length > 0) {
+            const newSets = finalSuggestions.map((s) => s._ids);
+            const merged = [...newSets, ...kvRecentSuggestions].slice(0, 40);
+            kv.set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {});
+          }
+
+          send({ type: "done" });
+          controller.close();
+        } catch (err) {
+          console.error("Suggestion error:", err);
+          send({ type: "error", message: "Failed to generate suggestions" });
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(responseStream, {
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+      },
     });
   } catch (error) {
     console.error("Suggestion error:", error);
