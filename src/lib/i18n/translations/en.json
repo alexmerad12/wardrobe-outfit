@@ -832,6 +832,7 @@
   },
   "packing": {
     "title": "Trip Essentials",
+    "delete": "Delete trip",
     "planTrip": "Plan the stay",
     "itemsToPack": "{count} items to pack",
     "items": "items",

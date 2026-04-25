@@ -837,6 +837,7 @@
   },
   "packing": {
     "title": "Essentiels de voyage",
+    "delete": "Supprimer le voyage",
     "planTrip": "Organise ton séjour",
     "itemsToPack": "{count} items à emporter",
     "items": "items",

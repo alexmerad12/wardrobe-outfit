@@ -210,6 +210,10 @@ export default function PackingPage() {
         const trip = await res.json();
         setSavedTrips((prev) => [trip, ...prev]);
         setSaved(true);
+        // Bring the user back to the trip-list step so the just-saved
+        // trip is visible in "Upcoming trips" — staying on the results
+        // page felt like nothing happened.
+        setStep("form");
       }
     } catch (err) {
       console.error("Failed to save trip:", err);
@@ -269,9 +273,9 @@ export default function PackingPage() {
       {viewingTrip && (
         <div className="space-y-5">
           {viewingTrip.weather_summary && (
-            <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
-              <Cloud className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-blue-800">{viewingTrip.weather_summary}</p>
+            <div className="flex items-start gap-2 border-t border-b border-border py-3">
+              <Cloud className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" strokeWidth={1.75} />
+              <p className="text-sm">{viewingTrip.weather_summary}</p>
             </div>
           )}
 
@@ -321,7 +325,7 @@ export default function PackingPage() {
 
           <Button
             variant="outline"
-            className="w-full gap-1.5 text-destructive"
+            className="w-full gap-1.5"
             onClick={() => deleteTrip(viewingTrip.id)}
           >
             <Trash2 className="h-4 w-4" />
@@ -430,7 +434,17 @@ export default function PackingPage() {
                           {trip.packing_item_ids.length} {t("packing.items")}
                         </p>
                       </div>
-                      <Plane className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Plane className="h-4 w-4 text-muted-foreground" />
+                        <button
+                          type="button"
+                          aria-label={t("packing.delete")}
+                          onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }}
+                          className="text-muted-foreground hover:text-foreground p-1"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -453,7 +467,7 @@ export default function PackingPage() {
                           {formatTripDate(trip.end_date)}
                         </p>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }} className="text-muted-foreground hover:text-destructive p-1">
+                      <button onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }} className="text-muted-foreground hover:text-foreground p-1">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </CardContent>
@@ -469,9 +483,9 @@ export default function PackingPage() {
       {!viewingTrip && step === "results" && (
         <div className="space-y-5">
           {weatherSummary && (
-            <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
-              <Cloud className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-blue-800">{weatherSummary}</p>
+            <div className="flex items-start gap-2 border-t border-b border-border py-3">
+              <Cloud className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" strokeWidth={1.75} />
+              <p className="text-sm">{weatherSummary}</p>
             </div>
           )}
 

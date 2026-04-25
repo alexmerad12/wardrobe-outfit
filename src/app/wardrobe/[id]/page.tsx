@@ -630,7 +630,7 @@ export default function ItemDetailPage() {
               <Button variant="ghost" size="icon" onClick={toggleFavorite}>
                 <Heart className={cn("h-5 w-5", item.is_favorite && "fill-red-500 text-red-500")} />
               </Button>
-              <Button variant="ghost" size="icon" className="text-destructive" onClick={deleteItem}>
+              <Button variant="ghost" size="icon" onClick={deleteItem}>
                 <Trash2 className="h-5 w-5" />
               </Button>
             </>

@@ -330,7 +330,7 @@ export default function HomePage() {
                       <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
                       {t("home.favorite")}
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5 text-destructive" onClick={clearTodayOutfit}>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={clearTodayOutfit}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -410,7 +410,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {recentOutfits.slice(0, 7).map((outfit) => {
+            {recentOutfits.slice(0, 10).map((outfit) => {
               const isExpanded = expandedRecent === outfit.outfit_id;
               const dateLabel = new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
                 weekday: "short",

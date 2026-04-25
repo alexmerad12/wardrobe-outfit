@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Languages, User, Thermometer, Loader2 } from "lucide-react";
+import { MapPin, Languages, Thermometer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,19 +25,24 @@ interface CityResult {
   longitude: number;
 }
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  const [language, setLanguage] = useState<Language>("auto");
+  // Initial language: detected (en/fr). User can switch in profile.
+  // We dropped "auto" as an explicit option — it always resolves to one
+  // of the two anyway, so showing both pre-resolved is clearer.
+  const [language, setLanguage] = useState<Language>(detectLocale() === "fr" ? "fr" : "en");
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
-  const [gender, setGender] = useState<Gender>("not-specified");
+  // Gender defaults to "woman" since Closette is women-first. We no
+  // longer ask in onboarding; users can change in profile.
+  const [gender] = useState<Gender>("woman");
 
   const [cityQuery, setCityQuery] = useState("");
   const [cityResults, setCityResults] = useState<CityResult[]>([]);
@@ -102,8 +107,7 @@ export default function OnboardingPage() {
   const canAdvance =
     (step === 1) ||
     (step === 2 && city && cityLat !== 0) ||
-    (step === 3) ||
-    (step === 4);
+    (step === 3);
 
   async function handleFinish() {
     setSaving(true);
@@ -170,7 +174,6 @@ export default function OnboardingPage() {
                     <SelectTrigger className="w-full">
                       <SelectValue>
                         {(value) => {
-                          if (value === "auto") return t("profile.autoLang");
                           if (value === "en") return t("profile.english");
                           if (value === "fr") return t("profile.french");
                           return null;
@@ -178,7 +181,6 @@ export default function OnboardingPage() {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="auto">{t("profile.autoLang")}</SelectItem>
                       <SelectItem value="en">{t("profile.english")}</SelectItem>
                       <SelectItem value="fr">{t("profile.french")}</SelectItem>
                     </SelectContent>
@@ -278,45 +280,6 @@ export default function OnboardingPage() {
                       <SelectItem value="runs-hot">{t("profile.runsHot")}</SelectItem>
                       <SelectItem value="normal">{t("profile.normal")}</SelectItem>
                       <SelectItem value="runs-cold">{t("profile.runsCold")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {step === 4 && (
-              <div className="space-y-3">
-                <div>
-                  <h2 className="text-lg font-medium">
-                    {t("onboarding.genderTitle")}
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("onboarding.genderSub")}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5" />
-                    {t("profile.gender")}
-                  </Label>
-                  <Select
-                    value={gender}
-                    onValueChange={(v) => setGender(v as Gender)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue>
-                        {(value) => {
-                          if (value === "woman") return t("profile.woman");
-                          if (value === "man") return t("profile.man");
-                          if (value === "not-specified") return t("profile.notSpecified");
-                          return null;
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="woman">{t("profile.woman")}</SelectItem>
-                      <SelectItem value="man">{t("profile.man")}</SelectItem>
-                      <SelectItem value="not-specified">{t("profile.notSpecified")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

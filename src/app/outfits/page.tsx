@@ -431,7 +431,7 @@ export default function FavoritesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="gap-1.5 text-destructive"
+                          className="gap-1.5"
                           onClick={() => removeFavorite(outfit.id)}
                         >
                           <Trash2 className="h-4 w-4" />
