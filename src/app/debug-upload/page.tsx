@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { downscaleImage, flattenOntoWhite } from "@/lib/image-utils";
 import { removeBg } from "@/lib/bg-removal";
+import { analyzeItem } from "@/lib/analyze-item";
 
 type Level = "info" | "ok" | "warn" | "error";
 type LogEntry = { ts: number; level: Level; step: string; detail?: string };
@@ -238,6 +239,80 @@ export default function DebugUploadPage() {
     }
   }
 
+  // Exactly mirrors processItemOnce: downscale → Promise.all([removeBg,
+  // analyzeItem]) → flatten → upload. If this fails where button 1
+  // succeeds, the parallel analyze+bg-removal interaction with the
+  // subsequent upload is the cause.
+  const bulkSimRef = useRef<HTMLInputElement>(null);
+  async function runBulkSim(file: File) {
+    setLog([]);
+    t0Ref.current = performance.now();
+    setRunning(true);
+    try {
+      logDeviceInfo();
+      append("info", "file", `name=${file.name} size=${file.size} type=${file.type}`);
+
+      let downscaled: Blob;
+      try {
+        downscaled = await downscaleImage(file, 1600);
+        append("ok", "downscale", `${downscaled.size} bytes`);
+      } catch (err) {
+        append("error", "downscale failed", String(err));
+        return;
+      }
+
+      const baseName = file.name.replace(/\.[^.]+$/, "") || "item";
+      const downscaledFile = new File([downscaled], `${baseName}.jpg`, { type: "image/jpeg" });
+
+      append("info", "parallel", "starting Promise.all([removeBg, analyzeItem]) — exactly like bulk pipeline");
+      const parT0 = performance.now();
+      const [cleanedOrNull, attrsRaw] = await Promise.all([
+        removeBg(downscaledFile)
+          .then((r) => {
+            append("ok", "bg-removal done", r ? `${r.size} bytes after ${Math.round(performance.now() - parT0)}ms` : `null after ${Math.round(performance.now() - parT0)}ms`);
+            return r;
+          })
+          .catch((err) => {
+            append("warn", "bg-removal threw", String(err));
+            return null;
+          }),
+        analyzeItem(downscaledFile)
+          .then((r) => {
+            append("ok", "analyze done", `keys=${Object.keys(r).length} after ${Math.round(performance.now() - parT0)}ms`);
+            return r;
+          })
+          .catch((err) => {
+            append("warn", "analyze threw", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+            return {};
+          }),
+      ]);
+      append("info", "parallel done", `attrs keys=${Object.keys(attrsRaw).length} cleaned=${cleanedOrNull ? "yes" : "no"}`);
+
+      let finalFile = downscaledFile;
+      if (cleanedOrNull) {
+        try {
+          const flat = await flattenOntoWhite(cleanedOrNull, 1280, 0.88);
+          finalFile = new File([flat], `${baseName}.jpg`, { type: "image/jpeg" });
+          append("ok", "flatten", `${finalFile.size} bytes`);
+        } catch (err) {
+          append("warn", "flatten failed", String(err));
+        }
+      }
+
+      await xhrUpload(finalFile, "upload");
+      append("info", "bulk-sim complete", "");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function handleBulkSimFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    void runBulkSim(file);
+  }
+
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -304,6 +379,13 @@ export default function DebugUploadPage() {
             3. Dummy 100B via fetch
           </button>
           <button
+            onClick={() => bulkSimRef.current?.click()}
+            disabled={running}
+            className="px-3 py-2 border border-yellow-400/60 text-yellow-300 rounded disabled:opacity-50"
+          >
+            4. Bulk-path simulation
+          </button>
+          <button
             onClick={copyLog}
             disabled={log.length === 0}
             className="px-3 py-2 border border-white/40 rounded disabled:opacity-50"
@@ -312,6 +394,7 @@ export default function DebugUploadPage() {
           </button>
         </div>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        <input ref={bulkSimRef} type="file" accept="image/*" className="hidden" onChange={handleBulkSimFile} />
         <div className="border border-white/20 rounded p-3 bg-black overflow-auto whitespace-pre-wrap break-words leading-relaxed min-h-[200px]">
           {log.length === 0 ? (
             <span className="text-gray-500">No log yet. Tap a button above.</span>
