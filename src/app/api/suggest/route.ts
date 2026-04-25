@@ -555,7 +555,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
       const message = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 2048,
         temperature: 1,
         tools: [
