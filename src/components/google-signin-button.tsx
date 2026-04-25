@@ -4,7 +4,15 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
-export function GoogleSignInButton({ next = "/" }: { next?: string }) {
+export function GoogleSignInButton({
+  next = "/",
+  variant = "default",
+}: {
+  next?: string;
+  // "brand" = strip the Tailwind chrome and let the AuthShell's CSS
+  // (.auth-google) style the button into the Ivory · Noir aesthetic.
+  variant?: "default" | "brand";
+}) {
   const { t } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,19 +39,25 @@ export function GoogleSignInButton({ next = "/" }: { next?: string }) {
     // On success, Supabase redirects the browser to Google — no local action needed.
   }
 
+  const className =
+    variant === "brand"
+      ? "auth-google"
+      : "flex w-full items-center justify-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50";
+  const errorClassName = variant === "brand" ? "auth-error" : "mt-2 text-sm text-red-600";
+
   return (
     <>
       <button
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
+        className={className}
       >
         <GoogleLogo />
         {loading ? t("common.redirecting") : t("auth.continueWithGoogle")}
       </button>
       {error && (
-        <p className="mt-2 text-sm text-red-600" role="alert">
+        <p className={errorClassName} role="alert">
           {error}
         </p>
       )}

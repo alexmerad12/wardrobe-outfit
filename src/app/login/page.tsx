@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleSignInButton } from "@/components/google-signin-button";
+import { AuthShell } from "@/components/auth-shell";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 function LoginForm() {
@@ -40,100 +41,61 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="font-[family-name:var(--font-heading)] text-3xl">
-            {t("auth.welcomeBack")}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("auth.signInToClosette")}
-          </p>
+    <AuthShell eyebrow="Maison de garde-robe">
+      <h2>{t("auth.welcomeBack")}</h2>
+      <p className="auth-sub">{t("auth.signInToClosette")}</p>
+
+      <GoogleSignInButton next={next} variant="brand" />
+
+      <div className="auth-divider">{t("auth.or")}</div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label htmlFor="email" className="block mb-1.5">{t("auth.email")}</label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
 
-        <GoogleSignInButton next={next} />
-
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">{t("auth.or")}</span>
-          <div className="h-px flex-1 bg-border" />
+        <div>
+          <label htmlFor="password" className="block mb-1.5">{t("auth.password")}</label>
+          <input
+            id="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium mb-1.5"
-            >
-              {t("auth.email")}
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+        {error && (
+          <p className="auth-error" role="alert">{error}</p>
+        )}
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium mb-1.5"
-            >
-              {t("auth.password")}
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+        <button type="submit" disabled={loading} className="auth-primary">
+          {loading ? t("auth.signingIn") : t("auth.signIn")}
+        </button>
+      </form>
 
-          {error && (
-            <p className="text-sm text-red-600" role="alert">
-              {error}
-            </p>
-          )}
+      <p className="auth-foot-note">
+        {t("auth.noAccount")}{" "}
+        <Link href="/signup" className="auth-link">{t("auth.signUp")}</Link>
+      </p>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? t("auth.signingIn") : t("auth.signIn")}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {t("auth.noAccount")}{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-foreground hover:underline"
-          >
-            {t("auth.signUp")}
-          </Link>
-        </p>
-
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          {t("auth.termsPrefix")}
-          <Link href="/terms" className="underline">
-            {t("auth.termsLink")}
-          </Link>
-          {t("auth.termsAnd")}
-          <Link href="/privacy" className="underline">
-            {t("auth.privacyLink")}
-          </Link>
-          {t("auth.termsSuffix")}
-        </p>
-      </div>
-    </div>
+      <p className="auth-terms">
+        {t("auth.termsPrefix")}
+        <Link href="/terms">{t("auth.termsLink")}</Link>
+        {t("auth.termsAnd")}
+        <Link href="/privacy">{t("auth.privacyLink")}</Link>
+        {t("auth.termsSuffix")}
+      </p>
+    </AuthShell>
   );
 }
 
