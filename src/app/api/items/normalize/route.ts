@@ -63,19 +63,60 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Normalize via sharp.
+  // Try Photoroom for background removal first. If it works, we get
+  // back a transparent PNG that sharp flattens onto white. If it fails
+  // (no key, network error, quota), fall back to plain sharp resize —
+  // user keeps the original background but the upload still works.
+  let bgRemovedPng: Buffer | null = null;
+  if (process.env.PHOTOROOM_API_KEY) {
+    try {
+      const fd = new FormData();
+      fd.append("image_file", new Blob([new Uint8Array(inputBuffer)]), "input.jpg");
+      const prRes = await fetch("https://sdk.photoroom.com/v1/segment", {
+        method: "POST",
+        headers: { "x-api-key": process.env.PHOTOROOM_API_KEY },
+        body: fd,
+      });
+      if (prRes.ok) {
+        bgRemovedPng = Buffer.from(await prRes.arrayBuffer());
+      } else {
+        const errBody = await prRes.text().catch(() => "");
+        console.warn(`[normalize] Photoroom failed ${prRes.status}: ${errBody.slice(0, 200)} — falling back to plain resize`);
+      }
+    } catch (err) {
+      console.warn("[normalize] Photoroom call threw — falling back to plain resize", err);
+    }
+  }
+
+  // Sharp processing: if Photoroom gave us a transparent PNG, flatten
+  // onto white. Otherwise just resize the original. Either way, output
+  // is a clean 1280px JPEG.
   let output: Buffer;
   try {
-    output = await sharp(inputBuffer, { failOn: "none" })
-      .rotate()
-      .resize({
-        width: 1280,
-        height: 1280,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 85, mozjpeg: true })
-      .toBuffer();
+    if (bgRemovedPng) {
+      output = await sharp(bgRemovedPng, { failOn: "none" })
+        .rotate()
+        .flatten({ background: "#ffffff" })
+        .resize({
+          width: 1280,
+          height: 1280,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+    } else {
+      output = await sharp(inputBuffer, { failOn: "none" })
+        .rotate()
+        .resize({
+          width: 1280,
+          height: 1280,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+    }
   } catch (err) {
     const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error("[normalize] sharp decode failed", detail);

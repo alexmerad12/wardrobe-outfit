@@ -8,10 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { removeBg } from "@/lib/bg-removal";
-import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
+import { type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
-import { downscaleImage, flattenOntoWhite } from "@/lib/image-utils";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
@@ -207,273 +205,117 @@ export function PendingUploadsProvider({
       //    HEIC bytes flow through every step (downscale, bg-removal,
       //    flatten) silently failing and end up uploaded raw, then the
       //    saved item shows a broken-image icon in the wardrobe view.
-      const heicLog = (stage: string, extra?: unknown) =>
-        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
-      // Set when the server-side normalize fallback fires; tells the
-      // upload step at the end to skip uploadToSupabase and use this
-      // URL as image_url directly (the file is already in Supabase
-      // Storage, just at the path the server overwrote).
-      let preUploadedImageUrl: string | null = null;
+      const bgLog = (stage: string, extra?: unknown) =>
+        console.log(`[bulk ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
+      const t0 = performance.now();
+
+      // 0. HEIC → JPEG client-side if needed. Samsung "High Efficiency"
+      //    + iPhone defaults produce HEIC; even Supabase Storage will
+      //    accept the bytes but the browser <img> tag can't render them
+      //    without conversion. heic2any handles this in-browser.
       let sourceFile: File = item.file;
       const heicHit = await isHeicFileDeep(item.file);
-      heicLog(`type="${item.file.type}" name="${item.file.name}" size=${item.file.size} heic=${heicHit}`);
+      bgLog(`type="${item.file.type}" name="${item.file.name}" size=${item.file.size} heic=${heicHit}`);
       if (heicHit) {
-        heicLog(`HEIC detected — converting to JPEG before pipeline`);
+        bgLog("HEIC detected — converting to JPEG before pipeline");
         try {
           sourceFile = await convertHeicToJpeg(item.file);
-          heicLog(`HEIC converted`, {
+          bgLog("HEIC converted", {
             beforeBytes: item.file.size,
             afterBytes: sourceFile.size,
           });
-          // Replace the tile preview so the user sees the converted JPEG
-          // (the original HEIC blob URL won't render in <img>).
           const newPreview = URL.createObjectURL(sourceFile);
           const oldPreview = item.previewUrl;
           patchItem(item.id, { previewUrl: newPreview });
           setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
         } catch (err) {
-          heicLog("HEIC conversion failed", err);
+          bgLog("HEIC conversion failed", err);
           throw new Error(
             "Couldn't read this photo (HEIC format unsupported). Try saving as JPEG first."
           );
         }
       }
 
-      // 1. Downscale FIRST so everything downstream sees a sane-sized image.
-      //    Phone HEICs can be 20 MB+ and blow Claude's 5 MB image limit, on
-      //    top of being slow to upload. Doing this before bg removal also
-      //    gives us a safe fallback image if the ML worker throws.
-      const downscaled = await downscaleImage(sourceFile, 1600);
+      // 1. Direct upload of the (HEIC-converted if needed) original to
+      //    Supabase Storage. This bypasses Vercel's 4.5 MB body limit
+      //    and skips every client-side canvas operation that's been
+      //    failing on Samsung Chrome (downscale, imgly bg-removal,
+      //    flatten, cascading shrink). Supabase Storage accepts up to
+      //    50 MB so any phone photo fits.
+      bgLog("uploading raw to Supabase");
+      const rawUploadT0 = performance.now();
+      const rawUrl = await uploadToSupabase(sourceFile);
+      bgLog(`raw upload done in ${Math.round(performance.now() - rawUploadT0)}ms`);
 
-      // If the downscale step produced a different blob (e.g. HEIC → JPEG),
-      // swap the preview URL. Desktop browsers can't render HEIC, so the
-      // original blob URL shows as a broken image until we replace it.
-      if (downscaled !== item.file) {
-        const oldUrl = item.previewUrl;
-        const newUrl = URL.createObjectURL(downscaled);
-        patchItem(item.id, { previewUrl: newUrl });
-        // Give React a tick to swap in the new URL before revoking the old.
-        setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
+      const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
+      if (!pathMatch) {
+        throw new Error("couldn't parse upload path from Supabase URL");
       }
+      const sourcePath = pathMatch[1];
 
-      // Re-wrap the downscaled blob as a File so AI analyze + imgly
-      // see a proper filename + type. Even if downscaling returned
-      // the original File unchanged, re-wrapping costs nothing.
-      const downOutMime =
-        downscaled.type === "image/png" ||
-        downscaled.type === "image/jpeg" ||
-        downscaled.type === "image/webp"
-          ? downscaled.type
-          : "image/jpeg";
-      const downExt =
-        downOutMime === "image/png" ? "png" : downOutMime === "image/webp" ? "webp" : "jpg";
-      const baseName = item.file.name.replace(/\.[^.]+$/, "") || "item";
-      const downscaledFile = new File(
-        [downscaled],
-        `${baseName}.${downExt}`,
-        { type: downOutMime }
-      );
-
-      // 2. imgly bg removal + Claude analyze, run SEQUENTIALLY.
-      //    Earlier this was Promise.all to overlap the on-device
-      //    bg-removal with the server round-trip, but on a 4 GB
-      //    Android 10 device that overlap was the actual cause of
-      //    the 'Upload network error, no bytes sent' failures users
-      //    were seeing. The combination of (a) bg-removal's ~50 MB
-      //    ML model, (b) a decoded full-resolution bitmap held in
-      //    memory, and (c) a parallel multipart fetch buffering a
-      //    multi-MB body was pushing the browser past what the OS
-      //    could allocate — `createImageBitmap` would fail, the
-      //    fetch and XHR would refuse to even start (TypeError /
-      //    onerror within 30 ms of send), and the user just saw
-      //    'Failed' on every tile. Diagnostic at /debug-upload
-      //    proved the network and pipeline both work in isolation;
-      //    only the parallel combination breaks. Sequential keeps
-      //    peak memory roughly halved and the failure mode
-      //    disappears. Costs ~3-5 s of wall-clock per item — a
-      //    fine tradeoff for actually completing.
-      const bgLog = (stage: string, extra?: unknown) =>
-        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
-      const t0 = performance.now();
-      bgLog("starting imgly bg-removal");
-      const cleanedOrNull = await removeBg(downscaledFile).catch((err) => {
-        bgLog("imgly failed — keeping original", err);
-        return null;
-      });
-      bgLog("starting Claude analyze");
-      const attrsRaw = await analyzeItem(downscaledFile).catch((err) => {
-        console.warn(`[pending ${item.id}] analyze failed, using defaults`, err);
-        return {} as AutoFillResult;
-      });
-      const attrs = sanitizeAutoFill(attrsRaw);
-
-      // 3. Pick the final image: cleaned PNG if imgly worked, raw
-      //    downscaled otherwise. Swap the tile preview so the user
-      //    sees the white-bg version appear before the redirect.
-      //    IMPORTANT: when imgly succeeds, we flatten the transparent
-      //    PNG onto white and re-encode as JPEG before uploading.
-      //    Imgly's raw output is routinely 2-3 MB at 1600 px because
-      //    PNG compresses transparency poorly — that file size was
-      //    starving both the direct-upload path (Samsung's CORS
-      //    preflight bug compounds with large bodies) and the proxy
-      //    fallback (3 MB through Vercel's 4.5 MB Hobby body limit
-      //    + 10 s function timeout was failing in the wild). Wardrobe
-      //    photos never actually need transparency — every consumer
-      //    renders them on a light background — so baking in white
-      //    is loss-free in the user's eyes and 5-10× smaller on disk.
-      let finalFile: File;
-      if (cleanedOrNull) {
-        bgLog(`imgly done in ${Math.round(performance.now() - t0)}ms`, {
-          size: cleanedOrNull.size,
-        });
-        const flattened = await flattenOntoWhite(cleanedOrNull, 1280, 0.88);
-        bgLog(`flattened to JPEG`, {
-          beforeBytes: cleanedOrNull.size,
-          afterBytes: flattened.size,
-          ratio:
-            cleanedOrNull.size > 0
-              ? `${((flattened.size / cleanedOrNull.size) * 100).toFixed(0)}%`
-              : "n/a",
-        });
-        const cleanedPreview = URL.createObjectURL(flattened);
-        const oldPreview = item.previewUrl;
-        patchItem(item.id, { previewUrl: cleanedPreview });
-        setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
-        finalFile = new File([flattened], `${baseName}.jpg`, {
-          type: "image/jpeg",
-        });
-      } else {
-        finalFile = downscaledFile;
-      }
-
-      // Final size guard. Vercel Hobby rejects request bodies > 4.5 MB
-      // at the edge — the function never runs, the connection is reset
-      // before any byte is read, and XHR surfaces it as "Upload network
-      // error, no bytes sent" with no further detail. That's the
-      // deterministic "same photo always fails" failure mode.
-      // It hits when BOTH (a) bg-removal failed (so we're on the
-      // downscale fallback) and (b) downscaleImage's createImageBitmap
-      // call also failed on the same source (broken EXIF, an HEIC
-      // variant the browser can't decode, low-memory device under
-      // load) — in which case downscaleImage silently passes the raw
-      // 4-8 MB camera file straight through. Re-encode here as the
-      // backstop so nothing oversized reaches the wire.
-      // Cascading size guard. /api/upload (Vercel proxy) rejects bodies
-      // over 4.5 MB at the edge ("no bytes sent" error). Try multiple
-      // shrink strategies in order of preference; bail with a clear
-      // error before the upload if every strategy fails on this device.
-      const SAFE_UPLOAD_SIZE = 2_000_000;
-      const HARD_UPLOAD_LIMIT = 4_000_000;
-      if (finalFile.size > SAFE_UPLOAD_SIZE) {
-        bgLog(`finalFile too large — trying shrink fallback`, {
-          beforeBytes: finalFile.size,
-        });
-        const shrinkAttempts: { tag: string; fn: () => Promise<Blob> }[] = [
-          { tag: "flatten 1280/0.85", fn: () => flattenOntoWhite(finalFile, 1280, 0.85) },
-          { tag: "flatten 1024/0.7", fn: () => flattenOntoWhite(finalFile, 1024, 0.7) },
-          { tag: "downscale 800/0.7", fn: () => downscaleImage(finalFile, 800) },
-          { tag: "downscale 600/0.6", fn: () => downscaleImage(finalFile, 600) },
-        ];
-        for (const { tag, fn } of shrinkAttempts) {
-          try {
-            const shrunk = await fn();
-            if (shrunk.size <= HARD_UPLOAD_LIMIT) {
-              finalFile = new File([shrunk], `${baseName}.jpg`, { type: "image/jpeg" });
-              bgLog(`re-encoded via ${tag}`, { afterBytes: finalFile.size });
-              break;
-            }
-            bgLog(`${tag} still too big`, { size: shrunk.size });
-          } catch (err) {
-            bgLog(`${tag} failed`, err);
-          }
-        }
-        // If client-side shrink couldn't get us under the limit, fall
-        // back to the server-side normalize endpoint. Sharp on the
-        // server can decode anything Chrome's canvas can't (Samsung
-        // mif1-only HEIF, Motion Photos > Mali GPU caps, memory-
-        // pressured >4096px, etc).
-        //
-        // We can't multipart POST the raw file — Vercel functions cap
-        // the request body at 4.5 MB at the edge layer (HTTP 413
-        // before the function runs), and phone photos are routinely
-        // 5-7 MB. Workaround: upload the raw original direct to
-        // Supabase first (50 MB limit, no Vercel in the path), then
-        // tell the server "go fetch this URL and rewrite it as a
-        // clean JPEG." Server uses sharp via libvips to decode +
-        // resize + re-encode and overwrites the same path. Client
-        // gets the same URL back, now pointing at a clean JPEG.
-        if (finalFile.size > HARD_UPLOAD_LIMIT) {
-          bgLog("client-side shrink couldn't get under 4MB — trying server normalize via Supabase round-trip");
-          try {
-            // 1. Direct upload of raw original to Supabase. Reuse the
-            //    same uploadToSupabase helper bulk uses everywhere.
-            const rawUrl = await uploadToSupabase(item.file);
-            // Pull path out of public URL so the server knows what to
-            // overwrite. URL shape: {origin}/storage/v1/object/public/clothing-images/{path}
-            const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
-            if (!pathMatch) {
-              throw new Error("couldn't parse upload path from Supabase URL");
-            }
-            const sourcePath = pathMatch[1];
-
-            // 2. Ask server to fetch + normalize + overwrite.
-            const res = await fetch("/api/items/normalize", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sourceUrl: rawUrl, sourcePath }),
-            });
-            if (!res.ok) {
-              let detail = "";
-              try {
-                const json = await res.json();
-                detail = json.detail || json.error || "";
-              } catch {
-                detail = await res.text().catch(() => "");
-              }
-              throw new Error(`server normalize ${res.status}: ${detail.slice(0, 200)}`);
-            }
-            const { url: normalizedUrl } = (await res.json()) as { url: string };
-
-            // 3. Stash for the upload step below — it skips uploadToSupabase
-            //    when this is set and uses the URL directly as image_url.
-            preUploadedImageUrl = normalizedUrl;
-            bgLog("server normalize succeeded", { url: normalizedUrl });
-          } catch (serverErr) {
-            bgLog("server normalize failed too", serverErr);
-            const detail = serverErr instanceof Error ? serverErr.message : String(serverErr);
+      // 2. Server-side processing in parallel:
+      //      - normalize: Photoroom bg-removal + sharp resize + flatten
+      //                   onto white, overwrites same Supabase path
+      //      - analyze:   Gemini classifies the original photo (more
+      //                   context than the bg-removed version)
+      //    Both take just the URL, so neither hits Vercel's 4.5 MB
+      //    body cap. Server has libvips and gigs of memory — none of
+      //    the canvas / Mali GPU / Chrome heap limits that bite mobile.
+      bgLog("starting parallel server normalize + analyze");
+      const serverT0 = performance.now();
+      const [normalizeResult, attrsRaw] = await Promise.all([
+        fetch("/api/items/normalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceUrl: rawUrl, sourcePath }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const errBody = (await res.json().catch(() => ({}))) as {
+              error?: string;
+              detail?: string;
+            };
             throw new Error(
-              `Couldn't process this photo (${detail.slice(0, 150)}). Try a different image.`
+              `normalize ${res.status}: ${errBody.detail || errBody.error || ""}`
             );
           }
+          return res.json() as Promise<{ url: string; bytes: number }>;
+        }),
+        fetch("/api/items/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceUrl: rawUrl }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            console.warn(
+              `[pending ${item.id}] analyze failed (${res.status}), using defaults`
+            );
+            return {} as AutoFillResult;
+          }
+          return res.json() as Promise<AutoFillResult>;
+        }),
+      ]);
+      bgLog(
+        `server processing done in ${Math.round(performance.now() - serverT0)}ms`,
+        { bytes: normalizeResult.bytes }
+      );
+
+      // 3. Refresh tile preview to the normalized (white-bg) image.
+      //    Cache-bust since we just overwrote the same path.
+      try {
+        const cleanedRes = await fetch(`${normalizeResult.url}?t=${Date.now()}`);
+        if (cleanedRes.ok) {
+          const cleanedBlob = await cleanedRes.blob();
+          const cleanedPreview = URL.createObjectURL(cleanedBlob);
+          const oldPreview = item.previewUrl;
+          patchItem(item.id, { previewUrl: cleanedPreview });
+          setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
         }
+      } catch (err) {
+        bgLog("tile preview refresh failed (non-fatal)", err);
       }
 
-      // 4. Single upload + single save. Previously we did 2 uploads
-      //    (raw + cleaned) and 2 DB writes (POST + PATCH) per item;
-      //    uploading only the final image cuts ~3-5s of network I/O
-      //    per item.
-      //    Skip when the server-side normalize fallback already
-      //    uploaded + overwrote the file — the URL is already final.
-      let imageUrl: string;
-      if (preUploadedImageUrl) {
-        bgLog("skipping upload — server-side normalize already wrote final image");
-        imageUrl = preUploadedImageUrl;
-      } else {
-        bgLog("uploading final image", {
-          size: finalFile.size,
-          type: finalFile.type,
-        });
-        const uploadT0 = performance.now();
-        // Don't re-wrap the error with another "Upload:" prefix — the
-        // upload helper already prefixes its errors, and doubling them
-        // up produced "Upload: Upload: Failed to fetch" in the user-
-        // facing error panel, which was confusing.
-        imageUrl = await uploadToSupabase(finalFile).catch((err) => {
-          console.error(`[pending ${item.id}] upload step failed`, err);
-          throw err;
-        });
-        bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
-      }
+      const attrs = sanitizeAutoFill(attrsRaw);
+      const imageUrl = normalizeResult.url;
 
       // Save with the same retry strategy as upload — the DB write
       // can also drop under transient network/server stress and we

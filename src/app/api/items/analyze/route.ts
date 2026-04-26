@@ -106,13 +106,34 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("image");
-    if (!(file instanceof Blob)) {
-      return NextResponse.json({ error: "Missing image" }, { status: 400 });
+    // Accept EITHER multipart (legacy single-add path) OR JSON
+    // {sourceUrl} (bulk pipeline + anything that already uploaded
+    // to Supabase). The URL path bypasses Vercel's 4.5 MB body limit
+    // — the bulk pipeline uses it because phone photos blow that
+    // limit even after client-side downscale.
+    const ct = request.headers.get("content-type") ?? "";
+    let rawBuffer: Buffer;
+    if (ct.includes("application/json")) {
+      const body = (await request.json()) as { sourceUrl?: string };
+      if (!body.sourceUrl) {
+        return NextResponse.json({ error: "Missing sourceUrl" }, { status: 400 });
+      }
+      const fetchRes = await fetch(body.sourceUrl);
+      if (!fetchRes.ok) {
+        return NextResponse.json(
+          { error: `Couldn't fetch source: ${fetchRes.status}` },
+          { status: 502 }
+        );
+      }
+      rawBuffer = Buffer.from(await fetchRes.arrayBuffer());
+    } else {
+      const formData = await request.formData();
+      const file = formData.get("image");
+      if (!(file instanceof Blob)) {
+        return NextResponse.json({ error: "Missing image" }, { status: 400 });
+      }
+      rawBuffer = Buffer.from(await file.arrayBuffer());
     }
-
-    const rawBuffer = Buffer.from(await file.arrayBuffer());
     // Downsize before sending — Gemini's image-token cost scales with
     // resolution and a 6MB phone photo took ~25s end-to-end while the
     // same image at 1024px wide took ~1.5s. 1024px is plenty of detail
