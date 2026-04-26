@@ -12,6 +12,7 @@ import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage, flattenOntoWhite } from "@/lib/image-utils";
+import { convertHeicToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
 
@@ -200,11 +201,42 @@ export function PendingUploadsProvider({
 
   const processItemOnce = useCallback(
     async (item: PendingItem): Promise<void> => {
+      // 0. HEIC → JPEG if needed. Samsung "High Efficiency" mode and
+      //    iPhone defaults produce HEIC files that Chrome's canvas /
+      //    createImageBitmap can't decode. Without this conversion the
+      //    HEIC bytes flow through every step (downscale, bg-removal,
+      //    flatten) silently failing and end up uploaded raw, then the
+      //    saved item shows a broken-image icon in the wardrobe view.
+      const heicLog = (stage: string, extra?: unknown) =>
+        console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
+      let sourceFile: File = item.file;
+      if (isHeicFile(item.file)) {
+        heicLog(`HEIC detected — converting to JPEG before pipeline`);
+        try {
+          sourceFile = await convertHeicToJpeg(item.file);
+          heicLog(`HEIC converted`, {
+            beforeBytes: item.file.size,
+            afterBytes: sourceFile.size,
+          });
+          // Replace the tile preview so the user sees the converted JPEG
+          // (the original HEIC blob URL won't render in <img>).
+          const newPreview = URL.createObjectURL(sourceFile);
+          const oldPreview = item.previewUrl;
+          patchItem(item.id, { previewUrl: newPreview });
+          setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
+        } catch (err) {
+          heicLog("HEIC conversion failed", err);
+          throw new Error(
+            "Couldn't read this photo (HEIC format unsupported). Try saving as JPEG first."
+          );
+        }
+      }
+
       // 1. Downscale FIRST so everything downstream sees a sane-sized image.
       //    Phone HEICs can be 20 MB+ and blow Claude's 5 MB image limit, on
       //    top of being slow to upload. Doing this before bg removal also
       //    gives us a safe fallback image if the ML worker throws.
-      const downscaled = await downscaleImage(item.file, 1600);
+      const downscaled = await downscaleImage(sourceFile, 1600);
 
       // If the downscale step produced a different blob (e.g. HEIC → JPEG),
       // swap the preview URL. Desktop browsers can't render HEIC, so the

@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
+import { convertHeicToJpeg, isHeicFile } from "@/lib/heic-convert";
 import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
 
 export default function AddItemPage() {
@@ -474,7 +475,7 @@ export default function AddItemPage() {
     void runBgRemoval(imageFile);
   }
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -494,7 +495,20 @@ export default function AddItemPage() {
       return;
     }
 
-    const file = files[0];
+    let file = files[0];
+
+    // HEIC → JPEG client-side. Chrome can't render HEIC in <img> from
+    // a blob URL, so without this the preview shows a broken icon and
+    // every downstream canvas operation fails on the same source.
+    if (isHeicFile(file)) {
+      try {
+        file = await convertHeicToJpeg(file);
+      } catch (err) {
+        console.error("HEIC conversion failed:", err);
+        setError("Couldn't read this photo (HEIC). Try saving as JPEG first.");
+        return;
+      }
+    }
 
     // Reset per-image state so auto-fill re-runs for the new photo
     autoFillAppliedForRef.current = null;
