@@ -1,48 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
   <title>Closette — Ivory Noir</title>
   <defs>
-    <g id="damask" fill="#0a0806" stroke="#0a0806" stroke-linecap="round">
-      <path d="M0 -30 Q 14 -16 0 0 Q -14 -16 0 -30 Z" opacity="0.95"/>
-      <path d="M0 0 Q 14 16 0 30 Q -14 16 0 0 Z" opacity="0.95"/>
-      <path d="M-30 0 Q -16 -14 0 0 Q -16 14 -30 0 Z" opacity="0.9"/>
-      <path d="M30 0 Q 16 -14 0 0 Q 16 14 30 0 Z" opacity="0.9"/>
-      <path d="M0 -28 Q 22 -38 27 -20 Q 23 -10 12 -13" stroke-width="2" fill="none" opacity="0.85"/>
-      <path d="M0 -28 Q -22 -38 -27 -20 Q -23 -10 -12 -13" stroke-width="2" fill="none" opacity="0.85"/>
-      <path d="M0 28 Q 22 38 27 20 Q 23 10 12 13" stroke-width="2" fill="none" opacity="0.85"/>
-      <path d="M0 28 Q -22 38 -27 20 Q -23 10 -12 13" stroke-width="2" fill="none" opacity="0.85"/>
-      <circle cx="0" cy="-40" r="2.2" opacity="0.75"/>
-      <circle cx="0" cy="40" r="2.2" opacity="0.75"/>
-      <circle cx="-40" cy="0" r="2" opacity="0.65"/>
-      <circle cx="40" cy="0" r="2" opacity="0.65"/>
-      <circle cx="0" cy="0" r="2.6" fill="#f8efd6" opacity="0.55"/>
+    <g id="damask">
+      <path d="M0 -18 Q 8 -10 0 0 Q -8 -10 0 -18 Z" fill="#0a0806" opacity="0.95"/>
+      <path d="M0 0 Q 8 10 0 18 Q -8 10 0 0 Z" fill="#0a0806" opacity="0.95"/>
+      <path d="M-18 0 Q -10 -8 0 0 Q -10 8 -18 0 Z" fill="#0a0806" opacity="0.9"/>
+      <path d="M18 0 Q 10 -8 0 0 Q 10 8 18 0 Z" fill="#0a0806" opacity="0.9"/>
+      <path d="M0 -17 Q 13 -23 16 -12 Q 14 -6 7 -8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 -17 Q -13 -23 -16 -12 Q -14 -6 -7 -8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 17 Q 13 23 16 12 Q 14 6 7 8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 17 Q -13 23 -16 12 Q -14 6 -7 8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <circle cx="0" cy="-24" r="1.2" fill="#0a0806" opacity="0.75"/>
+      <circle cx="0" cy="24" r="1.2" fill="#0a0806" opacity="0.75"/>
+      <circle cx="-24" cy="0" r="1" fill="#0a0806" opacity="0.65"/>
+      <circle cx="24" cy="0" r="1" fill="#0a0806" opacity="0.65"/>
+      <circle cx="0" cy="0" r="1.8" fill="#f8efd6" opacity="0.55"/>
     </g>
+    <pattern id="rd-tile" x="0" y="0" width="90" height="156"
+             patternUnits="userSpaceOnUse" patternTransform="translate(155 161)">
+      <rect width="90" height="156" fill="#ebe0c8"/>
+      <g stroke="#3a2a1e" stroke-width="0.7" fill="none" opacity="0.55" stroke-linecap="round">
+        <line x1="45" y1="39" x2="0" y2="117"/>
+        <line x1="45" y1="39" x2="90" y2="117"/>
+        <line x1="45" y1="39" x2="0" y2="-39"/>
+        <line x1="45" y1="39" x2="90" y2="-39"/>
+        <line x1="0" y1="117" x2="45" y2="195"/>
+        <line x1="90" y1="117" x2="45" y2="195"/>
+      </g>
+      <g transform="translate(45 39) scale(0.5)"><use href="#damask"/></g>
+      <g transform="translate(0 117) scale(0.5)"><use href="#damask"/></g>
+      <g transform="translate(90 117) scale(0.5)"><use href="#damask"/></g>
+    </pattern>
   </defs>
-  <rect width="512" height="512" fill="#ebe0c8" rx="92" ry="92"/>
-  <g stroke="#3a2a1e" stroke-width="1.2" fill="none" opacity="0.32" stroke-linecap="round">
-    <path d="M114 114 L 398 114 L 398 398 L 114 398 Z"/>
-    <path d="M256 76 L 76 256 L 256 436 L 436 256 Z"/>
-  </g>
-  <use href="#damask" x="114" y="114"/>
-  <use href="#damask" x="398" y="114"/>
-  <use href="#damask" x="114" y="398"/>
-  <use href="#damask" x="398" y="398"/>
-  <use href="#damask" x="256" y="76"/>
-  <use href="#damask" x="256" y="436"/>
-  <use href="#damask" x="76"  y="256"/>
-  <use href="#damask" x="436" y="256"/>
-  <circle cx="256" cy="256" r="132" fill="#ebe0c8"/>
-  <circle cx="256" cy="256" r="132" fill="none" stroke="#0a0806" stroke-width="3" opacity="0.92"/>
-  <circle cx="256" cy="256" r="119" fill="none" stroke="#0a0806" stroke-width="1.2" opacity="0.55"/>
-  <circle cx="256" cy="129" r="3.2" fill="#0a0806" opacity="0.85"/>
-  <circle cx="256" cy="383" r="3.2" fill="#0a0806" opacity="0.85"/>
-  <circle cx="129" cy="256" r="3.2" fill="#0a0806" opacity="0.85"/>
-  <circle cx="383" cy="256" r="3.2" fill="#0a0806" opacity="0.85"/>
-  <text x="256" y="256"
+  <rect width="400" height="400" fill="#ebe0c8" rx="88" ry="88"/>
+  <rect width="400" height="400" fill="url(#rd-tile)" rx="88" ry="88"/>
+  <circle cx="200" cy="200" r="130" fill="#ebe0c8"/>
+  <circle cx="200" cy="200" r="130" fill="none" stroke="#0a0806" stroke-width="2" opacity="0.92"/>
+  <circle cx="200" cy="200" r="118" fill="none" stroke="#0a0806" stroke-width="0.8" opacity="0.55"/>
+  <circle cx="200" cy="76"  r="2.1" fill="#0a0806" opacity="0.85"/>
+  <circle cx="200" cy="324" r="2.1" fill="#0a0806" opacity="0.85"/>
+  <circle cx="76"  cy="200" r="2.1" fill="#0a0806" opacity="0.85"/>
+  <circle cx="324" cy="200" r="2.1" fill="#0a0806" opacity="0.85"/>
+  <text x="200" y="200"
         text-anchor="middle"
         dominant-baseline="central"
         font-family="'Bodoni Moda','Bodoni 72',Didot,'Times New Roman',Georgia,serif"
         font-weight="400"
-        font-size="210"
+        font-size="200"
         fill="#0a0806"
         style="letter-spacing:-0.03em;font-style:normal;">C</text>
 </svg>
