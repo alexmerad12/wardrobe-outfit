@@ -581,17 +581,17 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 3 Flash with structured-output (responseMimeType +
+      // Gemini 2.5 Flash with structured-output (responseMimeType +
       // responseSchema) — same JSON shape Anthropic's tool_use returned,
-      // so the rest of the pipeline doesn't change.
+      // so the rest of the pipeline doesn't change. We picked 2.5 over
+      // 3-flash-preview because Gemini 3 has internal "thinking" tokens
+      // on by default (~2.5k tokens of reasoning before the output) that
+      // make it slower than Sonnet was. 2.5 has no thinking overhead.
       const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         generationConfig: {
           temperature: 1,
-          // Gemini Flash is more verbose than Sonnet under structured-
-          // output. 1400 truncated 4 outfits mid-JSON, breaking the
-          // parser and returning suggestions:[]. 4096 leaves room.
-          maxOutputTokens: 4096,
+          maxOutputTokens: 2048,
           responseMimeType: "application/json",
           responseSchema: SUGGEST_RESPONSE_SCHEMA,
         },
