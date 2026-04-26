@@ -64,6 +64,15 @@ export type BagTexture =
   | "fringed"
   | "other";
 
+export type HatTexture =
+  | "felt"
+  | "straw"
+  | "knit"
+  | "canvas"
+  | "leather"
+  | "velvet"
+  | "other";
+
 export type SunglassesStyle =
   | "aviator"
   | "wayfarer"
@@ -163,6 +172,7 @@ export interface ClothingItem {
   metal_finish: MetalFinish | null;
   bag_size: BagSize | null;
   bag_texture: BagTexture | null;
+  hat_texture: HatTexture | null;
   sunglasses_style: SunglassesStyle | null;
   dress_silhouette: DressSilhouette | null;
   toe_shape: ToeShape | null;
@@ -446,6 +456,16 @@ export const BAG_TEXTURE_LABELS: Record<BagTexture, string> = {
   "croc-embossed": "Croc-embossed",
   "snake-embossed": "Snake-embossed",
   fringed: "Fringed",
+  other: "Other",
+};
+
+export const HAT_TEXTURE_LABELS: Record<HatTexture, string> = {
+  felt: "Felt",
+  straw: "Straw",
+  knit: "Knit",
+  canvas: "Canvas",
+  leather: "Leather",
+  velvet: "Velvet",
   other: "Other",
 };
 

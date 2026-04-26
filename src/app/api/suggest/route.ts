@@ -310,6 +310,8 @@ function describeItem(item: ClothingItem): string {
   if (item.belt_style) parts.push(`Belt style: ${item.belt_style}`);
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
   if (item.bag_size) parts.push(`Bag size: ${item.bag_size}`);
+  if (item.bag_texture) parts.push(`Bag texture: ${item.bag_texture}`);
+  if (item.hat_texture) parts.push(`Hat texture: ${item.hat_texture}`);
   if (item.dress_silhouette) parts.push(`Silhouette: ${item.dress_silhouette}`);
   if (item.toe_shape) parts.push(`Toe: ${item.toe_shape}`);
   if (item.neckline) parts.push(`Neckline: ${item.neckline}`);
@@ -523,7 +525,7 @@ ITERATION: ${iterationNonce}
 Return exactly 4 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; the extra 1 is a backup in case one gets filtered out.)
 
 HARD RULES — do not violate:
-1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over.
+1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over. EXCEPTION: a dress with Silhouette = "slip" (satin slip / sleep-dress style) may be styled with a slim-fitted top underneath — but ONLY a top whose fit is "slim" or "regular" AND is NOT a layering piece, blazer, cardigan, hoodie, sweatshirt, or oversized item (e.g., a fitted t-shirt or thin turtleneck works; a hoodie or boxy tee does not).
 2. Overalls are the one exception: they require a "top" underneath.
 3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes).
@@ -538,6 +540,8 @@ HARD RULES — do not violate:
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
 11. BAG: REQUIRED for every occasion EXCEPT at-home and sport. Pick exactly one bag from the wardrobe whose category is "bag". If the wardrobe has zero bags, skip the requirement (don't invent). SIZE GUIDE: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium". Use Bag size field when available on the item.
+   HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / hangout / sport / outdoor / travel / dinner-out / date / party / formal — but NEVER for at-home or work. Match the texture / style to the formality (Hat texture and Hat style fields when present): structured wool felt / fedora for date / dinner-out / formal; cap / beanie / bucket for casual / sport / outdoor; straw / boater for brunch in warm weather.
+   ACCESSORY MINIMUM: for every occasion EXCEPT at-home and sport, include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, jewelry, sunglasses, watch). The bag counts as the primary accessory; this asks for one more. Pick something that makes sense with the outfit and occasion (no sunglasses indoors at night, no warm scarf on a 25°C day). If the wardrobe has nothing that fits, skip silently — don't force it.
 12. STYLE DIRECTION (when present):
    a) ITEM ANCHOR: if STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it. If the wardrobe has no matching piece, ignore that specific phrase (don't invent).
    b) HARD-ENFORCED PRESETS — treat these as non-negotiable when present anywhere in STYLE DIRECTION (English or French, case-insensitive):
@@ -671,12 +675,29 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         stripped = stripped.filter((i) => i.category !== "bottom");
         fixes.push("stripped bottom (dress/jumpsuit present)");
       }
-      // Strip non-layering tops when a dress or non-overalls jumpsuit is present.
+      // Strip non-layering tops when a dress or non-overalls jumpsuit is
+      // present. EXCEPTION: a slip-silhouette dress can be styled with a
+      // slim/regular fitted top underneath — keep those.
+      const rawSlipDress = rawItems.some(
+        (i) => i.category === "dress" && i.dress_silhouette === "slip"
+      );
+      const isAllowedUnderSlip = (i: ClothingItem) =>
+        i.category === "top" &&
+        !i.is_layering_piece &&
+        i.subcategory !== "cardigan" &&
+        i.subcategory !== "hoodie" &&
+        i.subcategory !== "sweater" &&
+        (i.fit === "slim" || i.fit === "regular");
       if ((rawHasDress || rawHasJumpsuit) && stripped.some(
         (i) => i.category === "top" && !i.is_layering_piece && i.subcategory !== "cardigan"
+        && !(rawSlipDress && isAllowedUnderSlip(i))
       )) {
         stripped = stripped.filter(
-          (i) => i.category !== "top" || i.is_layering_piece || i.subcategory === "cardigan"
+          (i) =>
+            i.category !== "top" ||
+            i.is_layering_piece ||
+            i.subcategory === "cardigan" ||
+            (rawSlipDress && isAllowedUnderSlip(i))
         );
         fixes.push("stripped non-layering top (dress/jumpsuit present)");
       }
@@ -825,6 +846,42 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           const best = occasionMatches[0] ?? availableBags[0];
           stripped = [...stripped, best];
           fixes.push(`injected bag: ${best.subcategory ?? "bag"}`);
+        }
+      }
+
+      // Auto-inject one accessory beyond the bag for every occasion
+      // except at-home and sport (matches the new ACCESSORY MINIMUM
+      // rule). Skip hat at work (Rule 11 hat × occasion). Pick the
+      // first wardrobe accessory whose occasions array matches; if
+      // nothing matches the occasion, skip silently — the rule
+      // explicitly says "skip if nothing in the wardrobe makes sense".
+      if (
+        occasion !== "at-home" &&
+        occasion !== "sport" &&
+        !stripped.some((i) => i.category === "accessory")
+      ) {
+        const availableAccessories = items.filter((i) => {
+          if (i.category !== "accessory" || i.is_stored) return false;
+          // Hat is forbidden at work per Rule 11.
+          if (occasion === "work" && i.subcategory === "hat") return false;
+          // Sunglasses indoors at night is silly — skip if the occasion
+          // is indoor-evening.
+          if (
+            i.subcategory === "sunglasses" &&
+            (occasion === "dinner-out" || occasion === "party" || occasion === "formal")
+          ) {
+            return false;
+          }
+          return true;
+        });
+        if (availableAccessories.length > 0) {
+          const occasionMatches = availableAccessories.filter((a) =>
+            Array.isArray(a.occasions) && a.occasions.includes(occasion as Occasion)
+          );
+          const pool = occasionMatches.length > 0 ? occasionMatches : availableAccessories;
+          const best = pool[0];
+          stripped = [...stripped, best];
+          fixes.push(`injected accessory: ${best.subcategory ?? "accessory"}`);
         }
       }
 

@@ -20,6 +20,7 @@ import type {
   MetalFinish,
   BagSize,
   BagTexture,
+  HatTexture,
   SunglassesStyle,
   DressSilhouette,
   ToeShape,
@@ -57,6 +58,7 @@ export type AutoFillResult = {
   metal_finish?: MetalFinish;
   bag_size?: BagSize;
   bag_texture?: BagTexture;
+  hat_texture?: HatTexture;
   sunglasses_style?: SunglassesStyle;
   dress_silhouette?: DressSilhouette;
   toe_shape?: ToeShape;

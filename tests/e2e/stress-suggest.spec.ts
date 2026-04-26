@@ -147,14 +147,24 @@ function validateOutfit(
   // RULE 1: dress/jumpsuit standalone — but cardigans / vests / blazers
   // / open-drape pieces are legitimate layering pieces over a dress.
   // Match the post-parse strip: only flag if there's a NON-layering,
-  // NON-cardigan top combined with a dress.
+  // NON-cardigan top combined with a dress. EXCEPTION: a slip-silhouette
+  // dress can be paired with a slim/regular fitted top (lingerie-dressing).
   const hasDress = items.some((i) => i.category === "dress");
   const hasOnePiece = items.some((i) => i.category === "one-piece");
+  const hasSlipDress = items.some(
+    (i) => i.category === "dress" && i.dress_silhouette === "slip"
+  );
   const hasNonLayeringTop = items.some(
     (i) =>
       i.category === "top" &&
       !i.is_layering_piece &&
-      i.subcategory !== "cardigan"
+      i.subcategory !== "cardigan" &&
+      !(
+        hasSlipDress &&
+        i.subcategory !== "hoodie" &&
+        i.subcategory !== "sweater" &&
+        (i.fit === "slim" || i.fit === "regular")
+      )
   );
   const hasTop = items.some((i) => i.category === "top");
   const hasBottom = items.some((i) => i.category === "bottom");
