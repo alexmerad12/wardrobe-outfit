@@ -581,12 +581,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 2.5 Flash with structured-output (responseMimeType +
+      // Gemini 3 Flash with structured-output (responseMimeType +
       // responseSchema) — same JSON shape Anthropic's tool_use returned,
-      // so the rest of the pipeline doesn't change. If Google ships a
-      // gemini-3-flash, swap the model id below.
+      // so the rest of the pipeline doesn't change.
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash",
         generationConfig: {
           temperature: 1,
           maxOutputTokens: 1400,
