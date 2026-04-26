@@ -2,7 +2,7 @@
 // AI-pre-fill the form the moment the user uploads a photo.
 
 import { downscaleImage } from "./image-utils";
-import { convertHeicToJpeg, isHeicFile } from "./heic-convert";
+import { convertHeicToJpeg, isHeicFileDeep } from "./heic-convert";
 import type {
   Category,
   Subcategory,
@@ -76,7 +76,7 @@ export async function analyzeItem(image: Blob): Promise<AutoFillResult> {
   // decode HEIC and downscaleImage silently passes the raw HEIC bytes
   // through; the analyze server then can't decode them either.
   let renderable: Blob = image;
-  if (image instanceof File && isHeicFile(image)) {
+  if (image instanceof File && (await isHeicFileDeep(image))) {
     renderable = await convertHeicToJpeg(image);
   }
   // Downscale before upload — raw phone photos are 5-10MB which blow

@@ -12,7 +12,7 @@ import { removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { downscaleImage, flattenOntoWhite } from "@/lib/image-utils";
-import { convertHeicToJpeg, isHeicFile } from "@/lib/heic-convert";
+import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
 
@@ -210,7 +210,9 @@ export function PendingUploadsProvider({
       const heicLog = (stage: string, extra?: unknown) =>
         console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
       let sourceFile: File = item.file;
-      if (isHeicFile(item.file)) {
+      const heicHit = await isHeicFileDeep(item.file);
+      heicLog(`type="${item.file.type}" name="${item.file.name}" size=${item.file.size} heic=${heicHit}`);
+      if (heicHit) {
         heicLog(`HEIC detected — converting to JPEG before pipeline`);
         try {
           sourceFile = await convertHeicToJpeg(item.file);

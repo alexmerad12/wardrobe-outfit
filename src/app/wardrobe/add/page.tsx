@@ -54,7 +54,7 @@ import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
-import { convertHeicToJpeg, isHeicFile } from "@/lib/heic-convert";
+import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
 
 export default function AddItemPage() {
@@ -500,7 +500,9 @@ export default function AddItemPage() {
     // HEIC → JPEG client-side. Chrome can't render HEIC in <img> from
     // a blob URL, so without this the preview shows a broken icon and
     // every downstream canvas operation fails on the same source.
-    if (isHeicFile(file)) {
+    // Magic-byte check catches Samsung/Android share-sheet pickers that
+    // strip the MIME type and fudge the filename to .jpg.
+    if (await isHeicFileDeep(file)) {
       try {
         file = await convertHeicToJpeg(file);
       } catch (err) {
