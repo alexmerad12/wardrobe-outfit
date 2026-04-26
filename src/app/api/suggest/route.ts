@@ -588,7 +588,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         model: "gemini-3-flash-preview",
         generationConfig: {
           temperature: 1,
-          maxOutputTokens: 1400,
+          // Gemini Flash is more verbose than Sonnet under structured-
+          // output. 1400 truncated 4 outfits mid-JSON, breaking the
+          // parser and returning suggestions:[]. 4096 leaves room.
+          maxOutputTokens: 4096,
           responseMimeType: "application/json",
           responseSchema: SUGGEST_RESPONSE_SCHEMA,
         },
