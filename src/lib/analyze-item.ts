@@ -1,6 +1,7 @@
 // Client helper to call /api/items/analyze. Used by the add-item page to
 // AI-pre-fill the form the moment the user uploads a photo.
 
+import { downscaleImage } from "./image-utils";
 import type {
   Category,
   Subcategory,
@@ -70,8 +71,15 @@ export type AutoFillResult = {
 };
 
 export async function analyzeItem(image: Blob): Promise<AutoFillResult> {
+  // Downscale before upload — raw phone photos are 5-10MB which blow
+  // past Vercel's 4.5MB function-body limit (failing with "Body
+  // exceeded limit" or just hanging on slow mobile networks). 1280 px
+  // is plenty for clothing classification and lands under 1 MB JPEG.
+  // No-op if the image is already small (e.g. bulk pipeline already
+  // pre-downscaled to 1600 px → this trims to 1280 px).
+  const downscaled = await downscaleImage(image, 1280);
   const body = new FormData();
-  body.append("image", image);
+  body.append("image", downscaled);
   const res = await fetch("/api/items/analyze", { method: "POST", body });
   if (!res.ok) throw new Error(`Analyze failed: ${res.status}`);
   return (await res.json()) as AutoFillResult;
