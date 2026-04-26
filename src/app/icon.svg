@@ -1,63 +1,66 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <title>Closette — Ivory Noir</title>
   <defs>
+    <!-- Bigger, bolder damask (scale ~1.4 vs the variant tile's 0.5) so
+         the medallions still read at 32×32 favicon scale. -->
     <g id="damask" fill="#0a0806" stroke="#0a0806" stroke-linecap="round">
-      <path d="M0 -22 Q 10 -12 0 0 Q -10 -12 0 -22 Z" opacity="0.95"/>
-      <path d="M0 0 Q 10 12 0 22 Q -10 12 0 0 Z" opacity="0.95"/>
-      <path d="M-22 0 Q -12 -10 0 0 Q -12 10 -22 0 Z" opacity="0.9"/>
-      <path d="M22 0 Q 12 -10 0 0 Q 12 10 22 0 Z" opacity="0.9"/>
-      <path d="M0 -21 Q 16 -28 20 -15 Q 17 -7 9 -10" stroke-width="1.4" fill="none" opacity="0.85"/>
-      <path d="M0 -21 Q -16 -28 -20 -15 Q -17 -7 -9 -10" stroke-width="1.4" fill="none" opacity="0.85"/>
-      <path d="M0 21 Q 16 28 20 15 Q 17 7 9 10" stroke-width="1.4" fill="none" opacity="0.85"/>
-      <path d="M0 21 Q -16 28 -20 15 Q -17 7 -9 10" stroke-width="1.4" fill="none" opacity="0.85"/>
-      <circle cx="0" cy="-30" r="1.6" opacity="0.75"/>
-      <circle cx="0" cy="30" r="1.6" opacity="0.75"/>
-      <circle cx="-30" cy="0" r="1.4" opacity="0.65"/>
-      <circle cx="30" cy="0" r="1.4" opacity="0.65"/>
-      <circle cx="0" cy="0" r="2" fill="#f8efd6" opacity="0.55"/>
+      <path d="M0 -30 Q 14 -16 0 0 Q -14 -16 0 -30 Z" opacity="0.95"/>
+      <path d="M0 0 Q 14 16 0 30 Q -14 16 0 0 Z" opacity="0.95"/>
+      <path d="M-30 0 Q -16 -14 0 0 Q -16 14 -30 0 Z" opacity="0.9"/>
+      <path d="M30 0 Q 16 -14 0 0 Q 16 14 30 0 Z" opacity="0.9"/>
+      <path d="M0 -28 Q 22 -38 27 -20 Q 23 -10 12 -13" stroke-width="2" fill="none" opacity="0.85"/>
+      <path d="M0 -28 Q -22 -38 -27 -20 Q -23 -10 -12 -13" stroke-width="2" fill="none" opacity="0.85"/>
+      <path d="M0 28 Q 22 38 27 20 Q 23 10 12 13" stroke-width="2" fill="none" opacity="0.85"/>
+      <path d="M0 28 Q -22 38 -27 20 Q -23 10 -12 13" stroke-width="2" fill="none" opacity="0.85"/>
+      <circle cx="0" cy="-40" r="2.2" opacity="0.75"/>
+      <circle cx="0" cy="40" r="2.2" opacity="0.75"/>
+      <circle cx="-40" cy="0" r="2" opacity="0.65"/>
+      <circle cx="40" cy="0" r="2" opacity="0.65"/>
+      <circle cx="0" cy="0" r="2.6" fill="#f8efd6" opacity="0.55"/>
     </g>
   </defs>
 
-  <!-- Ivory rounded ground. Drawn first so every layer above sits on it.
-       No clip-path: iOS Safari has been flaky with url() clip refs in
-       favicon contexts, leaving the ground transparent and the icon
-       rendering as just the disc on whatever color is behind. -->
+  <!-- Ivory rounded ground -->
   <rect width="512" height="512" fill="#ebe0c8" rx="92" ry="92"/>
 
-  <!-- Diamond + square hairline lattice connecting the 8 medallions -->
-  <g stroke="#3a2a1e" stroke-width="1.4" fill="none" opacity="0.45" stroke-linecap="round">
-    <path d="M110 110 L 402 110 L 402 402 L 110 402 Z"/>
-    <path d="M256 60 L 60 256 L 256 452 L 452 256 Z"/>
+  <!-- Diamond + square hairline lattice — softer (lower opacity, thinner)
+       so it doesn't compete with the bigger medallions. -->
+  <g stroke="#3a2a1e" stroke-width="1.2" fill="none" opacity="0.32" stroke-linecap="round">
+    <path d="M114 114 L 398 114 L 398 398 L 114 398 Z"/>
+    <path d="M256 76 L 76 256 L 256 436 L 436 256 Z"/>
   </g>
 
-  <!-- 8 damask medallions (4 corners + 4 cardinals) -->
-  <use href="#damask" x="110" y="110"/>
-  <use href="#damask" x="402" y="110"/>
-  <use href="#damask" x="110" y="402"/>
-  <use href="#damask" x="402" y="402"/>
-  <use href="#damask" x="256" y="60"/>
-  <use href="#damask" x="256" y="452"/>
-  <use href="#damask" x="60"  y="256"/>
-  <use href="#damask" x="452" y="256"/>
+  <!-- 8 damasks (4 corners + 4 cardinals). Pulled inward from the icon edge
+       so they don't get clipped by the rounded corner. -->
+  <use href="#damask" x="114" y="114"/>
+  <use href="#damask" x="398" y="114"/>
+  <use href="#damask" x="114" y="398"/>
+  <use href="#damask" x="398" y="398"/>
+  <use href="#damask" x="256" y="76"/>
+  <use href="#damask" x="256" y="436"/>
+  <use href="#damask" x="76"  y="256"/>
+  <use href="#damask" x="436" y="256"/>
 
-  <!-- Solid ivory disc covering the center -->
-  <circle cx="256" cy="256" r="160" fill="#ebe0c8"/>
-  <circle cx="256" cy="256" r="160" fill="none" stroke="#0a0806" stroke-width="3" opacity="0.92"/>
-  <circle cx="256" cy="256" r="146" fill="none" stroke="#0a0806" stroke-width="1.2" opacity="0.55"/>
+  <!-- Solid ivory disc — disc shrunk from r=160 to r=132 (51% of icon
+       width) so the pattern band around it reads as a real ring of
+       damasks rather than a thin sliver. -->
+  <circle cx="256" cy="256" r="132" fill="#ebe0c8"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#0a0806" stroke-width="3" opacity="0.92"/>
+  <circle cx="256" cy="256" r="119" fill="none" stroke="#0a0806" stroke-width="1.2" opacity="0.55"/>
 
   <!-- Cardinal dots inside the disc edge -->
-  <circle cx="256" cy="106" r="3.4" fill="#0a0806" opacity="0.85"/>
-  <circle cx="256" cy="406" r="3.4" fill="#0a0806" opacity="0.85"/>
-  <circle cx="106" cy="256" r="3.4" fill="#0a0806" opacity="0.85"/>
-  <circle cx="406" cy="256" r="3.4" fill="#0a0806" opacity="0.85"/>
+  <circle cx="256" cy="129" r="3.2" fill="#0a0806" opacity="0.85"/>
+  <circle cx="256" cy="383" r="3.2" fill="#0a0806" opacity="0.85"/>
+  <circle cx="129" cy="256" r="3.2" fill="#0a0806" opacity="0.85"/>
+  <circle cx="383" cy="256" r="3.2" fill="#0a0806" opacity="0.85"/>
 
-  <!-- The C — Bodoni Moda with serif fallbacks, geometrically centered -->
+  <!-- The C — sized to the new smaller disc (was 256, now 210) -->
   <text x="256" y="256"
         text-anchor="middle"
         dominant-baseline="central"
         font-family="'Bodoni Moda','Bodoni 72',Didot,'Times New Roman',Georgia,serif"
         font-weight="400"
-        font-size="256"
+        font-size="210"
         fill="#0a0806"
         style="letter-spacing:-0.03em;font-style:normal;">C</text>
 </svg>
