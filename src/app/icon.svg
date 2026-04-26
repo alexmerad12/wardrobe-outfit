@@ -1,8 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
   <title>Closette — Ivory Noir</title>
   <defs>
-    <!-- Damask medallion shape at native scale (max radius ~24 with volutes).
-         Used 3× per tile via <use>, scaled 0.5 to match patterns.tsx. -->
+    <!-- Paper-grain filter: same parameters as PatternSurface uses at runtime
+         (feTurbulence + feColorMatrix to tint the noise warm). Applied to a
+         transparent overlay so the noise reads as printed grain on ivory. -->
+    <filter id="grain-fx">
+      <feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="2" seed="4"/>
+      <feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.15  0 0 0 0 0.1  0 0 0 0.18 0"/>
+      <feComposite operator="in" in2="SourceGraphic"/>
+    </filter>
+
+    <!-- Gouache-bleed filter: roughens damask edges so they read as painted
+         medallions on cloth, not as crisp vector shapes. -->
+    <filter id="bleed-fx" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3"/>
+      <feDisplacementMap in="SourceGraphic" scale="2.5"/>
+    </filter>
+
+    <!-- Damask medallion at native scale (max radius ~24 with volutes). -->
     <g id="damask">
       <path d="M0 -18 Q 8 -10 0 0 Q -8 -10 0 -18 Z" fill="#0a0806" opacity="0.95"/>
       <path d="M0 0 Q 8 10 0 18 Q -8 10 0 0 Z" fill="#0a0806" opacity="0.95"/>
@@ -18,10 +33,9 @@
       <circle cx="24" cy="0" r="1" fill="#0a0806" opacity="0.65"/>
       <circle cx="0" cy="0" r="1.8" fill="#f8efd6" opacity="0.55"/>
     </g>
-    <!-- Rose & Damask tile — same 90×156 hex lattice as patterns.tsx, with
-         3 medallions per tile + diamond hairline connectors. patternTransform
-         offsets the tile so a medallion lands at viewport center (200,200),
-         exactly like centerX=45/centerY=39 in PatternSurface. -->
+
+    <!-- Rose & Damask tile — 90×156 hex lattice with bleed filter on each
+         medallion. patternTransform centers the lattice on the viewport. -->
     <pattern id="rd-tile" x="0" y="0" width="90" height="156"
              patternUnits="userSpaceOnUse" patternTransform="translate(155 161)">
       <rect width="90" height="156" fill="#ebe0c8"/>
@@ -33,33 +47,59 @@
         <line x1="0" y1="117" x2="45" y2="195"/>
         <line x1="90" y1="117" x2="45" y2="195"/>
       </g>
-      <g transform="translate(45 39) scale(0.5)"><use href="#damask"/></g>
-      <g transform="translate(0 117) scale(0.5)"><use href="#damask"/></g>
-      <g transform="translate(90 117) scale(0.5)"><use href="#damask"/></g>
+      <g transform="translate(45 39) scale(0.5)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(0 117) scale(0.5)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(90 117) scale(0.5)" filter="url(#bleed-fx)"><use href="#damask"/></g>
     </pattern>
+
+    <!-- Grain overlay tiled at 200×200, multiplied over the surface. -->
+    <pattern id="grain-tile" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+      <rect width="200" height="200" fill="transparent" filter="url(#grain-fx)"/>
+    </pattern>
+
+    <!-- Pattern-surface vignette: subtle "photographed fabric" darkening. -->
+    <radialGradient id="pat-vig" cx="50%" cy="50%" r="80%">
+      <stop offset="60%" stop-color="white" stop-opacity="0"/>
+      <stop offset="100%" stop-color="black" stop-opacity="0.6"/>
+    </radialGradient>
+
+    <!-- Icon-tile inner highlight: the soft glint at the upper-left, same
+         as .icon-tile .vig in the logo-lab CSS. -->
+    <radialGradient id="tile-hi" cx="30%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Icon-tile outer vignette: edges fall toward black. -->
+    <radialGradient id="tile-vig" cx="50%" cy="50%" r="50%">
+      <stop offset="50%" stop-color="black" stop-opacity="0"/>
+      <stop offset="100%" stop-color="black" stop-opacity="0.45"/>
+    </radialGradient>
   </defs>
 
-  <!-- Rounded ivory ground (rx 22% matches .icon-tile's border-radius) -->
+  <!-- Layered rendering, each layer rounded via rx=88 (22% of icon width)
+       which matches .icon-tile's border-radius:22%. -->
   <rect width="400" height="400" fill="#ebe0c8" rx="88" ry="88"/>
-  <!-- Damask pattern fill, clipped to the same rounded shape -->
   <rect width="400" height="400" fill="url(#rd-tile)" rx="88" ry="88"/>
+  <rect width="400" height="400" fill="url(#grain-tile)" rx="88" ry="88" opacity="0.22" style="mix-blend-mode:multiply"/>
+  <rect width="400" height="400" fill="url(#pat-vig)" rx="88" ry="88" opacity="0.35"/>
+  <rect width="400" height="400" fill="url(#tile-hi)" rx="88" ry="88"/>
+  <rect width="400" height="400" fill="url(#tile-vig)" rx="88" ry="88"/>
 
-  <!-- Solid ivory disc covering the centre. Disc r=130 (65% of icon width)
-       matches the bordered-solid Monogram's disc as it appears in TileIcon
-       (Monogram size = 0.74 × tile, disc = 88% of Monogram → 65% of tile). -->
+  <!-- Solid ivory disc covering the centre + twin hairline rings. -->
   <circle cx="200" cy="200" r="130" fill="#ebe0c8"/>
   <circle cx="200" cy="200" r="130" fill="none" stroke="#0a0806" stroke-width="2" opacity="0.92"/>
   <circle cx="200" cy="200" r="118" fill="none" stroke="#0a0806" stroke-width="0.8" opacity="0.55"/>
 
-  <!-- 4 cardinal dots inside the disc edge (84/88 ratio, matches Monogram) -->
+  <!-- 4 cardinal dots inside the disc edge -->
   <circle cx="200" cy="76"  r="2.1" fill="#0a0806" opacity="0.85"/>
   <circle cx="200" cy="324" r="2.1" fill="#0a0806" opacity="0.85"/>
   <circle cx="76"  cy="200" r="2.1" fill="#0a0806" opacity="0.85"/>
   <circle cx="324" cy="200" r="2.1" fill="#0a0806" opacity="0.85"/>
 
-  <!-- The C — Bodoni Moda, geometrically centered. font-size 200 ≈ 70% of
-       disc diameter, the same proportion BodoniC uses in Monogram (size=140
-       in viewBox 200, disc r=88 → C/disc = 79.5%). -->
+  <!-- The C — Bodoni Moda, geometrically centered (browsers render <text>
+       natively; the apple-icon route uses a div instead since Satori
+       doesn't support SVG <text>). -->
   <text x="200" y="200"
         text-anchor="middle"
         dominant-baseline="central"
