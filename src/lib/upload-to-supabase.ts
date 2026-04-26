@@ -126,45 +126,29 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
   });
 }
 
-// Direct upload to Supabase Storage via the SDK. POST (not PUT) so
-// we sidestep the Samsung Internet preflight cache bug from earlier.
-async function uploadDirect(file: File, abortSignal: AbortSignal): Promise<string> {
+// Direct upload to Supabase Storage via the SDK. Mirrors the exact
+// call /wardrobe/add (single-add) makes — proven to work on the
+// user's Samsung. POST (not PUT), no upsert option, no timeout race.
+async function uploadDirect(file: File): Promise<string> {
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
   const {
     data: { session },
-    error: sessionErr,
   } = await supabase.auth.getSession();
-  if (sessionErr) throw new Error(`Upload: ${sessionErr.message}`);
   if (!session?.user?.id) throw new Error("Upload 401: not signed in");
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "item.jpg";
   const path = `${session.user.id}/${Date.now()}-${safeName}`;
   const BUCKET = "clothing-images";
 
-  const uploadPromise = supabase.storage
+  const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false })
-    .then((res) => {
-      if (res.error) {
-        const status = (res.error as { statusCode?: string }).statusCode ?? "500";
-        throw new Error(`Upload ${status}: ${res.error.message}`);
-      }
-      return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-    });
-
-  return await Promise.race([
-    uploadPromise,
-    new Promise<string>((_resolve, reject) => {
-      const onAbort = () => reject(new DOMException("Upload aborted", "AbortError"));
-      if (abortSignal.aborted) {
-        onAbort();
-        return;
-      }
-      abortSignal.addEventListener("abort", onAbort, { once: true });
-      setTimeout(() => reject(new DOMException("Upload timed out", "AbortError")), ATTEMPT_TIMEOUT_MS);
-    }),
-  ]);
+    .upload(path, file, { contentType: file.type });
+  if (error) {
+    const status = (error as { statusCode?: string }).statusCode ?? "500";
+    throw new Error(`Upload ${status}: ${error.message}`);
+  }
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 async function attemptUpload(file: File): Promise<string> {
@@ -172,10 +156,9 @@ async function attemptUpload(file: File): Promise<string> {
   activeControllers.add(controller);
   try {
     // Step 1: try direct upload to Supabase. Works on every device class
-    // we've observed except Samsung Internet's historical PUT-preflight
-    // bug — and we use POST here, which doesn't trigger that bug.
+    // we've observed (single-add proves it on the user's Samsung).
     try {
-      return await uploadDirect(file, controller.signal);
+      return await uploadDirect(file);
     } catch (directErr) {
       // Step 2: any failure → fall back to /api/upload proxy. Same-
       // origin POST, immune to CORS edge cases. 4.5 MB body limit,
