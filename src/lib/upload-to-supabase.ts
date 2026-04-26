@@ -1,25 +1,20 @@
-// Client-side upload helper. One code path: POST the file to our own
-// origin at /api/upload, which re-uploads to Supabase server-side.
-// No CORS, no signed URLs, no fetch-vs-XHR fallback dance.
+// Client-side upload helper. Hybrid path:
+//   1. Try direct POST to Supabase Storage via the supabase-js SDK.
+//      Same code single-add (/wardrobe/add) has used the whole time —
+//      proven to work on the user's Samsung for single uploads. POST
+//      doesn't have the historical PUT-via-signed-URL CORS preflight
+//      bug. No size limit (Supabase free tier allows up to 50 MB).
+//   2. If direct fails for any reason (TypeError / network / 4xx /
+//      5xx), fall back to /api/upload Vercel proxy — same-origin POST
+//      that re-uploads to Supabase server-side. 4.5 MB body limit but
+//      bypasses any cross-origin oddities.
 //
-// History (keep this so nobody regresses to an earlier design):
-//   - tus resumable uploads: 3-min backoffs on mobile, abandoned.
-//   - Direct PUT to Supabase via signed URL (fetch): intermittent
-//     failures on Samsung Internet Browser; its CORS preflight cache
-//     misbehaves for cross-origin PUT.
-//   - Direct PUT via XHR: same failure, different code path in the
-//     browser didn't route around the same preflight cache.
-//   - Direct + proxy fallback: 'no bytes sent' on direct triggered
-//     fallback, but by then we were shipping 2-3 MB transparent PNGs
-//     through a buffering proxy and hitting Vercel timeouts.
-//   - This version: the image is flattened to a ~200-400 KB white-bg
-//     JPEG before upload (see flattenOntoWhite in image-utils), and
-//     we ALWAYS use the proxy. Same-origin POST is immune to CORS
-//     preflight quirks, Samsung or otherwise. At that file size the
-//     Vercel function finishes in 1-2 s, well under the Hobby 10 s
-//     ceiling. One code path, no classification of which error
-//     means what — robust across the devices a real user base will
-//     bring to the app.
+// The hybrid handles every device class we've actually observed:
+//   - iPhone Safari, Chrome, Edge: direct works, proxy never fires.
+//   - Samsung Internet on batch 2+ (historical CORS preflight bug):
+//     direct throws TypeError, proxy succeeds.
+//   - Anything that wedges Supabase's REST endpoint mid-flight: proxy
+//     succeeds.
 
 // Conservative ceiling per attempt. A 200-400 KB POST + Supabase
 // re-upload usually completes in under 3 s; 60 s tolerates a
@@ -131,11 +126,64 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
   });
 }
 
+// Direct upload to Supabase Storage via the SDK. POST (not PUT) so
+// we sidestep the Samsung Internet preflight cache bug from earlier.
+async function uploadDirect(file: File, abortSignal: AbortSignal): Promise<string> {
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  const {
+    data: { session },
+    error: sessionErr,
+  } = await supabase.auth.getSession();
+  if (sessionErr) throw new Error(`Upload: ${sessionErr.message}`);
+  if (!session?.user?.id) throw new Error("Upload 401: not signed in");
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "item.jpg";
+  const path = `${session.user.id}/${Date.now()}-${safeName}`;
+  const BUCKET = "clothing-images";
+
+  const uploadPromise = supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false })
+    .then((res) => {
+      if (res.error) {
+        const status = (res.error as { statusCode?: string }).statusCode ?? "500";
+        throw new Error(`Upload ${status}: ${res.error.message}`);
+      }
+      return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    });
+
+  return await Promise.race([
+    uploadPromise,
+    new Promise<string>((_resolve, reject) => {
+      const onAbort = () => reject(new DOMException("Upload aborted", "AbortError"));
+      if (abortSignal.aborted) {
+        onAbort();
+        return;
+      }
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+      setTimeout(() => reject(new DOMException("Upload timed out", "AbortError")), ATTEMPT_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 async function attemptUpload(file: File): Promise<string> {
   const controller = new AbortController();
   activeControllers.add(controller);
   try {
-    return await postViaXhr(file, controller.signal);
+    // Step 1: try direct upload to Supabase. Works on every device class
+    // we've observed except Samsung Internet's historical PUT-preflight
+    // bug — and we use POST here, which doesn't trigger that bug.
+    try {
+      return await uploadDirect(file, controller.signal);
+    } catch (directErr) {
+      // Step 2: any failure → fall back to /api/upload proxy. Same-
+      // origin POST, immune to CORS edge cases. 4.5 MB body limit,
+      // but the bulk pipeline has a cascading shrink step before we
+      // even get here so finalFile is well under that.
+      console.warn("[upload] direct failed, falling back to proxy:", directErr);
+      return await postViaXhr(file, controller.signal);
+    }
   } finally {
     activeControllers.delete(controller);
   }
