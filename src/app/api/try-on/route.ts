@@ -5,6 +5,7 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
+import { withGeminiRetry } from "@/lib/gemini-retry";
 
 // Try-on / fitting-room endpoint runs on Gemini 3 Flash Preview via
 // @google/genai with thinking disabled. Two AI calls: (1) analyze the
@@ -110,25 +111,29 @@ export async function POST(request: NextRequest) {
     const mediaType = "image/jpeg" as const;
 
     // 1. Analyze the photo — transient, not saved to DB.
-    const analyzeRes = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: ANALYZE_SYSTEM_PROMPT },
-            { inlineData: { mimeType: mediaType, data: base64 } },
-            { text: "Analyze this garment and return the JSON object." },
+    const analyzeRes = await withGeminiRetry(
+      () =>
+        genAI.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: ANALYZE_SYSTEM_PROMPT },
+                { inlineData: { mimeType: mediaType, data: base64 } },
+                { text: "Analyze this garment and return the JSON object." },
+              ],
+            },
           ],
-        },
-      ],
-      config: {
-        temperature: 0.5,
-        maxOutputTokens: 1024,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
+          config: {
+            temperature: 0.5,
+            maxOutputTokens: 1024,
+            responseMimeType: "application/json",
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      { tag: "try-on/analyze" }
+    );
 
     const analyzeText = analyzeRes.text ?? "";
     const match = analyzeText.match(/\{[\s\S]*\}/);
@@ -237,7 +242,9 @@ export async function POST(request: NextRequest) {
 
       const wardrobeList = wardrobe.map((i) => describeItemForPrompt(i, i.id)).join("\n");
 
-      const simRes = await genAI.models.generateContent({
+      const simRes = await withGeminiRetry(
+        () =>
+          genAI.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
 
@@ -277,7 +284,9 @@ ${wardrobeList}`,
           },
           thinkingConfig: { thinkingBudget: 0 },
         },
-      });
+      }),
+        { tag: "try-on/sim" }
+      );
 
       try {
         const parsed = JSON.parse(simRes.text ?? "{}") as {

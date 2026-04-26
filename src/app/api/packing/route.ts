@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { withGeminiRetry } from "@/lib/gemini-retry";
 
 // Packing endpoint runs on Gemini 3 Flash Preview via @google/genai
 // with thinking disabled. Same setup as suggest, analyze, and try-on.
@@ -136,16 +137,20 @@ Respond with ONLY valid JSON:
 
 Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardrobe.`;
 
-    const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 2048,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
+    const result = await withGeminiRetry(
+      () =>
+        genAI.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
+          config: {
+            temperature: 0.7,
+            maxOutputTokens: 2048,
+            responseMimeType: "application/json",
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      { tag: "packing" }
+    );
 
     const text = result.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);

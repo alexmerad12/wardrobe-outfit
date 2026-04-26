@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
+import { withGeminiRetry } from "@/lib/gemini-retry";
 import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
@@ -592,17 +593,21 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       // structured output. Same JSON shape Anthropic's tool_use returned,
       // so the rest of the pipeline doesn't change. ~5s end-to-end on
       // this rules-heavy prompt vs ~26s with default thinking.
-      const result = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
-        config: {
-          temperature: 1,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json",
-          responseSchema: SUGGEST_RESPONSE_SCHEMA,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      });
+      const result = await withGeminiRetry(
+        () =>
+          genAI.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
+            config: {
+              temperature: 1,
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json",
+              responseSchema: SUGGEST_RESPONSE_SCHEMA,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          }),
+        { tag: "suggest" }
+      );
       const stopReason = result.candidates?.[0]?.finishReason ?? null;
       const text = result.text;
       if (!text) {

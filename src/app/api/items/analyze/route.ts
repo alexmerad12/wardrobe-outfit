@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
+import { withGeminiRetry } from "@/lib/gemini-retry";
 
 // Item analysis runs on Gemini 3 Flash Preview via @google/genai with
 // thinking disabled. The existing sanitizeAutoFill handles enum
@@ -125,25 +126,29 @@ export async function POST(request: NextRequest) {
     const base64 = buffer.toString("base64");
     const mediaType = "image/jpeg" as const;
 
-    const result = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: SYSTEM_PROMPT },
-            { inlineData: { mimeType: mediaType, data: base64 } },
-            { text: "Analyze this garment and return the JSON object." },
+    const result = await withGeminiRetry(
+      () =>
+        genAI.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: SYSTEM_PROMPT },
+                { inlineData: { mimeType: mediaType, data: base64 } },
+                { text: "Analyze this garment and return the JSON object." },
+              ],
+            },
           ],
-        },
-      ],
-      config: {
-        temperature: 0.5,
-        maxOutputTokens: 1024,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
+          config: {
+            temperature: 0.5,
+            maxOutputTokens: 1024,
+            responseMimeType: "application/json",
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      { tag: "analyze" }
+    );
 
     const text = result.text ?? "";
     const match = text.match(/\{[\s\S]*\}/);
@@ -159,7 +164,7 @@ export async function POST(request: NextRequest) {
     // insert fail with a check-constraint violation.
     return NextResponse.json(sanitizeAutoFill(parsed));
   } catch (err) {
-    console.error("Item analyze error:", err);
+    console.error("[analyze] Item analyze error:", err);
     return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
   }
 }
