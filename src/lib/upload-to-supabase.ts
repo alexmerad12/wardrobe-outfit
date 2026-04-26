@@ -1,37 +1,33 @@
-// Client-side upload helper. One code path: POST the file to our own
-// origin at /api/upload, which re-uploads to Supabase server-side.
-// No CORS, no signed URLs, no fetch-vs-XHR fallback dance.
+// Client-side upload helper. Direct browser → Supabase Storage upload
+// via the supabase-js SDK. Same path that /wardrobe/add (single-add)
+// has always used.
 //
 // History (keep this so nobody regresses to an earlier design):
 //   - tus resumable uploads: 3-min backoffs on mobile, abandoned.
-//   - Direct PUT to Supabase via signed URL (fetch): intermittent
-//     failures on Samsung Internet Browser; its CORS preflight cache
-//     misbehaves for cross-origin PUT.
-//   - Direct PUT via XHR: same failure, different code path in the
-//     browser didn't route around the same preflight cache.
-//   - Direct + proxy fallback: 'no bytes sent' on direct triggered
-//     fallback, but by then we were shipping 2-3 MB transparent PNGs
-//     through a buffering proxy and hitting Vercel timeouts.
-//   - This version: the image is flattened to a ~200-400 KB white-bg
-//     JPEG before upload (see flattenOntoWhite in image-utils), and
-//     we ALWAYS use the proxy. Same-origin POST is immune to CORS
-//     preflight quirks, Samsung or otherwise. At that file size the
-//     Vercel function finishes in 1-2 s, well under the Hobby 10 s
-//     ceiling. One code path, no classification of which error
-//     means what — robust across the devices a real user base will
-//     bring to the app.
+//   - Direct PUT via fetch/XHR to a signed URL: intermittent CORS
+//     preflight failures on Samsung Internet Browser circa 2025-Q3.
+//   - /api/upload Vercel proxy: bypassed CORS but inherited Vercel's
+//     4.5 MB function-body limit; bulk uploads hit "no bytes sent"
+//     when bg-removal output + size guard didn't shrink enough.
+//   - This version: direct supabase.storage.upload(). Single-add has
+//     used this path the whole time without issues, so it should
+//     work for bulk too. If Samsung CORS comes back we'll see it in
+//     production logs and add a proxy fallback then.
+//
+// Bytes flow: browser → Supabase Storage REST endpoint, no Vercel
+// function in path. No 4.5 MB limit; Supabase free tier allows up to
+// 50 MB per file.
 
-// Conservative ceiling per attempt. A 200-400 KB POST + Supabase
-// re-upload usually completes in under 3 s; 60 s tolerates a
-// Vercel cold start + a weak mobile signal.
+import { createClient } from "@/lib/supabase/client";
+
 const ATTEMPT_TIMEOUT_MS = 60_000;
 const MAX_ATTEMPTS = 5;
-// Exponential backoff. Catches transient carrier hiccups without
-// feeling like the app froze.
 const RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 10_000];
 
 // Permanent HTTP statuses that will never succeed on retry.
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404, 413, 415]);
+
+const BUCKET = "clothing-images";
 
 // Registry of in-flight uploads so cancelAllActiveUploads() can
 // abort the batch when the user taps Cancel on the uploading page.
@@ -56,86 +52,56 @@ function isRetryable(err: unknown): boolean {
       return !PERMANENT_STATUSES.has(status);
     }
   }
-  // Unknown error shape — retry. The user explicitly asked for
-  // resilience over fast-fail.
   return true;
 }
 
-// XHR-based POST instead of fetch. Not for CORS reasons (this is
-// same-origin) but because XHR exposes upload progress events,
-// handles timeouts via xhr.timeout in a way that's consistent with
-// abort(), and has better mobile-browser track record for multipart
-// POSTs than fetch.
-function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const onAbort = () => {
-      try {
-        xhr.abort();
-      } catch {}
-    };
-    abortSignal.addEventListener("abort", onAbort, { once: true });
+async function uploadDirect(file: File, abortSignal: AbortSignal): Promise<string> {
+  const supabase = createClient();
+  const {
+    data: { session },
+    error: sessionErr,
+  } = await supabase.auth.getSession();
+  if (sessionErr) throw new Error(`Upload: ${sessionErr.message}`);
+  if (!session?.user?.id) throw new Error("Upload 401: not signed in");
 
-    const body = new FormData();
-    body.append("file", file);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "item.jpg";
+  const path = `${session.user.id}/${Date.now()}-${safeName}`;
 
-    xhr.open("POST", "/api/upload", true);
-    xhr.timeout = ATTEMPT_TIMEOUT_MS;
-
-    // Track bytes actually written so error reports can distinguish
-    // "never got a packet out" from "died mid-upload."
-    let lastLoaded = 0;
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) lastLoaded = e.loaded;
-    };
-
-    xhr.onload = () => {
-      abortSignal.removeEventListener("abort", onAbort);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const { url } = JSON.parse(xhr.responseText) as { url: string };
-          if (!url) {
-            reject(new Error("Upload: server returned no URL"));
-            return;
-          }
-          resolve(url);
-        } catch {
-          reject(new Error("Upload: malformed server response"));
-        }
-      } else {
-        reject(
-          new Error(
-            `Upload ${xhr.status}${xhr.responseText ? `: ${xhr.responseText.slice(0, 160)}` : ""}`
-          )
-        );
+  // Race the upload against an abort + a timeout. The Supabase SDK
+  // doesn't expose AbortSignal across all versions, so we wrap.
+  const uploadPromise = supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false })
+    .then((res) => {
+      if (res.error) {
+        // Map SDK errors into the same "Upload {status}: ..." shape
+        // the rest of the codebase expects (so isRetryable still works).
+        const status =
+          (res.error as { statusCode?: string }).statusCode ?? "500";
+        throw new Error(`Upload ${status}: ${res.error.message}`);
       }
-    };
-    xhr.onerror = () => {
-      abortSignal.removeEventListener("abort", onAbort);
-      const progress =
-        lastLoaded > 0
-          ? ` (sent ${Math.round((lastLoaded / file.size) * 100)}%)`
-          : " (no bytes sent)";
-      reject(new TypeError(`Upload network error${progress}`));
-    };
-    xhr.onabort = () => {
-      abortSignal.removeEventListener("abort", onAbort);
-      reject(new DOMException("Upload aborted", "AbortError"));
-    };
-    xhr.ontimeout = () => {
-      abortSignal.removeEventListener("abort", onAbort);
-      reject(new DOMException("Upload timed out", "AbortError"));
-    };
+      return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    });
 
-    xhr.send(body);
-  });
+  return await Promise.race([
+    uploadPromise,
+    new Promise<string>((_resolve, reject) => {
+      const onAbort = () => reject(new DOMException("Upload aborted", "AbortError"));
+      if (abortSignal.aborted) {
+        onAbort();
+        return;
+      }
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+      setTimeout(() => reject(new DOMException("Upload timed out", "AbortError")), ATTEMPT_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 async function attemptUpload(file: File): Promise<string> {
   const controller = new AbortController();
   activeControllers.add(controller);
   try {
-    return await postViaXhr(file, controller.signal);
+    return await uploadDirect(file, controller.signal);
   } finally {
     activeControllers.delete(controller);
   }
