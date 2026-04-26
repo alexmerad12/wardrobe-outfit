@@ -5,11 +5,8 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 
 // Item analysis runs on Gemini 3 Flash Preview via @google/genai with
-// thinking disabled. Note: in our earlier testing 3-flash-preview took
-// ~23s on this enum-heavy SYSTEM_PROMPT vs ~2s on 2.5-flash, but the
-// user wants to verify with their own real uploads — easy swap back to
-// 2.5-flash if 3 still feels slow. The existing sanitizeAutoFill
-// handles enum validation, so we don't need a strict responseSchema.
+// thinking disabled. The existing sanitizeAutoFill handles enum
+// validation, so we don't need a strict responseSchema.
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 // Static instructions + full enum list. Cached across requests so each call

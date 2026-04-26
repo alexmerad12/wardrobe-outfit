@@ -66,6 +66,11 @@ export default function AddItemPage() {
   const labels = useLabels();
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
+  // Original pre-bg-removal photo, kept around so AI analyze always sees
+  // the full-context image (the bg-removed PNG strips the surroundings
+  // and Gemini Vision misclassifies sparse silhouettes — the bulk pipeline
+  // already does this; single-add was sending the cleaned image instead).
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [removingBg, setRemovingBg] = useState(false);
   const [bgError, setBgError] = useState<string | null>(null);
@@ -168,16 +173,18 @@ export default function AddItemPage() {
     });
   }, [imageFile, removingBg]);
 
-  // AI auto-fill: once per image, send it to Claude and pre-fill the form.
-  // Runs in parallel with upload + bg removal — same image, different jobs.
+  // AI auto-fill: once per ORIGINAL image, send the pre-bg-removal photo
+  // to Gemini and pre-fill the form. Runs immediately when the user
+  // picks a photo — no waiting on bg-removal, and the bg-removed PNG
+  // (sparse / transparent / less context) never gets sent to the AI.
   useEffect(() => {
-    if (!imageFile || removingBg) return;
-    if (autoFillAppliedForRef.current === imageFile) return;
-    const target = imageFile;
+    if (!originalFile) return;
+    if (autoFillAppliedForRef.current === originalFile) return;
+    const target = originalFile;
     setAutoFilling(true);
     analyzeItem(target)
       .then((result) => {
-        if (imageFile !== target) return; // user swapped photos
+        if (originalFile !== target) return; // user swapped photos
         autoFillAppliedForRef.current = target;
         applyAutoFill(result);
         setAutoFillApplied(true);
@@ -186,10 +193,10 @@ export default function AddItemPage() {
         console.error("Auto-fill failed:", err);
       })
       .finally(() => {
-        if (imageFile === target) setAutoFilling(false);
+        if (originalFile === target) setAutoFilling(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageFile, removingBg]);
+  }, [originalFile]);
 
   function applyAutoFill(r: AutoFillResult) {
     // Never overwrite a name the user has already typed.
@@ -494,6 +501,7 @@ export default function AddItemPage() {
     setAutoFillApplied(false);
 
     setImageFile(file);
+    setOriginalFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
