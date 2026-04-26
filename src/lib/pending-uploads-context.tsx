@@ -382,13 +382,35 @@ export function PendingUploadsProvider({
             bgLog(`${tag} failed`, err);
           }
         }
-        // If we still have an oversized file, fail explicitly rather
-        // than send 5+ MB to /api/upload and get a meaningless
-        // "no bytes sent" error.
+        // If client-side shrink couldn't get us under the limit, fall
+        // back to the server-side normalize endpoint. Sharp on the
+        // server can decode formats Chrome's canvas can't (Samsung
+        // mif1-only HEIF, Motion Photos > Mali GPU caps, memory-
+        // pressured >4096px, etc) so this is the path that actually
+        // works for every device. Costs one extra round-trip when it
+        // fires, but only fires when client decode failed.
         if (finalFile.size > HARD_UPLOAD_LIMIT) {
-          throw new Error(
-            "Image too large to upload from this device. Try a smaller photo or use a desktop browser."
-          );
+          bgLog("client-side shrink couldn't get under 4MB — trying server normalize");
+          try {
+            const fd = new FormData();
+            fd.append("image", item.file);
+            const res = await fetch("/api/items/normalize", {
+              method: "POST",
+              body: fd,
+            });
+            if (!res.ok) {
+              const detail = await res.text().catch(() => "");
+              throw new Error(`server normalize ${res.status}: ${detail.slice(0, 200)}`);
+            }
+            const normalizedBlob = await res.blob();
+            finalFile = new File([normalizedBlob], `${baseName}.jpg`, { type: "image/jpeg" });
+            bgLog("server normalize succeeded", { afterBytes: finalFile.size });
+          } catch (serverErr) {
+            bgLog("server normalize failed too", serverErr);
+            throw new Error(
+              "Couldn't process this photo. Try a different image or shoot it again."
+            );
+          }
         }
       }
 
