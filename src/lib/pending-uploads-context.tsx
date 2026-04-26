@@ -319,19 +319,42 @@ export function PendingUploadsProvider({
       // load) — in which case downscaleImage silently passes the raw
       // 4-8 MB camera file straight through. Re-encode here as the
       // backstop so nothing oversized reaches the wire.
+      // Cascading size guard. /api/upload (Vercel proxy) rejects bodies
+      // over 4.5 MB at the edge ("no bytes sent" error). Try multiple
+      // shrink strategies in order of preference; bail with a clear
+      // error before the upload if every strategy fails on this device.
       const SAFE_UPLOAD_SIZE = 2_000_000;
+      const HARD_UPLOAD_LIMIT = 4_000_000;
       if (finalFile.size > SAFE_UPLOAD_SIZE) {
-        bgLog(`finalFile too large — forcing JPEG re-encode`, {
+        bgLog(`finalFile too large — trying shrink fallback`, {
           beforeBytes: finalFile.size,
         });
-        try {
-          const shrunk = await flattenOntoWhite(finalFile, 1280, 0.85);
-          finalFile = new File([shrunk], `${baseName}.jpg`, {
-            type: "image/jpeg",
-          });
-          bgLog(`re-encoded`, { afterBytes: finalFile.size });
-        } catch (err) {
-          bgLog("force re-encode failed — proceeding anyway", err);
+        const shrinkAttempts: { tag: string; fn: () => Promise<Blob> }[] = [
+          { tag: "flatten 1280/0.85", fn: () => flattenOntoWhite(finalFile, 1280, 0.85) },
+          { tag: "flatten 1024/0.7", fn: () => flattenOntoWhite(finalFile, 1024, 0.7) },
+          { tag: "downscale 800/0.7", fn: () => downscaleImage(finalFile, 800) },
+          { tag: "downscale 600/0.6", fn: () => downscaleImage(finalFile, 600) },
+        ];
+        for (const { tag, fn } of shrinkAttempts) {
+          try {
+            const shrunk = await fn();
+            if (shrunk.size <= HARD_UPLOAD_LIMIT) {
+              finalFile = new File([shrunk], `${baseName}.jpg`, { type: "image/jpeg" });
+              bgLog(`re-encoded via ${tag}`, { afterBytes: finalFile.size });
+              break;
+            }
+            bgLog(`${tag} still too big`, { size: shrunk.size });
+          } catch (err) {
+            bgLog(`${tag} failed`, err);
+          }
+        }
+        // If we still have an oversized file, fail explicitly rather
+        // than send 5+ MB to /api/upload and get a meaningless
+        // "no bytes sent" error.
+        if (finalFile.size > HARD_UPLOAD_LIMIT) {
+          throw new Error(
+            "Image too large to upload from this device. Try a smaller photo or use a desktop browser."
+          );
         }
       }
 
