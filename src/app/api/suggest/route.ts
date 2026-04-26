@@ -537,7 +537,7 @@ HARD RULES — do not violate:
 8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
-11. BAG × FORMALITY: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel → "tote" or "large" is fine; at-home → no bag at all. Use Bag size field when available on the item.
+11. BAG: REQUIRED for every occasion EXCEPT at-home and sport. Pick exactly one bag from the wardrobe whose category is "bag". If the wardrobe has zero bags, skip the requirement (don't invent). SIZE GUIDE: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium". Use Bag size field when available on the item.
 12. STYLE DIRECTION (when present):
    a) ITEM ANCHOR: if STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it. If the wardrobe has no matching piece, ignore that specific phrase (don't invent).
    b) HARD-ENFORCED PRESETS — treat these as non-negotiable when present anywhere in STYLE DIRECTION (English or French, case-insensitive):
@@ -802,6 +802,29 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           const best = occasionMatches[0] ?? availableShoes[0];
           stripped = [...stripped, best];
           fixes.push(`injected shoes: ${best.subcategory ?? "shoes"}`);
+        }
+      }
+
+      // Auto-inject a bag for every occasion except at-home and sport
+      // (matches Rule 11). Same fallback pattern as shoes — prefer one
+      // whose occasions array matches the current occasion, otherwise
+      // grab any non-stored bag. Skips silently if the wardrobe has
+      // no bags at all (Rule 11 explicitly allows that).
+      if (
+        occasion !== "at-home" &&
+        occasion !== "sport" &&
+        !stripped.some((i) => i.category === "bag")
+      ) {
+        const availableBags = items.filter(
+          (i) => i.category === "bag" && !i.is_stored
+        );
+        if (availableBags.length > 0) {
+          const occasionMatches = availableBags.filter((b) =>
+            Array.isArray(b.occasions) && b.occasions.includes(occasion as Occasion)
+          );
+          const best = occasionMatches[0] ?? availableBags[0];
+          stripped = [...stripped, best];
+          fixes.push(`injected bag: ${best.subcategory ?? "bag"}`);
         }
       }
 
