@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
+import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
@@ -7,31 +7,34 @@ import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
-// Suggest endpoint runs on Gemini 2.5 Flash. Packing still uses
-// Anthropic via its own client. GOOGLE_API_KEY must be set in
-// .env.local for dev and in Vercel env settings for deploys.
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY ?? "");
+// Suggest endpoint runs on Gemini 3 Flash via the new @google/genai
+// SDK so we can disable internal "thinking" (the legacy SDK can't
+// expose that knob). Thinking off + Gemini 3 Flash lands a 4-outfit
+// response in ~5s on this rules-heavy prompt vs ~26s with thinking on.
+// Packing still uses Anthropic via its own client. GOOGLE_API_KEY must
+// be set in .env.local locally and in Vercel env settings for deploys.
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
-const SUGGEST_RESPONSE_SCHEMA: ResponseSchema = {
-  type: SchemaType.OBJECT,
+const SUGGEST_RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
   properties: {
     outfits: {
-      type: SchemaType.ARRAY,
+      type: Type.ARRAY,
       items: {
-        type: SchemaType.OBJECT,
+        type: Type.OBJECT,
         properties: {
           item_ids: {
-            type: SchemaType.ARRAY,
-            items: { type: SchemaType.STRING },
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
           },
-          name: { type: SchemaType.STRING },
-          reasoning: { type: SchemaType.STRING },
-          styling_tip: { type: SchemaType.STRING, nullable: true },
+          name: { type: Type.STRING },
+          reasoning: { type: Type.STRING },
+          styling_tip: { type: Type.STRING, nullable: true },
         },
         required: ["item_ids", "name", "reasoning"],
       },
     },
-    wardrobe_gap: { type: SchemaType.STRING, nullable: true },
+    wardrobe_gap: { type: Type.STRING, nullable: true },
   },
   required: ["outfits"],
 };
@@ -581,33 +584,31 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 2.5 Flash Lite with structured-output (responseMimeType +
-      // responseSchema) — same JSON shape Anthropic's tool_use returned,
-      // so the rest of the pipeline doesn't change. We picked the LITE
-      // variant because the regular gemini-2.5-flash burns ~6.7k thinking
-      // tokens on this rules-heavy prompt and takes ~30s. Lite skips
-      // thinking entirely, finishes in ~4s end-to-end, and still
-      // produces 4 valid outfits from the same prompt.
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-lite",
-        generationConfig: {
+      // Gemini 3 Flash with thinking disabled (thinkingBudget: 0) and
+      // structured output. Same JSON shape Anthropic's tool_use returned,
+      // so the rest of the pipeline doesn't change. ~5s end-to-end on
+      // this rules-heavy prompt vs ~26s with default thinking.
+      const result = await genAI.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
+        config: {
           temperature: 1,
           maxOutputTokens: 2048,
           responseMimeType: "application/json",
           responseSchema: SUGGEST_RESPONSE_SCHEMA,
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
-      const result = await model.generateContent(`${cachedPrefix}\n\n${dynamicSuffix}`);
-      const stopReason = result.response.candidates?.[0]?.finishReason ?? null;
-      const text = result.response.text();
+      const stopReason = result.candidates?.[0]?.finishReason ?? null;
+      const text = result.text;
       if (!text) {
-        return { parsed: null, stopReason };
+        return { parsed: null, stopReason: stopReason ?? null };
       }
       try {
-        return { parsed: JSON.parse(text) as ParsedShape, stopReason };
+        return { parsed: JSON.parse(text) as ParsedShape, stopReason: stopReason ?? null };
       } catch (err) {
         console.error("[suggest] Failed to parse Gemini JSON:", err, text.slice(0, 200));
-        return { parsed: null, stopReason };
+        return { parsed: null, stopReason: stopReason ?? null };
       }
     }
 
