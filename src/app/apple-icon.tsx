@@ -86,52 +86,55 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          position: "relative",
         }}
       >
+        {/* SVG layer: damasks, lattice, disc, cardinal dots. No <text> —
+            Satori refuses to render <text> in SVG ("convert to <path>"),
+            which crashed the Vercel build at /apple-icon prerender. The C
+            comes from the <div> below instead. */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 400 400"
           width="100%"
           height="100%"
+          style={{ position: "absolute", inset: 0 }}
         >
-          {/* Diamond hairline lattice connecting the damasks */}
           <g stroke={STEM} strokeWidth={0.7} fill="none" opacity={0.45} strokeLinecap="round">
             {LATTICE_EDGES.map(([x1, y1, x2, y2], i) => (
               <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
             ))}
           </g>
-
-          {/* 16 damask medallions in the visible ring */}
           {DAMASK_POSITIONS.map(([x, y], i) => (
             <Damask key={i} x={x} y={y} />
           ))}
-
-          {/* Solid ivory disc covering the centre */}
           <circle cx={200} cy={200} r={130} fill={IVORY} />
           <circle cx={200} cy={200} r={130} fill="none" stroke={INK} strokeWidth={2} opacity={0.92} />
           <circle cx={200} cy={200} r={118} fill="none" stroke={INK} strokeWidth={0.8} opacity={0.55} />
-
-          {/* Four cardinal dots inside the disc edge */}
           <circle cx={200} cy={76} r={2.1} fill={INK} opacity={0.85} />
           <circle cx={200} cy={324} r={2.1} fill={INK} opacity={0.85} />
           <circle cx={76} cy={200} r={2.1} fill={INK} opacity={0.85} />
           <circle cx={324} cy={200} r={2.1} fill={INK} opacity={0.85} />
-
-          {/* The C — Bodoni Moda, geometrically centered */}
-          <text
-            x={200}
-            y={200}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontFamily='"Bodoni Moda","Bodoni 72",Didot,Georgia,serif'
-            fontWeight={400}
-            fontSize={200}
-            fill={INK}
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            C
-          </text>
         </svg>
+
+        {/* The C as a div — Satori renders text via its CSS engine, which
+            handles font-family fallback, letter-spacing, etc. without the
+            <text>-element limitation. font-size 90 ≈ 50% of a 180px icon =
+            same proportion as fontSize:200 in the 400-viewBox SVG. */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            color: INK,
+            fontFamily: '"Bodoni Moda","Bodoni 72",Didot,Georgia,serif',
+            fontWeight: 400,
+            fontSize: 92,
+            lineHeight: 1,
+            letterSpacing: "-0.03em",
+          }}
+        >
+          C
+        </div>
       </div>
     ),
     { ...size }
