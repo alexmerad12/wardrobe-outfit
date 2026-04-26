@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
+import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 
-const anthropic = new Anthropic();
+// Item analysis runs on Gemini 2.5 Flash via @google/genai with
+// thinking disabled. We tried gemini-3-flash-preview here but it
+// took ~23s per image with the full enum-heavy SYSTEM_PROMPT —
+// preview models aren't optimized for production vision throughput.
+// 2.5 Flash with the same prompt + a 1024px-wide image clocks ~2s.
+// The existing sanitizeAutoFill handles enum validation, so we don't
+// need a strict responseSchema.
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 // Static instructions + full enum list. Cached across requests so each call
 // only pays for the (unique) image tokens + the ~200-token JSON output.
@@ -106,53 +114,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing image" }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    // Downsize before sending — Gemini's image-token cost scales with
+    // resolution and a 6MB phone photo took ~25s end-to-end while the
+    // same image at 1024px wide took ~1.5s. 1024px is plenty of detail
+    // for clothing classification (silhouette, color, pattern, fit).
+    // Convert to JPEG so we always send Gemini a known-good format.
+    const buffer = await sharp(rawBuffer)
+      .rotate() // honor EXIF orientation
+      .resize({ width: 1024, withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
     const base64 = buffer.toString("base64");
-    // Whitelist the MIME type so we never send Claude an unsupported value
-    // (e.g. HEIC slipping through the client pipeline). Default to JPEG —
-    // the pending pipeline always produces PNG or JPEG, and Claude accepts
-    // both fine.
-    const mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif" =
-      file.type === "image/png" ||
-      file.type === "image/jpeg" ||
-      file.type === "image/webp" ||
-      file.type === "image/gif"
-        ? file.type
-        : "image/jpeg";
+    const mediaType = "image/jpeg" as const;
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: SYSTEM_PROMPT,
-              cache_control: { type: "ephemeral" },
-            },
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64 },
-            },
-            {
-              type: "text",
-              text: "Analyze this garment and return the JSON object.",
-            },
+          parts: [
+            { text: SYSTEM_PROMPT },
+            { inlineData: { mimeType: mediaType, data: base64 } },
+            { text: "Analyze this garment and return the JSON object." },
           ],
         },
       ],
+      config: {
+        temperature: 0.5,
+        maxOutputTokens: 1024,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const text = result.text ?? "";
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
+      console.error("[analyze] Failed to parse Gemini response:", text.slice(0, 200));
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 502 });
     }
 
     const parsed = JSON.parse(match[0]);
-    // Drop anything that isn't on the enum allowlist. Claude occasionally
+    // Drop anything that isn't on the enum allowlist. The model occasionally
     // returns close-but-invalid values ("t_shirt" for "t-shirt", "blue"
     // in the material field) — keeping those would make the Supabase
     // insert fail with a check-constraint violation.
