@@ -1,7 +1,8 @@
 // Apple touch icon — Ivory · Noir, rasterized at request time.
 // iOS still wants a raster icon; Satori (next/og) takes our React tree
-// and emits PNG. We embed the same SVG composition as app/icon.svg so
-// the home-screen icon matches the favicon and the in-app brand.
+// and emits PNG. We pin the ivory ground to the outer <div> via
+// backgroundColor (not background shorthand) so even if Satori skips a
+// nested SVG element, the canvas fill is guaranteed.
 
 import { ImageResponse } from "next/og";
 
@@ -13,9 +14,6 @@ const IVORY_HI = "#f8efd6";
 const INK = "#0a0806";
 const STEM = "#3a2a1e";
 
-// One damask medallion in 8 corner/cardinal positions around a centered
-// disc — same shapes as patterns.tsx PatternRoseDamask, simplified
-// (no grain/bleed filters) so it rasterizes cleanly at small sizes.
 function Damask({ x, y }: { x: number; y: number }) {
   return (
     <g transform={`translate(${x} ${y})`} fill={INK} stroke={INK} strokeLinecap="round">
@@ -43,10 +41,13 @@ export default function AppleIcon() {
         style={{
           width: "100%",
           height: "100%",
+          // Pin the bg here so the icon canvas is always ivory, even if
+          // Satori's SVG renderer drops the nested <rect> ground.
+          backgroundColor: IVORY,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: IVORY,
+          position: "relative",
         }}
       >
         <svg
@@ -55,16 +56,12 @@ export default function AppleIcon() {
           width="100%"
           height="100%"
         >
-          {/* Ivory ground (also fills the rounded square area) */}
-          <rect width={512} height={512} fill={IVORY} rx={92} ry={92} />
-
-          {/* Diamond hairlines linking the corner + cardinal damasks */}
+          {/* Diamond + square hairlines linking the 8 medallions */}
           <g stroke={STEM} strokeWidth={1.4} fill="none" opacity={0.45} strokeLinecap="round">
             <path d="M110 110 L 402 110 L 402 402 L 110 402 Z" />
             <path d="M256 60 L 60 256 L 256 452 L 452 256 Z" />
           </g>
 
-          {/* 4 corners + 4 cardinals */}
           <Damask x={110} y={110} />
           <Damask x={402} y={110} />
           <Damask x={110} y={402} />

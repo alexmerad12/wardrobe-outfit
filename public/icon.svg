@@ -16,26 +16,21 @@
       <circle cx="30" cy="0" r="1.4" opacity="0.65"/>
       <circle cx="0" cy="0" r="2" fill="#f8efd6" opacity="0.55"/>
     </g>
-    <clipPath id="rounded">
-      <rect width="512" height="512" rx="92" ry="92"/>
-    </clipPath>
   </defs>
-  <g clip-path="url(#rounded)">
-    <rect width="512" height="512" fill="#ebe0c8"/>
-    <g stroke="#3a2a1e" stroke-width="1.4" fill="none" opacity="0.45" stroke-linecap="round">
-      <path d="M110 110 L 402 110 L 402 402 L 110 402 Z"/>
-      <path d="M256 60 L 60 256 L 256 452 L 452 256 Z"/>
-    </g>
-    <use href="#damask" x="110" y="110"/>
-    <use href="#damask" x="402" y="110"/>
-    <use href="#damask" x="110" y="402"/>
-    <use href="#damask" x="402" y="402"/>
-    <use href="#damask" x="256" y="60"/>
-    <use href="#damask" x="256" y="452"/>
-    <use href="#damask" x="60"  y="256"/>
-    <use href="#damask" x="452" y="256"/>
-    <circle cx="256" cy="256" r="160" fill="#ebe0c8"/>
+  <rect width="512" height="512" fill="#ebe0c8" rx="92" ry="92"/>
+  <g stroke="#3a2a1e" stroke-width="1.4" fill="none" opacity="0.45" stroke-linecap="round">
+    <path d="M110 110 L 402 110 L 402 402 L 110 402 Z"/>
+    <path d="M256 60 L 60 256 L 256 452 L 452 256 Z"/>
   </g>
+  <use href="#damask" x="110" y="110"/>
+  <use href="#damask" x="402" y="110"/>
+  <use href="#damask" x="110" y="402"/>
+  <use href="#damask" x="402" y="402"/>
+  <use href="#damask" x="256" y="60"/>
+  <use href="#damask" x="256" y="452"/>
+  <use href="#damask" x="60"  y="256"/>
+  <use href="#damask" x="452" y="256"/>
+  <circle cx="256" cy="256" r="160" fill="#ebe0c8"/>
   <circle cx="256" cy="256" r="160" fill="none" stroke="#0a0806" stroke-width="3" opacity="0.92"/>
   <circle cx="256" cy="256" r="146" fill="none" stroke="#0a0806" stroke-width="1.2" opacity="0.55"/>
   <circle cx="256" cy="106" r="3.4" fill="#0a0806" opacity="0.85"/>
