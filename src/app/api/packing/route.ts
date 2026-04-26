@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
-const anthropic = new Anthropic();
+// Packing endpoint runs on Gemini 3 Flash Preview via @google/genai
+// with thinking disabled. Same setup as suggest, analyze, and try-on.
+// GOOGLE_API_KEY must be set in env.
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 function describeItem(item: ClothingItem): string {
   const parts: string[] = [`[${item.id}]`, item.name];
@@ -133,24 +136,22 @@ Respond with ONLY valid JSON:
 
 Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardrobe.`;
 
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
-            { type: "text", text: dynamicSuffix },
-          ],
-        },
-      ],
+    const result = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const text = result.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
+      console.error("[packing] Failed to parse Gemini response:", text.slice(0, 200));
       return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
     }
 

@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI, Type } from "@google/genai";
+import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 
-const anthropic = new Anthropic();
+// Try-on / fitting-room endpoint runs on Gemini 3 Flash Preview via
+// @google/genai with thinking disabled. Two AI calls: (1) analyze the
+// candidate item photo, (2) propose 3 outfits pairing it with the
+// existing wardrobe. Same model + setup as the analyze and suggest
+// endpoints. GOOGLE_API_KEY must be set in env.
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 // Shop-with-me / "fitting room" endpoint.
 // User uploads a photo of an item they're considering buying; we analyze
@@ -91,43 +97,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing image" }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    // Same downscale as the analyze endpoint — phone photos at 6MB
+    // dominate vision-call latency. 1024px is plenty for clothing
+    // classification.
+    const buffer = await sharp(rawBuffer)
+      .rotate()
+      .resize({ width: 1024, withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
     const base64 = buffer.toString("base64");
-    const mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif" =
-      file.type === "image/png" ||
-      file.type === "image/jpeg" ||
-      file.type === "image/webp" ||
-      file.type === "image/gif"
-        ? file.type
-        : "image/jpeg";
+    const mediaType = "image/jpeg" as const;
 
     // 1. Analyze the photo — transient, not saved to DB.
-    const analyzeMsg = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [
+    const analyzeRes = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: ANALYZE_SYSTEM_PROMPT,
-              cache_control: { type: "ephemeral" },
-            },
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64 },
-            },
-            {
-              type: "text",
-              text: "Analyze this garment and return the JSON object.",
-            },
+          parts: [
+            { text: ANALYZE_SYSTEM_PROMPT },
+            { inlineData: { mimeType: mediaType, data: base64 } },
+            { text: "Analyze this garment and return the JSON object." },
           ],
         },
       ],
+      config: {
+        temperature: 0.5,
+        maxOutputTokens: 1024,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
 
-    const analyzeText = analyzeMsg.content[0].type === "text" ? analyzeMsg.content[0].text : "";
+    const analyzeText = analyzeRes.text ?? "";
     const match = analyzeText.match(/\{[\s\S]*\}/);
     if (!match) {
       return NextResponse.json(
@@ -234,45 +237,9 @@ export async function POST(request: NextRequest) {
 
       const wardrobeList = wardrobe.map((i) => describeItemForPrompt(i, i.id)).join("\n");
 
-      const simMsg = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        temperature: 0.7,
-        tools: [
-          {
-            name: "propose_outfits_with_phantom",
-            description:
-              "Return up to 3 outfit combinations that include the NEW item plus pieces from the user's existing wardrobe.",
-            input_schema: {
-              type: "object" as const,
-              properties: {
-                outfits: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      item_ids: {
-                        type: "array",
-                        items: { type: "string" },
-                      },
-                      reason: { type: "string" },
-                    },
-                    required: ["item_ids", "reason"],
-                  },
-                },
-              },
-              required: ["outfits"],
-            },
-          },
-        ],
-        tool_choice: { type: "tool", name: "propose_outfits_with_phantom" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
+      const simRes = await genAI.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
 
 Rules for each outfit:
 - Include the NEW item (id "${phantomId}") in every outfit.
@@ -287,20 +254,40 @@ ${phantomLine}
 
 EXISTING WARDROBE:
 ${wardrobeList}`,
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              outfits: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    item_ids: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    reason: { type: Type.STRING },
+                  },
+                  required: ["item_ids", "reason"],
+                },
               },
-            ],
+            },
+            required: ["outfits"],
           },
-        ],
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       });
 
-      const toolUse = simMsg.content.find((c) => c.type === "tool_use");
-      if (toolUse && toolUse.type === "tool_use") {
-        const parsed = toolUse.input as {
+      try {
+        const parsed = JSON.parse(simRes.text ?? "{}") as {
           outfits?: { item_ids: string[]; reason: string }[];
         };
         outfits = (parsed.outfits ?? []).filter(
           (o) => Array.isArray(o.item_ids) && o.item_ids.includes(phantomId)
         );
+      } catch (err) {
+        console.error("[try-on] Failed to parse outfit JSON:", err, (simRes.text ?? "").slice(0, 200));
       }
     }
 
