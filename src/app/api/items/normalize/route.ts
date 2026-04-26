@@ -2,47 +2,72 @@ import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
-// Server-side image normalization endpoint. The bulk and single-add
-// pipelines both rely on the browser's createImageBitmap + canvas to
-// decode + resize photos, but mobile Chrome silently fails on:
-//   - Samsung HEIF files with the bare "mif1" brand (libheif chokes too)
-//   - Samsung "Motion Photo" JPEG+MP4 hybrids over Mali GPU dimension caps
-//   - Memory-pressured 12 MP bitmaps after a few sequential bulk uploads
-//   - Anything > 4096 px on older Mali / Adreno GPUs
+// Server-side image normalization endpoint. Falls back here when
+// client-side createImageBitmap can't decode the source (Samsung HEIF
+// "mif1" variants, Mali GPU > 4096 px caps, memory pressure on 12 MP+
+// shots). Sharp on the server has none of those constraints.
 //
-// Sharp on the server doesn't have those problems — it links libvips
-// statically, decodes JPEG/PNG/WebP/AVIF/HEIF natively, and runs in
-// Node memory which is much larger than mobile Chrome's heap.
-//
-// This endpoint is the last-resort fallback: when client-side decode
-// fails, we POST the raw bytes here, sharp decodes + resizes + re-
-// encodes as clean 1280 px JPEG, and we return the JPEG bytes for the
-// pipeline to upload via the normal path.
+// IMPORTANT: this endpoint takes a Supabase Storage URL, not raw
+// bytes. Vercel functions cap the request body at 4.5 MB at the edge
+// layer; phone photos are routinely 5-7 MB so the multipart approach
+// got rejected before sharp could run. Instead, the client uploads
+// the raw original to Supabase directly (which has a 50 MB limit),
+// then tells us "go fetch this URL and overwrite it with a clean
+// 1280px JPEG". Server downloads, normalizes via sharp, writes back
+// to the same path, returns the URL so the client can use it as the
+// final image_url in its DB save.
 
-export const maxDuration = 30; // sharp on a 20 MB HEIF can take a few seconds
+export const maxDuration = 30;
+
+const BUCKET = "clothing-images";
 
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
-  let formData: FormData;
+  let body: { sourceUrl?: string; sourcePath?: string };
   try {
-    formData = await request.formData();
-  } catch (err) {
-    console.error("[normalize] formData parse failed", err);
+    body = (await request.json()) as { sourceUrl?: string; sourcePath?: string };
+  } catch {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
-  const file = formData.get("image");
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: "Missing image" }, { status: 400 });
+  const { sourceUrl, sourcePath } = body;
+  if (!sourceUrl || !sourcePath) {
+    return NextResponse.json({ error: "Missing sourceUrl or sourcePath" }, { status: 400 });
   }
 
-  const inputBuffer = Buffer.from(await file.arrayBuffer());
+  // Path safety: ensure the user can only normalize their own uploads.
+  // sourcePath is in the form `${userId}/${...}`.
+  if (!sourcePath.startsWith(`${userId}/`)) {
+    return NextResponse.json({ error: "Forbidden path" }, { status: 403 });
+  }
 
+  // Fetch the original from Supabase Storage.
+  let inputBuffer: Buffer;
   try {
-    const output = await sharp(inputBuffer, { failOn: "none" })
-      .rotate() // honor EXIF orientation
+    const fetchRes = await fetch(sourceUrl);
+    if (!fetchRes.ok) {
+      return NextResponse.json(
+        { error: `Couldn't fetch source: ${fetchRes.status}` },
+        { status: 502 }
+      );
+    }
+    inputBuffer = Buffer.from(await fetchRes.arrayBuffer());
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: "Source fetch failed", detail: detail.slice(0, 300) },
+      { status: 502 }
+    );
+  }
+
+  // Normalize via sharp.
+  let output: Buffer;
+  try {
+    output = await sharp(inputBuffer, { failOn: "none" })
+      .rotate()
       .resize({
         width: 1280,
         height: 1280,
@@ -51,23 +76,34 @@ export async function POST(request: NextRequest) {
       })
       .jpeg({ quality: 85, mozjpeg: true })
       .toBuffer();
-
-    return new NextResponse(new Uint8Array(output), {
-      status: 200,
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Content-Length": String(output.byteLength),
-      },
-    });
   } catch (err) {
     const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error("[normalize] sharp decode failed", detail);
     return NextResponse.json(
-      {
-        error: "Couldn't decode this image",
-        detail: detail.slice(0, 300),
-      },
+      { error: "Couldn't decode this image", detail: detail.slice(0, 300) },
       { status: 422 }
     );
   }
+
+  // Overwrite the original at the same path with the normalized JPEG.
+  // upsert:true so this replaces in place; same URL, new (smaller, JPEG)
+  // bytes. The client uses the same URL as final image_url in DB.
+  const { error: uploadErr } = await supabase.storage
+    .from(BUCKET)
+    .upload(sourcePath, output, {
+      contentType: "image/jpeg",
+      upsert: true,
+    });
+  if (uploadErr) {
+    return NextResponse.json(
+      { error: "Re-upload failed", detail: uploadErr.message },
+      { status: 500 }
+    );
+  }
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(sourcePath);
+  return NextResponse.json({
+    url: data.publicUrl,
+    bytes: output.byteLength,
+  });
 }

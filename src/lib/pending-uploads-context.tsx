@@ -209,6 +209,11 @@ export function PendingUploadsProvider({
       //    saved item shows a broken-image icon in the wardrobe view.
       const heicLog = (stage: string, extra?: unknown) =>
         console.log(`[bg ${item.id.slice(0, 8)}] ${stage}`, extra ?? "");
+      // Set when the server-side normalize fallback fires; tells the
+      // upload step at the end to skip uploadToSupabase and use this
+      // URL as image_url directly (the file is already in Supabase
+      // Storage, just at the path the server overwrote).
+      let preUploadedImageUrl: string | null = null;
       let sourceFile: File = item.file;
       const heicHit = await isHeicFileDeep(item.file);
       heicLog(`type="${item.file.type}" name="${item.file.name}" size=${item.file.size} heic=${heicHit}`);
@@ -384,31 +389,60 @@ export function PendingUploadsProvider({
         }
         // If client-side shrink couldn't get us under the limit, fall
         // back to the server-side normalize endpoint. Sharp on the
-        // server can decode formats Chrome's canvas can't (Samsung
+        // server can decode anything Chrome's canvas can't (Samsung
         // mif1-only HEIF, Motion Photos > Mali GPU caps, memory-
-        // pressured >4096px, etc) so this is the path that actually
-        // works for every device. Costs one extra round-trip when it
-        // fires, but only fires when client decode failed.
+        // pressured >4096px, etc).
+        //
+        // We can't multipart POST the raw file — Vercel functions cap
+        // the request body at 4.5 MB at the edge layer (HTTP 413
+        // before the function runs), and phone photos are routinely
+        // 5-7 MB. Workaround: upload the raw original direct to
+        // Supabase first (50 MB limit, no Vercel in the path), then
+        // tell the server "go fetch this URL and rewrite it as a
+        // clean JPEG." Server uses sharp via libvips to decode +
+        // resize + re-encode and overwrites the same path. Client
+        // gets the same URL back, now pointing at a clean JPEG.
         if (finalFile.size > HARD_UPLOAD_LIMIT) {
-          bgLog("client-side shrink couldn't get under 4MB — trying server normalize");
+          bgLog("client-side shrink couldn't get under 4MB — trying server normalize via Supabase round-trip");
           try {
-            const fd = new FormData();
-            fd.append("image", item.file);
+            // 1. Direct upload of raw original to Supabase. Reuse the
+            //    same uploadToSupabase helper bulk uses everywhere.
+            const rawUrl = await uploadToSupabase(item.file);
+            // Pull path out of public URL so the server knows what to
+            // overwrite. URL shape: {origin}/storage/v1/object/public/clothing-images/{path}
+            const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
+            if (!pathMatch) {
+              throw new Error("couldn't parse upload path from Supabase URL");
+            }
+            const sourcePath = pathMatch[1];
+
+            // 2. Ask server to fetch + normalize + overwrite.
             const res = await fetch("/api/items/normalize", {
               method: "POST",
-              body: fd,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sourceUrl: rawUrl, sourcePath }),
             });
             if (!res.ok) {
-              const detail = await res.text().catch(() => "");
+              let detail = "";
+              try {
+                const json = await res.json();
+                detail = json.detail || json.error || "";
+              } catch {
+                detail = await res.text().catch(() => "");
+              }
               throw new Error(`server normalize ${res.status}: ${detail.slice(0, 200)}`);
             }
-            const normalizedBlob = await res.blob();
-            finalFile = new File([normalizedBlob], `${baseName}.jpg`, { type: "image/jpeg" });
-            bgLog("server normalize succeeded", { afterBytes: finalFile.size });
+            const { url: normalizedUrl } = (await res.json()) as { url: string };
+
+            // 3. Stash for the upload step below — it skips uploadToSupabase
+            //    when this is set and uses the URL directly as image_url.
+            preUploadedImageUrl = normalizedUrl;
+            bgLog("server normalize succeeded", { url: normalizedUrl });
           } catch (serverErr) {
             bgLog("server normalize failed too", serverErr);
+            const detail = serverErr instanceof Error ? serverErr.message : String(serverErr);
             throw new Error(
-              "Couldn't process this photo. Try a different image or shoot it again."
+              `Couldn't process this photo (${detail.slice(0, 150)}). Try a different image.`
             );
           }
         }
@@ -418,20 +452,28 @@ export function PendingUploadsProvider({
       //    (raw + cleaned) and 2 DB writes (POST + PATCH) per item;
       //    uploading only the final image cuts ~3-5s of network I/O
       //    per item.
-      bgLog("uploading final image", {
-        size: finalFile.size,
-        type: finalFile.type,
-      });
-      const uploadT0 = performance.now();
-      // Don't re-wrap the error with another "Upload:" prefix — the
-      // upload helper already prefixes its errors, and doubling them
-      // up produced "Upload: Upload: Failed to fetch" in the user-
-      // facing error panel, which was confusing.
-      const imageUrl = await uploadToSupabase(finalFile).catch((err) => {
-        console.error(`[pending ${item.id}] upload step failed`, err);
-        throw err;
-      });
-      bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
+      //    Skip when the server-side normalize fallback already
+      //    uploaded + overwrote the file — the URL is already final.
+      let imageUrl: string;
+      if (preUploadedImageUrl) {
+        bgLog("skipping upload — server-side normalize already wrote final image");
+        imageUrl = preUploadedImageUrl;
+      } else {
+        bgLog("uploading final image", {
+          size: finalFile.size,
+          type: finalFile.type,
+        });
+        const uploadT0 = performance.now();
+        // Don't re-wrap the error with another "Upload:" prefix — the
+        // upload helper already prefixes its errors, and doubling them
+        // up produced "Upload: Upload: Failed to fetch" in the user-
+        // facing error panel, which was confusing.
+        imageUrl = await uploadToSupabase(finalFile).catch((err) => {
+          console.error(`[pending ${item.id}] upload step failed`, err);
+          throw err;
+        });
+        bgLog(`upload done in ${Math.round(performance.now() - uploadT0)}ms`);
+      }
 
       // Save with the same retry strategy as upload — the DB write
       // can also drop under transient network/server stress and we
