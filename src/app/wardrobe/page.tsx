@@ -339,7 +339,7 @@ function WardrobePageInner() {
               </Button>
               <Button
                 size="sm"
-                variant="destructive"
+                variant="outline"
                 className="gap-1.5"
                 disabled={selected.size === 0 || deleting}
                 onClick={handleBulkDelete}

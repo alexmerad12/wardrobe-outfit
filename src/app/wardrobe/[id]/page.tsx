@@ -132,7 +132,7 @@ export default function ItemDetailPage() {
   const [editSeasons, setEditSeasons] = useState<Season[]>([]);
   const [editOccasions, setEditOccasions] = useState<Occasion[]>([]);
   const [editWarmth, setEditWarmth] = useState(3);
-  const [editRain, setEditRain] = useState(false);
+  // editRain removed — rain_appropriate is no longer user-toggleable
   const [editStored, setEditStored] = useState(false);
   const [editBrand, setEditBrand] = useState("");
   const [editColors, setEditColors] = useState<{ hex: string; name: string; percentage: number }[]>([]);
@@ -292,7 +292,7 @@ export default function ItemDetailPage() {
     setEditSeasons(item.seasons);
     setEditOccasions(item.occasions);
     setEditWarmth(item.warmth_rating);
-    setEditRain(item.rain_appropriate);
+    // editRain removed
     setEditStored(item.is_stored ?? false);
     setEditBrand(item.brand ?? "");
     setEditColors([...item.colors]);
@@ -415,7 +415,7 @@ export default function ItemDetailPage() {
           seasons: editSeasons,
           occasions: editOccasions,
           warmth_rating: editShowWarmth ? editWarmth : 3,
-          rain_appropriate: editRain,
+          // rain_appropriate not sent — derived by AI stylist
           is_stored: editStored,
           brand: editBrand || null,
           colors: editColors,
@@ -1139,14 +1139,8 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Rain + Brand */}
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setEditRain(!editRain)} className={cn("h-5 w-5 rounded border-2 transition-colors", editRain ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-            <div>
-              <Label className="cursor-pointer" onClick={() => setEditRain(!editRain)}>{t("addItem.rainAppropriate")}</Label>
-              <p className="text-xs text-muted-foreground">{t("addItem.rainAppropriateHint")}</p>
-            </div>
-          </div>
+          {/* Rain-appropriate is now derived automatically by the AI
+              stylist (Material-Intelligence rule). No user toggle. */}
 
           {/* Stored */}
           <div className="flex items-center gap-3">
@@ -1392,15 +1386,8 @@ export default function ItemDetailPage() {
                 </CardContent>
               </Card>
             )}
-            <Card className="flex-1">
-              <CardContent className="p-3 flex items-center gap-2">
-                <Droplets className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="editorial-label">{t("itemDetail.rainProof")}</p>
-                  <p className="font-heading text-lg leading-none">{item.rain_appropriate ? t("common.yes") : t("common.no")}</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Rain-proof status no longer shown — derived automatically
+                from material + subcategory by the AI stylist. */}
           </div>
 
           {/* Seasons */}

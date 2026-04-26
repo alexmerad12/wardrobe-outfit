@@ -121,8 +121,8 @@ export function sanitizeAutoFill(raw: unknown): AutoFillResult {
     dress_silhouette: oneOf(r.dress_silhouette, DRESS_SILHOUETTES),
     toe_shape: oneOf(r.toe_shape, TOE_SHAPES),
     warmth_rating: warmth,
-    rain_appropriate:
-      typeof r.rain_appropriate === "boolean" ? r.rain_appropriate : undefined,
+    // rain_appropriate intentionally not parsed — derived automatically
+    // by the suggest pipeline from material + subcategory.
     is_layering_piece:
       typeof r.is_layering_piece === "boolean" ? r.is_layering_piece : undefined,
     belt_compatible:

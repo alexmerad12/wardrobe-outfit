@@ -89,12 +89,57 @@ export default function HomePage() {
   async function toggleTodayFavorite() {
     if (!todayOutfit) return;
     const newFav = !todayOutfit.is_favorite;
+    // The favorites view reads from the `outfits` table, not
+    // `today_outfit`, so the toggle must mirror state into both.
+    let outfitId = todayOutfit.outfit_id;
+
+    if (newFav) {
+      const patchRes = await fetch(`/api/outfits/${outfitId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_favorite: true }),
+      });
+      if (patchRes.status === 404) {
+        // No outfits row exists yet (today's look came from a manual
+        // rotation rather than /suggest → Wear today). Create one and
+        // re-link today_outfit to its new id.
+        const createRes = await fetch("/api/outfits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: todayOutfit.name,
+            item_ids: todayOutfit.item_ids,
+            occasions: todayOutfit.occasion ? [todayOutfit.occasion] : [],
+            seasons: [],
+            rating: null,
+            is_favorite: true,
+            mood: todayOutfit.mood,
+            weather_temp: todayOutfit.weather_temp,
+            weather_condition: todayOutfit.weather_condition,
+            ai_reasoning: todayOutfit.reasoning,
+            styling_tip: todayOutfit.styling_tip,
+            source: "ai",
+          }),
+        });
+        if (createRes.ok) {
+          const created = (await createRes.json()) as { id: string };
+          outfitId = created.id;
+        }
+      }
+    } else {
+      await fetch(`/api/outfits/${outfitId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_favorite: false }),
+      });
+    }
+
     await fetch("/api/today", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_favorite: newFav }),
+      body: JSON.stringify({ is_favorite: newFav, outfit_id: outfitId }),
     });
-    setTodayOutfit({ ...todayOutfit, is_favorite: newFav });
+    setTodayOutfit({ ...todayOutfit, is_favorite: newFav, outfit_id: outfitId });
   }
 
   async function wearRecentToday(outfit: TodayOutfit & { items: ClothingItem[] }) {

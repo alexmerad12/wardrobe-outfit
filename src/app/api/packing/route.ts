@@ -17,7 +17,7 @@ function describeItem(item: ClothingItem): string {
   const mats = Array.isArray(item.material) ? item.material : [item.material];
   parts.push(`Material: ${mats.join(", ")}`);
   if (item.warmth_rating) parts.push(`Warmth: ${item.warmth_rating}/5`);
-  if (item.rain_appropriate) parts.push("Rain-proof");
+  // rain_appropriate not surfaced — handled via material-intelligence
   if (item.is_layering_piece) parts.push("(layering piece)");
   const formalities = Array.isArray(item.formality) ? item.formality : [item.formality];
   parts.push(`Formality: ${formalities.join(", ")}`);

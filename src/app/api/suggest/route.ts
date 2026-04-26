@@ -332,7 +332,7 @@ function describeItem(item: ClothingItem): string {
   if (item.seasons.length) parts.push(`Seasons: ${item.seasons.join(", ")}`);
   if (item.occasions.length) parts.push(`Occasions: ${item.occasions.join(", ")}`);
   parts.push(`Warmth: ${item.warmth_rating}/5`);
-  if (item.rain_appropriate) parts.push("Rain-proof");
+  // rain_appropriate no longer surfaced to AI — material-intelligence covers it
   if (item.brand) parts.push(`Brand: ${item.brand}`);
   // Wear-frequency signal: lets the AI prefer under-rotated pieces
   // when choosing between comparable options.
@@ -534,15 +534,22 @@ HARD RULES — do not violate:
    - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule. If the wardrobe has zero outerwear items, skip the rule.
    - Cold base layer: the dress / jumpsuit / top+bottom under the coat must ALSO handle the temperature — the coat comes off indoors. At <10°C, base Warmth ≥2; at <5°C, Warmth ≥2.5. Prefer midi/maxi, knit/wool, fall or winter in Seasons.
    - Warm (>22°C): no heavy coats, no wool, no heavy boots.
-   - Rain ≥40%: prefer rain-proof items.
+   - RAIN (rain% ≥ 40% OR Condition contains "rain" / "showers"): apply automated Material-Intelligence filters to element-facing layers (Outerwear, Shoes, Bag):
+     · BLOCK Material in [suede, silk, satin, canvas] for these categories — non-rain-proof.
+     · PREFER Material in [leather, faux-leather, patent-leather, nylon, rubber, polyester, faux-suede].
+     · For outdoor / travel occasions: also block Toe shape "open-toe" / "peep-toe" AND Heel type "high-heel" (impractical in rain).
+     · INDOOR PROTECTION EXCEPTION: the base outfit (top / bottom / dress) is exempt from the material blacklist — silk dress is fine indoors. BUT if the base layer is non-rain-proof (silk / satin / suede) for an evening occasion (date / dinner-out / party), the chosen outerwear MUST be rain-proof (leather / nylon / polyester / rubber / faux-leather) AND length ≥ "regular" (not cropped) — long enough to protect the base when walking in.
 6. SHOES: every outfit EXCEPT occasion = at-home MUST include a "shoes" category item. No exceptions.
 7. AT-HOME: no bag. Scarves only if Warmth ≤2 (thin bandana / silk kerchief). Never pair a turtleneck top with any scarf at home.
 8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
-11. BAG: REQUIRED for every occasion EXCEPT at-home and sport. Pick exactly one bag from the wardrobe whose category is "bag". If the wardrobe has zero bags, skip the requirement (don't invent). SIZE GUIDE: formal / party / date → prefer Bag size "clutch" or "small"; work → "medium" or "large"; casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium". Use Bag size field when available on the item.
-   HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / hangout / sport / outdoor / travel / dinner-out / date / party / formal — but NEVER for at-home or work. Match the texture / style to the formality (Hat texture and Hat style fields when present): structured wool felt / fedora for date / dinner-out / formal; cap / beanie / bucket for casual / sport / outdoor; straw / boater for brunch in warm weather.
-   ACCESSORY MINIMUM: for every occasion EXCEPT at-home and sport, include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, jewelry, sunglasses, watch). The bag counts as the primary accessory; this asks for one more. Pick something that makes sense with the outfit and occasion (no sunglasses indoors at night, no warm scarf on a 25°C day). If the wardrobe has nothing that fits, skip silently — don't force it.
+11. BAG, HAT, ACCESSORY:
+    BAG: REQUIRED for every occasion EXCEPT at-home and sport. Pick exactly one bag from the wardrobe (category="bag"). If the wardrobe has zero bags, skip the requirement (don't invent).
+    BAG SIZE × OCCASION: formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
+    BAG TEXTURE × OCCASION: for formal / date / party, BLOCK Material in [canvas, nylon] AND BLOCK Bag texture in [woven, fringed] — these read too casual for dressed-up occasions.
+    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / hangout / sport / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events with strict dress codes. Match Hat texture to formality: felt / velvet for date / dinner-out / party; straw for brunch / outdoor; canvas / knit for casual / sport.
+    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and sport, include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, jewelry, sunglasses, watch). Pick something that fits the outfit (no sunglasses indoors at night, no warm scarf on a 25°C day). If the wardrobe has nothing that fits, skip silently.
 12. STYLE DIRECTION (when present):
    a) ITEM ANCHOR: if STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it. If the wardrobe has no matching piece, ignore that specific phrase (don't invent).
    b) HARD-ENFORCED PRESETS — treat these as non-negotiable when present anywhere in STYLE DIRECTION (English or French, case-insensitive):
@@ -552,13 +559,16 @@ HARD RULES — do not violate:
    c) SOFT VIBE: any other phrase ("more drapey", "less colorful", "office chic", custom user text) is a hint — bias the outfits toward it but no hard requirement.
 13. MOOD (must be visibly expressed in EVERY outfit — different moods + same occasion MUST produce visibly different outfits):
    - Energized → at least one saturated bright (red, orange, yellow, fuchsia, electric blue, kelly green). No all-neutral palette.
-   - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions.
-   - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory, contrast color. Not a safe monochrome.
+   - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions. Bag should be Bag size "medium" with Bag texture "smooth" / "pebbled" / "croc-embossed" / "snake-embossed" (rigid, structured). All visible Metal finish must match (see Rule 14).
+   - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory, contrast color. Not a safe monochrome. Mixed Metal finish is ALLOWED (only mood where it is). High-low pairings welcome (a casual hat with a blazer, etc.).
    - Cozy → soft textures (knit, cashmere, fleece, jersey, wool). Warm earth tones (camel, cream, oatmeal, rust, chocolate). Relaxed not slouchy.
    - Chill → relaxed easy silhouette, neutral palette, minimal jewelry. Elevated t-shirt-and-jeans energy.
    - Bold → at least one statement piece: bright saturated color OR distinctive pattern (animal, plaid, embellished) OR dramatic silhouette (oversized blazer, mini, leather). No safe choices.
    - Comfort Day → elastic / drawstring / pull-on bottoms preferred. Soft top (knit, jersey, oversized). NEVER heels. NEVER tailored / fitted / structured. Easy on the body.
-   - Need a Hug → soft pastels OR oversized cozy pieces. Comfort with one warm/uplifting touch. No edgy / hard / dark.
+   - Need a Hug → soft pastels OR oversized cozy pieces. Comfort with one warm/uplifting touch. No edgy / hard / dark. Prioritize Material in [cashmere, wool, fleece, knit]. AVOID Toe shape "pointed" (too sharp). Bag texture should be soft (woven / fringed / pebbled), NOT rigid (smooth / croc-embossed).
+14. METAL SYNC: all visible hardware Metal finish across shoes / belt / jewelry / watch MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).
+15. PROXIMITY (head/neck zone — anti-clutter): at most ONE focal item in the head-and-neck zone per outfit. If the outfit has a hat, do NOT also include a scarf — UNLESS temperature is below 5°C, where the scarf becomes a functional warmth layer and is exempt from this rule. (When temp ≥ 5°C, a scarf is decorative and competes for the same focal slot as the hat.)
+16. TEXTURE CONTRAST (visual depth — soft preference): when the base outfit (top + bottom OR dress) is entirely Material in [cotton, denim, jersey, knit] AND every visible item has Pattern "solid", PREFER selecting a bag with Bag texture in [quilted, croc-embossed, snake-embossed, pebbled, woven] over a smooth one. Soft preference, not a hard rule.
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
@@ -1056,6 +1066,180 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           drops.push({
             ids: s._ids,
             reason: `mix-patterns: only ${nonSolidCount} non-solid item(s)`,
+          });
+          return false;
+        }
+      }
+      // Hat formality block — no hats at work or formal events.
+      if (occasion === "work" || occasion === "formal") {
+        const hat = s.items.find(
+          (i) => i.category === "accessory" && i.subcategory === "hat"
+        );
+        if (hat) {
+          drops.push({ ids: s._ids, reason: `hat not allowed at ${occasion}` });
+          return false;
+        }
+      }
+      // Bag formality — for formal/date/party, drop bags with casual
+      // material (canvas/nylon) or casual texture (woven/fringed).
+      if (occasion === "formal" || occasion === "date" || occasion === "party") {
+        const bag = s.items.find((i) => i.category === "bag");
+        if (bag) {
+          const mats = Array.isArray(bag.material) ? bag.material : [bag.material];
+          const casualMat = mats.some((m) => m === "canvas" || m === "nylon");
+          const casualTex =
+            bag.bag_texture === "woven" || bag.bag_texture === "fringed";
+          if (casualMat || casualTex) {
+            drops.push({
+              ids: s._ids,
+              reason: `bag too casual for ${occasion} (material=${mats.join(",")}, texture=${bag.bag_texture})`,
+            });
+            return false;
+          }
+        }
+      }
+      // Metal sync — all visible hardware must match. Skipped when mood
+      // is Playful (the only mood that explicitly allows mixed metals).
+      if (mood !== "playful") {
+        const metalItems = s.items.filter((i) => {
+          if (!i.metal_finish || i.metal_finish === "none" || i.metal_finish === "mixed") return false;
+          // Only count items where hardware is visible / styling-relevant:
+          // shoes + belt / jewelry / watch.
+          if (i.category === "shoes") return true;
+          if (i.category === "accessory" && (i.subcategory === "belt" || i.subcategory === "jewelry" || i.subcategory === "watch")) return true;
+          return false;
+        });
+        if (metalItems.length >= 2) {
+          // Group similar tones together: gold-family (gold, rose-gold,
+          // matte-gold, brass, bronze) and silver-family (silver, chrome,
+          // matte-silver, gunmetal). Mismatched families = drop.
+          const goldFamily = new Set(["gold", "rose-gold", "matte-gold", "brass", "bronze"]);
+          const silverFamily = new Set(["silver", "chrome", "matte-silver", "gunmetal"]);
+          const families = new Set(
+            metalItems.map((i) =>
+              goldFamily.has(i.metal_finish ?? "") ? "gold" : silverFamily.has(i.metal_finish ?? "") ? "silver" : "other"
+            )
+          );
+          if (families.size > 1) {
+            drops.push({
+              ids: s._ids,
+              reason: `metal mismatch: ${metalItems.map((i) => `${i.subcategory ?? i.category}=${i.metal_finish}`).join(", ")}`,
+            });
+            return false;
+          }
+        }
+      }
+      // Proximity — head/neck zone. If the outfit has a hat, drop any
+      // scarf UNLESS temp < 5°C (scarf becomes a functional warmth layer).
+      {
+        const hasHat = s.items.some((i) => i.category === "accessory" && i.subcategory === "hat");
+        const hasScarf = s.items.some((i) => i.category === "accessory" && i.subcategory === "scarf");
+        const cold = typeof weather?.temp === "number" && weather.temp < 5;
+        if (hasHat && hasScarf && !cold) {
+          drops.push({ ids: s._ids, reason: "proximity: hat + scarf without functional cold (temp >= 5°C)" });
+          return false;
+        }
+      }
+      // RAIN material-intelligence — applies to element-facing layers
+      // (outerwear, shoes, bag). Base outfit is exempt (handled by the
+      // indoor-protection check below). When rain is triggered, drop
+      // outfits whose outer-facing items use non-rain-proof materials.
+      const rainTriggered =
+        weather &&
+        ((typeof weather.precipitation_probability === "number" &&
+          weather.precipitation_probability >= 40) ||
+          (typeof weather.condition === "string" &&
+            /rain|shower/i.test(weather.condition)));
+      if (rainTriggered) {
+        const RAIN_BLOCK = new Set<string>(["suede", "silk", "satin", "canvas"]);
+        const offenderOuter = s.items.find((i) => {
+          if (
+            i.category !== "outerwear" &&
+            i.category !== "shoes" &&
+            i.category !== "bag"
+          )
+            return false;
+          const mats = Array.isArray(i.material) ? i.material : [i.material];
+          return mats.some((m) => m && RAIN_BLOCK.has(m));
+        });
+        if (offenderOuter) {
+          drops.push({
+            ids: s._ids,
+            reason: `rain-triggered: "${offenderOuter.name}" (${offenderOuter.category}) uses non-rain-proof material`,
+          });
+          return false;
+        }
+        // Outdoor / travel + rain → block open-toe / high-heel.
+        if (occasion === "outdoor" || occasion === "travel") {
+          const badShoe = s.items.find(
+            (i) =>
+              i.category === "shoes" &&
+              (i.toe_shape === "open-toe" ||
+                i.toe_shape === "peep-toe" ||
+                i.heel_type === "high-heel")
+          );
+          if (badShoe) {
+            drops.push({
+              ids: s._ids,
+              reason: `rain + ${occasion}: "${badShoe.name}" impractical (toe=${badShoe.toe_shape}, heel=${badShoe.heel_type})`,
+            });
+            return false;
+          }
+        }
+        // Indoor protection — base layer in non-rain-proof material
+        // (silk/satin/suede) at an evening occasion REQUIRES a rain-proof
+        // outerwear with length >= "regular" (not cropped).
+        const eveningEvent = occasion === "date" || occasion === "dinner-out" || occasion === "party";
+        if (eveningEvent) {
+          const baseDelicate = s.items.some((i) => {
+            if (
+              i.category !== "top" &&
+              i.category !== "bottom" &&
+              i.category !== "dress" &&
+              i.category !== "one-piece"
+            )
+              return false;
+            const mats = Array.isArray(i.material) ? i.material : [i.material];
+            return mats.some((m) => m === "silk" || m === "satin" || m === "suede");
+          });
+          if (baseDelicate) {
+            const RAIN_PROOF_OUTER = new Set<string>([
+              "leather",
+              "faux-leather",
+              "patent-leather",
+              "nylon",
+              "polyester",
+              "rubber",
+            ]);
+            const outer = s.items.find((i) => i.category === "outerwear");
+            const outerOK =
+              outer &&
+              (() => {
+                const mats = Array.isArray(outer.material) ? outer.material : [outer.material];
+                const hasRainProofMat = mats.some((m) => m && RAIN_PROOF_OUTER.has(m));
+                const longEnough = outer.length !== "cropped";
+                return hasRainProofMat && longEnough;
+              })();
+            if (!outerOK) {
+              drops.push({
+                ids: s._ids,
+                reason: `rain + evening: delicate base needs rain-proof, non-cropped outerwear`,
+              });
+              return false;
+            }
+          }
+        }
+      }
+      // Mood: Need a Hug → no pointed-toe shoes (too sharp / clinical
+      // for the comfort-and-soft-touch vibe).
+      if (mood === "sad") {
+        const sharpShoe = s.items.find(
+          (i) => i.category === "shoes" && i.toe_shape === "pointed"
+        );
+        if (sharpShoe) {
+          drops.push({
+            ids: s._ids,
+            reason: `Need-a-Hug + pointed-toe shoe ("${sharpShoe.name}")`,
           });
           return false;
         }

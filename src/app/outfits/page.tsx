@@ -158,7 +158,7 @@ export default function FavoritesPage() {
             <div className="flex gap-2 shrink-0">
               <Button
                 size="sm"
-                variant="destructive"
+                variant="outline"
                 className="gap-1.5"
                 disabled={selected.size === 0 || removing}
                 onClick={handleBulkRemove}

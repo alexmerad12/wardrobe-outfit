@@ -154,7 +154,9 @@ function buildItemPayload(imageUrl: string, a: AutoFillResult) {
       typeof a.warmth_rating === "number"
         ? Math.max(1, Math.min(5, Math.round(a.warmth_rating)))
         : 3,
-    rain_appropriate: a.rain_appropriate ?? false,
+    // rain_appropriate not set client-side — DB default (false) is fine;
+    // the new automated rain logic uses material + subcategory instead.
+    rain_appropriate: false,
     brand: null,
     is_favorite: false,
   };

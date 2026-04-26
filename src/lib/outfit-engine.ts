@@ -56,17 +56,8 @@ export function filterItemsByContext(
         item.warmth_rating >= minWarmth && item.warmth_rating <= maxWarmth
     );
 
-    // Rain filter
-    if (context.weather.precipitation_probability > 50) {
-      // Prefer rain-appropriate items but don't exclude all non-rain items
-      filtered.sort((a, b) =>
-        a.rain_appropriate === b.rain_appropriate
-          ? 0
-          : a.rain_appropriate
-          ? -1
-          : 1
-      );
-    }
+    // Rain filter — handled by the suggest pipeline's material-intelligence
+    // rules (Rule 5 RAIN). Legacy rain_appropriate sort removed.
   }
 
   // Mood-specific fit preferences

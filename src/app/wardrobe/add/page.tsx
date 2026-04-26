@@ -109,7 +109,8 @@ export default function AddItemPage() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [warmthRating, setWarmthRating] = useState(3);
-  const [rainAppropriate, setRainAppropriate] = useState(false);
+  // rain_appropriate is no longer asked of the user — derived from material
+  // + subcategory by the AI stylist's rain-intelligence rules.
   const [brand, setBrand] = useState("");
 
   const [detectedColors, setDetectedColors] = useState<
@@ -234,7 +235,7 @@ export default function AddItemPage() {
       // increments so the UI and the value agree after autofill).
       setWarmthRating(Math.max(1, Math.min(5, Math.round(r.warmth_rating * 2) / 2)));
     }
-    if (typeof r.rain_appropriate === "boolean") setRainAppropriate(r.rain_appropriate);
+    // rain_appropriate intentionally not consumed from autofill anymore.
     if (typeof r.is_layering_piece === "boolean") setIsLayeringPiece(r.is_layering_piece);
     if (typeof r.belt_compatible === "boolean") setBeltCompatible(r.belt_compatible);
 
@@ -637,7 +638,8 @@ export default function AddItemPage() {
           seasons,
           occasions,
           warmth_rating: showWarmth ? warmthRating : 3,
-          rain_appropriate: rainAppropriate,
+          // rain_appropriate not sent — DB column has default false; new
+          // automated rain logic uses material + subcategory instead.
           brand: brand || null,
           is_favorite: false,
         }),
@@ -1657,25 +1659,9 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Rain appropriate */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setRainAppropriate(!rainAppropriate)}
-            className={cn(
-              "h-5 w-5 rounded border-2 transition-colors",
-              rainAppropriate
-                ? "border-primary bg-primary"
-                : "border-muted-foreground/30"
-            )}
-          />
-          <div>
-            <Label className="cursor-pointer" onClick={() => setRainAppropriate(!rainAppropriate)}>
-              {t("addItem.rainAppropriate")}
-            </Label>
-            <p className="text-xs text-muted-foreground">{t("addItem.rainAppropriateHint")}</p>
-          </div>
-        </div>
+        {/* Rain-appropriate is now derived automatically from material
+            + subcategory by the AI stylist (Material-Intelligence rule).
+            No user toggle. */}
 
         {/* Brand (optional) */}
         <div className="space-y-2">

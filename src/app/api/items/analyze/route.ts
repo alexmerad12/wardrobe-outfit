@@ -58,7 +58,6 @@ OTHER FIELDS:
 - name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")
 - colors: array of { hex: "#rrggbb", name: "Plain English color name in Title Case" } — up to 3 dominant colors. Use Title Case ("Black", "Navy Blue", "Dark Brown") not lowercase or ALL CAPS.
 - warmth_rating: number from 1 to 5 in 0.5 increments (1, 1.5, 2, 2.5, ... 5). 1 = tank top / sandals / thin bandana, 3 = shirt / jeans / sneakers, 5 = parka / heavy winter boots / chunky winter scarf. Scarves span the whole range (silk bandana 1-2, knit winter scarf 4-5). Shoes span the whole range too: open sandals/espadrilles 1, ballet flats/loafers/sneakers 2-3, ankle boots 3-4, insulated or knee boots 4-5.
-- rain_appropriate: true if the item is rainwear or a raincoat / waterproof shoe
 - is_layering_piece: true only for open cardigans, vests, blazers, lightweight outerwear worn over a base layer
 - belt_compatible: true for pants/skirts/dresses with visible belt loops or a defined waist
 
@@ -69,7 +68,7 @@ CATEGORY DISAMBIGUATION (common misclassifications):
 - Corduroy/quilted jacket = outerwear/"jacket"; structured wool jacket = outerwear/"blazer"
 - Denim jacket in outerwear is ALWAYS "denim-jacket", never generic "jacket"
 - Leather/faux-leather jackets → "leather-jacket" regardless of length
-- Technical waterproof outer layer → "windbreaker" or "raincoat"-style "jacket" (set rain_appropriate: true)
+- Technical waterproof outer layer → "windbreaker" or "raincoat"-style "jacket"
 - Quilted puffy insulated jacket → "puffer"
 - Calf-length formal coat → "trench-coat" or "peacoat" (peacoat = double-breasted wool, trench = belted gabardine); fall back to "coat" otherwise
 - Shorts with an elastic waist and drawstring and not athletic = casual shorts, set subcategory "shorts"; athletic versions → also "shorts" but warmth_rating 1

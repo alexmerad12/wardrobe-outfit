@@ -38,7 +38,6 @@ ENUMS:
 - name: 2-5 word human label ("Black leather jacket")
 - colors: array of { hex: "#rrggbb", name: "Title-case color name" } — up to 3 dominant colors
 - warmth_rating: 1-5 in 0.5 steps
-- rain_appropriate: boolean
 - is_layering_piece: true only for open cardigans, blazers, vests, open-drape pieces
 
 Return one JSON object with category, subcategory, name, colors (required), plus any of the other fields you can infer confidently.`;

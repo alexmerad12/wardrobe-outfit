@@ -65,7 +65,7 @@ export type AutoFillResult = {
   dress_silhouette?: DressSilhouette;
   toe_shape?: ToeShape;
   warmth_rating?: number;
-  rain_appropriate?: boolean;
+  // rain_appropriate intentionally removed — derived by suggest pipeline.
   is_layering_piece?: boolean;
   belt_compatible?: boolean;
   colors?: { hex: string; name: string }[];
