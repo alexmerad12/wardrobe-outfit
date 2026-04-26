@@ -1,27 +1,69 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <title>Closette — Ivory Noir</title>
-  <!-- Ivory ground, rounded square (iOS-style) -->
-  <rect width="512" height="512" fill="#ebe0c8" rx="92" ry="92"/>
-  <!-- Solid ivory disc covers the would-be wallpaper so the C sits clean -->
-  <circle cx="256" cy="256" r="224" fill="#ebe0c8"/>
-  <!-- Outer hairline ring -->
-  <circle cx="256" cy="256" r="224" fill="none" stroke="#0a0806" stroke-width="3.5" opacity="0.92"/>
-  <!-- Inner thin ring -->
-  <circle cx="256" cy="256" r="204" fill="none" stroke="#0a0806" stroke-width="1.4" opacity="0.55"/>
-  <!-- Four cardinal dots — maison label feel -->
-  <circle cx="256" cy="42" r="3.6" fill="#0a0806" opacity="0.85"/>
-  <circle cx="256" cy="470" r="3.6" fill="#0a0806" opacity="0.85"/>
-  <circle cx="42"  cy="256" r="3.6" fill="#0a0806" opacity="0.85"/>
-  <circle cx="470" cy="256" r="3.6" fill="#0a0806" opacity="0.85"/>
-  <!-- The C — Bodoni Moda with Didot/Times fallbacks for OSes that don't ship it.
-       y=256 + dominant-baseline=central matches the geometric centering used in
-       the in-app SVG monogram. -->
+  <defs>
+    <!-- One damask medallion, drawn once and instanced via <use>. Mirrors
+         the PatternRoseDamask shape: 4 lobes, volutes, cardinal droplets.
+         Anchor at (0,0); placed via the x/y attributes on each <use>. -->
+    <g id="damask" fill="#0a0806" stroke="#0a0806" stroke-linecap="round">
+      <path d="M0 -22 Q 10 -12 0 0 Q -10 -12 0 -22 Z" opacity="0.95"/>
+      <path d="M0 0 Q 10 12 0 22 Q -10 12 0 0 Z" opacity="0.95"/>
+      <path d="M-22 0 Q -12 -10 0 0 Q -12 10 -22 0 Z" opacity="0.9"/>
+      <path d="M22 0 Q 12 -10 0 0 Q 12 10 22 0 Z" opacity="0.9"/>
+      <path d="M0 -21 Q 16 -28 20 -15 Q 17 -7 9 -10" stroke-width="1.4" fill="none" opacity="0.85"/>
+      <path d="M0 -21 Q -16 -28 -20 -15 Q -17 -7 -9 -10" stroke-width="1.4" fill="none" opacity="0.85"/>
+      <path d="M0 21 Q 16 28 20 15 Q 17 7 9 10" stroke-width="1.4" fill="none" opacity="0.85"/>
+      <path d="M0 21 Q -16 28 -20 15 Q -17 7 -9 10" stroke-width="1.4" fill="none" opacity="0.85"/>
+      <circle cx="0" cy="-30" r="1.6" opacity="0.75"/>
+      <circle cx="0" cy="30" r="1.6" opacity="0.75"/>
+      <circle cx="-30" cy="0" r="1.4" opacity="0.65"/>
+      <circle cx="30" cy="0" r="1.4" opacity="0.65"/>
+      <circle cx="0" cy="0" r="2" fill="#f8efd6" opacity="0.55"/>
+    </g>
+    <clipPath id="rounded">
+      <rect width="512" height="512" rx="92" ry="92"/>
+    </clipPath>
+  </defs>
+
+  <!-- Everything inside the rounded square -->
+  <g clip-path="url(#rounded)">
+    <!-- Ivory ground -->
+    <rect width="512" height="512" fill="#ebe0c8"/>
+
+    <!-- Diamond hairline lattice connecting the 4 corner damasks -->
+    <g stroke="#3a2a1e" stroke-width="1.4" fill="none" opacity="0.45" stroke-linecap="round">
+      <path d="M110 110 L 402 110 L 402 402 L 110 402 Z"/>
+      <path d="M256 60 L 60 256 L 256 452 L 452 256 Z"/>
+    </g>
+
+    <!-- 8 damask medallions in the visible ring (4 corners + 4 cardinals) -->
+    <use href="#damask" x="110" y="110"/>
+    <use href="#damask" x="402" y="110"/>
+    <use href="#damask" x="110" y="402"/>
+    <use href="#damask" x="402" y="402"/>
+    <use href="#damask" x="256" y="60"/>
+    <use href="#damask" x="256" y="452"/>
+    <use href="#damask" x="60"  y="256"/>
+    <use href="#damask" x="452" y="256"/>
+
+    <!-- Solid ivory disc covering the center so the C sits clean -->
+    <circle cx="256" cy="256" r="160" fill="#ebe0c8"/>
+  </g>
+
+  <!-- Disc rings + cardinal dots — drawn outside the clip so they crisp at edges -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#0a0806" stroke-width="3" opacity="0.92"/>
+  <circle cx="256" cy="256" r="146" fill="none" stroke="#0a0806" stroke-width="1.2" opacity="0.55"/>
+  <circle cx="256" cy="106" r="3.4" fill="#0a0806" opacity="0.85"/>
+  <circle cx="256" cy="406" r="3.4" fill="#0a0806" opacity="0.85"/>
+  <circle cx="106" cy="256" r="3.4" fill="#0a0806" opacity="0.85"/>
+  <circle cx="406" cy="256" r="3.4" fill="#0a0806" opacity="0.85"/>
+
+  <!-- The C — Bodoni Moda with serif fallbacks, geometrically centered -->
   <text x="256" y="256"
         text-anchor="middle"
         dominant-baseline="central"
         font-family="'Bodoni Moda','Bodoni 72',Didot,'Times New Roman',Georgia,serif"
         font-weight="400"
-        font-size="358"
+        font-size="256"
         fill="#0a0806"
         style="letter-spacing:-0.03em;font-style:normal;">C</text>
 </svg>
