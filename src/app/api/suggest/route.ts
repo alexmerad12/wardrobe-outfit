@@ -585,7 +585,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       // responseSchema) — same JSON shape Anthropic's tool_use returned,
       // so the rest of the pipeline doesn't change.
       const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash",
+        model: "gemini-3-flash-preview",
         generationConfig: {
           temperature: 1,
           maxOutputTokens: 1400,
