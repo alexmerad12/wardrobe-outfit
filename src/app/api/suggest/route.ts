@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
@@ -7,7 +7,34 @@ import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
-const anthropic = new Anthropic();
+// Suggest endpoint runs on Gemini 2.5 Flash. Packing still uses
+// Anthropic via its own client. GOOGLE_API_KEY must be set in
+// .env.local for dev and in Vercel env settings for deploys.
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY ?? "");
+
+const SUGGEST_RESPONSE_SCHEMA: ResponseSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    outfits: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          item_ids: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
+          },
+          name: { type: SchemaType.STRING },
+          reasoning: { type: SchemaType.STRING },
+          styling_tip: { type: SchemaType.STRING, nullable: true },
+        },
+        required: ["item_ids", "name", "reasoning"],
+      },
+    },
+    wardrobe_gap: { type: SchemaType.STRING, nullable: true },
+  },
+  required: ["outfits"],
+};
 
 // ─────────────────────────────────────────────────────────────────
 // Server-side description builder. We used to let the AI write the
@@ -554,52 +581,31 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1400,
-        temperature: 1,
-        tools: [
-          {
-            name: "propose_outfits",
-            description: "Return the 4 outfit suggestions and an optional wardrobe gap.",
-            input_schema: {
-              type: "object" as const,
-              properties: {
-                outfits: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      item_ids: { type: "array", items: { type: "string" } },
-                      name: { type: "string" },
-                      reasoning: { type: "string" },
-                      styling_tip: { type: ["string", "null"] },
-                    },
-                    required: ["item_ids", "name", "reasoning"],
-                  },
-                },
-                wardrobe_gap: { type: ["string", "null"] },
-              },
-              required: ["outfits"],
-            },
-          },
-        ],
-        tool_choice: { type: "tool", name: "propose_outfits" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: cachedPrefix, cache_control: { type: "ephemeral" } },
-              { type: "text", text: dynamicSuffix },
-            ],
-          },
-        ],
+      // Gemini 2.5 Flash with structured-output (responseMimeType +
+      // responseSchema) — same JSON shape Anthropic's tool_use returned,
+      // so the rest of the pipeline doesn't change. If Google ships a
+      // gemini-3-flash, swap the model id below.
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          temperature: 1,
+          maxOutputTokens: 1400,
+          responseMimeType: "application/json",
+          responseSchema: SUGGEST_RESPONSE_SCHEMA,
+        },
       });
-      const toolUse = message.content.find((c) => c.type === "tool_use");
-      if (!toolUse || toolUse.type !== "tool_use") {
-        return { parsed: null, stopReason: message.stop_reason };
+      const result = await model.generateContent(`${cachedPrefix}\n\n${dynamicSuffix}`);
+      const stopReason = result.response.candidates?.[0]?.finishReason ?? null;
+      const text = result.response.text();
+      if (!text) {
+        return { parsed: null, stopReason };
       }
-      return { parsed: toolUse.input as ParsedShape, stopReason: message.stop_reason };
+      try {
+        return { parsed: JSON.parse(text) as ParsedShape, stopReason };
+      } catch (err) {
+        console.error("[suggest] Failed to parse Gemini JSON:", err, text.slice(0, 200));
+        return { parsed: null, stopReason };
+      }
     }
 
     // Single attempt — Sonnet's bad-shape rate is <1% with structured
