@@ -4,13 +4,12 @@ import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 
-// Item analysis runs on Gemini 2.5 Flash via @google/genai with
-// thinking disabled. We tried gemini-3-flash-preview here but it
-// took ~23s per image with the full enum-heavy SYSTEM_PROMPT —
-// preview models aren't optimized for production vision throughput.
-// 2.5 Flash with the same prompt + a 1024px-wide image clocks ~2s.
-// The existing sanitizeAutoFill handles enum validation, so we don't
-// need a strict responseSchema.
+// Item analysis runs on Gemini 3 Flash Preview via @google/genai with
+// thinking disabled. Note: in our earlier testing 3-flash-preview took
+// ~23s on this enum-heavy SYSTEM_PROMPT vs ~2s on 2.5-flash, but the
+// user wants to verify with their own real uploads — easy swap back to
+// 2.5-flash if 3 still feels slow. The existing sanitizeAutoFill
+// handles enum validation, so we don't need a strict responseSchema.
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 // Static instructions + full enum list. Cached across requests so each call
@@ -130,7 +129,7 @@ export async function POST(request: NextRequest) {
     const mediaType = "image/jpeg" as const;
 
     const result = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           role: "user",
