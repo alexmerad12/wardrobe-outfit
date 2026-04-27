@@ -611,6 +611,38 @@ export function PendingUploadsProvider({
     );
   }, []);
 
+  // Auto-retry errored items once when the tab comes back into focus.
+  // Common case: user kicked off a batch, switched to another app while
+  // it ran, network blipped on one item, user returns to the tab — we
+  // silently retry that item before they even see the error tile. Each
+  // item is auto-retried at most once per error to avoid loops; if it
+  // fails again, the user has to tap retry manually.
+  const autoRetriedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const onVisible = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      setItems((prev) => {
+        let changed = false;
+        const next = prev.map((i) => {
+          if (i.stage !== "error") return i;
+          if (autoRetriedRef.current.has(i.id)) return i;
+          autoRetriedRef.current.add(i.id);
+          kickedOffRef.current.delete(i.id);
+          changed = true;
+          return { ...i, stage: "queued" as const, error: undefined };
+        });
+        return changed ? next : prev;
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, []);
+
   const dismiss = useCallback((id: string) => {
     setItems((prev) => {
       const target = prev.find((i) => i.id === id);
@@ -647,6 +679,7 @@ export function PendingUploadsProvider({
       return [];
     });
     kickedOffRef.current.clear();
+    autoRetriedRef.current.clear();
     batchCompletedFiredRef.current = false;
   }, []);
 

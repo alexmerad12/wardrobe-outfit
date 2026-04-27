@@ -29,8 +29,10 @@ const ATTEMPT_TIMEOUT_MS = 60_000;
 // transient flakiness. 4 attempts × longer backoff covers a brief
 // AP roam, a TCP reset between back-to-back multipart POSTs, and
 // the occasional captive-portal blip.
-const MAX_ATTEMPTS = 4;
-const RETRY_DELAYS_MS = [2_000, 5_000, 12_000];
+// 5 attempts × backoff [2, 5, 12, 30] = ~49 s of retry runway. Covers
+// the multi-second WiFi blips and AP roams that 19 s of runway didn't.
+const MAX_ATTEMPTS = 5;
+const RETRY_DELAYS_MS = [2_000, 5_000, 12_000, 30_000];
 
 // Permanent HTTP statuses that will never succeed on retry.
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404, 413, 415]);
