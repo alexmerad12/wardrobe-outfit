@@ -226,6 +226,7 @@ export interface Outfit {
   weather_condition: string | null;
   ai_reasoning: string | null;
   styling_tip: string | null;
+  style_notes: string | null;
   source: "ai" | "manual";
   created_at: string;
   // Joined data (not in DB)

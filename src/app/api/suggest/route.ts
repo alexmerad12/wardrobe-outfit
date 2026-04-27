@@ -309,6 +309,7 @@ function describeItem(item: ClothingItem): string {
   if (item.heel_type) parts.push(`Heel: ${item.heel_type}`);
   if (item.shoe_closure) parts.push(`Shoe closure: ${item.shoe_closure}`);
   if (item.belt_style) parts.push(`Belt style: ${item.belt_style}`);
+  if (item.belt_compatible) parts.push("Works with belt: yes");
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
   if (item.bag_size) parts.push(`Bag size: ${item.bag_size}`);
   if (item.bag_texture) parts.push(`Bag texture: ${item.bag_texture}`);
@@ -460,6 +461,7 @@ export async function POST(request: NextRequest) {
           occasion: o.occasions?.[0] ?? null,
           weather_temp: o.weather_temp,
           source: o.source,
+          style_notes: o.style_notes ?? null,
         };
       })
       .filter((f) => f.items.length > 0);
@@ -524,7 +526,7 @@ export async function POST(request: NextRequest) {
     const occasionLabel = OCCASION_LABELS[occasion];
 
     const favoritesSection = favorites.length > 0
-      ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}`).join("\n")}`
+      ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}${f.style_notes ? `\n   Note from user: "${f.style_notes}"` : ""}`).join("\n")}`
       : "";
 
     // Anti-repetition signal: combine KV-tracked recent SUGGESTIONS (across
@@ -585,8 +587,11 @@ HARD RULES — do not violate:
 2. Overalls are the one exception: they require a "top" underneath.
 3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes).
+4b. LAYERING PROPORTIONS — when a "top" item has Fit "oversized" (oversized cardigan / hoodie / sweater), any outerwear in the outfit MUST also have Fit "oversized" or "loose". A slim or regular jacket cannot layer cleanly over an oversized top — the bulk underneath bunches the jacket and visually clashes. If the wardrobe has no oversized/loose outerwear, drop the outerwear OR pick a non-oversized top.
 5. WEATHER (NON-NEGOTIABLE):
-   - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule. If the wardrobe has zero outerwear items, skip the rule.
+   - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule.
+     CARDIGAN-AS-OUTERWEAR EXCEPTION: a chunky cardigan (subcategory="cardigan" AND Warmth ≥ 3 AND NOT a layering piece) MAY substitute for outerwear when BOTH conditions are true: (a) temp is 10–17°C (mild cold — real outerwear is overkill); (b) occasion is indoor-leaning (at-home, work, dinner-out, date, party, formal, brunch). For outdoor / sport / travel / casual / hangout, you still need real outerwear regardless of temp. Below 10°C the cardigan is never enough — pick real outerwear.
+     If the wardrobe has zero qualifying outerwear AND zero qualifying cardigan substitute, skip this rule.
    - Cold base layer: the dress / jumpsuit / top+bottom under the coat must ALSO handle the temperature — the coat comes off indoors. At <10°C, base Warmth ≥2; at <5°C, Warmth ≥2.5. Prefer midi/maxi, knit/wool, fall or winter in Seasons.
    - Warm (>22°C): no heavy coats, no wool, no heavy boots.
    - RAIN (rain% ≥ 40% OR Condition contains "rain" / "showers"): apply automated Material-Intelligence filters to element-facing layers (Outerwear, Shoes, Bag):
@@ -636,7 +641,11 @@ HARD RULES — do not violate:
    b) When Seasons is NON-EMPTY, same logic against the current SEASON. Off-season items only allowed when no in-season alternative exists in the wardrobe for that category.
    c) Empty Occasions or Seasons list = "works anywhere" — no constraint. Don't penalize unset items.
 18. STYLIST INSTINCT — completers a real stylist adds without being asked. These are PROACTIVE additions, not constraints. A wardrobe item that "completes" the look is BETTER than skipping the slot.
-   a) BELT THE WAIST — REQUIRED COMPLETER: when an outfit pairs a SWEATER or BLOUSE with a SKIRT, you MUST include a belt from the wardrobe (category=accessory, subcategory=belt). Same goes for blouse + tailored trousers / slacks (the tucked look). The belt defines the waist and is what separates a stylist outfit from a thrown-together one. The ONLY valid reasons to skip the belt are: (i) the top is genuinely oversized / boxy (the silhouette IS the look), (ii) there's already a belted coat / belted dress in the outfit, or (iii) the wardrobe has zero belts. Otherwise — pick the belt.
+   a) BELT THE WAIST — REQUIRED COMPLETER: include a belt from the wardrobe (category=accessory, subcategory=belt) in any outfit where it would obviously elevate the look. The non-negotiable cases:
+      - SWEATER or BLOUSE with a SKIRT.
+      - BLOUSE with tailored trousers (the tucked look).
+      - ANY DRESS or JUMPSUIT tagged "Works with belt: yes" — the user explicitly told us this piece reads better belted, so DON'T skip it.
+      The belt defines the waist and is what separates a stylist outfit from a thrown-together one. The ONLY valid reasons to skip the belt are: (i) the top is genuinely oversized / boxy (the silhouette IS the look), (ii) there's already a belted coat in the outfit, or (iii) the wardrobe has zero belts. Otherwise — pick the belt.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
    d) ANTI-BLAND ACROSS THE 4 OUTFITS: vary the spark across the four. AT LEAST ONE outfit must lead with a saturated color (not just neutrals). AT LEAST ONE outfit must include a non-solid pattern (animal-print, plaid, stripes, polka-dot, floral, embellished). The four outfits MUST NOT all read as the same tonal palette.
@@ -853,11 +862,40 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       // one. Pick closest-warmth-match; bias the fit so we don't layer a
       // slim jacket over an oversized sweater (the proportion is off and
       // physically the sweater bunches under the jacket).
+      //
+      // CARDIGAN SUBSTITUTE: in mild cold (10-17°C) on indoor-leaning
+      // occasions, a chunky cardigan (warmth ≥3, not a layering piece)
+      // is enough — skip auto-injection and let the cardigan be the
+      // outermost layer.
+      const INDOOR_LEANING = new Set<string>([
+        "at-home",
+        "work",
+        "dinner-out",
+        "date",
+        "party",
+        "formal",
+        "brunch",
+      ]);
+      const cardiganSubstitute = stripped.find(
+        (i) =>
+          i.category === "top" &&
+          i.subcategory === "cardigan" &&
+          (i.warmth_rating ?? 0) >= 3 &&
+          !i.is_layering_piece
+      );
+      const cardiganQualifies =
+        cardiganSubstitute &&
+        weather &&
+        typeof weather.temp === "number" &&
+        weather.temp >= 10 &&
+        weather.temp < 18 &&
+        INDOOR_LEANING.has(occasion);
       if (
         weather &&
         typeof weather.temp === "number" &&
         weather.temp < 12 &&
-        !stripped.some((i) => i.category === "outerwear")
+        !stripped.some((i) => i.category === "outerwear") &&
+        !cardiganQualifies
       ) {
         const available = items.filter(
           (i) => i.category === "outerwear" && !i.is_stored
@@ -1531,6 +1569,28 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
       }
+      // R4b — LAYERING PROPORTIONS: oversized top + slim/regular outerwear
+      // doesn't fit cleanly. The jacket bunches over the bulk underneath
+      // and the silhouette reads "wrong size." Allow only oversized or
+      // loose outerwear over an oversized top.
+      {
+        const oversizedTop = s.items.find(
+          (i) => i.category === "top" && i.fit === "oversized"
+        );
+        const outer = s.items.find((i) => i.category === "outerwear");
+        if (
+          oversizedTop &&
+          outer &&
+          outer.fit !== "oversized" &&
+          outer.fit !== "loose"
+        ) {
+          drops.push({
+            ids: s._ids,
+            reason: `layering proportions: ${outer.fit ?? "fitted"} ${outer.subcategory ?? "outerwear"} can't layer over oversized ${oversizedTop.subcategory ?? "top"}`,
+          });
+          return false;
+        }
+      }
       // SHOE × BOTTOM proportional combos that look bad regardless of
       // occasion or mood. Sourced from stylist consensus across Vogue /
       // Who What Wear / InStyle / The Concept Wardrobe.
@@ -1728,12 +1788,13 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // R18 — belt completer (soft, LAST CHECK): sweater/blouse + skirt
-      // or tailored trousers should include a belt when the wardrobe has
-      // one. Lives at the end of the filter so it only catches outfits
-      // that pass every hard drop above. Pushing earlier would let
-      // belt-missing outfits short-circuit past bag-formality / metal-
-      // sync / etc. and slip back in via the softMismatch admit.
+      // R18 — belt completer (soft, LAST CHECK): sweater/blouse + skirt,
+      // blouse + tailored trousers, OR any dress/jumpsuit the user has
+      // tagged belt_compatible should include a belt when the wardrobe
+      // has one. Lives at the end of the filter so it only catches
+      // outfits that pass every hard drop above. Pushing earlier would
+      // let belt-missing outfits short-circuit past bag-formality /
+      // metal-sync / etc. and slip back in via the softMismatch admit.
       if (wardrobeHasBelt) {
         const top = s.items.find(
           (i) =>
@@ -1750,9 +1811,14 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             i.subcategory === "trousers" &&
             i.waist_style !== "elastic"
         );
+        const beltCompatibleBase = s.items.find(
+          (i) =>
+            (i.category === "dress" || i.category === "one-piece") &&
+            i.belt_compatible === true
+        );
         const beltable =
-          top &&
-          (skirt || (top.subcategory === "blouse" && tailoredBottom));
+          beltCompatibleBase ||
+          (top && (skirt || (top.subcategory === "blouse" && tailoredBottom)));
         const hasBelt = s.items.some(
           (i) => i.category === "accessory" && i.subcategory === "belt"
         );

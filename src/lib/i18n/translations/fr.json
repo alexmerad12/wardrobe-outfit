@@ -747,7 +747,19 @@
     "saved": "Tenue enregistrée",
     "custom": "Personnalisée",
     "removeFromFavorites": "Retirer des favoris",
-    "new": "Nouvelle"
+    "new": "Nouvelle",
+    "notesLabel": "Tes notes"
+  },
+  "outfitDetails": {
+    "createTitle": "Enregistrer cette tenue",
+    "editTitle": "Modifier les détails",
+    "nameLabel": "Titre",
+    "moodLabel": "Humeur",
+    "moodPlaceholder": "Choisis une humeur",
+    "occasionLabel": "Occasion",
+    "occasionPlaceholder": "Choisis-en une",
+    "notesLabel": "Notes (qu'est-ce que tu aimes ?)",
+    "notesPlaceholder": "ex : J'aime le contraste avec ma ceinture marron — confiant sans en faire trop."
   },
   "addItem": {
     "title": "Ajouter un item",

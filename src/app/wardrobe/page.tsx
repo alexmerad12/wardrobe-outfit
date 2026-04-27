@@ -8,12 +8,9 @@ import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  OutfitDetailsDialog,
+  type OutfitDetails,
+} from "@/components/outfit-details-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,7 +81,6 @@ function WardrobePageInner() {
   const [deleting, setDeleting] = useState(false);
   const [creatingOutfit, setCreatingOutfit] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
-  const [outfitNameDraft, setOutfitNameDraft] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
@@ -221,13 +217,11 @@ function WardrobePageInner() {
 
   function openOutfitNameDialog() {
     if (selected.size < 2) return;
-    setOutfitNameDraft("");
     setNameDialogOpen(true);
   }
 
-  async function handleCreateOutfit() {
+  async function handleCreateOutfit(values: OutfitDetails) {
     if (selected.size < 2) return;
-    const trimmed = outfitNameDraft.trim();
     setCreatingOutfit(true);
     try {
       const res = await fetch("/api/outfits", {
@@ -235,16 +229,17 @@ function WardrobePageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "default",
-          name: trimmed.length > 0 ? trimmed.slice(0, 80) : null,
+          name: values.name,
           item_ids: Array.from(selected),
-          occasions: [],
+          occasions: values.occasion ? [values.occasion] : [],
           seasons: [],
           rating: null,
           is_favorite: true,
-          mood: null,
+          mood: values.mood,
           weather_temp: null,
           weather_condition: null,
           ai_reasoning: null,
+          style_notes: values.style_notes,
           source: "manual",
         }),
       });
@@ -567,45 +562,15 @@ function WardrobePageInner() {
         </div>
       )}
 
-      {/* Name dialog when creating a custom outfit. */}
-      <Dialog open={nameDialogOpen} onOpenChange={setNameDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("wardrobe.nameOutfitTitle")}</DialogTitle>
-          </DialogHeader>
-          <Input
-            placeholder={t("wardrobe.nameOutfitPlaceholder")}
-            value={outfitNameDraft}
-            onChange={(e) => setOutfitNameDraft(e.target.value)}
-            maxLength={80}
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !creatingOutfit) {
-                handleCreateOutfit();
-              }
-            }}
-          />
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setNameDialogOpen(false)}
-              disabled={creatingOutfit}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={handleCreateOutfit} disabled={creatingOutfit}>
-              {creatingOutfit ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("wardrobe.creating")}
-                </>
-              ) : (
-                t("wardrobe.create")
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create-outfit details dialog. Shared with the favorites edit
+          flow — same component, different mode. */}
+      <OutfitDetailsDialog
+        open={nameDialogOpen}
+        onOpenChange={setNameDialogOpen}
+        mode="create"
+        submitting={creatingOutfit}
+        onSubmit={handleCreateOutfit}
+      />
     </div>
   );
 }

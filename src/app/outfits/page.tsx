@@ -10,7 +10,8 @@ import { MOOD_ICONS } from "@/lib/mood-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check, ChevronDown } from "lucide-react";
+import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check, ChevronDown, Pencil } from "lucide-react";
+import { OutfitDetailsDialog, type OutfitDetails } from "@/components/outfit-details-dialog";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
@@ -29,6 +30,8 @@ export default function FavoritesPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState(false);
+  const [editing, setEditing] = useState<Outfit | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
   const router = useRouter();
@@ -92,6 +95,45 @@ export default function FavoritesPage() {
       }),
     });
     router.push("/");
+  }
+
+  async function handleEditSubmit(values: OutfitDetails) {
+    if (!editing) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/outfits/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name,
+          mood: values.mood,
+          occasions: values.occasion ? [values.occasion] : [],
+          style_notes: values.style_notes,
+        }),
+      });
+      if (res.ok) {
+        // Merge the patched fields locally so the user sees the change
+        // without a full refetch.
+        setOutfits((prev) =>
+          prev.map((o) =>
+            o.id === editing.id
+              ? {
+                  ...o,
+                  name: values.name,
+                  mood: values.mood,
+                  occasions: values.occasion ? [values.occasion] : [],
+                  style_notes: values.style_notes,
+                }
+              : o
+          )
+        );
+        setEditing(null);
+      }
+    } catch (err) {
+      console.error("Failed to edit outfit:", err);
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function removeFavorite(outfitId: string) {
@@ -414,7 +456,14 @@ export default function FavoritesPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      {outfit.style_notes && (
+                        <div className="border-t border-border pt-2.5">
+                          <p className="editorial-label mb-1">{t("favorites.notesLabel")}</p>
+                          <p className="text-xs leading-relaxed">{outfit.style_notes}</p>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           className="flex-1 gap-1.5"
@@ -422,6 +471,15 @@ export default function FavoritesPage() {
                         >
                           <Shirt className="h-4 w-4" />
                           {t("home.wearToday")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => setEditing(outfit)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          {t("common.edit")}
                         </Button>
                         <ShareOutfitButton
                           items={outfit.items ?? []}
@@ -446,6 +504,24 @@ export default function FavoritesPage() {
           ))}
         </div>
       )}
+
+      <OutfitDetailsDialog
+        open={editing !== null}
+        onOpenChange={(open) => !open && setEditing(null)}
+        mode="edit"
+        submitting={savingEdit}
+        initial={
+          editing
+            ? {
+                name: editing.name,
+                mood: editing.mood,
+                occasion: editing.occasions[0] ?? null,
+                style_notes: editing.style_notes,
+              }
+            : undefined
+        }
+        onSubmit={handleEditSubmit}
+      />
     </div>
   );
 }

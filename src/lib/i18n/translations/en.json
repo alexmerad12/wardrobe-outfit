@@ -742,7 +742,19 @@
     "saved": "Saved Outfit",
     "custom": "Custom",
     "removeFromFavorites": "Remove from favorites",
-    "new": "New"
+    "new": "New",
+    "notesLabel": "Your notes"
+  },
+  "outfitDetails": {
+    "createTitle": "Save this outfit",
+    "editTitle": "Edit outfit details",
+    "nameLabel": "Title",
+    "moodLabel": "Mood",
+    "moodPlaceholder": "Pick a mood",
+    "occasionLabel": "Occasion",
+    "occasionPlaceholder": "Pick one",
+    "notesLabel": "Notes (what do you love about it?)",
+    "notesPlaceholder": "e.g. Love the color combo with my brown belt — feels confident without trying too hard."
   },
   "addItem": {
     "title": "Add New Item",
