@@ -236,6 +236,7 @@
     "trousers": "Trousers",
     "shorts": "Shorts",
     "skirt": "Skirt",
+    "skort": "Skort",
     "leggings": "Leggings",
     "sweatpants": "Sweatpants",
     "mini-dress": "Mini Dress",
@@ -564,7 +565,8 @@
   "styleWish": {
     "dress-day": "Dress day",
     "mix-patterns": "Mix patterns",
-    "all-black": "All black"
+    "all-black": "All black",
+    "full-denim": "Full denim"
   },
   "colorGroup": {
     "Whites & Creams": "Whites & Creams",

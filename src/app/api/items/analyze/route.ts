@@ -20,7 +20,7 @@ ENUMS:
 - category: "top" | "bottom" | "dress" | "one-piece" | "outerwear" | "shoes" | "bag" | "accessory"
 - subcategory (must match the category):
   • top: "t-shirt" | "blouse" | "shirt" | "tank-top" | "crop-top" | "sweater" | "hoodie" | "cardigan"
-  • bottom: "jeans" | "trousers" | "shorts" | "skirt" | "leggings" | "sweatpants"
+  • bottom: "jeans" | "trousers" | "shorts" | "skirt" | "skort" | "leggings" | "sweatpants"
   • dress: "mini-dress" | "midi-dress" | "maxi-dress"
   • one-piece: "jumpsuit" | "overalls"
   • outerwear: "jacket" | "coat" | "blazer" | "vest" | "windbreaker" | "puffer" | "bomber" | "denim-jacket" | "leather-jacket" | "trench-coat" | "peacoat" | "parka"

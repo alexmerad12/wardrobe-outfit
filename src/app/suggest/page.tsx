@@ -66,6 +66,7 @@ function SuggestContent() {
     { key: "dress-day", label: t("styleWish.dress-day") },
     { key: "mix-patterns", label: t("styleWish.mix-patterns") },
     { key: "all-black", label: t("styleWish.all-black") },
+    { key: "full-denim", label: t("styleWish.full-denim") },
   ];
 
   function toggleStyleWish(wish: string) {

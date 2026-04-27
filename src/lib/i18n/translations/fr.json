@@ -241,6 +241,7 @@
     "trousers": "Pantalon",
     "shorts": "Short",
     "skirt": "Jupe",
+    "skort": "Jupe-short",
     "leggings": "Legging",
     "sweatpants": "Jogging",
     "mini-dress": "Mini robe",
@@ -569,7 +570,8 @@
   "styleWish": {
     "dress-day": "Journée robe",
     "mix-patterns": "Mélanger les motifs",
-    "all-black": "Tout en noir"
+    "all-black": "Tout en noir",
+    "full-denim": "Tout en denim"
   },
   "colorGroup": {
     "Whites & Creams": "Blancs et crèmes",

@@ -8,7 +8,7 @@ export type Subcategory =
   // Tops
   | "t-shirt" | "blouse" | "shirt" | "tank-top" | "crop-top" | "sweater" | "hoodie" | "cardigan"
   // Bottoms
-  | "jeans" | "trousers" | "shorts" | "skirt" | "leggings" | "sweatpants"
+  | "jeans" | "trousers" | "shorts" | "skirt" | "skort" | "leggings" | "sweatpants"
   // Dresses
   | "mini-dress" | "midi-dress" | "maxi-dress"
   // One-piece (jumpsuits, overalls)
@@ -687,6 +687,7 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "trousers", label: "Trousers" },
     { value: "shorts", label: "Shorts" },
     { value: "skirt", label: "Skirt" },
+    { value: "skort", label: "Skort" },
     { value: "leggings", label: "Leggings" },
     { value: "sweatpants", label: "Sweatpants" },
   ],

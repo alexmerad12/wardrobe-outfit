@@ -31,6 +31,7 @@ export const SUBCATEGORIES = [
   "trousers",
   "shorts",
   "skirt",
+  "skort",
   "leggings",
   "sweatpants",
   // Dresses

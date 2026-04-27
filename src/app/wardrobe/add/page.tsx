@@ -691,10 +691,15 @@ export default function AddItemPage() {
     }
   }
 
-  const subcategoryOptions =
-    category && category in labels.SUBCATEGORY_OPTIONS
-      ? labels.SUBCATEGORY_OPTIONS[category as Category]
-      : [];
+  // Skort is a women's-track subcategory — hide it from men's selection.
+  const subcategoryOptions = (() => {
+    if (!category || !(category in labels.SUBCATEGORY_OPTIONS)) return [];
+    const all = labels.SUBCATEGORY_OPTIONS[category as Category];
+    if (userGender === "man" && category === "bottom") {
+      return all.filter((o) => o.value !== "skort" && o.value !== "skirt");
+    }
+    return all;
+  })();
 
   return (
     <div className="mx-auto max-w-md px-4 pt-4 pb-8">

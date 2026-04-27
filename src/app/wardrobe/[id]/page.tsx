@@ -575,9 +575,15 @@ export default function ItemDetailPage() {
     item.category !== "accessory" &&
     item.category !== "bag";
 
-  const subcatOptions = editCategory in labels.SUBCATEGORY_OPTIONS
-    ? labels.SUBCATEGORY_OPTIONS[editCategory as Category]
-    : [];
+  // Skort is a women's-track subcategory — hide from men's selection.
+  const subcatOptions = (() => {
+    if (!(editCategory in labels.SUBCATEGORY_OPTIONS)) return [];
+    const all = labels.SUBCATEGORY_OPTIONS[editCategory as Category];
+    if (userGender === "man" && editCategory === "bottom") {
+      return all.filter((o) => o.value !== "skort" && o.value !== "skirt");
+    }
+    return all;
+  })();
 
   // Format formality for view mode (handle both single string and array)
   const formalityDisplay = Array.isArray(item.formality)

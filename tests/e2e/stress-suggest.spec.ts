@@ -226,6 +226,31 @@ function validateOutfit(
     if (count > 1) flag("R4-single-piece", `${count} items in "${cat}" — should be 1`);
   }
 
+  // R4-outerwear: max 1 outerwear unless it's a valid winter-layering
+  // pair: an INNER (blazer/vest) under an OUTER (coat/peacoat/
+  // trench-coat/parka/puffer). Two of the same class — or any
+  // standalone subcategory paired with another — is a failure.
+  const outerItems = items.filter((i) => i.category === "outerwear");
+  if (outerItems.length >= 2) {
+    const INNER = new Set(["blazer", "vest"]);
+    const OUTER = new Set([
+      "coat",
+      "peacoat",
+      "trench-coat",
+      "parka",
+      "puffer",
+    ]);
+    const hasInner = outerItems.some((i) => INNER.has(i.subcategory ?? ""));
+    const hasOuter = outerItems.some((i) => OUTER.has(i.subcategory ?? ""));
+    const isValidPair = outerItems.length === 2 && hasInner && hasOuter;
+    if (!isValidPair) {
+      flag(
+        "R4-outerwear-stack",
+        `${outerItems.length} outerwear: ${outerItems.map((i) => i.subcategory ?? "?").join(" + ")}`
+      );
+    }
+  }
+
   // R1: dress / jumpsuit standalone (with slip + cardigan / layering exceptions)
   const hasDress = items.some((i) => i.category === "dress");
   const hasOnePiece = items.some((i) => i.category === "one-piece");
@@ -536,13 +561,14 @@ function validateOutfit(
     const shoeSub = shoe.subcategory;
     const fit = bottomItem.bottom_fit;
     const pl = bottomItem.pants_length;
-    const sl = bottomItem.skirt_length;
-    if (shoeSub === "knee-boots") {
+    const sh = shoe.shoe_height;
+    // Tall-shaft = knee-boots OR any boot with shoe_height knee/over-knee
+    // (covers cowboy/western boots, riding boots, etc.)
+    const tallShaftBoot =
+      shoeSub === "knee-boots" || sh === "knee" || sh === "over-knee";
+    if (tallShaftBoot) {
       if (["wide-leg", "flared", "bootcut", "tapered"].includes(fit ?? "")) {
-        flag("R19-knee-boots-fit", `knee-boots × ${fit}`);
-      }
-      if (sl === "midi") {
-        flag("R19-knee-boots-midi-skirt", "knee-boots × midi skirt");
+        flag("R19-tall-boots-fit", `${shoeSub} (tall shaft) × ${fit}`);
       }
     }
     if (shoeSub === "ankle-boots") {
