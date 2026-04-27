@@ -555,7 +555,7 @@ HARD RULES — do not violate:
 7. AT-HOME: no bag. Scarves only if Warmth ≤2 (thin bandana / silk kerchief). Never pair a turtleneck top with any scarf at home.
 8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
-10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
+10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work. CASUAL / HANGOUT / BRUNCH / SPORT / OUTDOOR / TRAVEL / AT-HOME → flat shoes only. Block heel_type "high-heel" and "mid-heel" — these read too dressy for a casual look, even if the user happens to own them.
 11. BAG, HAT, ACCESSORY:
     BAG: ${isMensTrack ? "OPTIONAL for all occasions on the men's track — most men's looks don't require a bag. Only include a bag if the wardrobe has one that genuinely fits the look (laptop bag for work, weekender for travel)." : "REQUIRED for every occasion EXCEPT at-home and sport."} Pick at most one bag from the wardrobe (category="bag"). If the wardrobe has zero bags, skip silently.
     BAG SIZE × OCCASION (Track A): formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
@@ -588,6 +588,10 @@ HARD RULES — do not violate:
 14. METAL SYNC: all visible hardware Metal finish (and Bag metal finish for the bag) across shoes / belt / jewelry / watch / bag MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).${isMensTrack ? " On the men's track, focus the sync on watch + belt buckle + shoe hardware — the bag is secondary." : ""}
 15. PROXIMITY (head/neck zone — anti-clutter): at most ONE focal item in the head-and-neck zone per outfit. If the outfit has a hat, do NOT also include a scarf — UNLESS temperature is below 5°C, where the scarf becomes a functional warmth layer and is exempt from this rule. (When temp ≥ 5°C, a scarf is decorative and competes for the same focal slot as the hat.)
 16. TEXTURE CONTRAST (visual depth — soft preference): when the base outfit (top + bottom OR dress) is entirely Material in [cotton, denim, jersey, knit] AND every visible item has Pattern "solid", PREFER selecting a bag with Bag texture in [quilted, croc-embossed, snake-embossed, pebbled, woven] over a smooth one. Soft preference, not a hard rule.
+17. USER-SET OCCASION + SEASON TAGS (respect user intent): every item in the wardrobe has an "Occasions:" list and a "Seasons:" list set by the user — those are explicit signals of where they want to wear that piece. RULES:
+   a) When Occasions is NON-EMPTY, PRIORITIZE items whose Occasions includes the requested OCCASION. Only pick an item with a mismatched Occasions list if NO in-tag alternative exists in that category in the wardrobe (e.g., the user owns one dress tagged "party" only and the request is "date" — fall back gracefully).
+   b) When Seasons is NON-EMPTY, same logic against the current SEASON. Off-season items only allowed when no in-season alternative exists in the wardrobe for that category.
+   c) Empty Occasions or Seasons list = "works anywhere" — no constraint. Don't penalize unset items.
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
@@ -1355,6 +1359,80 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
               return false;
             }
           }
+        }
+      }
+      // CASUAL HEEL BLOCK — casual / hangout / brunch / sport / outdoor /
+      // travel / at-home outfits should be flat. Heeled boots in jeans
+      // and a tee read overdressed; user has casual shoes for a reason.
+      const CASUAL_OCCASIONS = new Set<string>([
+        "casual",
+        "hangout",
+        "brunch",
+        "sport",
+        "outdoor",
+        "travel",
+        "at-home",
+      ]);
+      if (CASUAL_OCCASIONS.has(occasion)) {
+        const heeledShoe = s.items.find(
+          (i) =>
+            i.category === "shoes" &&
+            (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
+        );
+        if (heeledShoe) {
+          drops.push({
+            ids: s._ids,
+            reason: `${occasion}: heel_type "${heeledShoe.heel_type}" too dressy for casual context`,
+          });
+          return false;
+        }
+      }
+      // USER-SET OCCASION/SEASON TAGS — respect when the wardrobe has
+      // an in-tag alternative in that category. Computed once per
+      // category outside the per-item loop for efficiency.
+      {
+        const wardrobeHasInTag = (
+          category: string,
+          subcategory: string | null,
+          checkOccasion: boolean
+        ): boolean => {
+          return items.some((w) => {
+            if (w.is_stored) return false;
+            if (w.category !== category) return false;
+            // Match on subcategory when both have one (more specific).
+            if (subcategory && w.subcategory && w.subcategory !== subcategory) return false;
+            const tags: string[] = checkOccasion ? w.occasions : w.seasons;
+            if (!tags || tags.length === 0) return false;
+            return tags.includes(checkOccasion ? occasion : currentSeason);
+          });
+        };
+        let tagOffender:
+          | { item: ClothingItem; field: "occasion" | "season" }
+          | null = null;
+        for (const i of s.items) {
+          // Occasion tag check.
+          if (i.occasions && i.occasions.length > 0 && !i.occasions.includes(occasion)) {
+            if (wardrobeHasInTag(i.category, i.subcategory, true)) {
+              tagOffender = { item: i, field: "occasion" };
+              break;
+            }
+          }
+          // Season tag check.
+          if (i.seasons && i.seasons.length > 0 && !i.seasons.includes(currentSeason)) {
+            if (wardrobeHasInTag(i.category, i.subcategory, false)) {
+              tagOffender = { item: i, field: "season" };
+              break;
+            }
+          }
+        }
+        if (tagOffender) {
+          const { item, field } = tagOffender;
+          const tags = field === "occasion" ? item.occasions : item.seasons;
+          drops.push({
+            ids: s._ids,
+            reason: `user-${field}: "${item.name}" tagged [${(tags ?? []).join(",")}] — request was ${field === "occasion" ? occasion : currentSeason} and wardrobe has in-tag alternative`,
+          });
+          return false;
         }
       }
       // Mood: Need a Hug → no pointed-toe shoes (too sharp / clinical
