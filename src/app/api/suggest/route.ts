@@ -636,7 +636,7 @@ HARD RULES — do not violate:
    b) When Seasons is NON-EMPTY, same logic against the current SEASON. Off-season items only allowed when no in-season alternative exists in the wardrobe for that category.
    c) Empty Occasions or Seasons list = "works anywhere" — no constraint. Don't penalize unset items.
 18. STYLIST INSTINCT — completers a real stylist adds without being asked. These are PROACTIVE additions, not constraints. A wardrobe item that "completes" the look is BETTER than skipping the slot.
-   a) BELT THE WAIST: when an outfit pairs a sweater / blouse / tucked-in top with a SKIRT or non-elastic-waist BOTTOM, ADD a belt — it defines the waist and reads as intentional rather than thrown together. (Skip when the top is a slip dress, when the silhouette is deliberately oversized, or when there's already a belted coat / dress.)
+   a) BELT THE WAIST — REQUIRED COMPLETER: when an outfit pairs a SWEATER or BLOUSE with a SKIRT, you MUST include a belt from the wardrobe (category=accessory, subcategory=belt). Same goes for blouse + tailored trousers / slacks (the tucked look). The belt defines the waist and is what separates a stylist outfit from a thrown-together one. The ONLY valid reasons to skip the belt are: (i) the top is genuinely oversized / boxy (the silhouette IS the look), (ii) there's already a belted coat / belted dress in the outfit, or (iii) the wardrobe has zero belts. Otherwise — pick the belt.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
    d) ANTI-BLAND ACROSS THE 4 OUTFITS: vary the spark across the four. AT LEAST ONE outfit must lead with a saturated color (not just neutrals). AT LEAST ONE outfit must include a non-solid pattern (animal-print, plaid, stripes, polka-dot, floral, embellished). The four outfits MUST NOT all read as the same tonal palette.
@@ -1048,6 +1048,25 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // no suggestions.
     const wardrobeHasOuterwear = items.some((i) => i.category === "outerwear");
     const wardrobeHasShoes = items.some((i) => i.category === "shoes");
+    // Capability flags used by the post-parse filter to decide whether
+    // a "missing dressy material" or "missing belt" should be a hard
+    // drop or silently waived (we don't drop something the user can't
+    // physically satisfy).
+    const DRESSY_MATERIALS = new Set<string>([
+      "silk",
+      "satin",
+      "chiffon",
+      "lace",
+      "velvet",
+      "patent-leather",
+    ]);
+    const wardrobeHasDressyMaterial = items.some((i) => {
+      const mats = Array.isArray(i.material) ? i.material : [i.material];
+      return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
+    });
+    const wardrobeHasBelt = items.some(
+      (i) => i.category === "accessory" && i.subcategory === "belt"
+    );
 
     // Compute the "base layer" warmth — the warmth of what sits directly
     // against the skin. For cold weather this matters more than the
@@ -1079,7 +1098,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // the gap. Cold-without-outerwear is now handled upstream via auto-
     // injection in the map phase.
     const drops: { ids: string[]; reason: string }[] = [];
-    const softMismatch: typeof mapped = [];
+    // Each soft-mismatch entry carries the outfit AND the styling tip we
+    // want appended on admit-back, so weather/tag/belt drops each get
+    // the right user-facing message instead of a one-size-fits-all hint.
+    const softMismatch: { outfit: typeof mapped[number]; tip: string }[] = [];
 
     // Detect preset wishes from the user's STYLE DIRECTION text. Claude
     // is told these are hard rules but doesn't always honor them — we
@@ -1229,7 +1251,79 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           });
           return false;
         }
+        // R9 — no denim bottoms at the office (Track A only). Men's
+        // office prompt explicitly allows jeans, so this drop is gated
+        // on Track A.
+        const jeans = s.items.find(
+          (i) => i.category === "bottom" && i.subcategory === "jeans"
+        );
+        if (jeans) {
+          drops.push({
+            ids: s._ids,
+            reason: `work: denim "${jeans.name}" not office-appropriate`,
+          });
+          return false;
+        }
+        // R9 — no athletic sneakers at the office (Track A).
+        const sneakers = s.items.find(
+          (i) => i.category === "shoes" && i.subcategory === "sneakers"
+        );
+        if (sneakers) {
+          drops.push({
+            ids: s._ids,
+            reason: `work: athletic sneakers "${sneakers.name}" not office-appropriate`,
+          });
+          return false;
+        }
       }
+      // R9 — work dress silhouette: prompt says avoid bodycon/slip/mermaid
+      // for the office. Enforce as a hard drop since the AI sometimes
+      // picks a slip dress for "confident · work" against the rule.
+      if (occasion === "work") {
+        const wrongWorkDress = s.items.find(
+          (i) =>
+            i.category === "dress" &&
+            (i.dress_silhouette === "slip" ||
+              i.dress_silhouette === "bodycon" ||
+              i.dress_silhouette === "mermaid")
+        );
+        if (wrongWorkDress) {
+          drops.push({
+            ids: s._ids,
+            reason: `work: dress silhouette "${wrongWorkDress.dress_silhouette}" not office-appropriate`,
+          });
+          return false;
+        }
+      }
+      // R8 — evening dressy material: for date / dinner-out / party /
+      // formal, the outfit MUST include at least one dressy-material
+      // piece (silk / satin / chiffon / lace / velvet / patent-leather)
+      // — but only when the wardrobe HAS such pieces. If not, silently
+      // skip (it's a wardrobe gap, not an AI failure).
+      if (
+        wardrobeHasDressyMaterial &&
+        (occasion === "date" ||
+          occasion === "dinner-out" ||
+          occasion === "party" ||
+          occasion === "formal")
+      ) {
+        const hasDressy = s.items.some((i) => {
+          const mats = Array.isArray(i.material) ? i.material : [i.material];
+          return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
+        });
+        if (!hasDressy) {
+          drops.push({
+            ids: s._ids,
+            reason: `${occasion}: no dressy material (silk/satin/chiffon/lace/velvet) — wardrobe has dressy pieces`,
+          });
+          return false;
+        }
+      }
+      // (R18 belt-completer softMismatch lives at the END of this filter —
+      // see below — so it only fires on outfits that pass every other
+      // hard drop. Otherwise a belt-missing outfit would short-circuit
+      // past the bag-formality / metal-sync / etc. checks and slip back
+      // in via the softMismatch admit.)
       // Jewelry scale × hat proximity: a hat in the outfit + statement
       // jewelry = too much focal energy. Drop the outfit (let the AI
       // pick a different combo).
@@ -1267,6 +1361,27 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             });
             return false;
           }
+          // Bag size — formal/party/date should be clutch or small. AI
+          // names this in the prompt but doesn't always honor it, so
+          // enforce post-parse.
+          if (bag.bag_size && !["clutch", "small"].includes(bag.bag_size)) {
+            drops.push({
+              ids: s._ids,
+              reason: `${occasion}: bag size "${bag.bag_size}" should be clutch/small`,
+            });
+            return false;
+          }
+        }
+      }
+      // Work bag size — clutch is too small for the office.
+      if (occasion === "work") {
+        const bag = s.items.find((i) => i.category === "bag");
+        if (bag && bag.bag_size === "clutch") {
+          drops.push({
+            ids: s._ids,
+            reason: "work: clutch too small for the office (need medium/large)",
+          });
+          return false;
         }
       }
       // Metal sync — all visible hardware must match. Skipped when mood
@@ -1549,7 +1664,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
         if (tagOffender) {
-          softMismatch.push(s);
+          const tagTip =
+            locale === "fr"
+              ? `Tu as marqué cette pièce pour une autre saison/occasion — relâché ici car le reste du dressing manque d'options.`
+              : `You tagged this piece for another season/occasion — relaxing the tag because the rest of the wardrobe is thin here.`;
+          softMismatch.push({ outfit: s, tip: tagTip });
           return false;
         }
       }
@@ -1601,7 +1720,54 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           (weather.temp < 5 && baseW < 2.5) ||
           (weather.temp < 10 && baseW < 2)
         ) {
-          softMismatch.push(s);
+          const weatherTip =
+            locale === "fr"
+              ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
+              : "This piece runs light for the weather — pair with thick tights and a warm coat.";
+          softMismatch.push({ outfit: s, tip: weatherTip });
+          return false;
+        }
+      }
+      // R18 — belt completer (soft, LAST CHECK): sweater/blouse + skirt
+      // or tailored trousers should include a belt when the wardrobe has
+      // one. Lives at the end of the filter so it only catches outfits
+      // that pass every hard drop above. Pushing earlier would let
+      // belt-missing outfits short-circuit past bag-formality / metal-
+      // sync / etc. and slip back in via the softMismatch admit.
+      if (wardrobeHasBelt) {
+        const top = s.items.find(
+          (i) =>
+            i.category === "top" &&
+            (i.subcategory === "sweater" || i.subcategory === "blouse") &&
+            i.fit !== "oversized"
+        );
+        const skirt = s.items.find(
+          (i) => i.category === "bottom" && i.subcategory === "skirt"
+        );
+        const tailoredBottom = s.items.find(
+          (i) =>
+            i.category === "bottom" &&
+            i.subcategory === "trousers" &&
+            i.waist_style !== "elastic"
+        );
+        const beltable =
+          top &&
+          (skirt || (top.subcategory === "blouse" && tailoredBottom));
+        const hasBelt = s.items.some(
+          (i) => i.category === "accessory" && i.subcategory === "belt"
+        );
+        const beltExempt =
+          mood === "chill" ||
+          mood === "cozy" ||
+          mood === "period" ||
+          occasion === "at-home" ||
+          occasion === "sport";
+        if (beltable && !hasBelt && !beltExempt) {
+          const beltTip =
+            locale === "fr"
+              ? "Astuce stylisme : ajoute une ceinture — elle marquerait la taille et donnerait du cachet à l'ensemble."
+              : "Stylist tip: add a belt — it would define the waist and tie the look together.";
+          softMismatch.push({ outfit: s, tip: beltTip });
           return false;
         }
       }
@@ -1644,13 +1810,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // are the one soft bucket left (cold-without-outerwear is auto-injected
     // upstream now).
     let final = dedupedHard;
-    const mismatchTip =
-      locale === "fr"
-        ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
-        : "This piece runs light for the weather — pair with thick tights and a warm coat.";
 
-    const admit = (bucket: typeof mapped, tip: string) => {
-      for (const s of bucket) {
+    const admitSoft = (bucket: typeof softMismatch) => {
+      for (const { outfit: s, tip } of bucket) {
         if (final.length >= 3) return;
         const key = [...s._ids].sort().join("|");
         if (seenSets.has(key)) continue;
@@ -1663,7 +1825,81 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
     };
 
-    if (final.length < 3) admit(softMismatch, mismatchTip);
+    if (final.length < 3) admitSoft(softMismatch);
+
+    // EMERGENCY FALLBACK: if all 4 outfits got hard-dropped for style
+    // reasons (metal mismatch, bag too casual, hat-at-work, etc.) AND
+    // softMismatch was empty, we'd otherwise return zero suggestions.
+    // That's bad UX — better to relax one rule and ship something with
+    // a styling-tip caveat than send the user away empty-handed.
+    // Only admit a structurally-complete outfit (a real base, with shoes
+    // when needed) — never a broken structural pick.
+    if (final.length === 0 && mapped.length > 0) {
+      // Tip is prefixed with a stable marker (en + fr both start with
+      // "[Relaxed] ") so the validator and downstream UI can detect
+      // emergency-admit outfits without parsing the full sentence.
+      const fallbackTip =
+        locale === "fr"
+          ? "[Relaxed] On a légèrement assoupli les règles pour cette tenue — vérifie qu'elle te convient."
+          : "[Relaxed] We relaxed one styling rule to find this — give it a once-over.";
+      const isStructurallyComplete = (s: typeof mapped[number]) => {
+        const has = (cat: string) => s.items.some((i) => i.category === cat);
+        const hasOveralls = s.items.some(
+          (i) => i.category === "one-piece" && i.subcategory === "overalls"
+        );
+        const baseOK =
+          has("dress") ||
+          (has("one-piece") && (!hasOveralls || has("top"))) ||
+          (has("top") && has("bottom"));
+        if (!baseOK) return false;
+        if (occasion !== "at-home" && wardrobeHasShoes && !has("shoes")) return false;
+        // Reject visually-bad shoe × bottom proportional combos — these
+        // are visual failures regardless of wardrobe constraints, so we
+        // never want to ship one even as a fallback.
+        const shoe = s.items.find((i) => i.category === "shoes");
+        const bottom = s.items.find((i) => i.category === "bottom");
+        if (shoe && bottom) {
+          const sub = shoe.subcategory;
+          const fit = bottom.bottom_fit;
+          const pl = bottom.pants_length;
+          const sl = bottom.skirt_length;
+          if (sub === "knee-boots") {
+            if (["wide-leg", "flared", "bootcut", "tapered"].includes(fit ?? "")) return false;
+            if (sl === "midi") return false;
+          }
+          if (sub === "ankle-boots") {
+            if (pl === "ankle-crop") return false;
+            if (["flared", "bootcut"].includes(fit ?? "") && pl === "full") return false;
+          }
+          if (sub === "sandals" && pl === "full" && fit === "wide-leg") return false;
+          if (
+            (sub === "flats" || sub === "ballet-flats") &&
+            ["flared", "bootcut"].includes(fit ?? "") &&
+            pl === "full"
+          ) {
+            return false;
+          }
+        }
+        return true;
+      };
+      const candidate = mapped.find(isStructurallyComplete);
+      if (candidate) {
+        const key = [...candidate._ids].sort().join("|");
+        if (!seenSets.has(key)) {
+          seenSets.add(key);
+          final.push({
+            ...candidate,
+            styling_tip: candidate.styling_tip
+              ? `${candidate.styling_tip} ${fallbackTip}`
+              : fallbackTip,
+          });
+          drops.push({
+            ids: [],
+            reason: `EMERGENCY ADMIT: all hard-dropped, admitted 1 structurally-valid candidate`,
+          });
+        }
+      }
+    }
 
     if (softMismatch.length > 0) {
       drops.push({
