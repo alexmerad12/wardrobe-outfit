@@ -300,9 +300,12 @@ export function PendingUploadsProvider({
       );
 
       // 3. Refresh tile preview to the normalized (white-bg) image.
-      //    Cache-bust since we just overwrote the same path.
+      //    The URL the server returned ALREADY has ?v=timestamp baked
+      //    in for cache-busting — don't append another `?t=`, that
+      //    produces a double-`?` invalid URL that 404s and renders
+      //    the tile as blank/white.
       try {
-        const cleanedRes = await fetch(`${normalizeResult.url}?t=${Date.now()}`);
+        const cleanedRes = await fetch(normalizeResult.url);
         if (cleanedRes.ok) {
           const cleanedBlob = await cleanedRes.blob();
           const cleanedPreview = URL.createObjectURL(cleanedBlob);

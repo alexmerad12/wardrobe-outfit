@@ -128,11 +128,13 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
 
 // Direct upload to Supabase Storage via the SDK. Mirrors the exact
 // call /wardrobe/add (single-add) makes — proven to work on the
-// user's Samsung. POST (not PUT). Wraps the SDK call in a 120 s
-// timeout race so a stalled cellular connection eventually fails
-// with a real error instead of hanging forever and silently
-// surfacing as a generic TypeError later.
-const DIRECT_UPLOAD_TIMEOUT_MS = 120_000;
+// user's Samsung. POST (not PUT). Wrapped in a 60 s timeout race so
+// a stalled cellular connection fails fast and the retry layer
+// (5 attempts in uploadToSupabase) can try again — this is much
+// better than 1 long 120 s wait that maybe succeeds, since each
+// retry gets a fresh TCP connection and bypasses whatever stalled
+// the previous attempt.
+const DIRECT_UPLOAD_TIMEOUT_MS = 60_000;
 
 async function uploadDirect(file: File): Promise<string> {
   const { createClient } = await import("@/lib/supabase/client");
