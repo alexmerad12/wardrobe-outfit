@@ -592,6 +592,13 @@ HARD RULES — do not violate:
    a) When Occasions is NON-EMPTY, PRIORITIZE items whose Occasions includes the requested OCCASION. Only pick an item with a mismatched Occasions list if NO in-tag alternative exists in that category in the wardrobe (e.g., the user owns one dress tagged "party" only and the request is "date" — fall back gracefully).
    b) When Seasons is NON-EMPTY, same logic against the current SEASON. Off-season items only allowed when no in-season alternative exists in the wardrobe for that category.
    c) Empty Occasions or Seasons list = "works anywhere" — no constraint. Don't penalize unset items.
+18. SHOE × BOTTOM PROPORTIONS (hard-no combos that look bad regardless of occasion):
+   - KNEE-HIGH BOOTS (subcategory="knee-boots") never with bottom_fit "wide-leg" / "flared" / "bootcut" / "tapered" — pant leg can't fit over the shaft or eats the boot. Never with skirt_length "midi" — the bare-calf gap between hem and shaft reads awkward.
+   - ANKLE BOOTS (subcategory="ankle-boots") never with pants_length "ankle-crop" — the hem-on-boot-shaft creates a double horizontal that visually amputates the leg. Never with bottom_fit "flared" / "bootcut" + pants_length "full" — flare buries the boot.
+   - SANDALS (subcategory="sandals") never with pants_length "full" + bottom_fit "wide-leg" — full-length wide hem drowns the strap detail.
+   - BALLET FLATS / FLATS (subcategory in [ballet-flats, flats]) never with bottom_fit "flared" / "bootcut" + pants_length "full" — flat creates dragging hem and shortens leg.
+   - ESPADRILLES never with material "wool" trousers — casual jute sole vs formal drape (category mismatch).
+   These are visual-proportion failures, not occasion mismatches — flag them regardless of mood / occasion.
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
@@ -1358,6 +1365,75 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
               });
               return false;
             }
+          }
+        }
+      }
+      // SHOE × BOTTOM proportional combos that look bad regardless of
+      // occasion or mood. Sourced from stylist consensus across Vogue /
+      // Who What Wear / InStyle / The Concept Wardrobe.
+      {
+        const shoe = s.items.find((i) => i.category === "shoes");
+        const bottom = s.items.find((i) => i.category === "bottom");
+        if (shoe && bottom) {
+          const shoeSub = shoe.subcategory;
+          const bottomFit = bottom.bottom_fit;
+          const pantsLen = bottom.pants_length;
+          const skirtLen = bottom.skirt_length;
+          let badCombo: string | null = null;
+
+          // KNEE-HIGH BOOTS — fight with wide/flared/bootcut/tapered hems,
+          // and the bare-calf gap with midi skirts looks wrong.
+          if (shoeSub === "knee-boots") {
+            if (bottomFit === "wide-leg" || bottomFit === "flared" || bottomFit === "bootcut" || bottomFit === "tapered") {
+              badCombo = `knee-boots × ${bottomFit} pants — shaft conflict`;
+            } else if (skirtLen === "midi") {
+              badCombo = `knee-boots × midi skirt — awkward bare-calf gap`;
+            }
+          }
+
+          // ANKLE BOOTS — hem-on-shaft + flared/bootcut burying.
+          if (!badCombo && shoeSub === "ankle-boots") {
+            if (pantsLen === "ankle-crop") {
+              badCombo = `ankle-boots × ankle-crop pants — double horizontal at the ankle`;
+            } else if (
+              (bottomFit === "flared" || bottomFit === "bootcut") &&
+              pantsLen === "full"
+            ) {
+              badCombo = `ankle-boots × full ${bottomFit} pants — flare buries the boot`;
+            }
+          }
+
+          // SANDALS — drowned by full-length wide hem.
+          if (!badCombo && shoeSub === "sandals") {
+            if (pantsLen === "full" && bottomFit === "wide-leg") {
+              badCombo = `sandals × full wide-leg pants — hem drowns the strap`;
+            }
+          }
+
+          // FLATS / BALLET FLATS — disappear under flared/bootcut full hems.
+          if (!badCombo && (shoeSub === "flats" || shoeSub === "ballet-flats")) {
+            if (
+              (bottomFit === "flared" || bottomFit === "bootcut") &&
+              pantsLen === "full"
+            ) {
+              badCombo = `${shoeSub} × full ${bottomFit} pants — dragging hem, leg looks stumpy`;
+            }
+          }
+
+          // ESPADRILLES — casual jute sole vs formal wool trousers.
+          if (!badCombo && shoeSub === "espadrilles") {
+            const bottomMats = Array.isArray(bottom.material) ? bottom.material : [bottom.material];
+            if (
+              bottom.subcategory === "trousers" &&
+              bottomMats.some((m) => m === "wool" || m === "tweed")
+            ) {
+              badCombo = `espadrilles × wool/tweed trousers — formality mismatch`;
+            }
+          }
+
+          if (badCombo) {
+            drops.push({ ids: s._ids, reason: `bad combo: ${badCombo}` });
+            return false;
           }
         }
       }
