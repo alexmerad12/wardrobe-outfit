@@ -25,6 +25,10 @@ import type {
   BagSize,
   BagTexture,
   SunglassesStyle,
+  HatSilhouette,
+  JewelryScale,
+  ScarfFunction,
+  SkirtLength,
   DressSilhouette,
   ToeShape,
   Neckline,
@@ -103,6 +107,12 @@ export default function AddItemPage() {
   const [bagSize, setBagSize] = useState<BagSize | null>(null);
   const [bagTexture, setBagTexture] = useState<BagTexture | null>(null);
   const [sunglassesStyle, setSunglassesStyle] = useState<SunglassesStyle | null>(null);
+  const [hatSilhouette, setHatSilhouette] = useState<HatSilhouette | null>(null);
+  const [jewelryScale, setJewelryScale] = useState<JewelryScale | null>(null);
+  const [scarfFunction, setScarfFunction] = useState<ScarfFunction | null>(null);
+  const [skirtLength, setSkirtLength] = useState<SkirtLength | null>(null);
+  const [bagMetalFinish, setBagMetalFinish] = useState<MetalFinish | null>(null);
+  const [userGender, setUserGender] = useState<"woman" | "man" | "not-specified">("woman");
   const [dressSilhouette, setDressSilhouette] = useState<DressSilhouette | null>(null);
   const [toeShape, setToeShape] = useState<ToeShape | null>(null);
   const [formalities, setFormalities] = useState<Formality[]>(["casual"]);
@@ -139,6 +149,20 @@ export default function AddItemPage() {
   const [existingItems, setExistingItems] = useState<ClothingItem[]>([]);
   useEffect(() => {
     fetch("/api/items").then((r) => r.ok ? r.json() : []).then(setExistingItems).catch(() => {});
+  }, []);
+
+  // Pull the user's gender preference once on mount. Used to gate
+  // feminine-specific fields (skirt_length, dress_silhouette) when the
+  // user is on Track B (men's logic).
+  useEffect(() => {
+    fetch("/api/preferences")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        if (p?.gender === "man" || p?.gender === "woman" || p?.gender === "not-specified") {
+          setUserGender(p.gender);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -225,6 +249,11 @@ export default function AddItemPage() {
     if (r.bag_size) setBagSize(r.bag_size);
     if (r.bag_texture) setBagTexture(r.bag_texture);
     if (r.sunglasses_style) setSunglassesStyle(r.sunglasses_style);
+    if (r.hat_silhouette) setHatSilhouette(r.hat_silhouette);
+    if (r.jewelry_scale) setJewelryScale(r.jewelry_scale);
+    if (r.scarf_function) setScarfFunction(r.scarf_function);
+    if (r.skirt_length) setSkirtLength(r.skirt_length);
+    if (r.bag_metal_finish) setBagMetalFinish(r.bag_metal_finish);
     if (r.dress_silhouette) setDressSilhouette(r.dress_silhouette);
     if (r.toe_shape) setToeShape(r.toe_shape);
     if (r.formality?.length) setFormalities(r.formality);
@@ -330,6 +359,14 @@ export default function AddItemPage() {
   );
   // Sunglasses style — aviator / wayfarer / cat-eye / etc.
   const showSunglassesStyle = category === "accessory" && subcategory === "sunglasses";
+  const showHatSilhouette = category === "accessory" && subcategory === "hat";
+  const showJewelryScale = category === "accessory" && subcategory === "jewelry";
+  const showScarfFunction = category === "accessory" && subcategory === "scarf";
+  const showSkirtLength =
+    category === "bottom" && subcategory === "skirt" && userGender !== "man";
+  const showBagMetalFinish = category === "bag";
+  // Hide feminine-specific fields when the user is on the men's track.
+  const showDressSilhouette = category === "dress" && userGender !== "man";
   // Neckline: hide for hoodies (hooded), cardigans (open front), and
   // overalls (the bib isn't a neckline — it's the underneath top that
   // determines the visual neckline).
@@ -632,7 +669,12 @@ export default function AddItemPage() {
           bag_size: category === "bag" ? bagSize : null,
           bag_texture: category === "bag" ? bagTexture : null,
           sunglasses_style: showSunglassesStyle ? sunglassesStyle : null,
-          dress_silhouette: category === "dress" ? dressSilhouette : null,
+          hat_silhouette: showHatSilhouette ? hatSilhouette : null,
+          jewelry_scale: showJewelryScale ? jewelryScale : null,
+          scarf_function: showScarfFunction ? scarfFunction : null,
+          skirt_length: showSkirtLength ? skirtLength : null,
+          bag_metal_finish: showBagMetalFinish ? bagMetalFinish : null,
+          dress_silhouette: showDressSilhouette ? dressSilhouette : null,
           toe_shape: category === "shoes" ? toeShape : null,
           formality: formalities,
           seasons,
@@ -1474,8 +1516,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Dress Silhouette - only for dresses */}
-        {category === "dress" && (
+        {/* Dress Silhouette - only for dresses (Track A only) */}
+        {showDressSilhouette && (
           <div className="space-y-2">
             <Label>{t("addItem.dressSilhouette")}</Label>
             <div className="flex flex-wrap gap-2">
@@ -1492,6 +1534,126 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.DRESS_SILHOUETTE[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Hat Silhouette - only for accessory/hat */}
+        {showHatSilhouette && (
+          <div className="space-y-2">
+            <Label>{t("addItem.hatSilhouette")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.HAT_SILHOUETTE) as HatSilhouette[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setHatSilhouette(hatSilhouette === s ? null : s)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    hatSilhouette === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.HAT_SILHOUETTE[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Jewelry Scale - only for accessory/jewelry */}
+        {showJewelryScale && (
+          <div className="space-y-2">
+            <Label>{t("addItem.jewelryScale")}</Label>
+            <div className="flex gap-2">
+              {(Object.keys(labels.JEWELRY_SCALE) as JewelryScale[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setJewelryScale(jewelryScale === s ? null : s)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    jewelryScale === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.JEWELRY_SCALE[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Scarf Function - only for accessory/scarf */}
+        {showScarfFunction && (
+          <div className="space-y-2">
+            <Label>{t("addItem.scarfFunction")}</Label>
+            <div className="flex gap-2">
+              {(Object.keys(labels.SCARF_FUNCTION) as ScarfFunction[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setScarfFunction(scarfFunction === s ? null : s)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    scarfFunction === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.SCARF_FUNCTION[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Skirt Length - only for bottom/skirt (Track A only) */}
+        {showSkirtLength && (
+          <div className="space-y-2">
+            <Label>{t("addItem.skirtLength")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.SKIRT_LENGTH) as SkirtLength[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSkirtLength(skirtLength === s ? null : s)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    skirtLength === s
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.SKIRT_LENGTH[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bag Metal Finish - only for bags */}
+        {showBagMetalFinish && (
+          <div className="space-y-2">
+            <Label>{t("addItem.bagMetalFinish")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(labels.METAL_FINISH) as MetalFinish[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setBagMetalFinish(bagMetalFinish === m ? null : m)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    bagMetalFinish === m
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  {labels.METAL_FINISH[m]}
                 </button>
               ))}
             </div>

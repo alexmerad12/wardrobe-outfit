@@ -262,6 +262,25 @@ export const SUNGLASSES_STYLES = [
   "other",
 ] as const;
 
+export const HAT_SILHOUETTES = [
+  "baseball",
+  "trucker",
+  "bucket",
+  "fedora",
+  "beret",
+  "beanie",
+  "pillbox",
+  "headband",
+  "sun-hat",
+  "other",
+] as const;
+
+export const JEWELRY_SCALES = ["minimal", "statement"] as const;
+
+export const SCARF_FUNCTIONS = ["decorative", "functional"] as const;
+
+export const SKIRT_LENGTHS = ["mini", "knee-length", "midi", "maxi"] as const;
+
 export const DRESS_SILHOUETTES = [
   "a-line",
   "sheath",

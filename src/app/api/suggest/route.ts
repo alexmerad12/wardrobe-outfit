@@ -312,7 +312,12 @@ function describeItem(item: ClothingItem): string {
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
   if (item.bag_size) parts.push(`Bag size: ${item.bag_size}`);
   if (item.bag_texture) parts.push(`Bag texture: ${item.bag_texture}`);
+  if (item.bag_metal_finish && item.bag_metal_finish !== "none") parts.push(`Bag metal: ${item.bag_metal_finish}`);
   if (item.hat_texture) parts.push(`Hat texture: ${item.hat_texture}`);
+  if (item.hat_silhouette) parts.push(`Hat silhouette: ${item.hat_silhouette}`);
+  if (item.jewelry_scale) parts.push(`Jewelry scale: ${item.jewelry_scale}`);
+  if (item.scarf_function) parts.push(`Scarf function: ${item.scarf_function}`);
+  if (item.skirt_length) parts.push(`Skirt length: ${item.skirt_length}`);
   if (item.dress_silhouette) parts.push(`Silhouette: ${item.dress_silhouette}`);
   if (item.toe_shape) parts.push(`Toe: ${item.toe_shape}`);
   if (item.neckline) parts.push(`Neckline: ${item.neckline}`);
@@ -406,6 +411,13 @@ export async function POST(request: NextRequest) {
     const items = (itemsRes.data ?? []) as ClothingItem[];
     const prefs = prefsRes.data;
     const favoriteOutfits = outfitsRes.data ?? [];
+
+    // Gender track — Track A (women + not-specified) uses the standard
+    // styling logic. Track B (men) gets traditional men's silhouettes:
+    // bag is optional, office bans shorts/sandals, masculine-coded tone.
+    const gender: "woman" | "man" | "not-specified" =
+      prefs?.gender === "man" ? "man" : prefs?.gender === "not-specified" ? "not-specified" : "woman";
+    const isMensTrack = gender === "man";
     const recentItemSets = (recentRes.data ?? []) as { item_ids: string[] }[];
 
     if (items.length < 3) {
@@ -545,11 +557,18 @@ HARD RULES — do not violate:
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
 10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work.
 11. BAG, HAT, ACCESSORY:
-    BAG: REQUIRED for every occasion EXCEPT at-home and sport. Pick exactly one bag from the wardrobe (category="bag"). If the wardrobe has zero bags, skip the requirement (don't invent).
-    BAG SIZE × OCCASION: formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
+    BAG: ${isMensTrack ? "OPTIONAL for all occasions on the men's track — most men's looks don't require a bag. Only include a bag if the wardrobe has one that genuinely fits the look (laptop bag for work, weekender for travel)." : "REQUIRED for every occasion EXCEPT at-home and sport."} Pick at most one bag from the wardrobe (category="bag"). If the wardrobe has zero bags, skip silently.
+    BAG SIZE × OCCASION (Track A): formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
     BAG TEXTURE × OCCASION: for formal / date / party, BLOCK Material in [canvas, nylon] AND BLOCK Bag texture in [woven, fringed] — these read too casual for dressed-up occasions.
-    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / hangout / sport / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events with strict dress codes. Match Hat texture to formality: felt / velvet for date / dinner-out / party; straw for brunch / outdoor; canvas / knit for casual / sport.
-    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and sport, include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, jewelry, sunglasses, watch). Pick something that fits the outfit (no sunglasses indoors at night, no warm scarf on a 25°C day). If the wardrobe has nothing that fits, skip silently.
+    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / hangout / sport / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events.
+    HAT SILHOUETTE × OCCASION (when Hat silhouette field is set): formal / date / dinner-out → BLOCK silhouette in [baseball, trucker, bucket] (too casual). Allow [fedora, beret, pillbox, headband]. For Velvet or Felt hat texture at formal / party, restrict to silhouette in [beret, pillbox, headband] only — no velvet trucker caps.
+    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and sport (and waived on the men's track when no fitting accessory exists), include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, jewelry, sunglasses, watch). Pick something that fits the outfit (no sunglasses indoors at night, no warm scarf on a 25°C day).
+    JEWELRY SCALE (when Jewelry scale field is set): when a hat is in the outfit AND any visible jewelry has scale="statement", drop the statement jewelry — too much focal energy in the head/neck zone. Minimal jewelry pairs cleanly with a hat.
+    SCARF FUNCTION (when Scarf function field is set): a scarf with function="functional" is a warmth layer (Slot 3) and does NOT count toward the head/neck proximity rule (Rule 15). A scarf with function="decorative" DOES count and competes with a hat for the same focal slot.${isMensTrack ? "\n    MEN'S OFFICE GUARDRAIL: at occasion=work, BLOCK shorts and open-toe shoes (sandals). Strongly prefer Subcategory in [trousers, jeans] paired with a Shirt (collared) and proper closed-toe shoes (loafers, oxfords, derbies). NEVER suggest a tank-top or sweatpants for work." : ""}
+    ${isMensTrack ? "MEN'S METAL SYNC FOCUS: prioritize matching Metal finish on the watch, belt buckle, and shoe hardware/eyelets — those are the visible hardware points on a men's look. Bag and jewelry hardware are secondary on this track." : ""}
+    SKIRT × OCCASION (Track A only, when Skirt length field is set): work → BLOCK skirt_length="mini" (too casual / unprofessional). Knee-length, midi, or maxi only. Date / dinner-out / party → all lengths allowed, prefer mini or midi for the focal silhouette.
+    SKIRT × BALANCE (Track A only): when an outfit pairs a skirt_length="mini" with a TOP, prioritize a top with neckline in [turtleneck, mock-neck, halter, one-shoulder] OR sleeve_length="long" — proportional balance (less leg, more coverage up top). Footwear: when skirt is mini, prioritize Shoe height in [knee, over-knee] for an intentional silhouette.
+    SKIRT × COLD WEATHER: do NOT block mini skirts in the cold — assume the user wears tights underneath. But prioritize mini skirts with Material in [wool, leather, tweed] for a winter-appropriate texture.
 12. STYLE DIRECTION (when present):
    a) ITEM ANCHOR: if STYLE DIRECTION names a specific wardrobe piece — possessive form ("with my black blazer", "wear my red dress", "use my white sneakers") OR a color + category phrase that points to a real item ("the leather jacket", "the green skirt") — find the closest matching item in the wardrobe by name/color/category. Treat that item as an ANCHOR: every outfit MUST include it. If the wardrobe has no matching piece, ignore that specific phrase (don't invent).
    b) HARD-ENFORCED PRESETS — treat these as non-negotiable when present anywhere in STYLE DIRECTION (English or French, case-insensitive):
@@ -566,7 +585,7 @@ HARD RULES — do not violate:
    - Bold → at least one statement piece: bright saturated color OR distinctive pattern (animal, plaid, embellished) OR dramatic silhouette (oversized blazer, mini, leather). No safe choices.
    - Comfort Day → elastic / drawstring / pull-on bottoms preferred. Soft top (knit, jersey, oversized). NEVER heels. NEVER tailored / fitted / structured. Easy on the body.
    - Need a Hug → soft pastels OR oversized cozy pieces. Comfort with one warm/uplifting touch. No edgy / hard / dark. Prioritize Material in [cashmere, wool, fleece, knit]. AVOID Toe shape "pointed" (too sharp). Bag texture should be soft (woven / fringed / pebbled), NOT rigid (smooth / croc-embossed).
-14. METAL SYNC: all visible hardware Metal finish across shoes / belt / jewelry / watch MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).
+14. METAL SYNC: all visible hardware Metal finish (and Bag metal finish for the bag) across shoes / belt / jewelry / watch / bag MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).${isMensTrack ? " On the men's track, focus the sync on watch + belt buckle + shoe hardware — the bag is secondary." : ""}
 15. PROXIMITY (head/neck zone — anti-clutter): at most ONE focal item in the head-and-neck zone per outfit. If the outfit has a hat, do NOT also include a scarf — UNLESS temperature is below 5°C, where the scarf becomes a functional warmth layer and is exempt from this rule. (When temp ≥ 5°C, a scarf is decorative and competes for the same focal slot as the hat.)
 16. TEXTURE CONTRAST (visual depth — soft preference): when the base outfit (top + bottom OR dress) is entirely Material in [cotton, denim, jersey, knit] AND every visible item has Pattern "solid", PREFER selecting a bag with Bag texture in [quilted, croc-embossed, snake-embossed, pebbled, woven] over a smooth one. Soft preference, not a hard rule.
 
@@ -579,7 +598,7 @@ Wardrobe gap: before suggesting one, count what the user ALREADY has per categor
 Call the propose_outfits tool with exactly 4 outfits. Per outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
-- reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (fitted + loose, long + cropped), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like Vogue, not like a bot. Skip filler like "perfect for" or "this outfit works because".
+- reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? "use masculine-coded language: \"sharp\", \"crisp\", \"clean line\", \"intentional\", \"grounded\". Avoid \"chic\", \"feminine\", \"flowy\"." : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
 - styling_tip: ONE short sentence in ${languageName} with a concrete styling ACTION (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar). If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
 
 wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe is covered.`;
@@ -1080,6 +1099,99 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
+      // Hat silhouette × occasion — for formal/date/dinner-out, block
+      // baseball/trucker/bucket caps. For velvet/felt at formal/party,
+      // restrict to beret/pillbox/headband only.
+      if (occasion === "formal" || occasion === "date" || occasion === "dinner-out") {
+        const casualHat = s.items.find(
+          (i) =>
+            i.category === "accessory" &&
+            i.subcategory === "hat" &&
+            (i.hat_silhouette === "baseball" ||
+              i.hat_silhouette === "trucker" ||
+              i.hat_silhouette === "bucket")
+        );
+        if (casualHat) {
+          drops.push({
+            ids: s._ids,
+            reason: `${occasion}: hat silhouette "${casualHat.hat_silhouette}" too casual`,
+          });
+          return false;
+        }
+      }
+      if (occasion === "formal" || occasion === "party") {
+        const dressyTextureWrongShape = s.items.find((i) => {
+          if (i.category !== "accessory" || i.subcategory !== "hat") return false;
+          if (i.hat_texture !== "velvet" && i.hat_texture !== "felt") return false;
+          if (i.hat_silhouette === "beret" || i.hat_silhouette === "pillbox" || i.hat_silhouette === "headband") return false;
+          // Velvet/felt with no silhouette set is acceptable; only block when both are known and silhouette is wrong.
+          if (!i.hat_silhouette) return false;
+          return true;
+        });
+        if (dressyTextureWrongShape) {
+          drops.push({
+            ids: s._ids,
+            reason: `${occasion}: ${dressyTextureWrongShape.hat_texture} hat must be beret/pillbox/headband`,
+          });
+          return false;
+        }
+      }
+      // Men's track: office guardrail — no shorts, no open-toe shoes.
+      if (gender === "man" && occasion === "work") {
+        const shorts = s.items.find(
+          (i) => i.category === "bottom" && i.subcategory === "shorts"
+        );
+        if (shorts) {
+          drops.push({ ids: s._ids, reason: "men's office: shorts not allowed at work" });
+          return false;
+        }
+        const openToe = s.items.find(
+          (i) =>
+            i.category === "shoes" &&
+            (i.toe_shape === "open-toe" || i.toe_shape === "peep-toe" || i.subcategory === "sandals")
+        );
+        if (openToe) {
+          drops.push({ ids: s._ids, reason: "men's office: open-toe / sandals not allowed at work" });
+          return false;
+        }
+      }
+      // Skirt length × occasion (Track A only): no mini at work.
+      if (gender !== "man" && occasion === "work") {
+        const miniSkirt = s.items.find(
+          (i) =>
+            i.category === "bottom" &&
+            i.subcategory === "skirt" &&
+            i.skirt_length === "mini"
+        );
+        if (miniSkirt) {
+          drops.push({
+            ids: s._ids,
+            reason: "work: mini skirt not professional",
+          });
+          return false;
+        }
+      }
+      // Jewelry scale × hat proximity: a hat in the outfit + statement
+      // jewelry = too much focal energy. Drop the outfit (let the AI
+      // pick a different combo).
+      {
+        const hasHat = s.items.some(
+          (i) => i.category === "accessory" && i.subcategory === "hat"
+        );
+        const statementJewelry = s.items.find(
+          (i) =>
+            i.category === "accessory" &&
+            i.subcategory === "jewelry" &&
+            i.jewelry_scale === "statement"
+        );
+        if (hasHat && statementJewelry) {
+          drops.push({
+            ids: s._ids,
+            reason: "proximity: hat + statement jewelry compete for head/neck focal slot",
+          });
+          return false;
+        }
+      }
       // Bag formality — for formal/date/party, drop bags with casual
       // material (canvas/nylon) or casual texture (woven/fringed).
       if (occasion === "formal" || occasion === "date" || occasion === "party") {
@@ -1100,43 +1212,58 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
       // Metal sync — all visible hardware must match. Skipped when mood
       // is Playful (the only mood that explicitly allows mixed metals).
+      // On the men's track, the bag is excluded from the sync (men's
+      // looks bias toward watch / belt / shoes for metal hardware).
       if (mood !== "playful") {
-        const metalItems = s.items.filter((i) => {
-          if (!i.metal_finish || i.metal_finish === "none" || i.metal_finish === "mixed") return false;
-          // Only count items where hardware is visible / styling-relevant:
-          // shoes + belt / jewelry / watch.
-          if (i.category === "shoes") return true;
-          if (i.category === "accessory" && (i.subcategory === "belt" || i.subcategory === "jewelry" || i.subcategory === "watch")) return true;
-          return false;
-        });
+        const metalItems = s.items
+          .map((i) => {
+            // Bags use bag_metal_finish; everyone else uses metal_finish.
+            const finish = i.category === "bag" ? i.bag_metal_finish : i.metal_finish;
+            return { item: i, finish };
+          })
+          .filter(({ item, finish }) => {
+            if (!finish || finish === "none" || finish === "mixed") return false;
+            // Only count items where hardware is visible / styling-relevant.
+            if (item.category === "shoes") return true;
+            if (item.category === "bag" && gender !== "man") return true;
+            if (item.category === "accessory" && (item.subcategory === "belt" || item.subcategory === "jewelry" || item.subcategory === "watch")) return true;
+            return false;
+          });
         if (metalItems.length >= 2) {
-          // Group similar tones together: gold-family (gold, rose-gold,
-          // matte-gold, brass, bronze) and silver-family (silver, chrome,
-          // matte-silver, gunmetal). Mismatched families = drop.
           const goldFamily = new Set(["gold", "rose-gold", "matte-gold", "brass", "bronze"]);
           const silverFamily = new Set(["silver", "chrome", "matte-silver", "gunmetal"]);
           const families = new Set(
-            metalItems.map((i) =>
-              goldFamily.has(i.metal_finish ?? "") ? "gold" : silverFamily.has(i.metal_finish ?? "") ? "silver" : "other"
+            metalItems.map(({ finish }) =>
+              goldFamily.has(finish ?? "") ? "gold" : silverFamily.has(finish ?? "") ? "silver" : "other"
             )
           );
           if (families.size > 1) {
             drops.push({
               ids: s._ids,
-              reason: `metal mismatch: ${metalItems.map((i) => `${i.subcategory ?? i.category}=${i.metal_finish}`).join(", ")}`,
+              reason: `metal mismatch: ${metalItems.map(({ item, finish }) => `${item.subcategory ?? item.category}=${finish}`).join(", ")}`,
             });
             return false;
           }
         }
       }
-      // Proximity — head/neck zone. If the outfit has a hat, drop any
-      // scarf UNLESS temp < 5°C (scarf becomes a functional warmth layer).
+      // Proximity — head/neck zone. If the outfit has a hat AND a
+      // decorative scarf, drop. A functional scarf (warmth layer) is
+      // allowed regardless of temp (Slot 3 doesn't compete for the
+      // focal slot). Falls back to temp heuristic if scarf_function
+      // isn't set: <5°C the scarf is treated as functional.
       {
         const hasHat = s.items.some((i) => i.category === "accessory" && i.subcategory === "hat");
-        const hasScarf = s.items.some((i) => i.category === "accessory" && i.subcategory === "scarf");
+        const scarf = s.items.find((i) => i.category === "accessory" && i.subcategory === "scarf");
         const cold = typeof weather?.temp === "number" && weather.temp < 5;
-        if (hasHat && hasScarf && !cold) {
-          drops.push({ ids: s._ids, reason: "proximity: hat + scarf without functional cold (temp >= 5°C)" });
+        const scarfIsFunctional =
+          scarf &&
+          (scarf.scarf_function === "functional" ||
+            (scarf.scarf_function == null && cold));
+        if (hasHat && scarf && !scarfIsFunctional) {
+          drops.push({
+            ids: s._ids,
+            reason: `proximity: hat + decorative scarf compete (function=${scarf.scarf_function ?? "unset"}, temp=${weather?.temp ?? "?"}°C)`,
+          });
           return false;
         }
       }

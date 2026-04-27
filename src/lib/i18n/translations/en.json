@@ -465,6 +465,32 @@
     "shield": "Shield",
     "other": "Other"
   },
+  "hatSilhouette": {
+    "baseball": "Baseball cap",
+    "trucker": "Trucker cap",
+    "bucket": "Bucket hat",
+    "fedora": "Fedora",
+    "beret": "Beret",
+    "beanie": "Beanie",
+    "pillbox": "Pillbox",
+    "headband": "Headband",
+    "sun-hat": "Sun hat",
+    "other": "Other"
+  },
+  "jewelryScale": {
+    "minimal": "Minimal",
+    "statement": "Statement"
+  },
+  "scarfFunction": {
+    "decorative": "Decorative",
+    "functional": "Functional (warmth)"
+  },
+  "skirtLength": {
+    "mini": "Mini",
+    "knee-length": "Knee-length",
+    "midi": "Midi",
+    "maxi": "Maxi"
+  },
   "dressSilhouette": {
     "a-line": "A-Line",
     "sheath": "Sheath",
@@ -748,6 +774,11 @@
     "bagSize": "Bag Size",
     "bagTexture": "Bag Texture",
     "sunglassesStyle": "Sunglasses Style",
+    "hatSilhouette": "Hat Silhouette",
+    "jewelryScale": "Jewelry Scale",
+    "scarfFunction": "Scarf Function",
+    "skirtLength": "Skirt Length",
+    "bagMetalFinish": "Bag Metal Finish",
     "dressSilhouette": "Dress Silhouette",
     "toeShape": "Toe Shape",
     "neckline": "Neckline",

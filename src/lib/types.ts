@@ -84,6 +84,24 @@ export type SunglassesStyle =
   | "shield"
   | "other";
 
+export type HatSilhouette =
+  | "baseball"
+  | "trucker"
+  | "bucket"
+  | "fedora"
+  | "beret"
+  | "beanie"
+  | "pillbox"
+  | "headband"
+  | "sun-hat"
+  | "other";
+
+export type JewelryScale = "minimal" | "statement";
+
+export type ScarfFunction = "decorative" | "functional";
+
+export type SkirtLength = "mini" | "knee-length" | "midi" | "maxi";
+
 export type DressSilhouette =
   | "a-line"
   | "sheath"
@@ -172,8 +190,13 @@ export interface ClothingItem {
   metal_finish: MetalFinish | null;
   bag_size: BagSize | null;
   bag_texture: BagTexture | null;
+  bag_metal_finish: MetalFinish | null;
   hat_texture: HatTexture | null;
+  hat_silhouette: HatSilhouette | null;
   sunglasses_style: SunglassesStyle | null;
+  jewelry_scale: JewelryScale | null;
+  scarf_function: ScarfFunction | null;
+  skirt_length: SkirtLength | null;
   dress_silhouette: DressSilhouette | null;
   toe_shape: ToeShape | null;
   formality: Formality | Formality[];
@@ -479,6 +502,36 @@ export const SUNGLASSES_STYLE_LABELS: Record<SunglassesStyle, string> = {
   sport: "Sport",
   shield: "Shield",
   other: "Other",
+};
+
+export const HAT_SILHOUETTE_LABELS: Record<HatSilhouette, string> = {
+  baseball: "Baseball cap",
+  trucker: "Trucker cap",
+  bucket: "Bucket hat",
+  fedora: "Fedora",
+  beret: "Beret",
+  beanie: "Beanie",
+  pillbox: "Pillbox",
+  headband: "Headband",
+  "sun-hat": "Sun hat",
+  other: "Other",
+};
+
+export const JEWELRY_SCALE_LABELS: Record<JewelryScale, string> = {
+  minimal: "Minimal",
+  statement: "Statement",
+};
+
+export const SCARF_FUNCTION_LABELS: Record<ScarfFunction, string> = {
+  decorative: "Decorative",
+  functional: "Functional (warmth)",
+};
+
+export const SKIRT_LENGTH_LABELS: Record<SkirtLength, string> = {
+  mini: "Mini",
+  "knee-length": "Knee-length",
+  midi: "Midi",
+  maxi: "Maxi",
 };
 
 // Silhouette = the overall shape / cut of a dress. Used by the outfit

@@ -23,7 +23,11 @@ import type {
   BagSize,
   BagTexture,
   HatTexture,
+  HatSilhouette,
   SunglassesStyle,
+  JewelryScale,
+  ScarfFunction,
+  SkirtLength,
   DressSilhouette,
   ToeShape,
   Neckline,
@@ -60,8 +64,13 @@ export type AutoFillResult = {
   metal_finish?: MetalFinish;
   bag_size?: BagSize;
   bag_texture?: BagTexture;
+  bag_metal_finish?: MetalFinish;
   hat_texture?: HatTexture;
+  hat_silhouette?: HatSilhouette;
   sunglasses_style?: SunglassesStyle;
+  jewelry_scale?: JewelryScale;
+  scarf_function?: ScarfFunction;
+  skirt_length?: SkirtLength;
   dress_silhouette?: DressSilhouette;
   toe_shape?: ToeShape;
   warmth_rating?: number;

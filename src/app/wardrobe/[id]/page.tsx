@@ -27,6 +27,10 @@ import type {
   BagSize,
   BagTexture,
   SunglassesStyle,
+  HatSilhouette,
+  JewelryScale,
+  ScarfFunction,
+  SkirtLength,
   DressSilhouette,
   ToeShape,
   Formality,
@@ -121,6 +125,12 @@ export default function ItemDetailPage() {
   const [editBagSize, setEditBagSize] = useState<BagSize | null>(null);
   const [editBagTexture, setEditBagTexture] = useState<BagTexture | null>(null);
   const [editSunglassesStyle, setEditSunglassesStyle] = useState<SunglassesStyle | null>(null);
+  const [editHatSilhouette, setEditHatSilhouette] = useState<HatSilhouette | null>(null);
+  const [editJewelryScale, setEditJewelryScale] = useState<JewelryScale | null>(null);
+  const [editScarfFunction, setEditScarfFunction] = useState<ScarfFunction | null>(null);
+  const [editSkirtLength, setEditSkirtLength] = useState<SkirtLength | null>(null);
+  const [editBagMetalFinish, setEditBagMetalFinish] = useState<MetalFinish | null>(null);
+  const [userGender, setUserGender] = useState<"woman" | "man" | "not-specified">("woman");
   const [editDressSilhouette, setEditDressSilhouette] = useState<DressSilhouette | null>(null);
   const [editToeShape, setEditToeShape] = useState<ToeShape | null>(null);
   const [editNeckline, setEditNeckline] = useState<Neckline | null>(null);
@@ -138,6 +148,18 @@ export default function ItemDetailPage() {
   const [editColors, setEditColors] = useState<{ hex: string; name: string; percentage: number }[]>([]);
   const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
   const [showColorPalette, setShowColorPalette] = useState(false);
+
+  // User gender preference — used to gate feminine fields on the men's track.
+  useEffect(() => {
+    fetch("/api/preferences")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        if (p?.gender === "man" || p?.gender === "woman" || p?.gender === "not-specified") {
+          setUserGender(p.gender);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchItem() {
@@ -276,6 +298,11 @@ export default function ItemDetailPage() {
     setEditBagSize(item.bag_size ?? null);
     setEditBagTexture(item.bag_texture ?? null);
     setEditSunglassesStyle(item.sunglasses_style ?? null);
+    setEditHatSilhouette(item.hat_silhouette ?? null);
+    setEditJewelryScale(item.jewelry_scale ?? null);
+    setEditScarfFunction(item.scarf_function ?? null);
+    setEditSkirtLength(item.skirt_length ?? null);
+    setEditBagMetalFinish(item.bag_metal_finish ?? null);
     setEditDressSilhouette(item.dress_silhouette ?? null);
     setEditToeShape(item.toe_shape ?? null);
     setEditNeckline(item.neckline ?? null);
@@ -356,6 +383,13 @@ export default function ItemDetailPage() {
     editCategory === "accessory" && ["sunglasses", "jewelry", "watch"].includes(editSubcategory)
   );
   const editShowSunglassesStyle = editCategory === "accessory" && editSubcategory === "sunglasses";
+  const editShowHatSilhouette = editCategory === "accessory" && editSubcategory === "hat";
+  const editShowJewelryScale = editCategory === "accessory" && editSubcategory === "jewelry";
+  const editShowScarfFunction = editCategory === "accessory" && editSubcategory === "scarf";
+  const editShowSkirtLength =
+    editCategory === "bottom" && editSubcategory === "skirt" && userGender !== "man";
+  const editShowBagMetalFinish = editCategory === "bag";
+  const editShowDressSilhouette = editCategory === "dress" && userGender !== "man";
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -404,7 +438,12 @@ export default function ItemDetailPage() {
           bag_size: editCategory === "bag" ? editBagSize : null,
           bag_texture: editCategory === "bag" ? editBagTexture : null,
           sunglasses_style: editShowSunglassesStyle ? editSunglassesStyle : null,
-          dress_silhouette: editCategory === "dress" ? editDressSilhouette : null,
+          hat_silhouette: editShowHatSilhouette ? editHatSilhouette : null,
+          jewelry_scale: editShowJewelryScale ? editJewelryScale : null,
+          scarf_function: editShowScarfFunction ? editScarfFunction : null,
+          skirt_length: editShowSkirtLength ? editSkirtLength : null,
+          bag_metal_finish: editShowBagMetalFinish ? editBagMetalFinish : null,
+          dress_silhouette: editShowDressSilhouette ? editDressSilhouette : null,
           toe_shape: editCategory === "shoes" ? editToeShape : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
@@ -990,6 +1029,66 @@ export default function ItemDetailPage() {
             </div>
           )}
 
+          {/* Bag Metal Finish - only for bags */}
+          {editShowBagMetalFinish && (
+            <div className="space-y-1">
+              <Label>{t("addItem.bagMetalFinish")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.METAL_FINISH) as MetalFinish[]).map((m) => (
+                  <button key={m} type="button" onClick={() => setEditBagMetalFinish(editBagMetalFinish === m ? null : m)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.METAL_FINISH[m]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hat Silhouette - only for accessory/hat */}
+          {editShowHatSilhouette && (
+            <div className="space-y-1">
+              <Label>{t("addItem.hatSilhouette")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.HAT_SILHOUETTE) as HatSilhouette[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditHatSilhouette(editHatSilhouette === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editHatSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HAT_SILHOUETTE[s]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Jewelry Scale - only for accessory/jewelry */}
+          {editShowJewelryScale && (
+            <div className="space-y-1">
+              <Label>{t("addItem.jewelryScale")}</Label>
+              <div className="flex gap-2">
+                {(Object.keys(labels.JEWELRY_SCALE) as JewelryScale[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditJewelryScale(editJewelryScale === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editJewelryScale === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.JEWELRY_SCALE[s]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Scarf Function - only for accessory/scarf */}
+          {editShowScarfFunction && (
+            <div className="space-y-1">
+              <Label>{t("addItem.scarfFunction")}</Label>
+              <div className="flex gap-2">
+                {(Object.keys(labels.SCARF_FUNCTION) as ScarfFunction[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditScarfFunction(editScarfFunction === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editScarfFunction === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SCARF_FUNCTION[s]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Skirt Length - only for bottom/skirt (Track A only) */}
+          {editShowSkirtLength && (
+            <div className="space-y-1">
+              <Label>{t("addItem.skirtLength")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(labels.SKIRT_LENGTH) as SkirtLength[]).map((s) => (
+                  <button key={s} type="button" onClick={() => setEditSkirtLength(editSkirtLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSkirtLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SKIRT_LENGTH[s]}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Sunglasses Style - only for sunglasses */}
           {editShowSunglassesStyle && (
             <div className="space-y-1">
@@ -1002,8 +1101,8 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Dress Silhouette - only for dresses */}
-          {editCategory === "dress" && (
+          {/* Dress Silhouette - only for dresses (Track A only) */}
+          {editShowDressSilhouette && (
             <div className="space-y-1">
               <Label>{t("addItem.dressSilhouette")}</Label>
               <div className="flex flex-wrap gap-2">

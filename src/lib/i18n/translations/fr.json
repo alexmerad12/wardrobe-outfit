@@ -470,6 +470,32 @@
     "shield": "Masque",
     "other": "Autre"
   },
+  "hatSilhouette": {
+    "baseball": "Casquette baseball",
+    "trucker": "Casquette trucker",
+    "bucket": "Bob",
+    "fedora": "Fedora",
+    "beret": "Béret",
+    "beanie": "Bonnet",
+    "pillbox": "Pillbox",
+    "headband": "Bandeau",
+    "sun-hat": "Chapeau de soleil",
+    "other": "Autre"
+  },
+  "jewelryScale": {
+    "minimal": "Minimaliste",
+    "statement": "Statement"
+  },
+  "scarfFunction": {
+    "decorative": "Décoratif",
+    "functional": "Fonctionnel (chaud)"
+  },
+  "skirtLength": {
+    "mini": "Mini",
+    "knee-length": "Au genou",
+    "midi": "Midi",
+    "maxi": "Maxi"
+  },
   "dressSilhouette": {
     "a-line": "Ligne A",
     "sheath": "Fourreau",
@@ -753,6 +779,11 @@
     "bagSize": "Taille du sac",
     "bagTexture": "Texture du sac",
     "sunglassesStyle": "Style de lunettes",
+    "hatSilhouette": "Silhouette du chapeau",
+    "jewelryScale": "Échelle du bijou",
+    "scarfFunction": "Fonction de l'écharpe",
+    "skirtLength": "Longueur de la jupe",
+    "bagMetalFinish": "Finition métal du sac",
     "dressSilhouette": "Silhouette de la robe",
     "toeShape": "Forme du bout",
     "neckline": "Col / Encolure",
