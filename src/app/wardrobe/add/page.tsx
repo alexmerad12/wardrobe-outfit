@@ -95,7 +95,10 @@ export default function AddItemPage() {
   const [waistStyle, setWaistStyle] = useState<WaistStyle | null>(null);
   const [waistHeight, setWaistHeight] = useState<WaistHeight>("mid");
   const [waistClosure, setWaistClosure] = useState<WaistClosure | null>(null);
-  const [beltCompatible, setBeltCompatible] = useState(false);
+  // belt_compatible is no longer a manual flag — derived from
+  // silhouette / fit / waist_style at suggest time. DB column kept
+  // for legacy compatibility; we just don't write to it from here
+  // anymore (always false on new items).
   const [isLayeringPiece, setIsLayeringPiece] = useState(false);
   const [shoeHeight, setShoeHeight] = useState<ShoeHeight>("low");
   const [heelType, setHeelType] = useState<HeelType>("flat");
@@ -263,7 +266,7 @@ export default function AddItemPage() {
     }
     // rain_appropriate intentionally not consumed from autofill anymore.
     if (typeof r.is_layering_piece === "boolean") setIsLayeringPiece(r.is_layering_piece);
-    if (typeof r.belt_compatible === "boolean") setBeltCompatible(r.belt_compatible);
+    // belt_compatible field deprecated — no longer consumed from autofill.
 
     // Only use AI colors if local corner-sampling hasn't already found some.
     if (r.colors?.length && detectedColors.length === 0) {
@@ -326,12 +329,6 @@ export default function AddItemPage() {
   const showWaistClosure =
     category === "bottom" &&
     ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
-  const showBeltCompatible =
-    category === "top" ||
-    category === "bottom" ||
-    category === "dress" ||
-    category === "one-piece" ||
-    category === "outerwear";
   const showLayeringPiece = category === "top" || category === "outerwear";
   const showShoeFields = category === "shoes";
   // Shoe height (low / ankle / mid / knee / over-knee) only varies on
@@ -650,7 +647,7 @@ export default function AddItemPage() {
           waist_style: showWaistStyle ? waistStyle : null,
           waist_height: showWaistHeight ? waistHeight : null,
           waist_closure: showWaistClosure ? waistClosure : null,
-          belt_compatible: beltCompatible,
+          belt_compatible: false,
           is_layering_piece: isLayeringPiece,
           shoe_height: showShoeHeight ? shoeHeight : null,
           heel_type: showShoeFields ? heelType : null,
@@ -1281,24 +1278,8 @@ export default function AddItemPage() {
           </div>
         )}
 
-        {/* Belt compatible toggle - tops, bottoms, dresses, outerwear */}
-        {category && showBeltCompatible && (
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setBeltCompatible(!beltCompatible)}
-              className={cn(
-                "h-5 w-5 rounded border-2 transition-colors",
-                beltCompatible
-                  ? "border-primary bg-primary"
-                  : "border-muted-foreground/30"
-              )}
-            />
-            <Label className="cursor-pointer" onClick={() => setBeltCompatible(!beltCompatible)}>
-              {t("addItem.worksWithBelt")}
-            </Label>
-          </div>
-        )}
+        {/* (Belt compatibility is now derived from silhouette / fit /
+            waist_style — no manual flag needed.) */}
 
         {/* Layering piece toggle - tops and outerwear */}
         {category && showLayeringPiece && (

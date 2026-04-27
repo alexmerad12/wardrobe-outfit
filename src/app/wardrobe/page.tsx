@@ -76,6 +76,10 @@ function WardrobePageInner() {
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category | "all" | "stored">(initialCategory);
+  // Subcategory drill-down — "all" = show everything in the category.
+  // Resets whenever the category changes so the user lands on a clean
+  // view of the new category by default.
+  const [activeSubcategory, setActiveSubcategory] = useState<string>("all");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -147,6 +151,10 @@ function WardrobePageInner() {
       inline: "center",
       block: "nearest",
     });
+    // Reset subcategory filter when switching categories so the user
+    // lands on a clean view of the new category instead of carrying
+    // over an unrelated subcategory.
+    setActiveSubcategory("all");
   }, [activeCategory]);
 
   // Keep the URL in sync with the filter state so navigating to an item
@@ -286,12 +294,31 @@ function WardrobePageInner() {
       ? items.filter((item) => !item.is_stored)
       : items.filter((item) => item.category === activeCategory && !item.is_stored);
 
-  // Name search is applied after the category filter so users can narrow
-  // to "dresses" first and then type a keyword. Empty query = no filter.
+  // Subcategory pill row: only show when a real category is active and
+  // the user actually has multiple subcategories worth filtering by.
+  // Derive the available subcategories from the items themselves so we
+  // don't render empty pills for subcategories the user doesn't own.
+  const availableSubcategories: string[] = (() => {
+    if (activeCategory === "all" || activeCategory === "stored") return [];
+    const seen = new Set<string>();
+    for (const item of categoryFiltered) {
+      if (item.subcategory) seen.add(item.subcategory);
+    }
+    return Array.from(seen);
+  })();
+
+  const subcategoryFiltered =
+    activeSubcategory === "all"
+      ? categoryFiltered
+      : categoryFiltered.filter((item) => item.subcategory === activeSubcategory);
+
+  // Name search is applied after the category + subcategory filters so
+  // users can narrow to "dresses → mini-dress" first and then type a
+  // keyword. Empty query = no filter.
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const filteredItems = trimmedQuery
-    ? categoryFiltered.filter((item) => item.name.toLowerCase().includes(trimmedQuery))
-    : categoryFiltered;
+    ? subcategoryFiltered.filter((item) => item.name.toLowerCase().includes(trimmedQuery))
+    : subcategoryFiltered;
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
@@ -333,11 +360,11 @@ function WardrobePageInner() {
                 {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
               </Button>
               <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
+                size="icon"
+                variant="ghost"
                 disabled={selected.size === 0 || deleting}
                 onClick={handleBulkDelete}
+                aria-label={t("common.delete")}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -500,6 +527,45 @@ function WardrobePageInner() {
           </button>
         ))}
       </div>
+
+      {/* Subcategory drill-down pills — only visible when a real
+          category is active and the user has at least 2 distinct
+          subcategories worth filtering by. "All" stays the default
+          so users can browse every item in the category by default. */}
+      {availableSubcategories.length >= 2 && (
+        <div
+          className={cn(
+            "sticky top-[136px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+            scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
+          )}
+        >
+          <button
+            onClick={() => setActiveSubcategory("all")}
+            className={cn(
+              "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              activeSubcategory === "all"
+                ? "bg-foreground text-background"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {t("categoryTab.all")}
+          </button>
+          {availableSubcategories.map((sub) => (
+            <button
+              key={sub}
+              onClick={() => setActiveSubcategory(sub)}
+              className={cn(
+                "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                activeSubcategory === sub
+                  ? "bg-foreground text-background"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {t(`subcategory.${sub}`)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Pending uploads (shown on the "all" view so they don't disappear
           when the user is filtering by category) */}

@@ -112,6 +112,9 @@
     "occasionLabel": "Occasion",
     "weatherLabel": "Weather",
     "favorite": "Favorite",
+    "favoriteSaveFailed": "Couldn't save to favorites. Please try again.",
+    "favoriteSaved": "Saved to Favorites",
+    "favoriteRemoved": "Removed from Favorites",
     "wearToday": "Wear Today"
   },
   "suggest": {

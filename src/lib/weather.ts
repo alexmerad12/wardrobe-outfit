@@ -33,7 +33,10 @@ export async function getWeather(lat: number, lng: number): Promise<WeatherData>
   const roundedLng = Math.round(lng * 100) / 100;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${roundedLat}&longitude=${roundedLng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=precipitation_probability_max,uv_index_max&timezone=auto`;
 
-  const response = await fetch(url, { next: { revalidate: 1800 } });
+  // Revalidate every 10 min — Open-Meteo's `current` updates hourly so
+  // shorter than this is wasted; longer than this lets the morning temp
+  // bleed into the afternoon view (5°C swing in spring).
+  const response = await fetch(url, { next: { revalidate: 600 } });
   if (!response.ok) {
     throw new Error("Failed to fetch weather data");
   }

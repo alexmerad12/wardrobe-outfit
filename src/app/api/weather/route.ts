@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
       { ...data, source },
       {
         headers: {
-          "Cache-Control": "public, max-age=900, s-maxage=1800, stale-while-revalidate=3600",
+          // Tighter caching to keep weather closer to live (was 15m/30m/1h).
+          // Open-Meteo's `current` updates ~hourly so 5min/10min is plenty
+          // and avoids showing stale morning temps in the afternoon.
+          "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1800",
         },
       }
     );

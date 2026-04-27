@@ -59,7 +59,7 @@ export function ClothingCard({
         )}
         {!selectMode && item.is_favorite && (
           <div className="absolute right-2 top-2">
-            <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+            <Heart className="h-4 w-4 fill-foreground text-foreground" />
           </div>
         )}
       </div>

@@ -39,6 +39,8 @@ export default function HomePage() {
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [todayExpanded, setTodayExpanded] = useState(false);
+  const [favTogglePending, setFavTogglePending] = useState(false);
+  const [favToast, setFavToast] = useState<"saved" | "removed" | null>(null);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
 
@@ -88,21 +90,29 @@ export default function HomePage() {
 
   async function toggleTodayFavorite() {
     if (!todayOutfit) return;
+    if (favTogglePending) return; // dedupe rapid double-taps
+    setFavTogglePending(true);
     const newFav = !todayOutfit.is_favorite;
     // The favorites view reads from the `outfits` table, not
     // `today_outfit`, so the toggle must mirror state into both.
     let outfitId = todayOutfit.outfit_id;
+    let mirrorOk = true;
 
     if (newFav) {
-      const patchRes = await fetch(`/api/outfits/${outfitId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_favorite: true }),
-      });
-      if (patchRes.status === 404) {
-        // No outfits row exists yet (today's look came from a manual
-        // rotation rather than /suggest → Wear today). Create one and
-        // re-link today_outfit to its new id.
+      // Try to PATCH the existing outfit row. ANY non-success (404 if
+      // the row was deleted, 500 if outfit_id isn't a valid UUID, RLS
+      // hiding the row, etc.) means the row doesn't exist for this
+      // user — fall back to creating one.
+      let patchOk = false;
+      if (outfitId) {
+        const patchRes = await fetch(`/api/outfits/${outfitId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_favorite: true }),
+        });
+        patchOk = patchRes.ok;
+      }
+      if (!patchOk) {
         const createRes = await fetch("/api/outfits", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,22 +134,45 @@ export default function HomePage() {
         if (createRes.ok) {
           const created = (await createRes.json()) as { id: string };
           outfitId = created.id;
+        } else {
+          mirrorOk = false;
+          console.error(
+            "[favorite] failed to create outfit row:",
+            createRes.status,
+            await createRes.text()
+          );
         }
       }
     } else {
-      await fetch(`/api/outfits/${outfitId}`, {
+      const unfavRes = await fetch(`/api/outfits/${outfitId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_favorite: false }),
       });
+      if (!unfavRes.ok && unfavRes.status !== 404) {
+        // 404 just means the row's already gone — that's fine for unfavorite.
+        mirrorOk = false;
+      }
     }
 
+    // Mirror into today_outfit so the heart icon stays consistent if
+    // the page is reloaded.
     await fetch("/api/today", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_favorite: newFav, outfit_id: outfitId }),
     });
-    setTodayOutfit({ ...todayOutfit, is_favorite: newFav, outfit_id: outfitId });
+    if (mirrorOk) {
+      setTodayOutfit({ ...todayOutfit, is_favorite: newFav, outfit_id: outfitId });
+      // In-place confirmation so the user sees what just happened
+      // (heart-only feedback was easy to miss → users would re-tap
+      // and accidentally toggle back to unfavorited).
+      setFavToast(newFav ? "saved" : "removed");
+      setTimeout(() => setFavToast(null), 1800);
+    } else {
+      alert(t("home.favoriteSaveFailed"));
+    }
+    setFavTogglePending(false);
   }
 
   async function wearRecentToday(outfit: TodayOutfit & { items: ClothingItem[] }) {
@@ -278,9 +311,20 @@ export default function HomePage() {
                     </Link>
                   ))}
                 </div>
+              ) : todayItems.length > 5 ? (
+                // 6+ items — horizontal scroll so users can see every
+                // piece without expanding the card. Each item gets a
+                // fixed width so dragging feels predictable.
+                <div className="flex h-28 gap-0.5 -mx-4 overflow-x-auto overflow-y-hidden scrollbar-hide">
+                  {todayItems.map((item) => (
+                    <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-muted/30">
+                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="flex h-28 gap-0.5 -mx-4 overflow-hidden">
-                  {todayItems.slice(0, 5).map((item) => (
+                  {todayItems.map((item) => (
                     <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                     </div>
@@ -347,7 +391,7 @@ export default function HomePage() {
                       className="flex-1"
                     />
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={toggleTodayFavorite}>
-                      <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-red-500 text-red-500")} />
+                      <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-foreground text-foreground")} />
                       {t("home.favorite")}
                     </Button>
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={clearTodayOutfit}>
@@ -476,9 +520,18 @@ export default function HomePage() {
                           </Link>
                         ))}
                       </div>
+                    ) : outfit.items.length > 5 ? (
+                      // 6+ items — horizontal scroll for the collapsed view.
+                      <div className="flex h-28 gap-0.5 overflow-x-auto overflow-y-hidden scrollbar-hide">
+                        {outfit.items.map((item) => (
+                          <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-muted/30">
+                            <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
+                          </div>
+                        ))}
+                      </div>
                     ) : (
                       <div className="flex h-28 gap-0.5">
-                        {outfit.items.slice(0, 5).map((item) => (
+                        {outfit.items.map((item) => (
                           <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
                             <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                           </div>
@@ -556,6 +609,14 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Inline favorite confirmation — heart-only feedback was easy
+          to miss, leading users to re-tap and accidentally toggle off. */}
+      {favToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {favToast === "saved" ? t("home.favoriteSaved") : t("home.favoriteRemoved")}
+        </div>
+      )}
     </div>
   );
 }

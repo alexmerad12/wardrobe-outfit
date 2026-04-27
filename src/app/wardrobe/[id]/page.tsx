@@ -113,7 +113,7 @@ export default function ItemDetailPage() {
   const [editWaistStyle, setEditWaistStyle] = useState<WaistStyle | null>(null);
   const [editWaistHeight, setEditWaistHeight] = useState<WaistHeight>("mid");
   const [editWaistClosure, setEditWaistClosure] = useState<WaistClosure | null>(null);
-  const [editBeltCompatible, setEditBeltCompatible] = useState(false);
+  // belt_compatible no longer manually flagged — derived in suggest.
   const [editLayering, setEditLayering] = useState(false);
   const [editShoeHeight, setEditShoeHeight] = useState<ShoeHeight>("low");
   const [editHeelType, setEditHeelType] = useState<HeelType>("flat");
@@ -285,7 +285,7 @@ export default function ItemDetailPage() {
     setEditWaistStyle(item.waist_style ?? null);
     setEditWaistHeight(item.waist_height ?? "mid");
     setEditWaistClosure(item.waist_closure ?? null);
-    setEditBeltCompatible(item.belt_compatible ?? false);
+    // belt_compatible deprecated — not consumed in edit form.
     setEditLayering(item.is_layering_piece ?? false);
     setEditShoeHeight(item.shoe_height ?? "low");
     setEditHeelType(item.heel_type ?? "flat");
@@ -362,7 +362,6 @@ export default function ItemDetailPage() {
   const editShowWaistClosure =
     editCategory === "bottom" &&
     ["jeans", "trousers", "leggings", "sweatpants"].includes(editSubcategory);
-  const editShowBeltCompatible = ["top", "bottom", "dress", "outerwear"].includes(editCategory);
   const editShowLayeringPiece = editCategory === "top" || editCategory === "outerwear";
   const editShowShoeFields = editCategory === "shoes";
   const editShowShoeHeight =
@@ -423,7 +422,7 @@ export default function ItemDetailPage() {
           waist_style: editShowWaistStyle ? editWaistStyle : null,
           waist_height: editShowWaistHeight ? editWaistHeight : null,
           waist_closure: editShowWaistClosure ? editWaistClosure : null,
-          belt_compatible: editBeltCompatible,
+          belt_compatible: false,
           is_layering_piece: editLayering,
           shoe_height: editShowShoeHeight ? editShoeHeight : null,
           heel_type: editShowShoeFields ? editHeelType : null,
@@ -669,7 +668,7 @@ export default function ItemDetailPage() {
                 <Pencil className="h-5 w-5" />
               </Button>
               <Button variant="ghost" size="icon" onClick={toggleFavorite}>
-                <Heart className={cn("h-5 w-5", item.is_favorite && "fill-red-500 text-red-500")} />
+                <Heart className={cn("h-5 w-5", item.is_favorite && "fill-foreground text-foreground")} />
               </Button>
               <Button variant="ghost" size="icon" onClick={deleteItem}>
                 <Trash2 className="h-5 w-5" />
@@ -919,19 +918,14 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Belt compatible + layering toggles */}
-          {editShowBeltCompatible && (
+          {/* Layering toggle (belt-compatibility is now derived from
+              silhouette / fit / waist_style — no manual flag). */}
+          {editShowLayeringPiece && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setEditBeltCompatible(!editBeltCompatible)} className={cn("h-5 w-5 rounded border-2 transition-colors", editBeltCompatible ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-                <Label className="cursor-pointer" onClick={() => setEditBeltCompatible(!editBeltCompatible)}>{t("addItem.worksWithBelt")}</Label>
+                <button type="button" onClick={() => setEditLayering(!editLayering)} className={cn("h-5 w-5 rounded border-2 transition-colors", editLayering ? "border-primary bg-primary" : "border-muted-foreground/30")} />
+                <Label className="cursor-pointer" onClick={() => setEditLayering(!editLayering)}>{t("addItem.layeringPiece")}</Label>
               </div>
-              {editShowLayeringPiece && (
-                <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => setEditLayering(!editLayering)} className={cn("h-5 w-5 rounded border-2 transition-colors", editLayering ? "border-primary bg-primary" : "border-muted-foreground/30")} />
-                  <Label className="cursor-pointer" onClick={() => setEditLayering(!editLayering)}>{t("addItem.layeringPiece")}</Label>
-                </div>
-              )}
             </div>
           )}
 
@@ -1355,7 +1349,6 @@ export default function ItemDetailPage() {
                   <p className="text-xs text-muted-foreground mb-0.5">{t("itemDetail.waist")}</p>
                   <p className="text-sm font-medium">
                     {labels.WAIST_STYLE[item.waist_style]}
-                    {item.belt_compatible && ` ${t("itemDetail.beltFriendly")}`}
                   </p>
                 </CardContent>
               </Card>

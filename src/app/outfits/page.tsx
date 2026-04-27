@@ -391,9 +391,28 @@ export default function FavoritesPage() {
                       )
                     )}
                   </div>
+                ) : (outfit.items?.length ?? 0) > 5 ? (
+                  // 6+ items — horizontal scroll so the user sees every
+                  // piece without having to expand the card.
+                  <div className="flex h-28 gap-0.5 overflow-x-auto overflow-y-hidden scrollbar-hide">
+                    {(outfit.items ?? []).map((item) => (
+                      <div
+                        key={item.id}
+                        className="relative h-28 w-24 shrink-0 overflow-hidden bg-muted/30"
+                      >
+                        <Image
+                          src={item.image_url}
+                          alt={item.name}
+                          fill
+                          className="object-contain p-1"
+                          sizes="96px"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="flex h-28 gap-0.5">
-                    {(outfit.items ?? []).slice(0, 5).map((item) => (
+                    {(outfit.items ?? []).map((item) => (
                       <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
                         <Image
                           src={item.image_url}

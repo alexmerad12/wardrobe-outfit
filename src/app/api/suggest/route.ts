@@ -307,7 +307,8 @@ function describeItem(item: ClothingItem): string {
   if (item.heel_type) parts.push(`Heel: ${item.heel_type}`);
   if (item.shoe_closure) parts.push(`Shoe closure: ${item.shoe_closure}`);
   if (item.belt_style) parts.push(`Belt style: ${item.belt_style}`);
-  if (item.belt_compatible) parts.push("Works with belt: yes");
+  // belt_compatible flag deprecated — belt-fit is derived from
+  // silhouette / fit / waist_style / waist_closure in Rule 18a.
   if (item.metal_finish && item.metal_finish !== "none") parts.push(`Metal: ${item.metal_finish}`);
   if (item.bag_size) parts.push(`Bag size: ${item.bag_size}`);
   if (item.bag_texture) parts.push(`Bag texture: ${item.bag_texture}`);
@@ -586,6 +587,7 @@ HARD RULES — do not violate:
 3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes). For OUTERWEAR (category="outerwear"): max one item by default. EXCEPTION — winter layering: when the outfit pairs an INNER outerwear (subcategory in [blazer, vest]) with an OUTER outerwear (subcategory in [coat, peacoat, trench-coat, parka, puffer]), TWO outerwear items are allowed (e.g., blazer under wool coat, vest under trench). NEVER allow two of the same class — no blazer+blazer, no two jackets, no denim-jacket+leather-jacket, no two coats. Standalone subcategories (jacket, denim-jacket, leather-jacket, bomber, windbreaker) are SINGLE-PIECE — never paired with another outerwear.
 4c. DENIM-ON-DENIM ("Canadian tuxedo"): when 2+ items in the outfit have Material including "denim" (e.g., jeans + denim jacket, jeans + denim shirt), this is denim-on-denim. By default AVOID this combo — pick a non-denim top to break it up. ALLOW only when STYLE DIRECTION explicitly requests it ("full denim", "all denim", "denim on denim", "double denim", "Canadian tuxedo", "tout en denim", "total denim"). When allowed, prefer wash contrast (light jacket + dark jeans, or vice versa) — same-wash denim-on-denim is the dated version.
+4d. CARDIGAN STANDALONE — a cardigan can be the only top in the outfit (no tee underneath) ONLY when its Fit is "slim" or "regular" AND it is NOT tagged as a layering piece (twinset / cardigan-as-sweater look). For cardigans with Fit "loose" or "oversized", or any cardigan tagged is_layering_piece, ALWAYS pair with a non-layering top underneath (tee, cami, blouse, fitted long-sleeve). An open-front loose cardigan worn with nothing under it reads exposed, not stylist-curated.
 4b. LAYERING PROPORTIONS — when a "top" item has Fit "oversized" (oversized cardigan / hoodie / sweater), the only outerwear that can sit over it cleanly is a LONG, DRAPEY COAT — Subcategory in [coat, peacoat, trench-coat, parka], OR a puffer with Fit "oversized" / "loose". BLOCK Subcategory in [jacket, denim-jacket, leather-jacket, bomber, blazer, windbreaker, vest] over an oversized top — these are structured at the shoulder and bunch over the bulk underneath, even when their own Fit is "loose". If the wardrobe has no qualifying long coat / puffer, the oversized top IS the outermost layer (skip outerwear).
 5. WEATHER (NON-NEGOTIABLE):
    - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule.
@@ -593,6 +595,7 @@ HARD RULES — do not violate:
      If the wardrobe has zero qualifying outerwear AND zero qualifying cardigan substitute, skip this rule.
    - Cold base layer: the dress / jumpsuit / top+bottom under the coat must ALSO handle the temperature — the coat comes off indoors. At <10°C, base Warmth ≥2; at <5°C, Warmth ≥2.5. Prefer midi/maxi, knit/wool, fall or winter in Seasons.
    - Warm (>22°C): no heavy coats, no wool, no heavy boots.
+   - Mild-warm (≥20°C) at INDOOR occasions (at-home, work, dinner-out, formal): SKIP cardigans, hoodies, and other layering pieces stacked OVER an existing top or dress. The base outfit is enough — no over-layer needed when it's not cold. (Cardigan as the BASE top, e.g. cardigan + jeans, still fine. The block is on doubling up.)
    - RAIN (rain% ≥ 40% OR Condition contains "rain" / "showers"): apply automated Material-Intelligence filters to element-facing layers (Outerwear, Shoes, Bag):
      · BLOCK Material in [suede, silk, satin, canvas] for these categories — non-rain-proof.
      · PREFER Material in [leather, faux-leather, patent-leather, nylon, rubber, polyester, faux-suede].
@@ -629,7 +632,7 @@ HARD RULES — do not violate:
    - Energized → at least one saturated bright (red, orange, yellow, fuchsia, electric blue, kelly green). No all-neutral palette.
    - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions. Bag should be Bag size "medium" with Bag texture "smooth" / "pebbled" / "croc-embossed" / "snake-embossed" (rigid, structured). All visible Metal finish must match (see Rule 14). PALETTE: prefer high-contrast — one strong dark anchor (black, navy, oxblood, espresso, charcoal) paired with crisp neutrals (white, cream, ivory) OR a saturated jewel tone (emerald, sapphire, ruby, plum) paired with black. AVOID all-tonal warm-earth palettes (rust + camel + beige + taupe across multiple pieces) — those read boho-cozy, not confident. If the wardrobe trends warm, anchor with a black or navy piece + ONE warm accent.
    - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory, contrast color. Not a safe monochrome. Mixed Metal finish is ALLOWED (only mood where it is). High-low pairings welcome (a casual hat with a blazer, etc.).
-   - Cozy → soft textures (knit, cashmere, fleece, jersey, wool). Warm earth tones (camel, cream, oatmeal, rust, chocolate). Relaxed not slouchy.
+   - Cozy → soft textures (knit, cashmere, fleece, jersey, wool). Warm earth tones (camel, cream, oatmeal, rust, chocolate, brown, terracotta) OR neutrals (black/white/grey/cream) with at most ONE saturated accent. NEVER mix warm earth tones with saturated cool colors (green/teal/blue/purple/etc) in the same outfit — that combo reads as a palette clash, not cozy. Relaxed not slouchy.
    - Chill → relaxed easy silhouette, neutral palette, minimal accessories. Elevated t-shirt-and-jeans energy.
    - Bold → at least one statement piece: bright saturated color OR distinctive pattern (animal, plaid, embellished) OR dramatic silhouette (oversized blazer, mini, leather). No safe choices.
    - Comfort Day → elastic / drawstring / pull-on bottoms preferred. Soft top (knit, jersey, oversized). NEVER heels. NEVER tailored / fitted / structured. Easy on the body.
@@ -642,11 +645,21 @@ HARD RULES — do not violate:
    b) When Seasons is NON-EMPTY, same logic against the current SEASON. Off-season items only allowed when no in-season alternative exists in the wardrobe for that category.
    c) Empty Occasions or Seasons list = "works anywhere" — no constraint. Don't penalize unset items.
 18. STYLIST INSTINCT — completers a real stylist adds without being asked. These are PROACTIVE additions, not constraints. A wardrobe item that "completes" the look is BETTER than skipping the slot.
-   a) BELT THE WAIST — REQUIRED COMPLETER: include a belt from the wardrobe (category=accessory, subcategory=belt) in any outfit where it would obviously elevate the look. The non-negotiable cases:
+   a) BELT THE WAIST — derived from item attributes (no manual flag).
+      ADD a belt from the wardrobe (category=accessory, subcategory=belt) when:
       - SWEATER or BLOUSE with a SKIRT.
       - BLOUSE with tailored trousers (the tucked look).
-      - ANY DRESS or JUMPSUIT tagged "Works with belt: yes" — the user explicitly told us this piece reads better belted, so DON'T skip it.
-      The belt defines the waist and is what separates a stylist outfit from a thrown-together one. The ONLY valid reasons to skip the belt are: (i) the top is genuinely oversized / boxy (the silhouette IS the look), (ii) there's already a belted coat in the outfit, or (iii) the wardrobe has zero belts. Otherwise — pick the belt.
+      - DRESS with Silhouette in [a-line, wrap, fit-and-flare] AND fit ≠ "slim" AND waist_style ≠ "belted". (Wrap dresses already come with a tie — don't double up. Fit-and-flare dresses with a defined waist seam still take a belt accent.)
+      NEVER add a belt when ANY of the following is true:
+      - DRESS with Silhouette in [slip, bodycon, mermaid, sheath, shift] — these silhouettes are defined by their cut; a belt fights the line and bunches the fabric.
+      - DRESS or BOTTOM with fit = "slim" — already body-skimming, belt is redundant.
+      - DRESS or BOTTOM with waist_style = "belted" — already has a belt built in.
+      - DRESS or BOTTOM with waist_style = "elastic" — no place for a belt.
+      - BOTTOM with waist_closure in [elastic, drawstring, pull-on, side-zip] — no belt loops or no front fastening that would carry a belt.
+      - BOTTOM with subcategory in [leggings, sweatpants] — never belted.
+      - The outfit already has a belted coat / dress.
+      - The wardrobe has zero belts.
+      Otherwise (jeans + tucked top, structured trousers + blouse, etc.), the belt is what separates a stylist look from a thrown-together one — add it.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
    d) ANTI-BLAND ACROSS THE 4 OUTFITS: vary the spark across the four. AT LEAST ONE outfit must lead with a saturated color (not just neutrals). AT LEAST ONE outfit must include a non-solid pattern (animal-print, plaid, stripes, polka-dot, floral, embellished). The four outfits MUST NOT all read as the same tonal palette.
@@ -890,6 +903,96 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         });
         if (stripped.length !== beforeLen) {
           fixes.push("stripped scarf (at-home rule)");
+        }
+      }
+
+      // WARM-TEMP LAYERING BRAKE — at ≥20°C indoor, an extra cardigan/
+      // hoodie stacked over an existing top (or over a dress / overalls
+      // base) reads as overdressed. Strip the over-layer; keep the
+      // base outfit intact.
+      {
+        const INDOOR_FOR_LAYERING = new Set<string>([
+          "at-home",
+          "work",
+          "dinner-out",
+          "formal",
+        ]);
+        if (
+          weather &&
+          typeof weather.temp === "number" &&
+          weather.temp >= 20 &&
+          INDOOR_FOR_LAYERING.has(occasion)
+        ) {
+          const tops = stripped.filter((i) => i.category === "top");
+          const hasDressOrOnePieceBase = stripped.some(
+            (i) => i.category === "dress" || i.category === "one-piece"
+          );
+          // We only strip an over-layer when there IS one — i.e., 2+
+          // tops in the outfit, or a top stacked over a dress/overalls.
+          const hasOverLayer =
+            tops.length >= 2 || (hasDressOrOnePieceBase && tops.length >= 1);
+          if (hasOverLayer) {
+            const beforeLen = stripped.length;
+            stripped = stripped.filter((i) => {
+              if (i.category !== "top") return true;
+              const isLayer =
+                i.is_layering_piece === true ||
+                i.subcategory === "cardigan" ||
+                i.subcategory === "hoodie";
+              return !isLayer;
+            });
+            if (stripped.length !== beforeLen) {
+              fixes.push(`stripped over-layer top (warm temp ${weather.temp}°C + indoor)`);
+            }
+          }
+        }
+      }
+      // R18a BELT STRIP — when the AI added a belt that doesn't fit
+      // the base (slip / bodycon / sheath / shift dresses, slim-fit
+      // dresses, elastic-waist or already-belted bottoms, etc.), strip
+      // the belt rather than ship a wrong-belt outfit. Same approach
+      // as the outerwear strip below — preserves the outfit minus the
+      // offending accessory.
+      {
+        const NO_BELT_DRESS_SILHOUETTES = new Set<string>([
+          "slip",
+          "bodycon",
+          "mermaid",
+          "sheath",
+          "shift",
+        ]);
+        const NO_BELT_BOTTOM_CLOSURES = new Set<string>([
+          "elastic",
+          "drawstring",
+          "pull-on",
+          "side-zip",
+        ]);
+        const NO_BELT_BOTTOM_SUBS = new Set<string>([
+          "leggings",
+          "sweatpants",
+        ]);
+        const beltBlocked = stripped.some((i) => {
+          if (i.category === "dress" || i.category === "one-piece") {
+            if (i.dress_silhouette && NO_BELT_DRESS_SILHOUETTES.has(i.dress_silhouette)) return true;
+            if (i.fit === "slim") return true;
+            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
+          }
+          if (i.category === "bottom") {
+            if (i.subcategory && NO_BELT_BOTTOM_SUBS.has(i.subcategory)) return true;
+            if (i.waist_closure && NO_BELT_BOTTOM_CLOSURES.has(i.waist_closure)) return true;
+            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
+            if (i.fit === "slim") return true;
+          }
+          return false;
+        });
+        if (beltBlocked) {
+          const beforeLen = stripped.length;
+          stripped = stripped.filter(
+            (i) => !(i.category === "accessory" && i.subcategory === "belt")
+          );
+          if (stripped.length !== beforeLen) {
+            fixes.push("stripped belt (incompatible base — slip/bodycon/slim/elastic-waist)");
+          }
         }
       }
 
@@ -2016,6 +2119,27 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
+      // Mood: Cozy → warm-earth palette only. Saturated cool colors
+      // (green / teal / turquoise / blue / purple / etc) mixed with
+      // warm earth tones (rust / terracotta / camel / brown / etc)
+      // creates a palette clash that fights the cozy vibe. Allow
+      // saturated cool only when paired with neutrals (no warm earth
+      // present in the outfit).
+      if (mood === "cozy") {
+        const WARM_EARTH = /\b(?:rust|terracotta|tan|camel|beige|brown|khaki|mustard|ochre|burnt|sienna|umber|espresso|chocolate|cognac|amber|copper|caramel)\b/i;
+        const SATURATED_COOL = /\b(?:green|teal|turquoise|aqua|cyan|purple|plum|lavender|violet|magenta|fuchsia|emerald|forest|kelly|royal|sapphire)\b/i;
+        const hasColorMatch = (item: ClothingItem, re: RegExp) =>
+          (item.colors ?? []).some((c) => re.test(c.name));
+        const warmItem = s.items.find((i) => hasColorMatch(i, WARM_EARTH));
+        const coolItem = s.items.find((i) => hasColorMatch(i, SATURATED_COOL));
+        if (warmItem && coolItem) {
+          drops.push({
+            ids: s._ids,
+            reason: `cozy palette clash: "${warmItem.name}" (warm earth) + "${coolItem.name}" (saturated cool)`,
+          });
+          return false;
+        }
+      }
       // Mood: Need a Hug → no pointed-toe shoes (too sharp / clinical
       // for the comfort-and-soft-touch vibe).
       if (mood === "sad") {
@@ -2072,13 +2196,32 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // R18 — belt completer (soft, LAST CHECK): sweater/blouse + skirt,
-      // blouse + tailored trousers, OR any dress/jumpsuit the user has
-      // tagged belt_compatible should include a belt when the wardrobe
-      // has one. Lives at the end of the filter so it only catches
-      // outfits that pass every hard drop above. Pushing earlier would
-      // let belt-missing outfits short-circuit past bag-formality /
-      // metal-sync / etc. and slip back in via the softMismatch admit.
+      // R4d — CARDIGAN STANDALONE (soft): a loose / oversized / layering-
+      // piece cardigan worn alone (no tee/cami/blouse under) reads
+      // exposed. Soft drop with a tip; admitted back when the hard
+      // pool is short.
+      {
+        const tops = s.items.filter((i) => i.category === "top");
+        if (tops.length === 1 && tops[0].subcategory === "cardigan") {
+          const card = tops[0];
+          const needsUnderlayer =
+            card.fit === "loose" ||
+            card.fit === "oversized" ||
+            card.is_layering_piece === true;
+          if (needsUnderlayer) {
+            const cardiganTip =
+              locale === "fr"
+                ? "Astuce : ce cardigan ample / ouvert se porte mieux avec un t-shirt ou un caraco en dessous."
+                : "Heads up: this loose / open cardigan reads better with a tee or cami underneath.";
+            softMismatch.push({ outfit: s, tip: cardiganTip });
+            return false;
+          }
+        }
+      }
+      // R18 — belt completer (soft, LAST CHECK). Belt-suitability is
+      // now derived from item attributes (silhouette / fit / waist) —
+      // no manual flag. Lives at the end of the filter so it only
+      // catches outfits that pass every hard drop above.
       if (wardrobeHasBelt) {
         const top = s.items.find(
           (i) =>
@@ -2095,13 +2238,25 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             i.subcategory === "trousers" &&
             i.waist_style !== "elastic"
         );
-        const beltCompatibleBase = s.items.find(
+        // Belt-friendly dress = silhouette suggests a defined waist
+        // moment AND no auto-blockers (slim fit, already-belted waist).
+        // Excludes slip / bodycon / mermaid / sheath / shift — those
+        // silhouettes fight a belt.
+        const beltFriendlySilhouettes = new Set<string>([
+          "a-line",
+          "wrap",
+          "fit-and-flare",
+        ]);
+        const beltFriendlyDress = s.items.find(
           (i) =>
             (i.category === "dress" || i.category === "one-piece") &&
-            i.belt_compatible === true
+            i.dress_silhouette &&
+            beltFriendlySilhouettes.has(i.dress_silhouette) &&
+            i.fit !== "slim" &&
+            i.waist_style !== "belted"
         );
         const beltable =
-          beltCompatibleBase ||
+          beltFriendlyDress ||
           (top && (skirt || (top.subcategory === "blouse" && tailoredBottom)));
         const hasBelt = s.items.some(
           (i) => i.category === "accessory" && i.subcategory === "belt"
