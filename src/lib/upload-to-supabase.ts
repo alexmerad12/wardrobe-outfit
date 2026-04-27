@@ -20,14 +20,17 @@
 // re-upload usually completes in under 3 s; 60 s tolerates a
 // Vercel cold start + a weak mobile signal.
 const ATTEMPT_TIMEOUT_MS = 60_000;
-// Small retry budget. The SDK's underlying fetch can't be aborted
-// (storage-js doesn't expose AbortSignal), so a "timed-out" upload
-// keeps running in the background — each retry on a slow cellular
-// connection just stacks more zombie uploads until the bandwidth is
-// saturated and every attempt fails with "Failed to fetch". 2
-// attempts absorbs a transient drop without pathological queuing.
-const MAX_ATTEMPTS = 2;
-const RETRY_DELAYS_MS = [3_000];
+// Retry budget. We previously dropped this to 2 because Promise.race
+// on uploadDirect was creating zombie fetches (storage-js can't be
+// aborted, so a "timed-out" upload kept consuming bandwidth and each
+// stacked retry made the next fail with "Failed to fetch"). The race
+// has since been removed — uploads now run to natural completion
+// or failure — so the zombie problem is gone and we can absorb more
+// transient flakiness. 4 attempts × longer backoff covers a brief
+// AP roam, a TCP reset between back-to-back multipart POSTs, and
+// the occasional captive-portal blip.
+const MAX_ATTEMPTS = 4;
+const RETRY_DELAYS_MS = [2_000, 5_000, 12_000];
 
 // Permanent HTTP statuses that will never succeed on retry.
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404, 413, 415]);
@@ -115,7 +118,15 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
         lastLoaded > 0
           ? ` (sent ${Math.round((lastLoaded / file.size) * 100)}%)`
           : " (no bytes sent)";
-      reject(new TypeError(`Upload network error${progress}`));
+      // readyState tells us how far the request got: 1=opened-not-sent,
+      // 2=headers-received, 3=loading, 4=done. "no bytes sent" + state 1
+      // means the browser refused the outbound POST entirely (typically
+      // memory pressure or network adapter wedge), not a server problem.
+      reject(
+        new TypeError(
+          `Upload network error${progress} [rs=${xhr.readyState} st=${xhr.status}]`
+        )
+      );
     };
     xhr.onabort = () => {
       abortSignal.removeEventListener("abort", onAbort);
@@ -155,12 +166,29 @@ async function uploadDirect(file: File): Promise<string> {
   const path = `${session.user.id}/${Date.now()}-${safeName}`;
   const BUCKET = "clothing-images";
 
+  // Always send a non-empty contentType. Some files (HEIC variants
+  // off Samsung's share sheet, certain camera-roll exports) arrive
+  // with file.type === "" and the storage SDK has been observed to
+  // construct a malformed Content-Type header that some CDNs reject
+  // pre-body, surfacing as a TypeError "Failed to fetch".
+  const contentType = file.type || "application/octet-stream";
+
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { contentType: file.type });
+    .upload(path, file, { contentType });
   if (error) {
-    const status = (error as { statusCode?: string }).statusCode ?? "500";
-    throw new Error(`Upload ${status}: ${error.message}`);
+    // Distinguish network-level failure (no statusCode — fetch threw
+    // before any HTTP response came back) from a real server error.
+    // The error class name (StorageApiError vs StorageUnknownError)
+    // is baked into the message so it's visible in the tile UI without
+    // needing devtools — critical for diagnosing on mobile, where
+    // there's no console.
+    const status = (error as { statusCode?: string }).statusCode;
+    const tag = error.constructor?.name || error.name || "?";
+    if (status) {
+      throw new Error(`Upload ${status}: ${error.message} [${tag}]`);
+    }
+    throw new TypeError(`Upload network error: ${error.message} [${tag}]`);
   }
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
@@ -204,24 +232,78 @@ async function attemptUpload(file: File): Promise<string> {
   }
 }
 
+function describeError(err: unknown): Record<string, unknown> {
+  if (err instanceof Error) {
+    return {
+      ctor: err.constructor.name,
+      name: err.name,
+      message: err.message,
+      stack: err.stack?.split("\n").slice(0, 3).join(" | "),
+    };
+  }
+  return { value: String(err) };
+}
+
 export async function uploadToSupabase(file: File): Promise<string> {
+  const fileSummary = {
+    name: file.name,
+    size: file.size,
+    type: file.type || "(empty)",
+    lastModified: file.lastModified,
+  };
   let lastErr: unknown = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // If the device went offline since the last attempt, wait for it
+    // to come back rather than burning a retry on a guaranteed failure.
+    // navigator.onLine isn't perfectly reliable but it catches the
+    // common "stepped out of WiFi range" case.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      console.warn(
+        `[upload] offline detected before attempt ${attempt}/${MAX_ATTEMPTS} — waiting up to 15s for reconnect`
+      );
+      await new Promise<void>((resolve) => {
+        const onOnline = () => {
+          window.removeEventListener("online", onOnline);
+          resolve();
+        };
+        window.addEventListener("online", onOnline);
+        setTimeout(() => {
+          window.removeEventListener("online", onOnline);
+          resolve();
+        }, 15_000);
+      });
+    }
     try {
-      return await attemptUpload(file);
+      const result = await attemptUpload(file);
+      if (attempt > 1) {
+        console.log(`[upload] attempt ${attempt} succeeded`, fileSummary);
+      }
+      return result;
     } catch (err) {
       lastErr = err;
+      const errInfo = describeError(err);
       if (!isRetryable(err) || attempt === MAX_ATTEMPTS) {
-        console.error(
-          `[upload] attempt ${attempt}/${MAX_ATTEMPTS} failed, not retrying further`,
-          err
-        );
+        console.error(`[upload] attempt ${attempt}/${MAX_ATTEMPTS} GAVE UP`, {
+          file: fileSummary,
+          err: errInfo,
+        });
+        // Embed attempt count in the message so the tile UI shows
+        // whether retries actually happened — without this, "Upload 500"
+        // is ambiguous between "1 attempt failed instantly" and
+        // "all 4 attempts exhausted".
+        if (err instanceof Error) {
+          const wrapped = new (err.constructor as typeof Error)(
+            `${err.message} (after ${attempt}/${MAX_ATTEMPTS} tries)`
+          );
+          wrapped.name = err.name;
+          throw wrapped;
+        }
         throw err;
       }
       const delay = RETRY_DELAYS_MS[attempt - 1] ?? 10_000;
       console.warn(
         `[upload] attempt ${attempt}/${MAX_ATTEMPTS} failed, retrying in ${delay}ms`,
-        err
+        { file: fileSummary, err: errInfo }
       );
       await new Promise((r) => setTimeout(r, delay));
     }

@@ -426,16 +426,39 @@ export function PendingUploadsProvider({
   );
 
   // Capacity gate: run up to CONCURRENCY items at a time.
+  //
+  // Spacing between items: previously items kicked off back-to-back the
+  // moment the prior one finished. Sequential 5-7 MB multipart POSTs to
+  // Supabase Storage on the same TCP connection were getting reset
+  // (browser surfaces it as TypeError "Failed to fetch") on roughly 2/5
+  // items per batch — the CDN appears to throttle / reset rapid uploads
+  // from the same client. A small gap before kicking off each
+  // subsequent item gives the connection state time to settle and lets
+  // the keep-alive idle out instead of being reused at exactly the
+  // wrong moment. The first item in a batch goes immediately.
+  const lastKickoffRef = useRef<number>(0);
+  const ITEM_KICKOFF_GAP_MS = 1_200;
   useEffect(() => {
     const inFlight = items.filter((i) => i.stage === "processing").length;
     const queue = items.filter(
       (i) => i.stage === "queued" && !kickedOffRef.current.has(i.id)
     );
     const capacity = Math.max(0, CONCURRENCY - inFlight);
-    for (const it of queue.slice(0, capacity)) {
-      kickedOffRef.current.add(it.id);
-      void processItem(it);
-    }
+    if (capacity === 0 || queue.length === 0) return;
+
+    const since = performance.now() - lastKickoffRef.current;
+    const wait = lastKickoffRef.current === 0 || since >= ITEM_KICKOFF_GAP_MS
+      ? 0
+      : ITEM_KICKOFF_GAP_MS - since;
+
+    const timer = setTimeout(() => {
+      for (const it of queue.slice(0, capacity)) {
+        kickedOffRef.current.add(it.id);
+        lastKickoffRef.current = performance.now();
+        void processItem(it);
+      }
+    }, wait);
+    return () => clearTimeout(timer);
   }, [items, processItem]);
 
   // Warn the user before they close the tab while uploads are still in

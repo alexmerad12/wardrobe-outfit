@@ -20,8 +20,16 @@ import {
   type PendingItem,
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
-import { preloadBgRemoval } from "@/lib/bg-removal";
 import { useLocale } from "@/lib/i18n/use-locale";
+
+// NOTE: deliberately NOT preloading imgly here. Bg-removal moved to
+// the server (Photoroom + sharp in /api/items/normalize) — the bulk
+// pipeline never touches the imgly WASM model. Preloading the ~45 MB
+// model on mount was eating bandwidth, heap, and CPU on slower devices
+// (e.g. mid-range Android), and the resulting memory pressure made the
+// browser reject multipart POSTs with "Failed to fetch" / "no bytes
+// sent" — the exact failure mode users reported. Single-add still uses
+// imgly and preloads it on its own page.
 
 export default function BulkUploadPage() {
   const router = useRouter();
@@ -30,13 +38,6 @@ export default function BulkUploadPage() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const [navigatedToReview, setNavigatedToReview] = useState(false);
-
-  // Kick off the imgly WASM download as soon as the user lands here —
-  // without preloading, the first item's pipeline stalls for up to 10s
-  // on mobile while the ~45MB model downloads.
-  useEffect(() => {
-    void preloadBgRemoval().catch(() => {});
-  }, []);
 
   // Auto-forward to the per-item review wizard once every upload has
   // settled. AI tagging isn't always right — the wizard steps through
@@ -259,11 +260,16 @@ function BulkCard({
       )}
       {item.stage === "error" && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-red-950/60 text-white"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-red-950/70 px-2 text-center text-white"
           title={item.error}
         >
-          <AlertCircle className="h-5 w-5" />
+          <AlertCircle className="h-5 w-5 shrink-0" />
           <span className="text-[11px] font-medium">{t("bulk.failedTapToRetry")}</span>
+          {item.error && (
+            <span className="text-[9px] leading-tight opacity-80 line-clamp-3 break-words">
+              {item.error}
+            </span>
+          )}
         </div>
       )}
 
