@@ -20,10 +20,14 @@
 // re-upload usually completes in under 3 s; 60 s tolerates a
 // Vercel cold start + a weak mobile signal.
 const ATTEMPT_TIMEOUT_MS = 60_000;
-const MAX_ATTEMPTS = 5;
-// Exponential backoff. Catches transient carrier hiccups without
-// feeling like the app froze.
-const RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 10_000];
+// Small retry budget. The SDK's underlying fetch can't be aborted
+// (storage-js doesn't expose AbortSignal), so a "timed-out" upload
+// keeps running in the background — each retry on a slow cellular
+// connection just stacks more zombie uploads until the bandwidth is
+// saturated and every attempt fails with "Failed to fetch". 2
+// attempts absorbs a transient drop without pathological queuing.
+const MAX_ATTEMPTS = 2;
+const RETRY_DELAYS_MS = [3_000];
 
 // Permanent HTTP statuses that will never succeed on retry.
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404, 413, 415]);
@@ -128,14 +132,17 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
 
 // Direct upload to Supabase Storage via the SDK. Mirrors the exact
 // call /wardrobe/add (single-add) makes — proven to work on the
-// user's Samsung. POST (not PUT). Wrapped in a 60 s timeout race so
-// a stalled cellular connection fails fast and the retry layer
-// (5 attempts in uploadToSupabase) can try again — this is much
-// better than 1 long 120 s wait that maybe succeeds, since each
-// retry gets a fresh TCP connection and bypasses whatever stalled
-// the previous attempt.
-const DIRECT_UPLOAD_TIMEOUT_MS = 60_000;
-
+// user's Samsung. POST (not PUT).
+//
+// No client-side timeout race here on purpose: storage-js doesn't
+// expose AbortSignal, so a "timed-out" upload keeps consuming
+// bandwidth in the background. Stacking those across retries was
+// what produced the "Upload 500: Failed to fetch" cascade users saw
+// — each retry's underlying fetch had no bandwidth left because
+// previous "timed-out" uploads were still consuming it. The native
+// fetch implementation has its own ~5-minute timeout, which is the
+// real ceiling. Better to let one upload run to completion (or
+// natural failure) than to start three.
 async function uploadDirect(file: File): Promise<string> {
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
@@ -148,21 +155,9 @@ async function uploadDirect(file: File): Promise<string> {
   const path = `${session.user.id}/${Date.now()}-${safeName}`;
   const BUCKET = "clothing-images";
 
-  const uploadPromise = supabase.storage
+  const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, file, { contentType: file.type });
-
-  const result = await Promise.race([
-    uploadPromise,
-    new Promise<never>((_resolve, reject) =>
-      setTimeout(
-        () => reject(new Error("Upload 408: direct upload timed out (cellular?)")),
-        DIRECT_UPLOAD_TIMEOUT_MS
-      )
-    ),
-  ]);
-
-  const { error } = result;
   if (error) {
     const status = (error as { statusCode?: string }).statusCode ?? "500";
     throw new Error(`Upload ${status}: ${error.message}`);
