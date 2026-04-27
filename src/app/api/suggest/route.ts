@@ -480,7 +480,41 @@ export async function POST(request: NextRequest) {
       favorites = shuffled.slice(0, 3);
     }
 
-    const wardrobeList = items.map(describeItem).join("\n");
+    // Pre-filter the wardrobe shown to the AI: when a category has 3+
+    // items that genuinely match the requested occasion and current
+    // season, hide the off-tag items in that category so the AI can't
+    // even consider them. This is the strongest enforcement of
+    // Rule 17 — instead of telling the AI "prioritize" and hoping,
+    // the off-tag items are physically not in the prompt.
+    //
+    // Categories with fewer than 3 in-tag matches show ALL items
+    // (sparse-wardrobe fallback) — better to suggest something off-
+    // tag than nothing at all.
+    function itemMatchesTags(it: ClothingItem): boolean {
+      const occOK =
+        !it.occasions || it.occasions.length === 0 || it.occasions.includes(occasion);
+      const seasonOK =
+        !it.seasons || it.seasons.length === 0 || it.seasons.includes(currentSeason);
+      return occOK && seasonOK;
+    }
+    const RICH_CATEGORY_THRESHOLD = 3;
+    const inTagByCategory = new Map<string, number>();
+    for (const it of items) {
+      if (it.is_stored) continue;
+      if (itemMatchesTags(it)) {
+        inTagByCategory.set(it.category, (inTagByCategory.get(it.category) ?? 0) + 1);
+      }
+    }
+    const promptItems = items.filter((it) => {
+      if (it.is_stored) return false;
+      const richCategory =
+        (inTagByCategory.get(it.category) ?? 0) >= RICH_CATEGORY_THRESHOLD;
+      // Sparse category — show everything so the AI has options.
+      if (!richCategory) return true;
+      // Rich category — only show items that match BOTH occasion + season.
+      return itemMatchesTags(it);
+    });
+    const wardrobeList = promptItems.map(describeItem).join("\n");
 
     const weatherDesc = weather
       ? `${weather.temp}°C, feels like ${weather.feels_like}°C. ${weather.condition}. Humidity: ${weather.humidity}%, wind: ${weather.wind_speed}km/h, rain chance: ${weather.precipitation_probability}%.`
@@ -1463,9 +1497,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // USER-SET OCCASION/SEASON TAGS — respect when the wardrobe has
-      // an in-tag alternative in that category. Computed once per
-      // category outside the per-item loop for efficiency.
+      // USER-SET OCCASION/SEASON TAGS — soft-drop when the wardrobe
+      // has in-tag alternatives. We push offenders into softMismatch
+      // so they're admitted back if the hard-valid pool is too small
+      // (otherwise a wardrobe full of seasonally-tagged items would
+      // produce zero suggestions). Computed once per category.
       {
         const wardrobeHasInTag = (
           category: string,
@@ -1475,7 +1511,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return items.some((w) => {
             if (w.is_stored) return false;
             if (w.category !== category) return false;
-            // Match on subcategory when both have one (more specific).
             if (subcategory && w.subcategory && w.subcategory !== subcategory) return false;
             const tags: string[] = checkOccasion ? w.occasions : w.seasons;
             if (!tags || tags.length === 0) return false;
@@ -1486,14 +1521,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           | { item: ClothingItem; field: "occasion" | "season" }
           | null = null;
         for (const i of s.items) {
-          // Occasion tag check.
           if (i.occasions && i.occasions.length > 0 && !i.occasions.includes(occasion)) {
             if (wardrobeHasInTag(i.category, i.subcategory, true)) {
               tagOffender = { item: i, field: "occasion" };
               break;
             }
           }
-          // Season tag check.
           if (i.seasons && i.seasons.length > 0 && !i.seasons.includes(currentSeason)) {
             if (wardrobeHasInTag(i.category, i.subcategory, false)) {
               tagOffender = { item: i, field: "season" };
@@ -1502,12 +1535,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
         if (tagOffender) {
-          const { item, field } = tagOffender;
-          const tags = field === "occasion" ? item.occasions : item.seasons;
-          drops.push({
-            ids: s._ids,
-            reason: `user-${field}: "${item.name}" tagged [${(tags ?? []).join(",")}] — request was ${field === "occasion" ? occasion : currentSeason} and wardrobe has in-tag alternative`,
-          });
+          softMismatch.push(s);
           return false;
         }
       }
