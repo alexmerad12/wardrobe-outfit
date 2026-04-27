@@ -28,7 +28,6 @@ import type {
   BagTexture,
   SunglassesStyle,
   HatSilhouette,
-  JewelryScale,
   ScarfFunction,
   SkirtLength,
   DressSilhouette,
@@ -126,7 +125,6 @@ export default function ItemDetailPage() {
   const [editBagTexture, setEditBagTexture] = useState<BagTexture | null>(null);
   const [editSunglassesStyle, setEditSunglassesStyle] = useState<SunglassesStyle | null>(null);
   const [editHatSilhouette, setEditHatSilhouette] = useState<HatSilhouette | null>(null);
-  const [editJewelryScale, setEditJewelryScale] = useState<JewelryScale | null>(null);
   const [editScarfFunction, setEditScarfFunction] = useState<ScarfFunction | null>(null);
   const [editSkirtLength, setEditSkirtLength] = useState<SkirtLength | null>(null);
   const [editBagMetalFinish, setEditBagMetalFinish] = useState<MetalFinish | null>(null);
@@ -299,7 +297,6 @@ export default function ItemDetailPage() {
     setEditBagTexture(item.bag_texture ?? null);
     setEditSunglassesStyle(item.sunglasses_style ?? null);
     setEditHatSilhouette(item.hat_silhouette ?? null);
-    setEditJewelryScale(item.jewelry_scale ?? null);
     setEditScarfFunction(item.scarf_function ?? null);
     setEditSkirtLength(item.skirt_length ?? null);
     setEditBagMetalFinish(item.bag_metal_finish ?? null);
@@ -384,7 +381,6 @@ export default function ItemDetailPage() {
   );
   const editShowSunglassesStyle = editCategory === "accessory" && editSubcategory === "sunglasses";
   const editShowHatSilhouette = editCategory === "accessory" && editSubcategory === "hat";
-  const editShowJewelryScale = editCategory === "accessory" && editSubcategory === "jewelry";
   const editShowScarfFunction = editCategory === "accessory" && editSubcategory === "scarf";
   const editShowSkirtLength =
     editCategory === "bottom" && editSubcategory === "skirt" && userGender !== "man";
@@ -439,7 +435,7 @@ export default function ItemDetailPage() {
           bag_texture: editCategory === "bag" ? editBagTexture : null,
           sunglasses_style: editShowSunglassesStyle ? editSunglassesStyle : null,
           hat_silhouette: editShowHatSilhouette ? editHatSilhouette : null,
-          jewelry_scale: editShowJewelryScale ? editJewelryScale : null,
+          jewelry_scale: null,
           scarf_function: editShowScarfFunction ? editScarfFunction : null,
           skirt_length: editShowSkirtLength ? editSkirtLength : null,
           bag_metal_finish: editShowBagMetalFinish ? editBagMetalFinish : null,
@@ -1048,18 +1044,6 @@ export default function ItemDetailPage() {
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.HAT_SILHOUETTE) as HatSilhouette[]).map((s) => (
                   <button key={s} type="button" onClick={() => setEditHatSilhouette(editHatSilhouette === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editHatSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HAT_SILHOUETTE[s]}</button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Jewelry Scale - only for accessory/jewelry */}
-          {editShowJewelryScale && (
-            <div className="space-y-1">
-              <Label>{t("addItem.jewelryScale")}</Label>
-              <div className="flex gap-2">
-                {(Object.keys(labels.JEWELRY_SCALE) as JewelryScale[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditJewelryScale(editJewelryScale === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editJewelryScale === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.JEWELRY_SCALE[s]}</button>
                 ))}
               </div>
             </div>

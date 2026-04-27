@@ -190,7 +190,6 @@
   "occasion": {
     "at-home": "At Home",
     "casual": "Casual",
-    "hangout": "Hangout",
     "brunch": "Brunch",
     "dinner-out": "Dinner Out",
     "work": "Work",
@@ -198,7 +197,6 @@
     "party": "Party",
     "formal": "Formal Event",
     "travel": "Travel",
-    "sport": "Sport",
     "outdoor": "Outdoor"
   },
   "category": {
@@ -279,9 +277,7 @@
     "belt": "Belt",
     "scarf": "Scarf",
     "hat": "Hat",
-    "jewelry": "Jewelry",
-    "sunglasses": "Sunglasses",
-    "watch": "Watch"
+    "sunglasses": "Sunglasses"
   },
   "pattern": {
     "solid": "Solid",

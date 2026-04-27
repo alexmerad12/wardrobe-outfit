@@ -195,7 +195,6 @@
   "occasion": {
     "at-home": "À la maison",
     "casual": "Décontracté",
-    "hangout": "Entre amis",
     "brunch": "Brunch",
     "dinner-out": "Dîner",
     "work": "Travail",
@@ -203,7 +202,6 @@
     "party": "Fête",
     "formal": "Événement formel",
     "travel": "Voyage",
-    "sport": "Sport",
     "outdoor": "Plein air"
   },
   "category": {
@@ -284,9 +282,7 @@
     "belt": "Ceinture",
     "scarf": "Écharpe",
     "hat": "Chapeau",
-    "jewelry": "Bijoux",
-    "sunglasses": "Lunettes de soleil",
-    "watch": "Montre"
+    "sunglasses": "Lunettes de soleil"
   },
   "pattern": {
     "solid": "Uni",

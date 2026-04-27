@@ -26,7 +26,6 @@ import type {
   BagTexture,
   SunglassesStyle,
   HatSilhouette,
-  JewelryScale,
   ScarfFunction,
   SkirtLength,
   DressSilhouette,
@@ -108,7 +107,6 @@ export default function AddItemPage() {
   const [bagTexture, setBagTexture] = useState<BagTexture | null>(null);
   const [sunglassesStyle, setSunglassesStyle] = useState<SunglassesStyle | null>(null);
   const [hatSilhouette, setHatSilhouette] = useState<HatSilhouette | null>(null);
-  const [jewelryScale, setJewelryScale] = useState<JewelryScale | null>(null);
   const [scarfFunction, setScarfFunction] = useState<ScarfFunction | null>(null);
   const [skirtLength, setSkirtLength] = useState<SkirtLength | null>(null);
   const [bagMetalFinish, setBagMetalFinish] = useState<MetalFinish | null>(null);
@@ -250,7 +248,6 @@ export default function AddItemPage() {
     if (r.bag_texture) setBagTexture(r.bag_texture);
     if (r.sunglasses_style) setSunglassesStyle(r.sunglasses_style);
     if (r.hat_silhouette) setHatSilhouette(r.hat_silhouette);
-    if (r.jewelry_scale) setJewelryScale(r.jewelry_scale);
     if (r.scarf_function) setScarfFunction(r.scarf_function);
     if (r.skirt_length) setSkirtLength(r.skirt_length);
     if (r.bag_metal_finish) setBagMetalFinish(r.bag_metal_finish);
@@ -347,20 +344,18 @@ export default function AddItemPage() {
     !!category &&
     category !== "bag" &&
     (category !== "accessory" || subcategory === "scarf");
-  // Metal finish: shoes (buckles / zippers) + belt / jewelry / watch.
+  // Metal finish: shoes (buckles / zippers) + belt buckle.
   // Hide on hat, sunglasses, scarf where hardware isn't a styling driver.
   const showMetalFinish =
     category === "shoes" ||
-    (category === "accessory" && ["belt", "jewelry", "watch"].includes(subcategory));
-  // Material: hide on sunglasses / jewelry / watch where it's ambiguous
-  // (frame vs lens vs strap vs case) and not stylistically meaningful.
+    (category === "accessory" && subcategory === "belt");
+  // Material: hide on sunglasses where it's ambiguous (frame vs lens).
   const showMaterial = !(
-    category === "accessory" && ["sunglasses", "jewelry", "watch"].includes(subcategory)
+    category === "accessory" && subcategory === "sunglasses"
   );
   // Sunglasses style — aviator / wayfarer / cat-eye / etc.
   const showSunglassesStyle = category === "accessory" && subcategory === "sunglasses";
   const showHatSilhouette = category === "accessory" && subcategory === "hat";
-  const showJewelryScale = category === "accessory" && subcategory === "jewelry";
   const showScarfFunction = category === "accessory" && subcategory === "scarf";
   const showSkirtLength =
     category === "bottom" && subcategory === "skirt" && userGender !== "man";
@@ -670,7 +665,7 @@ export default function AddItemPage() {
           bag_texture: category === "bag" ? bagTexture : null,
           sunglasses_style: showSunglassesStyle ? sunglassesStyle : null,
           hat_silhouette: showHatSilhouette ? hatSilhouette : null,
-          jewelry_scale: showJewelryScale ? jewelryScale : null,
+          jewelry_scale: null,
           scarf_function: showScarfFunction ? scarfFunction : null,
           skirt_length: showSkirtLength ? skirtLength : null,
           bag_metal_finish: showBagMetalFinish ? bagMetalFinish : null,
@@ -1558,30 +1553,6 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.HAT_SILHOUETTE[s]}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Jewelry Scale - only for accessory/jewelry */}
-        {showJewelryScale && (
-          <div className="space-y-2">
-            <Label>{t("addItem.jewelryScale")}</Label>
-            <div className="flex gap-2">
-              {(Object.keys(labels.JEWELRY_SCALE) as JewelryScale[]).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setJewelryScale(jewelryScale === s ? null : s)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    jewelryScale === s
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {labels.JEWELRY_SCALE[s]}
                 </button>
               ))}
             </div>

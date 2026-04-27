@@ -34,7 +34,7 @@ ENUMS:
 - material (array): "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other"
 - formality (array): "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal"
 - seasons (array): "spring" | "summer" | "fall" | "winter"
-- occasions (array): "work" | "casual" | "brunch" | "dinner-out" | "hangout" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home"
+- occasions (array): "work" | "casual" | "brunch" | "dinner-out" | "date" | "outdoor" | "travel" | "party" | "formal" | "at-home"
 - name: 2-5 word human label ("Black leather jacket")
 - colors: array of { hex: "#rrggbb", name: "Title-case color name" } — up to 3 dominant colors
 - warmth_rating: 1-5 in 0.5 steps

@@ -20,7 +20,7 @@ export type Subcategory =
   // Bags
   | "handbag" | "backpack" | "tote" | "clutch" | "crossbody"
   // Accessories
-  | "belt" | "scarf" | "hat" | "jewelry" | "sunglasses" | "watch";
+  | "belt" | "scarf" | "hat" | "sunglasses";
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other";
 
@@ -131,7 +131,7 @@ export type Formality = "very-casual" | "casual" | "smart-casual" | "business-ca
 
 export type Season = "spring" | "summer" | "fall" | "winter";
 
-export type Occasion = "work" | "casual" | "brunch" | "dinner-out" | "hangout" | "date" | "sport" | "outdoor" | "travel" | "party" | "formal" | "at-home";
+export type Occasion = "work" | "casual" | "brunch" | "dinner-out" | "date" | "outdoor" | "travel" | "party" | "formal" | "at-home";
 
 export type Mood = "energized" | "confident" | "playful" | "cozy" | "chill" | "bold" | "period" | "sad";
 
@@ -323,9 +323,7 @@ export const MOOD_CONFIG: Record<Mood, { emoji: string; label: string; descripti
 export const OCCASION_LABELS: Record<Occasion, string> = {
   "at-home": "At Home",
   casual: "Casual",
-  hangout: "Hangout",
   brunch: "Brunch",
-  sport: "Sport",
   outdoor: "Outdoor",
   travel: "Travel",
   "dinner-out": "Dinner Out",
@@ -742,8 +740,6 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "belt", label: "Belt" },
     { value: "scarf", label: "Scarf" },
     { value: "hat", label: "Hat" },
-    { value: "jewelry", label: "Jewelry" },
     { value: "sunglasses", label: "Sunglasses" },
-    { value: "watch", label: "Watch" },
   ],
 };

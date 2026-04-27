@@ -163,9 +163,7 @@ function occasionLabelLocalized(occasion: Occasion, locale: Locale): string {
     const map: Record<Occasion, string> = {
       "at-home": "à la maison",
       casual: "un look casual",
-      hangout: "un moment entre amis",
       brunch: "un brunch",
-      sport: "le sport",
       outdoor: "une sortie en plein air",
       travel: "un voyage",
       "dinner-out": "un dîner dehors",
@@ -587,10 +585,10 @@ HARD RULES — do not violate:
 2. Overalls are the one exception: they require a "top" underneath.
 3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes).
-4b. LAYERING PROPORTIONS — when a "top" item has Fit "oversized" (oversized cardigan / hoodie / sweater), any outerwear in the outfit MUST also have Fit "oversized" or "loose". A slim or regular jacket cannot layer cleanly over an oversized top — the bulk underneath bunches the jacket and visually clashes. If the wardrobe has no oversized/loose outerwear, drop the outerwear OR pick a non-oversized top.
+4b. LAYERING PROPORTIONS — when a "top" item has Fit "oversized" (oversized cardigan / hoodie / sweater), the only outerwear that can sit over it cleanly is a LONG, DRAPEY COAT — Subcategory in [coat, peacoat, trench-coat, parka], OR a puffer with Fit "oversized" / "loose". BLOCK Subcategory in [jacket, denim-jacket, leather-jacket, bomber, blazer, windbreaker, vest] over an oversized top — these are structured at the shoulder and bunch over the bulk underneath, even when their own Fit is "loose". If the wardrobe has no qualifying long coat / puffer, the oversized top IS the outermost layer (skip outerwear).
 5. WEATHER (NON-NEGOTIABLE):
    - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule.
-     CARDIGAN-AS-OUTERWEAR EXCEPTION: a chunky cardigan (subcategory="cardigan" AND Warmth ≥ 3 AND NOT a layering piece) MAY substitute for outerwear when BOTH conditions are true: (a) temp is 10–17°C (mild cold — real outerwear is overkill); (b) occasion is indoor-leaning (at-home, work, dinner-out, date, party, formal, brunch). For outdoor / sport / travel / casual / hangout, you still need real outerwear regardless of temp. Below 10°C the cardigan is never enough — pick real outerwear.
+     CARDIGAN-AS-OUTERWEAR EXCEPTION: a chunky cardigan (subcategory="cardigan" AND Warmth ≥ 3 AND NOT a layering piece) MAY substitute for outerwear when BOTH conditions are true: (a) temp is 10–17°C (mild cold — real outerwear is overkill); (b) occasion is indoor-leaning (at-home, work, dinner-out, date, party, formal, brunch). For outdoor / travel / casual, you still need real outerwear regardless of temp. Below 10°C the cardigan is never enough — pick real outerwear.
      If the wardrobe has zero qualifying outerwear AND zero qualifying cardigan substitute, skip this rule.
    - Cold base layer: the dress / jumpsuit / top+bottom under the coat must ALSO handle the temperature — the coat comes off indoors. At <10°C, base Warmth ≥2; at <5°C, Warmth ≥2.5. Prefer midi/maxi, knit/wool, fall or winter in Seasons.
    - Warm (>22°C): no heavy coats, no wool, no heavy boots.
@@ -603,17 +601,17 @@ HARD RULES — do not violate:
 7. AT-HOME: no bag. Scarves only if Warmth ≤2 (thin bandana / silk kerchief). Never pair a turtleneck top with any scarf at home.
 8. EVENING COCKTAIL: for date / dinner-out / party, bias toward dressy materials (silk, satin, chiffon, lace, velvet, sequined) and mini-to-midi dress length when a dress-based look fits.
 9. OFFICE: for work, the classic template is (a) a dress with Silhouette "sheath" + blazer + pump (low/mid heel), or (b) tailored trousers + blouse + pump. Prefer sheath silhouette when picking a dress for work; avoid "bodycon" / "slip" / "mermaid" for the office. No denim bottoms. No athletic sneakers. If the wardrobe lacks the ideal staple, still propose the best available outfit AND name the missing piece in styling_tip ("A pointed-toe pump would finish this", "A structured blazer would sharpen it").
-10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work. CASUAL / HANGOUT / BRUNCH / SPORT / OUTDOOR / TRAVEL / AT-HOME → flat shoes only. Block heel_type "high-heel" and "mid-heel" — these read too dressy for a casual look, even if the user happens to own them.
+10. SHOE × OCCASION: work → pump / slingback (low-to-mid heel); brunch / date / creative-office → kitten heel or ballet flat; party / formal → strappy sandal or heeled sandal; cocktail does NOT strictly require a heel — a dressy flat can work. CASUAL / BRUNCH / OUTDOOR / TRAVEL / AT-HOME → flat shoes only. Block heel_type "high-heel" and "mid-heel" — these read too dressy for a casual look, even if the user happens to own them.
+   OUTDOOR — practical shoes only: subcategory MUST be in [sneakers, boots, combat-boots, chelsea-boots, ankle-boots, sandals]. BLOCK [western-boots, knee-boots, ballet-flats, loafers, mules, espadrilles, heels] — fashion footwear with smooth soles / pointed toes / weak support is wrong for actual outdoor activity (hike, run, park, picnic, festival, beach, gym). Western (cowboy) boots in particular have leather soles with no grip and read as costume in those contexts — never pick them for outdoor.
 11. BAG, HAT, ACCESSORY:
-    BAG: ${isMensTrack ? "OPTIONAL for all occasions on the men's track — most men's looks don't require a bag. Only include a bag if the wardrobe has one that genuinely fits the look (laptop bag for work, weekender for travel)." : "REQUIRED for every occasion EXCEPT at-home and sport."} Pick at most one bag from the wardrobe (category="bag"). If the wardrobe has zero bags, skip silently.
-    BAG SIZE × OCCASION (Track A): formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / hangout / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
+    BAG: ${isMensTrack ? "OPTIONAL for all occasions on the men's track — most men's looks don't require a bag. Only include a bag if the wardrobe has one that genuinely fits the look (laptop bag for work, weekender for travel)." : "REQUIRED for every occasion EXCEPT at-home and outdoor (active contexts don't need a styled bag — a small crossbody or sport bag is fine, but no bag is OK too)."} Pick at most one bag from the wardrobe (category="bag"). If the wardrobe has zero bags, skip silently.
+    BAG SIZE × OCCASION (Track A): formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
     BAG TEXTURE × OCCASION: for formal / date / party, BLOCK Material in [canvas, nylon] AND BLOCK Bag texture in [woven, fringed] — these read too casual for dressed-up occasions.
-    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / hangout / sport / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events.
+    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events.
     HAT SILHOUETTE × OCCASION (when Hat silhouette field is set): formal / date / dinner-out → BLOCK silhouette in [baseball, trucker, bucket] (too casual). Allow [fedora, beret, pillbox, headband]. For Velvet or Felt hat texture at formal / party, restrict to silhouette in [beret, pillbox, headband] only — no velvet trucker caps.
-    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and sport (and waived on the men's track when no fitting accessory exists), include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, jewelry, sunglasses, watch). Pick something that fits the outfit (no sunglasses indoors at night, no warm scarf on a 25°C day).
-    JEWELRY SCALE (when Jewelry scale field is set): when a hat is in the outfit AND any visible jewelry has scale="statement", drop the statement jewelry — too much focal energy in the head/neck zone. Minimal jewelry pairs cleanly with a hat.
+    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and outdoor (and waived on the men's track when no fitting accessory exists), include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, sunglasses). Pick something that fits the outfit (no sunglasses indoors at night, no warm scarf on a 25°C day).
     SCARF FUNCTION (when Scarf function field is set): a scarf with function="functional" is a warmth layer (Slot 3) and does NOT count toward the head/neck proximity rule (Rule 15). A scarf with function="decorative" DOES count and competes with a hat for the same focal slot.${isMensTrack ? "\n    MEN'S OFFICE GUARDRAIL: at occasion=work, BLOCK shorts and open-toe shoes (sandals). Strongly prefer Subcategory in [trousers, jeans] paired with a Shirt (collared) and proper closed-toe shoes (loafers, oxfords, derbies). NEVER suggest a tank-top or sweatpants for work." : ""}
-    ${isMensTrack ? "MEN'S METAL SYNC FOCUS: prioritize matching Metal finish on the watch, belt buckle, and shoe hardware/eyelets — those are the visible hardware points on a men's look. Bag and jewelry hardware are secondary on this track." : ""}
+    ${isMensTrack ? "MEN'S METAL SYNC FOCUS: prioritize matching Metal finish on the belt buckle and shoe hardware/eyelets — those are the visible hardware points on a men's look. Bag hardware is secondary on this track." : ""}
     SKIRT × OCCASION (Track A only, when Skirt length field is set): work → BLOCK skirt_length="mini" (too casual / unprofessional). Knee-length, midi, or maxi only. Date / dinner-out / party → all lengths allowed, prefer mini or midi for the focal silhouette.
     SKIRT × BALANCE (Track A only): when an outfit pairs a skirt_length="mini" with a TOP, prioritize a top with neckline in [turtleneck, mock-neck, halter, one-shoulder] OR sleeve_length="long" — proportional balance (less leg, more coverage up top). Footwear: when skirt is mini, prioritize Shoe height in [knee, over-knee] for an intentional silhouette.
     SKIRT × COLD WEATHER: do NOT block mini skirts in the cold — assume the user wears tights underneath. But prioritize mini skirts with Material in [wool, leather, tweed] for a winter-appropriate texture.
@@ -629,11 +627,11 @@ HARD RULES — do not violate:
    - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions. Bag should be Bag size "medium" with Bag texture "smooth" / "pebbled" / "croc-embossed" / "snake-embossed" (rigid, structured). All visible Metal finish must match (see Rule 14).
    - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory, contrast color. Not a safe monochrome. Mixed Metal finish is ALLOWED (only mood where it is). High-low pairings welcome (a casual hat with a blazer, etc.).
    - Cozy → soft textures (knit, cashmere, fleece, jersey, wool). Warm earth tones (camel, cream, oatmeal, rust, chocolate). Relaxed not slouchy.
-   - Chill → relaxed easy silhouette, neutral palette, minimal jewelry. Elevated t-shirt-and-jeans energy.
+   - Chill → relaxed easy silhouette, neutral palette, minimal accessories. Elevated t-shirt-and-jeans energy.
    - Bold → at least one statement piece: bright saturated color OR distinctive pattern (animal, plaid, embellished) OR dramatic silhouette (oversized blazer, mini, leather). No safe choices.
    - Comfort Day → elastic / drawstring / pull-on bottoms preferred. Soft top (knit, jersey, oversized). NEVER heels. NEVER tailored / fitted / structured. Easy on the body.
    - Need a Hug → soft pastels OR oversized cozy pieces. Comfort with one warm/uplifting touch. No edgy / hard / dark. Prioritize Material in [cashmere, wool, fleece, knit]. AVOID Toe shape "pointed" (too sharp). Bag texture should be soft (woven / fringed / pebbled), NOT rigid (smooth / croc-embossed).
-14. METAL SYNC: all visible hardware Metal finish (and Bag metal finish for the bag) across shoes / belt / jewelry / watch / bag MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).${isMensTrack ? " On the men's track, focus the sync on watch + belt buckle + shoe hardware — the bag is secondary." : ""}
+14. METAL SYNC: all visible hardware Metal finish (and Bag metal finish for the bag) across shoes / belt / bag MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).${isMensTrack ? " On the men's track, focus the sync on belt buckle + shoe hardware — the bag is secondary." : ""}
 15. PROXIMITY (head/neck zone — anti-clutter): at most ONE focal item in the head-and-neck zone per outfit. If the outfit has a hat, do NOT also include a scarf — UNLESS temperature is below 5°C, where the scarf becomes a functional warmth layer and is exempt from this rule. (When temp ≥ 5°C, a scarf is decorative and competes for the same focal slot as the hat.)
 16. TEXTURE CONTRAST (visual depth — soft preference): when the base outfit (top + bottom OR dress) is entirely Material in [cotton, denim, jersey, knit] AND every visible item has Pattern "solid", PREFER selecting a bag with Bag texture in [quilted, croc-embossed, snake-embossed, pebbled, woven] over a smooth one. Soft preference, not a hard rule.
 17. USER-SET OCCASION + SEASON TAGS (respect user intent): every item in the wardrobe has an "Occasions:" list and a "Seasons:" list set by the user — those are explicit signals of where they want to wear that piece. RULES:
@@ -649,6 +647,7 @@ HARD RULES — do not violate:
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
    d) ANTI-BLAND ACROSS THE 4 OUTFITS: vary the spark across the four. AT LEAST ONE outfit must lead with a saturated color (not just neutrals). AT LEAST ONE outfit must include a non-solid pattern (animal-print, plaid, stripes, polka-dot, floral, embellished). The four outfits MUST NOT all read as the same tonal palette.
+   e) PATTERN ECHO CAP — anti-matchy-matchy: a statement print should appear ONCE per outfit, not three times. Within a single outfit, NEVER include 2+ items sharing the same Pattern when that pattern is "animal-print", "floral", "polka-dot", "graphic", "embellished", "abstract", or "camo" — pick ONE leopard piece (top OR shoes OR bag OR belt), not a leopard top AND leopard shoes AND a leopard belt. EXCEPTION: "striped" or "plaid" can appear on at most TWO items, and only when they're a deliberate top + bottom suit-style pairing (e.g., plaid blazer + plaid trousers), never spread across accessories. Solid is exempt. The Rule 12b "mix patterns" preset still requires ≥2 non-solid items, but they must be DIFFERENT patterns (leopard top + plaid skirt = mix; leopard top + leopard shoes = matchy).
 19. SHOE × BOTTOM PROPORTIONS (hard-no combos that look bad regardless of occasion):
    - KNEE-HIGH BOOTS (subcategory="knee-boots") never with bottom_fit "wide-leg" / "flared" / "bootcut" / "tapered" — pant leg can't fit over the shaft or eats the boot. Never with skirt_length "midi" — the bare-calf gap between hem and shaft reads awkward.
    - ANKLE BOOTS (subcategory="ankle-boots") never with pants_length "ankle-crop" — the hem-on-boot-shaft creates a double horizontal that visually amputates the leg. Never with bottom_fit "flared" / "bootcut" + pants_length "full" — flare buries the boot.
@@ -858,6 +857,41 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
 
+      // R4b LAYERING STRIP — when the AI picked an oversized base top
+      // AND a structured outerwear (denim/leather/bomber/blazer/etc),
+      // strip the outerwear so auto-injection (next block) can try to
+      // substitute a long coat. Without this, the outfit would be
+      // hard-dropped later — too aggressive given many wardrobes lack
+      // long coats. Stripping preserves the outfit; if no long coat
+      // exists, the cardigan stays as the outermost layer.
+      {
+        // Match the post-parse drop's condition exactly — both check
+        // category=top + fit=oversized regardless of is_layering_piece,
+        // so the strip prevents the drop from ever firing.
+        const oversizedBase = stripped.find(
+          (i) => i.category === "top" && i.fit === "oversized"
+        );
+        const outer = stripped.find((i) => i.category === "outerwear");
+        if (oversizedBase && outer) {
+          const LONG_COAT_SUBS = new Set<string>([
+            "coat",
+            "peacoat",
+            "trench-coat",
+            "parka",
+          ]);
+          const isLongCoat = LONG_COAT_SUBS.has(outer.subcategory ?? "");
+          const isOkPuffer =
+            outer.subcategory === "puffer" &&
+            (outer.fit === "oversized" || outer.fit === "loose");
+          if (!isLongCoat && !isOkPuffer) {
+            stripped = stripped.filter((i) => i.id !== outer.id);
+            fixes.push(
+              `stripped ${outer.subcategory ?? "outerwear"} (incompatible with oversized ${oversizedBase.subcategory ?? "top"})`
+            );
+          }
+        }
+      }
+
       // Auto-inject an outerwear piece when the outfit is cold but missing
       // one. Pick closest-warmth-match; bias the fit so we don't layer a
       // slim jacket over an oversized sweater (the proportion is off and
@@ -903,17 +937,35 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         if (available.length > 0) {
           const targetWarmth =
             weather.temp < 5 ? 4.5 : weather.temp < 10 ? 3.5 : 2.5;
-          // If the base top is oversized / loose, the outerwear must NOT
-          // be slim or fitted — a slim jacket won't close over it and the
-          // silhouette reads wrong.
+          // If the base top is oversized, only long drapey coats or
+          // oversized/loose puffers can layer cleanly. Structured
+          // shoulder pieces (denim, leather, bomber, blazer) bunch
+          // over the bulk regardless of their own Fit class.
+          // For "loose" base tops, just avoid slim outerwear.
           const baseTopFit = stripped.find(
             (i) => i.category === "top" && !i.is_layering_piece
           )?.fit;
-          const needsLoose =
-            baseTopFit === "oversized" || baseTopFit === "loose";
+          const baseIsOversized = baseTopFit === "oversized";
+          const baseIsLoose = baseTopFit === "loose";
+          const LONG_COAT_SUBS = new Set<string>([
+            "coat",
+            "peacoat",
+            "trench-coat",
+            "parka",
+          ]);
           const fitCompatible = (o: ClothingItem) => {
-            if (!needsLoose) return true;
-            return o.fit !== "slim";
+            if (baseIsOversized) {
+              if (LONG_COAT_SUBS.has(o.subcategory ?? "")) return true;
+              if (
+                o.subcategory === "puffer" &&
+                (o.fit === "oversized" || o.fit === "loose")
+              ) {
+                return true;
+              }
+              return false;
+            }
+            if (baseIsLoose) return o.fit !== "slim";
+            return true;
           };
           const preferred = available.filter(fitCompatible);
           const pool = preferred.length > 0 ? preferred : available;
@@ -957,14 +1009,14 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
 
-      // Auto-inject a bag for every occasion except at-home and sport
+      // Auto-inject a bag for every occasion except at-home and outdoor
       // (matches Rule 11). Same fallback pattern as shoes — prefer one
       // whose occasions array matches the current occasion, otherwise
       // grab any non-stored bag. Skips silently if the wardrobe has
       // no bags at all (Rule 11 explicitly allows that).
       if (
         occasion !== "at-home" &&
-        occasion !== "sport" &&
+        occasion !== "outdoor" &&
         !stripped.some((i) => i.category === "bag")
       ) {
         const availableBags = items.filter(
@@ -981,14 +1033,14 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
 
       // Auto-inject one accessory beyond the bag for every occasion
-      // except at-home and sport (matches the new ACCESSORY MINIMUM
+      // except at-home and outdoor (matches the new ACCESSORY MINIMUM
       // rule). Skip hat at work (Rule 11 hat × occasion). Pick the
       // first wardrobe accessory whose occasions array matches; if
       // nothing matches the occasion, skip silently — the rule
       // explicitly says "skip if nothing in the wardrobe makes sense".
       if (
         occasion !== "at-home" &&
-        occasion !== "sport" &&
+        occasion !== "outdoor" &&
         !stripped.some((i) => i.category === "accessory")
       ) {
         const availableAccessories = items.filter((i) => {
@@ -1362,27 +1414,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       // hard drop. Otherwise a belt-missing outfit would short-circuit
       // past the bag-formality / metal-sync / etc. checks and slip back
       // in via the softMismatch admit.)
-      // Jewelry scale × hat proximity: a hat in the outfit + statement
-      // jewelry = too much focal energy. Drop the outfit (let the AI
-      // pick a different combo).
-      {
-        const hasHat = s.items.some(
-          (i) => i.category === "accessory" && i.subcategory === "hat"
-        );
-        const statementJewelry = s.items.find(
-          (i) =>
-            i.category === "accessory" &&
-            i.subcategory === "jewelry" &&
-            i.jewelry_scale === "statement"
-        );
-        if (hasHat && statementJewelry) {
-          drops.push({
-            ids: s._ids,
-            reason: "proximity: hat + statement jewelry compete for head/neck focal slot",
-          });
-          return false;
-        }
-      }
+      // (Jewelry/watch were removed from the schema — the legacy
+      // hat+statement-jewelry proximity drop and metal sync rules for
+      // those subcategories are gone.)
       // Bag formality — for formal/date/party, drop bags with casual
       // material (canvas/nylon) or casual texture (woven/fringed).
       if (occasion === "formal" || occasion === "date" || occasion === "party") {
@@ -1438,7 +1472,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             // Only count items where hardware is visible / styling-relevant.
             if (item.category === "shoes") return true;
             if (item.category === "bag" && gender !== "man") return true;
-            if (item.category === "accessory" && (item.subcategory === "belt" || item.subcategory === "jewelry" || item.subcategory === "watch")) return true;
+            if (item.category === "accessory" && item.subcategory === "belt") return true;
             return false;
           });
         if (metalItems.length >= 2) {
@@ -1569,26 +1603,93 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
       }
-      // R4b — LAYERING PROPORTIONS: oversized top + slim/regular outerwear
-      // doesn't fit cleanly. The jacket bunches over the bulk underneath
-      // and the silhouette reads "wrong size." Allow only oversized or
-      // loose outerwear over an oversized top.
+      // R18e — PATTERN ECHO CAP (anti-matchy-matchy): a statement print
+      // should appear ONCE per outfit. Three leopard pieces together
+      // reads costume-y, not stylist. Block when 2+ items share the
+      // same statement pattern. Striped/plaid get a pass when they're
+      // a top+bottom suit pairing (intentional matched-set look).
+      {
+        const STATEMENT_PATTERNS = new Set<string>([
+          "animal-print",
+          "floral",
+          "polka-dot",
+          "graphic",
+          "embellished",
+          "abstract",
+          "camo",
+        ]);
+        const SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
+        const patternCount = new Map<string, ClothingItem[]>();
+        for (const it of s.items) {
+          const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
+          for (const p of ps) {
+            if (!p || p === "solid") continue;
+            const list = patternCount.get(p) ?? [];
+            list.push(it);
+            patternCount.set(p, list);
+          }
+        }
+        let echoOffender: { pattern: string; items: ClothingItem[] } | null =
+          null;
+        for (const [p, list] of patternCount) {
+          if (list.length < 2) continue;
+          if (STATEMENT_PATTERNS.has(p)) {
+            echoOffender = { pattern: p, items: list };
+            break;
+          }
+          if (SUIT_PATTERNS.has(p)) {
+            // Allowed only if exactly 2 items AND they're top + bottom.
+            const cats = new Set(list.map((i) => i.category));
+            const isSuitPair =
+              list.length === 2 && cats.has("top") && cats.has("bottom");
+            if (!isSuitPair) {
+              echoOffender = { pattern: p, items: list };
+              break;
+            }
+          }
+        }
+        if (echoOffender) {
+          // Soft drop — the AI sometimes can't avoid the echo with a
+          // pattern-heavy wardrobe, and a 1-outfit response is worse
+          // UX than shipping with a "feels matchy" tip. Admitted back
+          // when the hard-valid pool is < 3.
+          const matchyTip =
+            locale === "fr"
+              ? `Note : ${echoOffender.items.length} pièces ${echoOffender.pattern} dans la même tenue — un peu trop assorti, n'hésite pas à en remplacer une.`
+              : `Heads up: ${echoOffender.items.length} ${echoOffender.pattern} pieces share the print — feels a bit matchy, swap one if you'd rather.`;
+          softMismatch.push({ outfit: s, tip: matchyTip });
+          return false;
+        }
+      }
+      // R4b — LAYERING PROPORTIONS: only a long, drapey coat (or an
+      // oversized/loose puffer) can sit cleanly over an oversized top.
+      // Structured shoulder pieces — denim jackets, leather jackets,
+      // bombers, blazers — bunch over the bulk even when their own
+      // Fit is "loose," because the issue is shoulder structure, not
+      // body width.
       {
         const oversizedTop = s.items.find(
           (i) => i.category === "top" && i.fit === "oversized"
         );
         const outer = s.items.find((i) => i.category === "outerwear");
-        if (
-          oversizedTop &&
-          outer &&
-          outer.fit !== "oversized" &&
-          outer.fit !== "loose"
-        ) {
-          drops.push({
-            ids: s._ids,
-            reason: `layering proportions: ${outer.fit ?? "fitted"} ${outer.subcategory ?? "outerwear"} can't layer over oversized ${oversizedTop.subcategory ?? "top"}`,
-          });
-          return false;
+        if (oversizedTop && outer) {
+          const LONG_COAT_SUBS = new Set<string>([
+            "coat",
+            "peacoat",
+            "trench-coat",
+            "parka",
+          ]);
+          const isLongCoat = LONG_COAT_SUBS.has(outer.subcategory ?? "");
+          const isOkPuffer =
+            outer.subcategory === "puffer" &&
+            (outer.fit === "oversized" || outer.fit === "loose");
+          if (!isLongCoat && !isOkPuffer) {
+            drops.push({
+              ids: s._ids,
+              reason: `layering proportions: ${outer.subcategory ?? "outerwear"} (fit=${outer.fit ?? "?"}) can't layer over oversized ${oversizedTop.subcategory ?? "top"} — only long coats / oversized puffers work`,
+            });
+            return false;
+          }
         }
       }
       // SHOE × BOTTOM proportional combos that look bad regardless of
@@ -1660,14 +1761,39 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
       }
-      // CASUAL HEEL BLOCK — casual / hangout / brunch / sport / outdoor /
-      // travel / at-home outfits should be flat. Heeled boots in jeans
-      // and a tee read overdressed; user has casual shoes for a reason.
+      // OUTDOOR SHOE BLOCK — fashion footwear (western boots, knee
+      // boots, ballet flats, loafers, mules, espadrilles, heels)
+      // doesn't belong on a hike/park/picnic/gym. Only practical shoes pass.
+      if (occasion === "outdoor") {
+        const OUTDOOR_BAD_SHOES = new Set<string>([
+          "western-boots",
+          "knee-boots",
+          "ballet-flats",
+          "loafers",
+          "mules",
+          "espadrilles",
+          "heels",
+        ]);
+        const wrongShoe = s.items.find(
+          (i) =>
+            i.category === "shoes" &&
+            i.subcategory &&
+            OUTDOOR_BAD_SHOES.has(i.subcategory)
+        );
+        if (wrongShoe) {
+          drops.push({
+            ids: s._ids,
+            reason: `${occasion}: ${wrongShoe.subcategory} ("${wrongShoe.name}") not practical for outdoor context`,
+          });
+          return false;
+        }
+      }
+      // CASUAL HEEL BLOCK — casual / brunch / outdoor / travel / at-home
+      // outfits should be flat. Heeled boots in jeans and a tee read
+      // overdressed; user has casual shoes for a reason.
       const CASUAL_OCCASIONS = new Set<string>([
         "casual",
-        "hangout",
         "brunch",
-        "sport",
         "outdoor",
         "travel",
         "at-home",
@@ -1827,7 +1953,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           mood === "cozy" ||
           mood === "period" ||
           occasion === "at-home" ||
-          occasion === "sport";
+          occasion === "outdoor";
         if (beltable && !hasBelt && !beltExempt) {
           const beltTip =
             locale === "fr"

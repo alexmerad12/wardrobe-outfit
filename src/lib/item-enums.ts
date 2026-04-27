@@ -76,9 +76,7 @@ export const SUBCATEGORIES = [
   "belt",
   "scarf",
   "hat",
-  "jewelry",
   "sunglasses",
-  "watch",
 ] as const;
 
 export const PATTERNS = [
@@ -362,9 +360,7 @@ export const OCCASIONS = [
   "casual",
   "brunch",
   "dinner-out",
-  "hangout",
   "date",
-  "sport",
   "outdoor",
   "travel",
   "party",

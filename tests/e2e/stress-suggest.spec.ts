@@ -79,7 +79,7 @@ const SCENARIOS: Scenario[] = [
   { name: "confident · work", mood: "confident", occasion: "work", styleWishes: [], iterations: 2 },
   { name: "playful · brunch", mood: "playful", occasion: "brunch", styleWishes: [], iterations: 2 },
   { name: "cozy · at-home", mood: "cozy", occasion: "at-home", styleWishes: [], iterations: 2 },
-  { name: "chill · hangout", mood: "chill", occasion: "hangout", styleWishes: [], iterations: 2 },
+  { name: "chill · casual", mood: "chill", occasion: "casual", styleWishes: [], iterations: 2 },
   { name: "bold · party", mood: "bold", occasion: "party", styleWishes: [], iterations: 2 },
   { name: "period · at-home", mood: "period", occasion: "at-home", styleWishes: [], iterations: 2 },
   { name: "sad · casual", mood: "sad", occasion: "casual", styleWishes: [], iterations: 2 },
@@ -88,7 +88,7 @@ const SCENARIOS: Scenario[] = [
   { name: "confident · formal", mood: "confident", occasion: "formal", styleWishes: [], iterations: 2 },
   { name: "confident · date", mood: "confident", occasion: "date", styleWishes: [], iterations: 2 },
   { name: "confident · dinner-out", mood: "confident", occasion: "dinner-out", styleWishes: [], iterations: 2 },
-  { name: "energized · sport", mood: "energized", occasion: "sport", styleWishes: [], iterations: 2 },
+  { name: "energized · outdoor", mood: "energized", occasion: "outdoor", styleWishes: [], iterations: 2 },
   { name: "chill · outdoor", mood: "chill", occasion: "outdoor", styleWishes: [], iterations: 2 },
   { name: "chill · travel", mood: "chill", occasion: "travel", styleWishes: [], iterations: 2 },
 
@@ -99,7 +99,7 @@ const SCENARIOS: Scenario[] = [
 
   // Casual heel block stress tests (R10 extension)
   { name: "casual no-heels stress", mood: "chill", occasion: "casual", styleWishes: [], iterations: 2 },
-  { name: "hangout no-heels stress", mood: "chill", occasion: "hangout", styleWishes: [], iterations: 2 },
+  { name: "casual no-heels stress (chill)", mood: "chill", occasion: "casual", styleWishes: [], iterations: 2 },
   { name: "brunch no-heels stress", mood: "playful", occasion: "brunch", styleWishes: [], iterations: 2 },
 
   // Stylist instinct probes (R18) — bland/neutral mood × non-extreme occasion
@@ -321,10 +321,10 @@ function validateOutfit(
     }
   }
 
-  // R10 + casual heel block: casual / hangout / brunch / sport / outdoor /
-  // travel / at-home → no high or mid heels
+  // R10 + casual heel block: casual / brunch / outdoor / travel / at-home
+  // → no high or mid heels
   const CASUAL = new Set([
-    "casual", "hangout", "brunch", "sport", "outdoor", "travel", "at-home",
+    "casual", "brunch", "outdoor", "travel", "at-home",
   ]);
   if (CASUAL.has(scenario.occasion)) {
     const heeled = items.find(
@@ -405,8 +405,8 @@ function validateOutfit(
     );
   }
 
-  // R11 ACCESSORY MINIMUM (skip at-home, sport, men's track if no fit)
-  if (!["at-home", "sport"].includes(scenario.occasion)) {
+  // R11 ACCESSORY MINIMUM (skip at-home, outdoor, men's track if no fit)
+  if (!["at-home", "outdoor"].includes(scenario.occasion)) {
     const accessoriesBeyondBag = items.filter(
       (i) => i.category === "accessory"
     );
@@ -414,7 +414,7 @@ function validateOutfit(
       // Check passes if there's a bag — bag IS an accessory but rule
       // wants ≥1 BEYOND it. Only flag if no other accessories.
       flag("R11-accessory-minimum", "No accessory beyond the bag");
-    } else if (accessoriesBeyondBag.length === 0 && !hasBag && scenario.occasion !== "sport") {
+    } else if (accessoriesBeyondBag.length === 0 && !hasBag) {
       flag("R11-accessory-minimum", "No accessory at all");
     }
   }
@@ -456,10 +456,7 @@ function validateOutfit(
         if (!finish || finish === "none" || finish === "mixed") return false;
         if (item.category === "shoes") return true;
         if (item.category === "bag") return true;
-        if (
-          item.category === "accessory" &&
-          ["belt", "jewelry", "watch"].includes(item.subcategory ?? "")
-        )
+        if (item.category === "accessory" && item.subcategory === "belt")
           return true;
         return false;
       });
@@ -490,20 +487,15 @@ function validateOutfit(
     }
   }
 
-  // R15-extension: hat + statement jewelry
-  const statementJewelry = items.find(
-    (i) => i.category === "accessory" && i.subcategory === "jewelry" && i.jewelry_scale === "statement"
-  );
-  if (hat && statementJewelry) {
-    flag("R15-jewelry-proximity", "Hat + statement jewelry (head/neck zone overload)");
-  }
+  // (Jewelry/watch were removed from the schema — the legacy hat +
+  // statement-jewelry proximity check is gone.)
 
   // R18 STYLIST INSTINCT: belt completer — narrow scope. Skip relaxed
-  // moods, lounge/sport occasions, and emergency-admit outfits.
+  // moods, lounge/outdoor occasions, and emergency-admit outfits.
   const beltExempt =
     isRelaxed ||
     ["chill", "cozy", "period"].includes(scenario.mood) ||
-    ["at-home", "sport"].includes(scenario.occasion);
+    ["at-home", "outdoor"].includes(scenario.occasion);
   if (!beltExempt && shouldHaveBelt(items)) {
     const hasBelt = items.some(
       (i) => i.category === "accessory" && i.subcategory === "belt"

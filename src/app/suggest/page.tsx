@@ -9,6 +9,7 @@ import { OutfitCard } from "@/components/outfit-card";
 import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
 import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
+import { MOOD_ICONS } from "@/lib/mood-icons";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StylistLoader } from "@/components/stylist-loader";
@@ -37,7 +38,7 @@ function SuggestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const anchorItemId = searchParams.get("item");
-  const { t, locale } = useLocale();
+  const { t, tMood, locale } = useLocale();
 
   const [mood, setMood] = useState<Mood | null>(null);
   const [occasion, setOccasion] = useState<Occasion | null>(null);
@@ -370,6 +371,37 @@ function SuggestContent() {
       {/* Step 3: Results */}
       {step === "results" && suggestions.length > 0 && (
         <div className="space-y-4">
+          {/* Mood + occasion + style direction context — reminds the
+              user what they asked for so the AI's choices read in the
+              right frame. */}
+          {(mood || occasion || styleWishes.length > 0) && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {mood && (() => {
+                const MoodIcon = MOOD_ICONS[mood];
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                    <MoodIcon className="h-3.5 w-3.5" />
+                    {tMood(mood, "label")}
+                  </span>
+                );
+              })()}
+              {occasion && (
+                <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                  {t(`occasion.${occasion}`)}
+                </span>
+              )}
+              {styleWishes.map((wish) => (
+                <span
+                  key={wish}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-medium"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {wish}
+                </span>
+              ))}
+            </div>
+          )}
+
           <OutfitCard
             items={suggestions[currentIndex].items}
             reasoning={suggestions[currentIndex].reasoning}
