@@ -142,9 +142,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Cache-bust the URL we return. The client uploaded the raw bytes
+  // to this same path right before calling us; their browser cache
+  // still has those raw bytes keyed against this URL. Without a
+  // version query param, the wardrobe view will show the original
+  // (unprocessed) image until the cache expires.
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(sourcePath);
+  const cacheBustedUrl = `${data.publicUrl}?v=${Date.now()}`;
   return NextResponse.json({
-    url: data.publicUrl,
+    url: cacheBustedUrl,
     bytes: output.byteLength,
   });
 }

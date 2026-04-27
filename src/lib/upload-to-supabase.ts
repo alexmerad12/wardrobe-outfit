@@ -128,7 +128,12 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
 
 // Direct upload to Supabase Storage via the SDK. Mirrors the exact
 // call /wardrobe/add (single-add) makes — proven to work on the
-// user's Samsung. POST (not PUT), no upsert option, no timeout race.
+// user's Samsung. POST (not PUT). Wraps the SDK call in a 120 s
+// timeout race so a stalled cellular connection eventually fails
+// with a real error instead of hanging forever and silently
+// surfacing as a generic TypeError later.
+const DIRECT_UPLOAD_TIMEOUT_MS = 120_000;
+
 async function uploadDirect(file: File): Promise<string> {
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
@@ -141,9 +146,21 @@ async function uploadDirect(file: File): Promise<string> {
   const path = `${session.user.id}/${Date.now()}-${safeName}`;
   const BUCKET = "clothing-images";
 
-  const { error } = await supabase.storage
+  const uploadPromise = supabase.storage
     .from(BUCKET)
     .upload(path, file, { contentType: file.type });
+
+  const result = await Promise.race([
+    uploadPromise,
+    new Promise<never>((_resolve, reject) =>
+      setTimeout(
+        () => reject(new Error("Upload 408: direct upload timed out (cellular?)")),
+        DIRECT_UPLOAD_TIMEOUT_MS
+      )
+    ),
+  ]);
+
+  const { error } = result;
   if (error) {
     const status = (error as { statusCode?: string }).statusCode ?? "500";
     throw new Error(`Upload ${status}: ${error.message}`);
@@ -151,21 +168,39 @@ async function uploadDirect(file: File): Promise<string> {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+// Vercel functions cap request bodies at 4.5 MB at the edge layer —
+// anything bigger surfaces as "Upload network error (no bytes sent)".
+// Phone photos are routinely 5-10 MB. So the proxy fallback genuinely
+// can't accept those, and falling through to it just produces the
+// confusing error. Skip the proxy when the file is too big for it.
+const PROXY_BODY_LIMIT = 4_000_000;
+
 async function attemptUpload(file: File): Promise<string> {
   const controller = new AbortController();
   activeControllers.add(controller);
   try {
-    // Step 1: try direct upload to Supabase. Works on every device class
-    // we've observed (single-add proves it on the user's Samsung).
+    // Step 1: try direct upload to Supabase. Works on every device
+    // class we've observed (single-add proves it on the user's
+    // Samsung). Now wrapped in a 120 s timeout so we don't hang
+    // forever on a stalled cellular connection.
     try {
       return await uploadDirect(file);
     } catch (directErr) {
-      // Step 2: any failure → fall back to /api/upload proxy. Same-
-      // origin POST, immune to CORS edge cases. 4.5 MB body limit,
-      // but the bulk pipeline has a cascading shrink step before we
-      // even get here so finalFile is well under that.
-      console.warn("[upload] direct failed, falling back to proxy:", directErr);
-      return await postViaXhr(file, controller.signal);
+      // Step 2: file is small enough to fit Vercel's body cap → fall
+      // back to /api/upload proxy. Same-origin POST, immune to CORS
+      // edge cases.
+      if (file.size <= PROXY_BODY_LIMIT) {
+        console.warn("[upload] direct failed, falling back to proxy:", directErr);
+        return await postViaXhr(file, controller.signal);
+      }
+      // File is too big for the proxy too — re-throw the direct error
+      // (rather than the proxy's misleading "no bytes sent") so retries
+      // know to back off and the tile error UI is informative.
+      console.warn(
+        `[upload] direct failed and file is ${file.size} bytes (> ${PROXY_BODY_LIMIT} proxy limit) — not falling back`,
+        directErr
+      );
+      throw directErr;
     }
   } finally {
     activeControllers.delete(controller);
