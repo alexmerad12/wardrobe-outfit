@@ -63,7 +63,6 @@ OTHER FIELDS:
 - colors: array of { hex: "#rrggbb", name: "Plain English color name in Title Case" } — up to 3 dominant colors. Use Title Case ("Black", "Navy Blue", "Dark Brown") not lowercase or ALL CAPS.
 - warmth_rating: number from 1 to 5 in 0.5 increments (1, 1.5, 2, 2.5, ... 5). 1 = tank top / sandals / thin bandana, 3 = shirt / jeans / sneakers, 5 = parka / heavy winter boots / chunky winter scarf. Scarves span the whole range (silk bandana 1-2, knit winter scarf 4-5). Shoes span the whole range too: open sandals/espadrilles 1, ballet flats/loafers/sneakers 2-3, ankle boots 3-4, insulated or knee boots 4-5.
 - is_layering_piece: true only for open cardigans, vests, blazers, lightweight outerwear worn over a base layer
-- belt_compatible: true for pants/skirts/dresses with visible belt loops or a defined waist
 
 CATEGORY DISAMBIGUATION (common misclassifications):
 - A "shirt" with a hood is a "hoodie" (subcategory), category stays "top"

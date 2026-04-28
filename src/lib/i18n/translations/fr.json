@@ -124,6 +124,9 @@
     "stylingPreferences": "Des préférences de style ?",
     "whatsTheOccasion": "Quelle occasion ?",
     "suggestionCounter": "Suggestion {current} sur {total}",
+    "singleOutfitTagline": "Ta tenue stylée",
+    "showAnother": "Une autre suggestion",
+    "styling": "En préparation...",
     "howAreYouFeelingShort": "Humeur du jour ?",
     "anyDirection": "Un style en tête ?",
     "optional": "Optionnel - tape celles qui s'appliquent",
@@ -146,6 +149,9 @@
     "startOver": "Recommencer",
     "notEnoughItems": "Pas assez d'items dans ton dressing pour suggérer des tenues.",
     "atLeast3Items": "Ajoute au moins 3 items pour commencer !",
+    "aiErrorTitle": "On n'a pas réussi à composer une tenue cette fois.",
+    "aiErrorHint": "Le styliste a buggé — réessaie.",
+    "tryAgain": "Réessayer",
     "addItems": "Ajouter des items",
     "stylistTip": "Conseil du styliste"
   },
@@ -482,10 +488,6 @@
     "sun-hat": "Chapeau de soleil",
     "other": "Autre"
   },
-  "jewelryScale": {
-    "minimal": "Minimaliste",
-    "statement": "Statement"
-  },
   "scarfFunction": {
     "decorative": "Décoratif",
     "functional": "Fonctionnel (chaud)"
@@ -793,7 +795,6 @@
     "bagTexture": "Texture du sac",
     "sunglassesStyle": "Style de lunettes",
     "hatSilhouette": "Silhouette du chapeau",
-    "jewelryScale": "Échelle du bijou",
     "scarfFunction": "Fonction de l'écharpe",
     "skirtLength": "Longueur de la jupe",
     "bagMetalFinish": "Finition métal du sac",
@@ -811,8 +812,6 @@
     "seasons": "Saisons (coche toutes celles qui s'appliquent)",
     "occasions": "Occasions (coche toutes celles qui s'appliquent)",
     "warmth": "Chaleur (1 = très léger, 5 = gros hiver)",
-    "rainAppropriate": "Adapté à la pluie",
-    "rainAppropriateHint": "On privilégiera cette pièce quand il est prévu de pleuvoir",
     "stored": "Ranger",
     "storedOn": "Rangé",
     "storedHint": "Cache cet item de ton dressing et l'exclut des suggestions",

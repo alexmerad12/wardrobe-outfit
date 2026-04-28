@@ -31,7 +31,6 @@ import {
   HAT_TEXTURES,
   HAT_SILHOUETTES,
   SUNGLASSES_STYLES,
-  JEWELRY_SCALES,
   SCARF_FUNCTIONS,
   SKIRT_LENGTHS,
   DRESS_SILHOUETTES,
@@ -124,7 +123,6 @@ export function sanitizeAutoFill(raw: unknown): AutoFillResult {
     hat_texture: oneOf(r.hat_texture, HAT_TEXTURES),
     hat_silhouette: oneOf(r.hat_silhouette, HAT_SILHOUETTES),
     sunglasses_style: oneOf(r.sunglasses_style, SUNGLASSES_STYLES),
-    jewelry_scale: oneOf(r.jewelry_scale, JEWELRY_SCALES),
     scarf_function: oneOf(r.scarf_function, SCARF_FUNCTIONS),
     skirt_length: oneOf(r.skirt_length, SKIRT_LENGTHS),
     dress_silhouette: oneOf(r.dress_silhouette, DRESS_SILHOUETTES),
@@ -134,8 +132,6 @@ export function sanitizeAutoFill(raw: unknown): AutoFillResult {
     // by the suggest pipeline from material + subcategory.
     is_layering_piece:
       typeof r.is_layering_piece === "boolean" ? r.is_layering_piece : undefined,
-    belt_compatible:
-      typeof r.belt_compatible === "boolean" ? r.belt_compatible : undefined,
     colors: colors.length > 0 ? colors : undefined,
   };
 }

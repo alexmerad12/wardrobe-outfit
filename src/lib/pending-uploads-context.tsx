@@ -133,7 +133,6 @@ function buildItemPayload(imageUrl: string, a: AutoFillResult) {
     waist_style: a.waist_style ?? null,
     waist_height: a.waist_height ?? null,
     waist_closure: a.waist_closure ?? null,
-    belt_compatible: a.belt_compatible ?? false,
     is_layering_piece: a.is_layering_piece ?? false,
     shoe_height: a.shoe_height ?? null,
     heel_type: a.heel_type ?? null,
@@ -154,9 +153,6 @@ function buildItemPayload(imageUrl: string, a: AutoFillResult) {
       typeof a.warmth_rating === "number"
         ? Math.max(1, Math.min(5, Math.round(a.warmth_rating)))
         : 3,
-    // rain_appropriate not set client-side — DB default (false) is fine;
-    // the new automated rain logic uses material + subcategory instead.
-    rain_appropriate: false,
     brand: null,
     is_favorite: false,
   };

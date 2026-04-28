@@ -315,7 +315,6 @@ function describeItem(item: ClothingItem): string {
   if (item.bag_metal_finish && item.bag_metal_finish !== "none") parts.push(`Bag metal: ${item.bag_metal_finish}`);
   if (item.hat_texture) parts.push(`Hat texture: ${item.hat_texture}`);
   if (item.hat_silhouette) parts.push(`Hat silhouette: ${item.hat_silhouette}`);
-  if (item.jewelry_scale) parts.push(`Jewelry scale: ${item.jewelry_scale}`);
   if (item.scarf_function) parts.push(`Scarf function: ${item.scarf_function}`);
   if (item.skirt_length) parts.push(`Skirt length: ${item.skirt_length}`);
   if (item.dress_silhouette) parts.push(`Silhouette: ${item.dress_silhouette}`);
@@ -544,7 +543,7 @@ export async function POST(request: NextRequest) {
 PRIMARY DIRECTIVES (read before any rule):
 - Every outfit needs ONE focal point — a piece that catches the eye. Color, pattern, texture, shine, or silhouette. Bland-and-correct is a fail; bland-and-correct without a single visual hook means you stopped thinking too soon.
 - A real stylist FINISHES the look. If a sweater + skirt would obviously be belted in real life, ADD the belt. If a coat over jeans would obviously have a scarf, ADD the scarf. Don't stop at the minimum.
-- Across the four outfits you propose, deliberately VARY the energy: at least one outfit should lead with a saturated color, at least one should include a non-solid pattern, and the four should NOT all feel like the same neutral palette. If the user wanted four of the same look they'd save one favorite — they're asking for range.
+- This is ONE outfit, generated independently each time the user taps "Show me another." Don't worry about variety across multiple outputs — the RECENTLY SHOWN list shows what's already been served, so just pick a fresh combination that differs from those.
 
 The hard rules below exist to prevent visually wrong choices. They do NOT excuse boring choices. Build the outfit a stylist would build, then check it against the rules — not the other way around.
 
@@ -579,7 +578,7 @@ MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.labe
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
 ITERATION: ${iterationNonce}
 
-Return exactly 4 complete outfits from the wardrobe. They MUST be visibly different from each other (vary silhouette, color, or structure) AND different from every set in RECENTLY SHOWN OR WORN. (We display 3 to the user; the extra 1 is a backup in case one gets filtered out.)
+Return exactly ONE complete outfit from the wardrobe. It must be different from every set in RECENTLY SHOWN OR WORN. (The user can tap "Show me another" to get a fresh suggestion if this one doesn't land — focus all your reasoning on making THIS single outfit excellent across every rule below.)
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over. EXCEPTION: a dress with Silhouette = "slip" (satin slip / sleep-dress style) may be styled with a slim-fitted top underneath — but ONLY a top whose fit is "slim" or "regular" AND is NOT a layering piece, blazer, cardigan, hoodie, sweatshirt, or oversized item (e.g., a fitted t-shirt or thin turtleneck works; a hoodie or boxy tee does not).
@@ -587,7 +586,7 @@ HARD RULES — do not violate:
 3. Every outfit needs a complete base: (a) a dress, (b) a jumpsuit, (c) overalls + top, or (d) top + bottom.
 4. Max one item per subcategory across the whole outfit (no two belts, no two pairs of shoes). For OUTERWEAR (category="outerwear"): max one item by default. EXCEPTION — winter layering: when the outfit pairs an INNER outerwear (subcategory in [blazer, vest]) with an OUTER outerwear (subcategory in [coat, peacoat, trench-coat, parka, puffer]), TWO outerwear items are allowed (e.g., blazer under wool coat, vest under trench). NEVER allow two of the same class — no blazer+blazer, no two jackets, no denim-jacket+leather-jacket, no two coats. Standalone subcategories (jacket, denim-jacket, leather-jacket, bomber, windbreaker) are SINGLE-PIECE — never paired with another outerwear.
 4c. DENIM-ON-DENIM ("Canadian tuxedo"): when 2+ items in the outfit have Material including "denim" (e.g., jeans + denim jacket, jeans + denim shirt), this is denim-on-denim. By default AVOID this combo — pick a non-denim top to break it up. ALLOW only when STYLE DIRECTION explicitly requests it ("full denim", "all denim", "denim on denim", "double denim", "Canadian tuxedo", "tout en denim", "total denim"). When allowed, prefer wash contrast (light jacket + dark jeans, or vice versa) — same-wash denim-on-denim is the dated version.
-4d. CARDIGAN STANDALONE — a cardigan can be the only top in the outfit (no tee underneath) ONLY when its Fit is "slim" or "regular" AND it is NOT tagged as a layering piece (twinset / cardigan-as-sweater look). For cardigans with Fit "loose" or "oversized", or any cardigan tagged is_layering_piece, ALWAYS pair with a non-layering top underneath (tee, cami, blouse, fitted long-sleeve). An open-front loose cardigan worn with nothing under it reads exposed, not stylist-curated.
+4d. CARDIGAN STANDALONE — a cardigan can be the only top in the outfit (no tee underneath) ONLY when ALL of these are true: (a) Fit is "slim" or "regular", (b) Closure is NOT "open-drape" (i.e., it's button / zip / pullover — closed-front), (c) NOT tagged as a layering piece. The twinset / cardigan-as-sweater look is the only valid standalone case. For cardigans with Closure "open-drape", Fit "loose" or "oversized", OR is_layering_piece tagged, ALWAYS pair with a non-layering top underneath (tee, cami, blouse, fitted long-sleeve). An open-front cardigan worn with nothing under it reads exposed, not stylist-curated.
 4b. LAYERING PROPORTIONS — when a "top" item has Fit "oversized" (oversized cardigan / hoodie / sweater), the only outerwear that can sit over it cleanly is a LONG, DRAPEY COAT — Subcategory in [coat, peacoat, trench-coat, parka], OR a puffer with Fit "oversized" / "loose". BLOCK Subcategory in [jacket, denim-jacket, leather-jacket, bomber, blazer, windbreaker, vest] over an oversized top — these are structured at the shoulder and bunch over the bulk underneath, even when their own Fit is "loose". If the wardrobe has no qualifying long coat / puffer, the oversized top IS the outermost layer (skip outerwear).
 5. WEATHER (NON-NEGOTIABLE):
    - Cold (<12°C): the outfit MUST include an item whose category is literally "outerwear" in the wardrobe list (look at the parenthesized category on each [id] line — e.g. "(outerwear/jacket)"). Sweaters, cardigans, and hoodies belong to "top" NOT "outerwear" — they DO NOT satisfy this rule.
@@ -639,6 +638,7 @@ HARD RULES — do not violate:
    - Need a Hug → soft pastels OR oversized cozy pieces. Comfort with one warm/uplifting touch. No edgy / hard / dark. Prioritize Material in [cashmere, wool, fleece, knit]. AVOID Toe shape "pointed" (too sharp). Bag texture should be soft (woven / fringed / pebbled), NOT rigid (smooth / croc-embossed).
 14. METAL SYNC: all visible hardware Metal finish (and Bag metal finish for the bag) across shoes / belt / bag MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).${isMensTrack ? " On the men's track, focus the sync on belt buckle + shoe hardware — the bag is secondary." : ""}
 15. PROXIMITY (head/neck zone — anti-clutter): at most ONE focal item in the head-and-neck zone per outfit. If the outfit has a hat, do NOT also include a scarf — UNLESS temperature is below 5°C, where the scarf becomes a functional warmth layer and is exempt from this rule. (When temp ≥ 5°C, a scarf is decorative and competes for the same focal slot as the hat.)
+   TURTLENECK + SCARF: same principle — a turtleneck already covers the neck, so adding a scarf reads neck-on-neck and heavy. NEVER pair turtleneck + scarf at AT-HOME (you're indoors, no warmth need). For all other occasions: only allow turtleneck + scarf when temp < 5°C AND the scarf is genuinely functional (scarf_function="functional" or warmth ≥3) — at that point the scarf is for warmth, not styling. Otherwise, drop the scarf.
 16. TEXTURE CONTRAST (visual depth — soft preference): when the base outfit (top + bottom OR dress) is entirely Material in [cotton, denim, jersey, knit] AND every visible item has Pattern "solid", PREFER selecting a bag with Bag texture in [quilted, croc-embossed, snake-embossed, pebbled, woven] over a smooth one. Soft preference, not a hard rule.
 17. USER-SET OCCASION + SEASON TAGS (respect user intent): every item in the wardrobe has an "Occasions:" list and a "Seasons:" list set by the user — those are explicit signals of where they want to wear that piece. RULES:
    a) When Occasions is NON-EMPTY, PRIORITIZE items whose Occasions includes the requested OCCASION. Only pick an item with a mismatched Occasions list if NO in-tag alternative exists in that category in the wardrobe (e.g., the user owns one dress tagged "party" only and the request is "date" — fall back gracefully).
@@ -662,7 +662,7 @@ HARD RULES — do not violate:
       Otherwise (jeans + tucked top, structured trousers + blouse, etc.), the belt is what separates a stylist look from a thrown-together one — add it.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
-   d) ANTI-BLAND ACROSS THE 4 OUTFITS: vary the spark across the four. AT LEAST ONE outfit must lead with a saturated color (not just neutrals). AT LEAST ONE outfit must include a non-solid pattern (animal-print, plaid, stripes, polka-dot, floral, embellished). The four outfits MUST NOT all read as the same tonal palette.
+   d) (Cross-outfit variety rule removed — we now generate one outfit at a time. Variety across "Show me another" taps is handled by the RECENTLY SHOWN list at the top of the prompt.)
    e) PATTERN ECHO CAP — anti-matchy-matchy: a statement print should appear ONCE per outfit, not three times. Within a single outfit, NEVER include 2+ items sharing the same Pattern when that pattern is "animal-print", "floral", "polka-dot", "graphic", "embellished", "abstract", or "camo" — pick ONE leopard piece (top OR shoes OR bag OR belt), not a leopard top AND leopard shoes AND a leopard belt. EXCEPTION: "striped" or "plaid" can appear on at most TWO items, and only when they're a deliberate top + bottom suit-style pairing (e.g., plaid blazer + plaid trousers), never spread across accessories. Solid is exempt. The Rule 12b "mix patterns" preset still requires ≥2 non-solid items, but they must be DIFFERENT patterns (leopard top + plaid skirt = mix; leopard top + leopard shoes = matchy).
 19. SHOE × BOTTOM PROPORTIONS (hard-no combos that look bad regardless of occasion):
    - TALL-SHAFT BOOTS (subcategory="knee-boots" OR Shoe height in ["knee", "over-knee"] — covers cowboy/western boots with tall shafts, riding boots, etc.) never with bottom_fit "wide-leg" / "flared" / "bootcut" / "tapered" — pant leg can't fit over the shaft or eats the boot. (Midi skirts are FINE with tall boots — boho/Western/riding-boot styling is a legitimate look.)
@@ -678,7 +678,7 @@ ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Ne
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Call the propose_outfits tool with exactly 4 outfits. Per outfit:
+Return exactly 1 outfit (as a single-element array under "outfits"). For the outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? "use masculine-coded language: \"sharp\", \"crisp\", \"clean line\", \"intentional\", \"grounded\". Avoid \"chic\", \"feminine\", \"flowy\"." : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
@@ -701,10 +701,15 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 3 Flash with thinking disabled (thinkingBudget: 0) and
-      // structured output. Same JSON shape Anthropic's tool_use returned,
-      // so the rest of the pipeline doesn't change. ~5s end-to-end on
-      // this rules-heavy prompt vs ~26s with default thinking.
+      // Gemini 3 Flash with DYNAMIC thinking (thinkingBudget: -1 = let
+      // the model decide when to reason internally). Suggest is a
+      // multi-constraint compositional task (19+ rules × wardrobe ×
+      // mood/occasion/weather) where thinking-off was producing
+      // inconsistent rule application — wrong belts on slip dresses,
+      // green-cardigan-with-rust palette clashes, cardigan-no-tee, etc.
+      // Trade-off: ~10-20s end-to-end (vs ~5s thinking-off) and roughly
+      // 2-3x cost per call. UX: still well within the "Yav is styling"
+      // loading state. Worth it for fewer post-parse fixes.
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
@@ -712,10 +717,17 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
             config: {
               temperature: 1,
-              maxOutputTokens: 2048,
+              // 16384 total. Thinking is CAPPED at 8192 so the model
+              // has real room to reason through 19+ rules × wardrobe
+              // × mood/occasion/weather, while leaving 8192 tokens for
+              // the JSON output (single-outfit response is ~500 tokens
+              // — plenty of buffer). 2048 thinking was too small —
+              // model returned in 3-4s without meaningful reasoning,
+              // missing the quality bump we wanted.
+              maxOutputTokens: 16384,
               responseMimeType: "application/json",
               responseSchema: SUGGEST_RESPONSE_SCHEMA,
-              thinkingConfig: { thinkingBudget: 0 },
+              thinkingConfig: { thinkingBudget: 8192 },
             },
           }),
         { tag: "suggest" }
@@ -733,19 +745,28 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
     }
 
-    // Single attempt — Sonnet's bad-shape rate is <1% with structured
-    // tool_use, so the second retry mostly just doubled tail latency.
-    // If the rare bad shape comes back, surface it; the UI shows a
-    // "try again" button.
-    const r = await callAi();
+    // Two attempts on bad shape. With single-outfit mode + thinking
+    // on, a truncated JSON or empty outfit list means we'd ship zero
+    // suggestions to the UI. One automatic retry hides transient
+    // hiccups — if the second attempt also fails, we surface a clear
+    // "ai_error" flag so the UI shows "try again" instead of the
+    // misleading "not enough items" empty state.
+    let r = await callAi();
+    if (!r.parsed || !Array.isArray(r.parsed.outfits) || r.parsed.outfits.length === 0) {
+      console.warn(
+        `[suggest] first attempt empty/bad shape; stop=${r.stopReason} — retrying once`
+      );
+      r = await callAi();
+    }
     const parsed = r.parsed;
     if (!parsed || !Array.isArray(parsed.outfits)) {
       console.error(
-        `[suggest] AI returned unexpected shape; stop=${r.stopReason}`,
+        `[suggest] AI returned unexpected shape after retry; stop=${r.stopReason}`,
         parsed
       );
       return NextResponse.json({
         suggestions: [],
+        ai_error: true,
         message: `AI returned an unexpected shape — stop=${r.stopReason}`,
       });
     }
@@ -903,6 +924,35 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         });
         if (stripped.length !== beforeLen) {
           fixes.push("stripped scarf (at-home rule)");
+        }
+      } else {
+        // R15 TURTLENECK + SCARF strip — outside of at-home, allow the
+        // pair only when temp <5°C AND the scarf is genuinely functional
+        // (warmth >=3 or scarf_function="functional"). Otherwise the
+        // scarf is decorative and competes with the turtleneck for the
+        // same neck zone — strip it.
+        const hasTurtleneck = stripped.some(
+          (i) => i.category === "top" && i.neckline === "turtleneck"
+        );
+        if (hasTurtleneck) {
+          const isCold =
+            weather &&
+            typeof weather.temp === "number" &&
+            weather.temp < 5;
+          const beforeLen = stripped.length;
+          stripped = stripped.filter((i) => {
+            if (i.category !== "accessory" || i.subcategory !== "scarf") return true;
+            if (isCold) {
+              const isFunctional =
+                i.scarf_function === "functional" ||
+                (i.scarf_function == null && (i.warmth_rating ?? 0) >= 3);
+              if (isFunctional) return true;
+            }
+            return false;
+          });
+          if (stripped.length !== beforeLen) {
+            fixes.push("stripped scarf (turtleneck + temp ≥5°C rule)");
+          }
         }
       }
 
@@ -2196,24 +2246,28 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // R4d — CARDIGAN STANDALONE (soft): a loose / oversized / layering-
-      // piece cardigan worn alone (no tee/cami/blouse under) reads
-      // exposed. Soft drop with a tip; admitted back when the hard
-      // pool is short.
+      // R4d — CARDIGAN STANDALONE (HARD drop): a cardigan worn as the
+      // only top with no tee/cami/blouse under reads exposed unless
+      // it's a fitted, closed-front cardigan worn as a sweater
+      // (twinset look). Detects "needs underlayer" via closure (the
+      // strongest signal — open-front always needs one), fit, and the
+      // is_layering_piece flag. Hard drop forces the AI to retry with
+      // an underlayer; soft drop was being admitted back and showing
+      // the wrong outfit anyway.
       {
         const tops = s.items.filter((i) => i.category === "top");
         if (tops.length === 1 && tops[0].subcategory === "cardigan") {
           const card = tops[0];
           const needsUnderlayer =
+            card.closure === "open-drape" ||
             card.fit === "loose" ||
             card.fit === "oversized" ||
             card.is_layering_piece === true;
           if (needsUnderlayer) {
-            const cardiganTip =
-              locale === "fr"
-                ? "Astuce : ce cardigan ample / ouvert se porte mieux avec un t-shirt ou un caraco en dessous."
-                : "Heads up: this loose / open cardigan reads better with a tee or cami underneath.";
-            softMismatch.push({ outfit: s, tip: cardiganTip });
+            drops.push({
+              ids: s._ids,
+              reason: `cardigan "${card.name}" needs a tee/cami underneath (open-front / loose / layering piece)`,
+            });
             return false;
           }
         }
@@ -2330,7 +2384,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
     };
 
-    if (final.length < 3) admitSoft(softMismatch);
+    // We now generate 1 outfit per call — admit-back fires when the
+    // single hard-valid pick was dropped (final.length === 0).
+    if (final.length < 1) admitSoft(softMismatch);
 
     // EMERGENCY FALLBACK: if all 4 outfits got hard-dropped for style
     // reasons (metal mismatch, bag too casual, hat-at-work, etc.) AND
@@ -2420,9 +2476,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       );
     }
 
-    // Show at most 3.
+    // Show 1 outfit — single-outfit-per-call mode (with thinking on,
+    // multi-outfit responses were truncating mid-JSON).
     const suggestions = final
-      .slice(0, 3)
+      .slice(0, 1)
       .map(({ _fixes: _f, _ids: _ids2, ...rest }) => rest);
 
     // Scrub wardrobe_gap if the AI suggested a category the user already
@@ -2465,9 +2522,16 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       kv.set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {});
     }
 
+    // If we've got nothing to ship AND the wardrobe ISN'T thin (the
+    // "wardrobe_gap" explanation handles that case), it's an AI-side
+    // failure — every outfit got filtered out. Surface ai_error so
+    // the UI shows "try again" instead of the wrong "not enough items"
+    // empty state.
+    const aiError = suggestions.length === 0 && !wardrobe_gap;
     return NextResponse.json({
       suggestions,
       wardrobe_gap,
+      ...(aiError && { ai_error: true }),
     });
   } catch (error) {
     console.error("Suggestion error:", error);

@@ -25,7 +25,6 @@ import type {
   HatTexture,
   HatSilhouette,
   SunglassesStyle,
-  JewelryScale,
   ScarfFunction,
   SkirtLength,
   DressSilhouette,
@@ -68,7 +67,6 @@ export type AutoFillResult = {
   hat_texture?: HatTexture;
   hat_silhouette?: HatSilhouette;
   sunglasses_style?: SunglassesStyle;
-  jewelry_scale?: JewelryScale;
   scarf_function?: ScarfFunction;
   skirt_length?: SkirtLength;
   dress_silhouette?: DressSilhouette;
@@ -76,7 +74,6 @@ export type AutoFillResult = {
   warmth_rating?: number;
   // rain_appropriate intentionally removed — derived by suggest pipeline.
   is_layering_piece?: boolean;
-  belt_compatible?: boolean;
   colors?: { hex: string; name: string }[];
 };
 

@@ -96,7 +96,6 @@ export type HatSilhouette =
   | "sun-hat"
   | "other";
 
-export type JewelryScale = "minimal" | "statement";
 
 export type ScarfFunction = "decorative" | "functional";
 
@@ -180,7 +179,6 @@ export interface ClothingItem {
   waist_style: WaistStyle | null;
   waist_height: WaistHeight | null;
   waist_closure: WaistClosure | null;
-  belt_compatible: boolean;
   belt_position: BeltPosition | null;
   is_layering_piece: boolean;
   shoe_height: ShoeHeight | null;
@@ -194,7 +192,6 @@ export interface ClothingItem {
   hat_texture: HatTexture | null;
   hat_silhouette: HatSilhouette | null;
   sunglasses_style: SunglassesStyle | null;
-  jewelry_scale: JewelryScale | null;
   scarf_function: ScarfFunction | null;
   skirt_length: SkirtLength | null;
   dress_silhouette: DressSilhouette | null;
@@ -203,7 +200,6 @@ export interface ClothingItem {
   seasons: Season[];
   occasions: Occasion[];
   warmth_rating: number; // 1-5
-  rain_appropriate: boolean;
   brand: string | null;
   times_worn: number;
   last_worn_date: string | null;
@@ -514,11 +510,6 @@ export const HAT_SILHOUETTE_LABELS: Record<HatSilhouette, string> = {
   headband: "Headband",
   "sun-hat": "Sun hat",
   other: "Other",
-};
-
-export const JEWELRY_SCALE_LABELS: Record<JewelryScale, string> = {
-  minimal: "Minimal",
-  statement: "Statement",
 };
 
 export const SCARF_FUNCTION_LABELS: Record<ScarfFunction, string> = {

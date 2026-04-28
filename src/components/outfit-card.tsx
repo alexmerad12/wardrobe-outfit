@@ -114,29 +114,33 @@ export function OutfitCard({
           </Button>
         </div>
 
-        {/* Browse navigation */}
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-1"
-            onClick={onPrev}
-            disabled={!canPrev}
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            {t("common.previous")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-1"
-            onClick={onNext}
-            disabled={!canNext}
-          >
-            {t("common.next")}
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
+        {/* Browse navigation — only rendered when prev/next handlers
+            are supplied. With single-outfit mode the suggest page
+            shows a "Show me another" button instead. */}
+        {(onPrev || onNext) && (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1"
+              onClick={onPrev}
+              disabled={!canPrev}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              {t("common.previous")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1"
+              onClick={onNext}
+              disabled={!canNext}
+            >
+              {t("common.next")}
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

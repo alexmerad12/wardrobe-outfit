@@ -274,8 +274,6 @@ export const HAT_SILHOUETTES = [
   "other",
 ] as const;
 
-export const JEWELRY_SCALES = ["minimal", "statement"] as const;
-
 export const SCARF_FUNCTIONS = ["decorative", "functional"] as const;
 
 export const SKIRT_LENGTHS = ["mini", "knee-length", "midi", "maxi"] as const;

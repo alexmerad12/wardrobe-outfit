@@ -51,6 +51,7 @@ function SuggestContent() {
   const [styleWishes, setStyleWishes] = useState<string[]>([]);
   const [customWish, setCustomWish] = useState("");
   const [wardrobeGap, setWardrobeGap] = useState<string | null>(null);
+  const [aiError, setAiError] = useState(false);
   const [anchorItem, setAnchorItem] = useState<ClothingItem | null>(null);
 
   // Load the anchor item if one was passed
@@ -92,6 +93,7 @@ function SuggestContent() {
         const data = await res.json();
         setSuggestions(data.suggestions);
         setWardrobeGap(data.wardrobe_gap ?? null);
+        setAiError(Boolean(data.ai_error));
         setCurrentIndex(0);
         setFavoritedIndices(new Set());
         setStep("results");
@@ -193,17 +195,18 @@ function SuggestContent() {
     }
   }
 
-  function handleNext() {
-    if (currentIndex < suggestions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  }
-
   function handleStartOver() {
     setStep("mood");
     setMood(null);
     setOccasion(null);
     setSuggestions([]);
+  }
+
+  // "Show me another" — re-generate a fresh single outfit for the same
+  // mood/occasion/style direction. The server's recent-suggestions KV
+  // ensures the new outfit differs from the one(s) just shown.
+  async function handleShowAnother() {
+    await generateSuggestions();
   }
 
   return (
@@ -217,7 +220,7 @@ function SuggestContent() {
           <h1 className="font-heading text-2xl font-medium tracking-tight">{t("suggest.title")}</h1>
           <p className="text-sm text-muted-foreground">
             {step === "results"
-              ? t("suggest.suggestionCounter", { current: currentIndex + 1, total: suggestions.length })
+              ? t("suggest.singleOutfitTagline")
               : t("suggest.stepTagline")}
           </p>
         </div>
@@ -404,30 +407,38 @@ function SuggestContent() {
           )}
 
           <OutfitCard
-            items={suggestions[currentIndex].items}
-            reasoning={suggestions[currentIndex].reasoning}
-            stylingTip={suggestions[currentIndex].styling_tip}
-            name={suggestions[currentIndex].name}
+            items={suggestions[0].items}
+            reasoning={suggestions[0].reasoning}
+            stylingTip={suggestions[0].styling_tip}
+            name={suggestions[0].name}
             saving={saving}
-            isFavorited={favoritedIndices.has(currentIndex)}
-            onNext={handleNext}
-            onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-            canNext={currentIndex < suggestions.length - 1}
-            canPrev={currentIndex > 0}
-            onSave={() => saveFavorite(suggestions[currentIndex])}
-            onWearToday={() => wearToday(suggestions[currentIndex])}
+            isFavorited={favoritedIndices.has(0)}
+            onSave={() => saveFavorite(suggestions[0])}
+            onWearToday={() => wearToday(suggestions[0])}
           />
 
-          {currentIndex >= suggestions.length - 1 && (
-            <div className="text-center space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {t("suggest.thatsAll")}
-              </p>
-              <Button variant="outline" onClick={handleStartOver}>
-                {t("suggest.startOver")}
-              </Button>
-            </div>
-          )}
+          {/* Single-outfit mode: tap to re-generate. Variety across
+              taps is enforced server-side via the recent-suggestions
+              KV (already in place for anti-repetition). */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 gap-1.5"
+              onClick={handleShowAnother}
+              disabled={loading}
+            >
+              <Sparkles className="h-4 w-4" />
+              {loading ? t("suggest.styling") : t("suggest.showAnother")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleStartOver}
+              disabled={loading}
+            >
+              {t("suggest.startOver")}
+            </Button>
+          </div>
 
           {/* Wardrobe gap suggestion from AI */}
           {wardrobeGap && (
@@ -439,23 +450,43 @@ function SuggestContent() {
         </div>
       )}
 
-      {/* No items message */}
+      {/* Empty state — distinguish "AI failed (try again)" from
+          "wardrobe is genuinely thin (add more items)". */}
       {step === "results" && suggestions.length === 0 && !loading && (
-        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
-          <p className="text-muted-foreground mb-2">
-            {t("suggest.notEnoughItems")}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t("suggest.atLeast3Items")}
-          </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => router.push("/wardrobe/add")}
-          >
-            {t("suggest.addItems")}
-          </Button>
-        </div>
+        aiError ? (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
+            <p className="text-muted-foreground mb-2">
+              {t("suggest.aiErrorTitle")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("suggest.aiErrorHint")}
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4 gap-1.5"
+              onClick={handleShowAnother}
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("suggest.tryAgain")}
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
+            <p className="text-muted-foreground mb-2">
+              {t("suggest.notEnoughItems")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("suggest.atLeast3Items")}
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => router.push("/wardrobe/add")}
+            >
+              {t("suggest.addItems")}
+            </Button>
+          </div>
+        )
       )}
     </div>
   );

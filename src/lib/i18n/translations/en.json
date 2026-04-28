@@ -124,6 +124,9 @@
     "stylingPreferences": "Any styling preferences?",
     "whatsTheOccasion": "What's the occasion?",
     "suggestionCounter": "Suggestion {current} of {total}",
+    "singleOutfitTagline": "Your styled look",
+    "showAnother": "Show me another",
+    "styling": "Styling...",
     "howAreYouFeelingShort": "Today's mood?",
     "anyDirection": "Style in mind?",
     "optional": "Optional - tap any that apply",
@@ -146,6 +149,9 @@
     "startOver": "Start Over",
     "notEnoughItems": "Not enough items in your wardrobe to suggest outfits.",
     "atLeast3Items": "Add at least 3 items to get started!",
+    "aiErrorTitle": "Couldn't put together a look this time.",
+    "aiErrorHint": "The stylist hit a hiccup — give it another try.",
+    "tryAgain": "Try again",
     "addItems": "Add Items",
     "stylistTip": "Stylist tip"
   },
@@ -477,10 +483,6 @@
     "sun-hat": "Sun hat",
     "other": "Other"
   },
-  "jewelryScale": {
-    "minimal": "Minimal",
-    "statement": "Statement"
-  },
   "scarfFunction": {
     "decorative": "Decorative",
     "functional": "Functional (warmth)"
@@ -788,7 +790,6 @@
     "bagTexture": "Bag Texture",
     "sunglassesStyle": "Sunglasses Style",
     "hatSilhouette": "Hat Silhouette",
-    "jewelryScale": "Jewelry Scale",
     "scarfFunction": "Scarf Function",
     "skirtLength": "Skirt Length",
     "bagMetalFinish": "Bag Metal Finish",
@@ -806,8 +807,6 @@
     "seasons": "Seasons (select all that apply)",
     "occasions": "Occasions (select all that apply)",
     "warmth": "Warmth (1 = very light, 5 = heavy winter)",
-    "rainAppropriate": "Rain appropriate",
-    "rainAppropriateHint": "We'll favor this piece when rain is in the forecast",
     "stored": "Pack away",
     "storedOn": "Packed away",
     "storedHint": "Hides from your wardrobe and keeps it out of suggestions",
