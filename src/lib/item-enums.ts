@@ -38,7 +38,9 @@ export const SUBCATEGORIES = [
   "mini-dress",
   "midi-dress",
   "maxi-dress",
+  // One-piece
   "jumpsuit",
+  "overalls",
   // Outerwear
   "jacket",
   "coat",

@@ -687,6 +687,20 @@
     "Wine": "Wine",
     "Yellow": "Yellow"
   },
+  "colorFamily": {
+    "red": "Red",
+    "orange": "Orange",
+    "yellow": "Yellow",
+    "green": "Green",
+    "blue": "Blue",
+    "purple": "Purple",
+    "pink": "Pink",
+    "brown": "Brown",
+    "beige": "Beige",
+    "black": "Black",
+    "white": "White",
+    "gray": "Gray"
+  },
   "wardrobe": {
     "title": "Wardrobe",
     "items": "item",

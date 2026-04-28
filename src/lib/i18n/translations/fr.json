@@ -692,6 +692,20 @@
     "Raw Denim": "Denim brut",
     "Indigo Denim": "Denim indigo"
   },
+  "colorFamily": {
+    "red": "Rouge",
+    "orange": "Orange",
+    "yellow": "Jaune",
+    "green": "Vert",
+    "blue": "Bleu",
+    "purple": "Violet",
+    "pink": "Rose",
+    "brown": "Marron",
+    "beige": "Beige",
+    "black": "Noir",
+    "white": "Blanc",
+    "gray": "Gris"
+  },
   "wardrobe": {
     "title": "Dressing",
     "items": "item",

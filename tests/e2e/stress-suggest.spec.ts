@@ -30,6 +30,7 @@ type SuggestSuggestion = {
   name: string;
   weather_temp: number | null;
   weather_condition: string | null;
+  relaxed?: boolean;
 };
 type SuggestResponse = {
   suggestions: SuggestSuggestion[];
@@ -197,13 +198,11 @@ function validateOutfit(
   const failures: Failure[] = [];
   const items = outfit.items;
   const ids = items.map((i) => i.id);
-  // Emergency-admit outfits ship with a "[Relaxed]" prefix in styling_tip.
-  // We're aware these break some rules — skip the style rules the
-  // emergency admit was designed to relax (bag formality, evening
+  // Emergency-admit outfits ship with relaxed: true on the outfit
+  // object. We're aware these break some rules — skip the style rules
+  // the emergency admit was designed to relax (bag formality, evening
   // material bias, metal sync, anti-bland).
-  const isRelaxed =
-    typeof outfit.styling_tip === "string" &&
-    outfit.styling_tip.includes("[Relaxed]");
+  const isRelaxed = outfit.relaxed === true;
   const flag = (rule: string, detail: string) =>
     failures.push({
       scenario: scenario.name,

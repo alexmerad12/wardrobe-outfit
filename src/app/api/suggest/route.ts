@@ -225,7 +225,7 @@ const HALLUCINATION_WORDS: Record<string, string[]> = {
   bottom: ["jeans", "trousers", "pants", "leggings", "sweatpants", "shorts", "skirt", "chinos", "slacks"],
   dress: ["dress", "gown", "sundress", "maxi dress", "midi dress", "mini dress"],
   "one-piece": ["jumpsuit", "overalls", "romper"],
-  outerwear: ["jacket", "blazer", "coat", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
+  outerwear: ["jacket", "blazer", "vest", "coat", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
   shoes: ["boot", "sneaker", "heel", "sandal", "loafer", "mule", "oxford", "pump"],
   bag: ["handbag", "backpack", "tote", "clutch", "crossbody", "purse"],
   accessory: ["belt", "scarf", "beanie"],
@@ -908,21 +908,64 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     }
     const parsedOutfits = parsed.outfits;
 
-    // Strip material / color / brand words from an AI-written name. The
-    // AI sometimes writes "Suede & Satin Edge" when there's no suede in
-    // the outfit; rather than drop the outfit, just scrub those words
-    // from the name and fall back to a generic label if nothing's left.
-    const NAME_STRIP_WORDS = /\b(?:suede|satin|silk|leather|denim|wool|cotton|linen|knit|mesh|lace|velvet|corduroy|faux(?:-|\s)leather|faux(?:-|\s)suede|patent(?:-|\s)leather|moto|biker|bomber|maxi|midi|mini|crop|cropped|flared|skinny|slim|oversized|tapered|bootcut|wide(?:-|\s)leg)s?\b/gi;
-    const cleanName = (raw: string | undefined, fallback: string): string => {
+    // Strip material / silhouette words from an AI-written name only
+    // when no item in the outfit actually has that attribute. The AI
+    // sometimes writes "Suede & Satin Edge" when there's no suede; we
+    // scrub the hallucinated half but keep the legit half ("Satin Edge"
+    // when a satin dress is in the outfit). Falls back to a generic
+    // label only when the cleaned name comes out empty.
+    const NAME_STRIP_VOCAB = [
+      "suede", "satin", "silk", "leather", "denim", "wool", "cotton",
+      "linen", "knit", "mesh", "lace", "velvet", "corduroy", "tweed",
+      "cashmere", "chiffon", "fleece", "flannel", "jersey", "tulle",
+      "faux-leather", "faux-suede", "patent-leather",
+      "moto", "biker", "bomber",
+      "maxi", "midi", "mini", "crop", "cropped",
+      "flared", "skinny", "slim", "oversized", "tapered", "bootcut",
+      "wide-leg",
+    ];
+    const buildPermittedVocab = (its: ClothingItem[]): Set<string> => {
+      const set = new Set<string>();
+      const add = (v: unknown) => {
+        if (typeof v === "string" && v.length > 0) set.add(v.toLowerCase());
+      };
+      for (const i of its) {
+        add(i.subcategory);
+        add(i.fit);
+        add(i.bottom_fit);
+        add(i.dress_silhouette);
+        add(i.skirt_length);
+        add(i.length);
+        add(i.pants_length);
+        if (Array.isArray(i.material)) for (const m of i.material) add(m);
+      }
+      return set;
+    };
+    const cleanName = (
+      raw: string | undefined,
+      fallback: string,
+      its: ClothingItem[]
+    ): string => {
       if (!raw) return fallback;
-      const cleaned = raw
-        .replace(NAME_STRIP_WORDS, "")
+      const permitted = buildPermittedVocab(its);
+      let cleaned = raw;
+      for (const w of NAME_STRIP_VOCAB) {
+        if (permitted.has(w)) continue;
+        // Match the bare word and either spaced or hyphenated variants
+        // (so "wide-leg" handles "wide leg" too).
+        const escaped = w.replace(/-/g, "(?:-|\\s)");
+        const re = new RegExp(`\\b${escaped}s?\\b`, "gi");
+        cleaned = cleaned.replace(re, "");
+      }
+      cleaned = cleaned
         .replace(/\s+/g, " ")
         .replace(/\s*([&+,])\s*/g, " $1 ")
         .replace(/^\s*[&+,]+\s*|\s*[&+,]+\s*$/g, "")
+        .replace(/^(?:and|et)\s+/i, "")
         .trim();
       return cleaned.length >= 3 ? cleaned : fallback;
     };
+
 
     const mapped = parsedOutfits.map((s) => {
       const rawItems = s.item_ids
@@ -1435,7 +1478,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       }
 
       const nameFallback = `${moodInfo.label} look`;
-      const name = cleanName(s.name, nameFallback);
+      const name = cleanName(s.name, nameFallback, outfitItems);
 
       return {
         items: outfitItems,
@@ -1447,6 +1490,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         name,
         weather_temp: weather?.temp ?? null,
         weather_condition: weather?.condition ?? null,
+        relaxed: false,
         _fixes: fixes,
         _ids: outfitItems.map((i) => i.id),
       };
@@ -1511,7 +1555,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // Each soft-mismatch entry carries the outfit AND the styling tip we
     // want appended on admit-back, so weather/tag/belt drops each get
     // the right user-facing message instead of a one-size-fits-all hint.
-    const softMismatch: { outfit: typeof mapped[number]; tip: string }[] = [];
+    // tip can be omitted when the underlying drop reason is internal
+    // (e.g. season-tag relax) and isn't worth surfacing to the user.
+    const softMismatch: { outfit: typeof mapped[number]; tip?: string }[] = [];
 
     // Detect preset wishes from the user's STYLE DIRECTION text. Claude
     // is told these are hard rules but doesn't always honor them — we
@@ -2295,11 +2341,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
         if (tagOffender) {
-          const tagTip =
-            locale === "fr"
-              ? `Tu as marqué cette pièce pour une autre saison/occasion — relâché ici car le reste du dressing manque d'options.`
-              : `You tagged this piece for another season/occasion — relaxing the tag because the rest of the wardrobe is thin here.`;
-          softMismatch.push({ outfit: s, tip: tagTip });
+          // No user-facing tip — the season/occasion tag is the user's
+          // own metadata and explaining the relax in-line reads as
+          // internal-debug noise. Admit silently with the relaxed flag
+          // so the validator stays lenient.
+          softMismatch.push({ outfit: s });
           return false;
         }
       }
@@ -2525,7 +2571,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         seenSets.add(key);
         const tipped = {
           ...s,
-          styling_tip: s.styling_tip ? `${s.styling_tip} ${tip}` : tip,
+          styling_tip: tip
+            ? s.styling_tip
+              ? `${s.styling_tip} ${tip}`
+              : tip
+            : s.styling_tip,
+          relaxed: true,
         };
         final.push(tipped);
       }
@@ -2543,13 +2594,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // Only admit a structurally-complete outfit (a real base, with shoes
     // when needed) — never a broken structural pick.
     if (final.length === 0 && mapped.length > 0) {
-      // Tip is prefixed with a stable marker (en + fr both start with
-      // "[Relaxed] ") so the validator and downstream UI can detect
-      // emergency-admit outfits without parsing the full sentence.
-      const fallbackTip =
-        locale === "fr"
-          ? "[Relaxed] On a légèrement assoupli les règles pour cette tenue — vérifie qu'elle te convient."
-          : "[Relaxed] We relaxed one styling rule to find this — give it a once-over.";
+      // No user-facing caveat — the AI's styling tip stays intact so
+      // the user reads real advice. The relaxed flag travels on the
+      // outfit object for the validator and any future badge UI.
       const isStructurallyComplete = (s: typeof mapped[number]) => {
         const has = (cat: string) => s.items.some((i) => i.category === cat);
         const hasOveralls = s.items.some(
@@ -2598,9 +2645,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           seenSets.add(key);
           final.push({
             ...candidate,
-            styling_tip: candidate.styling_tip
-              ? `${candidate.styling_tip} ${fallbackTip}`
-              : fallbackTip,
+            relaxed: true,
           });
           drops.push({
             ids: [],

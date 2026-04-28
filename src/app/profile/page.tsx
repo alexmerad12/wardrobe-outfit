@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
-import { toColorKey } from "@/lib/color-label";
+import { colorFamily, colorFamilySwatch, type ColorFamilyKey } from "@/lib/color-family";
 
 interface CityResult {
   name: string;
@@ -135,20 +135,25 @@ export default function ProfilePage() {
 
   // ---------- Computed stats ----------
 
+  // Bucket every item color into one of 12 color families so the bars
+  // stay readable instead of fragmenting across near-identical names
+  // ("Crimson" vs "Burgundy" vs "Red"). Family swatch is a canonical
+  // mid-tone so the bar reads cleanly regardless of which exact shades
+  // the user owns.
   const colorDistribution = useMemo(() => {
-    const counts: Record<string, { name: string; hex: string; count: number }> = {};
+    const counts: Record<ColorFamilyKey, number> = {
+      red: 0, orange: 0, yellow: 0, green: 0, blue: 0, purple: 0,
+      pink: 0, brown: 0, beige: 0, black: 0, white: 0, gray: 0,
+    };
     for (const item of allItems) {
       for (const color of item.colors ?? []) {
-        const key = color.name.toLowerCase();
-        if (!counts[key]) {
-          counts[key] = { name: color.name, hex: color.hex, count: 0 };
-        }
-        counts[key].count++;
+        counts[colorFamily(color.hex)]++;
       }
     }
-    return Object.values(counts)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
+    return (Object.keys(counts) as ColorFamilyKey[])
+      .map((key) => ({ key, hex: colorFamilySwatch(key), count: counts[key] }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count);
   }, [allItems]);
 
   const categoryBreakdown = useMemo(() => {
@@ -284,12 +289,12 @@ export default function ProfilePage() {
                 <p className="text-sm font-medium text-muted-foreground">{t("profile.topColors")}</p>
                 <div className="space-y-1.5">
                   {colorDistribution.map((color) => (
-                    <div key={color.name} className="flex items-center gap-2">
+                    <div key={color.key} className="flex items-center gap-2">
                       <span
                         className="h-3 w-3 rounded-full flex-shrink-0 border border-border"
                         style={{ backgroundColor: color.hex }}
                       />
-                      <span className="text-sm w-20 truncate">{t(`color.${toColorKey(color.name)}`)}</span>
+                      <span className="text-sm w-20 truncate">{t(`colorFamily.${color.key}`)}</span>
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                         <div
                           className="h-full rounded-full bg-foreground/20"
