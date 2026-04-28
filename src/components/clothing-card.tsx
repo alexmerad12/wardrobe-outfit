@@ -16,6 +16,9 @@ interface ClothingCardProps {
   /** Category the user is filtering by — forwarded as a query param so
    *  the item-detail page can return them to the same tab. */
   fromCategory?: string;
+  /** Subcategory drill-down so back-nav lands on the same drill-down
+   *  view (e.g. tops/shirts) instead of dropping back to tops/all. */
+  fromSubcategory?: string;
 }
 
 export function ClothingCard({
@@ -24,6 +27,7 @@ export function ClothingCard({
   isSelected = false,
   onToggleSelect,
   fromCategory,
+  fromSubcategory,
 }: ClothingCardProps) {
   const content = (
     <div
@@ -94,9 +98,14 @@ export function ClothingCard({
     );
   }
 
-  const href = fromCategory
-    ? `/wardrobe/${item.id}?from=${encodeURIComponent(fromCategory)}`
-    : `/wardrobe/${item.id}`;
+  const href = (() => {
+    if (!fromCategory) return `/wardrobe/${item.id}`;
+    const qs = new URLSearchParams({ from: fromCategory });
+    if (fromSubcategory && fromSubcategory !== "all") {
+      qs.set("sub", fromSubcategory);
+    }
+    return `/wardrobe/${item.id}?${qs.toString()}`;
+  })();
 
   return (
     <Link href={href}>

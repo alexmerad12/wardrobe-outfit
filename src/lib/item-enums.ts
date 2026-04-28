@@ -77,7 +77,6 @@ export const SUBCATEGORIES = [
   "belt",
   "scarf",
   "hat",
-  "sunglasses",
 ] as const;
 
 export const PATTERNS = [
@@ -246,18 +245,6 @@ export const HAT_TEXTURES = [
   "canvas",
   "leather",
   "velvet",
-  "other",
-] as const;
-
-export const SUNGLASSES_STYLES = [
-  "aviator",
-  "wayfarer",
-  "cat-eye",
-  "round",
-  "oversized",
-  "rectangle",
-  "sport",
-  "shield",
   "other",
 ] as const;
 

@@ -291,8 +291,7 @@
     "crossbody": "Bandoulière",
     "belt": "Ceinture",
     "scarf": "Écharpe",
-    "hat": "Chapeau",
-    "sunglasses": "Lunettes de soleil"
+    "hat": "Chapeau"
   },
   "pattern": {
     "solid": "Uni",
@@ -463,17 +462,6 @@
     "croc-embossed": "Effet croco",
     "snake-embossed": "Effet python",
     "fringed": "À franges",
-    "other": "Autre"
-  },
-  "sunglassesStyle": {
-    "aviator": "Aviateur",
-    "wayfarer": "Wayfarer",
-    "cat-eye": "Œil de chat",
-    "round": "Ronde",
-    "oversized": "Oversize",
-    "rectangle": "Rectangulaire",
-    "sport": "Sport",
-    "shield": "Masque",
     "other": "Autre"
   },
   "hatSilhouette": {
@@ -793,7 +781,6 @@
     "metalFinish": "Finition métal",
     "bagSize": "Taille du sac",
     "bagTexture": "Texture du sac",
-    "sunglassesStyle": "Style de lunettes",
     "hatSilhouette": "Silhouette du chapeau",
     "scarfFunction": "Fonction de l'écharpe",
     "skirtLength": "Longueur de la jupe",

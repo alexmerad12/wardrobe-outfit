@@ -24,7 +24,6 @@ import type {
   BagTexture,
   HatTexture,
   HatSilhouette,
-  SunglassesStyle,
   ScarfFunction,
   SkirtLength,
   DressSilhouette,
@@ -66,7 +65,6 @@ export type AutoFillResult = {
   bag_metal_finish?: MetalFinish;
   hat_texture?: HatTexture;
   hat_silhouette?: HatSilhouette;
-  sunglasses_style?: SunglassesStyle;
   scarf_function?: ScarfFunction;
   skirt_length?: SkirtLength;
   dress_silhouette?: DressSilhouette;

@@ -24,7 +24,6 @@ import type {
   MetalFinish,
   BagSize,
   BagTexture,
-  SunglassesStyle,
   HatSilhouette,
   ScarfFunction,
   SkirtLength,
@@ -108,7 +107,6 @@ export default function AddItemPage() {
   const [metalFinish, setMetalFinish] = useState<MetalFinish | null>(null);
   const [bagSize, setBagSize] = useState<BagSize | null>(null);
   const [bagTexture, setBagTexture] = useState<BagTexture | null>(null);
-  const [sunglassesStyle, setSunglassesStyle] = useState<SunglassesStyle | null>(null);
   const [hatSilhouette, setHatSilhouette] = useState<HatSilhouette | null>(null);
   const [scarfFunction, setScarfFunction] = useState<ScarfFunction | null>(null);
   const [skirtLength, setSkirtLength] = useState<SkirtLength | null>(null);
@@ -249,7 +247,6 @@ export default function AddItemPage() {
     if (r.metal_finish) setMetalFinish(r.metal_finish);
     if (r.bag_size) setBagSize(r.bag_size);
     if (r.bag_texture) setBagTexture(r.bag_texture);
-    if (r.sunglasses_style) setSunglassesStyle(r.sunglasses_style);
     if (r.hat_silhouette) setHatSilhouette(r.hat_silhouette);
     if (r.scarf_function) setScarfFunction(r.scarf_function);
     if (r.skirt_length) setSkirtLength(r.skirt_length);
@@ -342,16 +339,11 @@ export default function AddItemPage() {
     category !== "bag" &&
     (category !== "accessory" || subcategory === "scarf");
   // Metal finish: shoes (buckles / zippers) + belt buckle.
-  // Hide on hat, sunglasses, scarf where hardware isn't a styling driver.
+  // Hide on hat, scarf where hardware isn't a styling driver.
   const showMetalFinish =
     category === "shoes" ||
     (category === "accessory" && subcategory === "belt");
-  // Material: hide on sunglasses where it's ambiguous (frame vs lens).
-  const showMaterial = !(
-    category === "accessory" && subcategory === "sunglasses"
-  );
-  // Sunglasses style — aviator / wayfarer / cat-eye / etc.
-  const showSunglassesStyle = category === "accessory" && subcategory === "sunglasses";
+  const showMaterial = true;
   const showHatSilhouette = category === "accessory" && subcategory === "hat";
   const showScarfFunction = category === "accessory" && subcategory === "scarf";
   const showSkirtLength =
@@ -659,7 +651,6 @@ export default function AddItemPage() {
           metal_finish: showMetalFinish ? metalFinish : null,
           bag_size: category === "bag" ? bagSize : null,
           bag_texture: category === "bag" ? bagTexture : null,
-          sunglasses_style: showSunglassesStyle ? sunglassesStyle : null,
           hat_silhouette: showHatSilhouette ? hatSilhouette : null,
           scarf_function: showScarfFunction ? scarfFunction : null,
           skirt_length: showSkirtLength ? skirtLength : null,
@@ -1465,30 +1456,6 @@ export default function AddItemPage() {
                   )}
                 >
                   {labels.BAG_TEXTURE[tx]}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Sunglasses Style - only for sunglasses */}
-        {showSunglassesStyle && (
-          <div className="space-y-2">
-            <Label>{t("addItem.sunglassesStyle")}</Label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(labels.SUNGLASSES_STYLE) as SunglassesStyle[]).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSunglassesStyle(sunglassesStyle === s ? null : s)}
-                  className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                    sunglassesStyle === s
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {labels.SUNGLASSES_STYLE[s]}
                 </button>
               ))}
             </div>

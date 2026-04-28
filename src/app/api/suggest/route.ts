@@ -8,12 +8,14 @@ import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
-// Suggest endpoint runs on Gemini 3 Flash via the new @google/genai
-// SDK so we can disable internal "thinking" (the legacy SDK can't
-// expose that knob). Thinking off + Gemini 3 Flash lands a 4-outfit
-// response in ~5s on this rules-heavy prompt vs ~26s with thinking on.
-// Packing still uses Anthropic via its own client. GOOGLE_API_KEY must
-// be set in .env.local locally and in Vercel env settings for deploys.
+// Suggest endpoint runs on Gemini 3 Flash with thinking enabled
+// (thinkingBudget: 8192). Pairs with the weighted-random subsetting
+// step (~22 visible items) so the AI's input is small enough that
+// thinking finishes in ~10-15s with proper rule traversal. Other
+// endpoints (try-on, analyze, packing) still use their existing
+// configs — this is suggest-specific.
+// GOOGLE_API_KEY must be set in .env.local locally and in Vercel env
+// settings for deploys.
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 const SUGGEST_RESPONSE_SCHEMA: Schema = {
@@ -24,10 +26,7 @@ const SUGGEST_RESPONSE_SCHEMA: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
-          item_ids: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-          },
+          item_ids: { type: Type.ARRAY, items: { type: Type.STRING } },
           name: { type: Type.STRING },
           reasoning: { type: Type.STRING },
           styling_tip: { type: Type.STRING, nullable: true },
@@ -563,7 +562,103 @@ export async function POST(request: NextRequest) {
       if (!richCategory) return true;
       return passesTags(it) && passesFormality(it) && passesWarmth(it);
     });
-    const wardrobeList = promptItems.map(describeItem).join("\n");
+
+    // ─────────────────────────────────────────────────────────────
+    // Weighted-random subset of the pre-filtered wardrobe.
+    //
+    // Why: feeding 60+ items × 60-75 tokens each pushes the prompt
+    // past 8K input tokens, and reasoning models (GPT-5 mini medium)
+    // take 30-46s to read+reason on that. Capping the AI's view to
+    // ~35 items drops the prompt to ~5K tokens and brings latency to
+    // ~6-12s without sacrificing quality — the AI still composes a
+    // full outfit, it just picks from a curated subset rather than
+    // the entire wardrobe each call.
+    //
+    // Bonus: each "Show me another" tap re-samples with a fresh
+    // random component, naturally producing different outfits even
+    // when the AI is otherwise deterministic.
+    //
+    // Sampling rules:
+    //   - Per-category target (top 6, bottom 5, dress 3, etc) — keeps
+    //     the subset structurally balanced so the AI can always
+    //     compose a valid base.
+    //   - Weight = baseline + bonuses for never-worn / less-worn /
+    //     last-worn-long-ago, minus penalty for items in recent
+    //     suggestions. Plus a Math.random() jitter so the same
+    //     wardrobe state still produces variety across calls.
+    //   - Anchor item (when STYLE DIRECTION pins a specific piece)
+    //     is force-included regardless of sampling.
+    // ─────────────────────────────────────────────────────────────
+    const recentlyShownIds = new Set<string>();
+    for (const idSet of kvRecentSuggestions) {
+      for (const id of idSet) recentlyShownIds.add(id);
+    }
+    // Tighter targets — ~22 items max instead of 34. Each item is
+    // ~60-75 tokens, so this drops the wardrobe block from ~2,400 to
+    // ~1,500 tokens (40% smaller). With smaller input, GPT-5 mini
+    // low reasoning consistently lands ~5-10s instead of 13-17s.
+    // Each category still has enough alternatives for a coherent
+    // outfit (e.g., 4 tops × 3 bottoms × 3 shoes = 36 valid combos
+    // pre-filtering by occasion/weather).
+    const SUBSET_TARGETS: Record<string, number> = {
+      top: 4,
+      bottom: 4,
+      dress: 2,
+      "one-piece": 1,
+      outerwear: 3,
+      shoes: 3,
+      bag: 2,
+      accessory: 4,
+    };
+    function itemSampleWeight(it: ClothingItem): number {
+      let w = 1.0;
+      // Recently shown — strong negative (still includable as last
+      // resort, but heavily deprioritized).
+      if (recentlyShownIds.has(it.id)) w -= 0.7;
+      // Never-worn — strong rotation bonus.
+      const worn = it.times_worn ?? 0;
+      if (worn === 0) w += 0.8;
+      else if (worn <= 3) w += 0.4;
+      else if (worn <= 8) w += 0.1;
+      // Last worn a while ago — additional rotation bonus.
+      if (it.last_worn_date) {
+        const days = Math.floor(
+          (Date.now() - new Date(it.last_worn_date).getTime()) / 86_400_000
+        );
+        if (days > 90) w += 0.3;
+        else if (days > 30) w += 0.2;
+      } else if (worn > 0) {
+        // Worn but no last_worn_date — treat as long-ago.
+        w += 0.2;
+      }
+      // Random jitter so each call samples differently.
+      return w + Math.random();
+    }
+    const byCategory = new Map<string, ClothingItem[]>();
+    for (const it of promptItems) {
+      const list = byCategory.get(it.category) ?? [];
+      list.push(it);
+      byCategory.set(it.category, list);
+    }
+    const subsetItems: ClothingItem[] = [];
+    for (const [cat, list] of byCategory) {
+      const target = SUBSET_TARGETS[cat] ?? Math.min(list.length, 4);
+      const ranked = list
+        .map((it) => ({ it, score: itemSampleWeight(it) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, target)
+        .map((r) => r.it);
+      subsetItems.push(...ranked);
+    }
+    // Anchor item — if user pinned a specific piece via STYLE DIRECTION,
+    // force-include it even if sampling missed it.
+    if (anchorItemId) {
+      const anchor = items.find((i) => i.id === anchorItemId && !i.is_stored);
+      if (anchor && !subsetItems.some((s) => s.id === anchor.id)) {
+        subsetItems.push(anchor);
+      }
+    }
+    const wardrobeList = subsetItems.map(describeItem).join("\n");
 
     const weatherDesc = weather
       ? `${weather.temp}°C, feels like ${weather.feels_like}°C. ${weather.condition}. Humidity: ${weather.humidity}%, wind: ${weather.wind_speed}km/h, rain chance: ${weather.precipitation_probability}%.`
@@ -663,7 +758,7 @@ HARD RULES — do not violate:
     BAG SUBCATEGORY × OCCASION: BLOCK subcategory="backpack" at formal / party / date / dinner-out — backpacks read student / gym / commute, not dressed up. Allow at work (laptop bag), travel, casual, brunch, outdoor.
     HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events.
     HAT SILHOUETTE × OCCASION (when Hat silhouette field is set): formal / date / dinner-out → BLOCK silhouette in [baseball, trucker, bucket] (too casual). Allow [fedora, beret, pillbox, headband]. For Velvet or Felt hat texture at formal / party, restrict to silhouette in [beret, pillbox, headband] only — no velvet trucker caps.
-    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and outdoor (and waived on the men's track when no fitting accessory exists), include AT LEAST ONE accessory beyond the bag (belt, scarf, hat, sunglasses). Pick something that fits the outfit (no sunglasses indoors at night, no warm scarf on a 25°C day).
+    ACCESSORY MINIMUM: for every occasion EXCEPT at-home and outdoor (and waived on the men's track when no fitting accessory exists), include AT LEAST ONE accessory beyond the bag (belt, scarf, hat). Pick something that fits the outfit (no warm scarf on a 25°C day).
     SCARF FUNCTION (when Scarf function field is set): a scarf with function="functional" is a warmth layer (Slot 3) and does NOT count toward the head/neck proximity rule (Rule 15). A scarf with function="decorative" DOES count and competes with a hat for the same focal slot.${isMensTrack ? "\n    MEN'S OFFICE GUARDRAIL: at occasion=work, BLOCK shorts and open-toe shoes (sandals). Strongly prefer Subcategory in [trousers, jeans] paired with a Shirt (collared) and proper closed-toe shoes (loafers, oxfords, derbies). NEVER suggest a tank-top or sweatpants for work." : ""}
     ${isMensTrack ? "MEN'S METAL SYNC FOCUS: prioritize matching Metal finish on the belt buckle and shoe hardware/eyelets — those are the visible hardware points on a men's look. Bag hardware is secondary on this track." : ""}
     SKIRT × OCCASION (Track A only, when Skirt length field is set): work → BLOCK skirt_length="mini" (too casual / unprofessional). Knee-length, midi, or maxi only. Date / dinner-out / party → all lengths allowed, prefer mini or midi for the focal silhouette.
@@ -695,10 +790,11 @@ HARD RULES — do not violate:
    c) Empty Occasions or Seasons list = "works anywhere" — no constraint. Don't penalize unset items.
 18. STYLIST INSTINCT — completers a real stylist adds without being asked. These are PROACTIVE additions, not constraints. A wardrobe item that "completes" the look is BETTER than skipping the slot.
    a) BELT THE WAIST — derived from item attributes (no manual flag).
-      ADD a belt from the wardrobe (category=accessory, subcategory=belt) when:
+      MANDATORY belt (outfit will be rejected if missing) when:
+      - DRESS with Silhouette in [a-line, wrap, fit-and-flare] AND fit ≠ "slim" AND waist_style ≠ "belted". A belt defines the waist on these silhouettes; without one the look is incomplete. (Wrap dresses already come with a tie — count that as the belt; don't add another.)
+      ALSO ADD a belt when:
       - SWEATER or BLOUSE with a SKIRT.
       - BLOUSE with tailored trousers (the tucked look).
-      - DRESS with Silhouette in [a-line, wrap, fit-and-flare] AND fit ≠ "slim" AND waist_style ≠ "belted". (Wrap dresses already come with a tie — don't double up. Fit-and-flare dresses with a defined waist seam still take a belt accent.)
       NEVER add a belt when ANY of the following is true:
       - DRESS with Silhouette in [slip, bodycon, mermaid, sheath, shift] — these silhouettes are defined by their cut; a belt fights the line and bunches the fabric.
       - DRESS or BOTTOM with fit = "slim" — already body-skimming, belt is redundant.
@@ -706,6 +802,7 @@ HARD RULES — do not violate:
       - DRESS or BOTTOM with waist_style = "elastic" — no place for a belt.
       - BOTTOM with waist_closure in [elastic, drawstring, pull-on, side-zip] — no belt loops or no front fastening that would carry a belt.
       - BOTTOM with subcategory in [leggings, sweatpants] — never belted.
+      - One-piece OVERALLS — already have built-in waist + suspenders defining the silhouette; a belt is redundant and clashes with the overall straps.
       - The outfit already has a belted coat / dress.
       - The wardrobe has zero belts.
       Otherwise (jeans + tucked top, structured trousers + blouse, etc.), the belt is what separates a stylist look from a thrown-together one — add it.
@@ -750,15 +847,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 3 Flash with DYNAMIC thinking (thinkingBudget: -1 = let
-      // the model decide when to reason internally). Suggest is a
-      // multi-constraint compositional task (19+ rules × wardrobe ×
-      // mood/occasion/weather) where thinking-off was producing
-      // inconsistent rule application — wrong belts on slip dresses,
-      // green-cardigan-with-rust palette clashes, cardigan-no-tee, etc.
-      // Trade-off: ~10-20s end-to-end (vs ~5s thinking-off) and roughly
-      // 2-3x cost per call. UX: still well within the "Yav is styling"
-      // loading state. Worth it for fewer post-parse fixes.
+      // Gemini 3 Flash with MODERATE thinking (thinkingBudget: 4096).
+      // Pairs with weighted-random subsetting (~22 visible items).
+      // 4096 is the goldilocks — enough reasoning for the AI to
+      // verify color palette, layering proportions, and subtle
+      // styling rules the post-parse drops can't catch, without
+      // the 30-60s overhead of 8192. Targets ~12-18s per call.
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
@@ -766,17 +860,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
             config: {
               temperature: 1,
-              // 16384 total. Thinking is CAPPED at 8192 so the model
-              // has real room to reason through 19+ rules × wardrobe
-              // × mood/occasion/weather, while leaving 8192 tokens for
-              // the JSON output (single-outfit response is ~500 tokens
-              // — plenty of buffer). 2048 thinking was too small —
-              // model returned in 3-4s without meaningful reasoning,
-              // missing the quality bump we wanted.
-              maxOutputTokens: 16384,
+              maxOutputTokens: 8192,
               responseMimeType: "application/json",
               responseSchema: SUGGEST_RESPONSE_SCHEMA,
-              thinkingConfig: { thinkingBudget: 8192 },
+              thinkingConfig: { thinkingBudget: 3072 },
             },
           }),
         { tag: "suggest" }
@@ -1075,6 +1162,9 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             if (i.dress_silhouette && NO_BELT_DRESS_SILHOUETTES.has(i.dress_silhouette)) return true;
             if (i.fit === "slim") return true;
             if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
+            // Overalls have built-in waist + suspenders defining the
+            // silhouette; a belt clashes with the overall straps.
+            if (i.category === "one-piece" && i.subcategory === "overalls") return true;
           }
           if (i.category === "bottom") {
             if (i.subcategory && NO_BELT_BOTTOM_SUBS.has(i.subcategory)) return true;
@@ -1090,7 +1180,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             (i) => !(i.category === "accessory" && i.subcategory === "belt")
           );
           if (stripped.length !== beforeLen) {
-            fixes.push("stripped belt (incompatible base — slip/bodycon/slim/elastic-waist)");
+            fixes.push("stripped belt (incompatible base — slip/bodycon/slim/elastic-waist/overalls)");
           }
         }
       }
@@ -1285,14 +1375,6 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           if (i.category !== "accessory" || i.is_stored) return false;
           // Hat is forbidden at work per Rule 11.
           if (occasion === "work" && i.subcategory === "hat") return false;
-          // Sunglasses indoors at night is silly — skip if the occasion
-          // is indoor-evening.
-          if (
-            i.subcategory === "sunglasses" &&
-            (occasion === "dinner-out" || occasion === "party" || occasion === "formal")
-          ) {
-            return false;
-          }
           return true;
         });
         if (availableAccessories.length > 0) {
@@ -1721,10 +1803,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
       // R8 — evening dressy material: for date / dinner-out / party /
-      // formal, the outfit MUST include at least one dressy-material
-      // piece (silk / satin / chiffon / lace / velvet / patent-leather)
-      // — but only when the wardrobe HAS such pieces. If not, silently
-      // skip (it's a wardrobe gap, not an AI failure).
+      // formal, prefer outfits with at least one dressy-material piece
+      // (silk / satin / chiffon / lace / velvet / patent-leather). Soft
+      // drop — admitted back with a tip when the hard pool is empty,
+      // so single-outfit mode never returns nothing just because the
+      // AI's pick wasn't dressy. Skip entirely when the wardrobe has
+      // no dressy pieces (it's a wardrobe gap).
       if (
         wardrobeHasDressyMaterial &&
         (occasion === "date" ||
@@ -1737,10 +1821,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
         });
         if (!hasDressy) {
-          drops.push({
-            ids: s._ids,
-            reason: `${occasion}: no dressy material (silk/satin/chiffon/lace/velvet) — wardrobe has dressy pieces`,
-          });
+          const dressyTip =
+            locale === "fr"
+              ? `Astuce : pour ${occasion}, ajoute une pièce en soie / satin / dentelle / velours pour rehausser le look.`
+              : `Heads up: for ${occasion}, a silk / satin / lace / velvet piece would elevate this look.`;
+          softMismatch.push({ outfit: s, tip: dressyTip });
           return false;
         }
       }
@@ -2371,6 +2456,19 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           occasion === "at-home" ||
           occasion === "outdoor";
         if (beltable && !hasBelt && !beltExempt) {
+          // HARD drop when the beltable base is a belt-friendly dress
+          // (a-line / wrap / fit-and-flare) — those silhouettes need
+          // a defined waist or the look is incomplete. The auto-retry
+          // above gives the AI a second chance to include a belt.
+          // Soft drop for the sweater+skirt / blouse+trousers cases —
+          // belt is encouraged but the look isn't broken without one.
+          if (beltFriendlyDress) {
+            drops.push({
+              ids: s._ids,
+              reason: `${beltFriendlyDress.dress_silhouette} dress requires a belt — silhouette demands a defined waist`,
+            });
+            return false;
+          }
           const beltTip =
             locale === "fr"
               ? "Astuce stylisme : ajoute une ceinture — elle marquerait la taille et donnerait du cachet à l'ensemble."

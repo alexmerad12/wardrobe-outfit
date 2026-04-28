@@ -20,7 +20,7 @@ export type Subcategory =
   // Bags
   | "handbag" | "backpack" | "tote" | "clutch" | "crossbody"
   // Accessories
-  | "belt" | "scarf" | "hat" | "sunglasses";
+  | "belt" | "scarf" | "hat";
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other";
 
@@ -71,17 +71,6 @@ export type HatTexture =
   | "canvas"
   | "leather"
   | "velvet"
-  | "other";
-
-export type SunglassesStyle =
-  | "aviator"
-  | "wayfarer"
-  | "cat-eye"
-  | "round"
-  | "oversized"
-  | "rectangle"
-  | "sport"
-  | "shield"
   | "other";
 
 export type HatSilhouette =
@@ -191,7 +180,6 @@ export interface ClothingItem {
   bag_metal_finish: MetalFinish | null;
   hat_texture: HatTexture | null;
   hat_silhouette: HatSilhouette | null;
-  sunglasses_style: SunglassesStyle | null;
   scarf_function: ScarfFunction | null;
   skirt_length: SkirtLength | null;
   dress_silhouette: DressSilhouette | null;
@@ -487,18 +475,6 @@ export const HAT_TEXTURE_LABELS: Record<HatTexture, string> = {
   other: "Other",
 };
 
-export const SUNGLASSES_STYLE_LABELS: Record<SunglassesStyle, string> = {
-  aviator: "Aviator",
-  wayfarer: "Wayfarer",
-  "cat-eye": "Cat-eye",
-  round: "Round",
-  oversized: "Oversized",
-  rectangle: "Rectangle",
-  sport: "Sport",
-  shield: "Shield",
-  other: "Other",
-};
-
 export const HAT_SILHOUETTE_LABELS: Record<HatSilhouette, string> = {
   baseball: "Baseball cap",
   trucker: "Trucker cap",
@@ -732,6 +708,5 @@ export const SUBCATEGORY_OPTIONS: Record<Category, { value: Subcategory; label: 
     { value: "belt", label: "Belt" },
     { value: "scarf", label: "Scarf" },
     { value: "hat", label: "Hat" },
-    { value: "sunglasses", label: "Sunglasses" },
   ],
 };

@@ -286,8 +286,7 @@
     "crossbody": "Crossbody",
     "belt": "Belt",
     "scarf": "Scarf",
-    "hat": "Hat",
-    "sunglasses": "Sunglasses"
+    "hat": "Hat"
   },
   "pattern": {
     "solid": "Solid",
@@ -458,17 +457,6 @@
     "croc-embossed": "Croc-embossed",
     "snake-embossed": "Snake-embossed",
     "fringed": "Fringed",
-    "other": "Other"
-  },
-  "sunglassesStyle": {
-    "aviator": "Aviator",
-    "wayfarer": "Wayfarer",
-    "cat-eye": "Cat-eye",
-    "round": "Round",
-    "oversized": "Oversized",
-    "rectangle": "Rectangle",
-    "sport": "Sport",
-    "shield": "Shield",
     "other": "Other"
   },
   "hatSilhouette": {
@@ -788,7 +776,6 @@
     "metalFinish": "Metal Finish",
     "bagSize": "Bag Size",
     "bagTexture": "Bag Texture",
-    "sunglassesStyle": "Sunglasses Style",
     "hatSilhouette": "Hat Silhouette",
     "scarfFunction": "Scarf Function",
     "skirtLength": "Skirt Length",

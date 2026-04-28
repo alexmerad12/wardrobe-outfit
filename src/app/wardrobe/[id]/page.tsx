@@ -26,7 +26,6 @@ import type {
   MetalFinish,
   BagSize,
   BagTexture,
-  SunglassesStyle,
   HatSilhouette,
   ScarfFunction,
   SkirtLength,
@@ -123,7 +122,6 @@ export default function ItemDetailPage() {
   const [editMetalFinish, setEditMetalFinish] = useState<MetalFinish | null>(null);
   const [editBagSize, setEditBagSize] = useState<BagSize | null>(null);
   const [editBagTexture, setEditBagTexture] = useState<BagTexture | null>(null);
-  const [editSunglassesStyle, setEditSunglassesStyle] = useState<SunglassesStyle | null>(null);
   const [editHatSilhouette, setEditHatSilhouette] = useState<HatSilhouette | null>(null);
   const [editScarfFunction, setEditScarfFunction] = useState<ScarfFunction | null>(null);
   const [editSkirtLength, setEditSkirtLength] = useState<SkirtLength | null>(null);
@@ -176,27 +174,32 @@ export default function ItemDetailPage() {
   }, [params.id]);
 
   // Sibling navigation: fetch the full wardrobe once, filter by the
-  // ?from= category if present, and compute prev / next ids so the user
-  // can swipe or arrow through items without bouncing back to the grid.
-  // Sorted newest-first to match the grid order.
+  // ?from= category and ?sub= subcategory if present, and compute
+  // prev / next ids so the user can swipe or arrow through items
+  // without bouncing back to the grid. Sorted newest-first to match
+  // the grid order.
   const [siblingIds, setSiblingIds] = useState<string[]>([]);
   const fromFilter = searchParams.get("from") ?? "";
+  const subFilter = searchParams.get("sub") ?? "";
   useEffect(() => {
     async function fetchSiblings() {
       try {
         const res = await fetch("/api/items");
         if (!res.ok) return;
         const all = (await res.json()) as ClothingItem[];
-        const filtered = fromFilter
-          ? all.filter((i) => i.category === fromFilter && !i.is_stored)
-          : all.filter((i) => !i.is_stored);
+        const filtered = all.filter((i) => {
+          if (i.is_stored) return false;
+          if (fromFilter && i.category !== fromFilter) return false;
+          if (subFilter && i.subcategory !== subFilter) return false;
+          return true;
+        });
         setSiblingIds(filtered.map((i) => i.id));
       } catch (err) {
         console.error("Failed to fetch siblings:", err);
       }
     }
     fetchSiblings();
-  }, [fromFilter]);
+  }, [fromFilter, subFilter]);
 
   const currentIndex = siblingIds.indexOf(params.id as string);
   const prevId = currentIndex > 0 ? siblingIds[currentIndex - 1] : null;
@@ -220,7 +223,10 @@ export default function ItemDetailPage() {
       setBlockedHint(true);
       return;
     }
-    const suffix = fromFilter ? `?from=${encodeURIComponent(fromFilter)}` : "";
+    const qs = new URLSearchParams();
+    if (fromFilter) qs.set("from", fromFilter);
+    if (subFilter) qs.set("sub", subFilter);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
     router.push(`/wardrobe/${targetId}${suffix}`);
   };
 
@@ -295,7 +301,6 @@ export default function ItemDetailPage() {
     setEditMetalFinish(item.metal_finish ?? null);
     setEditBagSize(item.bag_size ?? null);
     setEditBagTexture(item.bag_texture ?? null);
-    setEditSunglassesStyle(item.sunglasses_style ?? null);
     setEditHatSilhouette(item.hat_silhouette ?? null);
     setEditScarfFunction(item.scarf_function ?? null);
     setEditSkirtLength(item.skirt_length ?? null);
@@ -374,11 +379,8 @@ export default function ItemDetailPage() {
     (editCategory !== "accessory" || editSubcategory === "scarf");
   const editShowMetalFinish =
     editCategory === "shoes" ||
-    (editCategory === "accessory" && ["belt", "jewelry", "watch"].includes(editSubcategory));
-  const editShowMaterial = !(
-    editCategory === "accessory" && ["sunglasses", "jewelry", "watch"].includes(editSubcategory)
-  );
-  const editShowSunglassesStyle = editCategory === "accessory" && editSubcategory === "sunglasses";
+    (editCategory === "accessory" && editSubcategory === "belt");
+  const editShowMaterial = true;
   const editShowHatSilhouette = editCategory === "accessory" && editSubcategory === "hat";
   const editShowScarfFunction = editCategory === "accessory" && editSubcategory === "scarf";
   const editShowSkirtLength =
@@ -431,7 +433,6 @@ export default function ItemDetailPage() {
           metal_finish: editShowMetalFinish ? editMetalFinish : null,
           bag_size: editCategory === "bag" ? editBagSize : null,
           bag_texture: editCategory === "bag" ? editBagTexture : null,
-          sunglasses_style: editShowSunglassesStyle ? editSunglassesStyle : null,
           hat_silhouette: editShowHatSilhouette ? editHatSilhouette : null,
           scarf_function: editShowScarfFunction ? editScarfFunction : null,
           skirt_length: editShowSkirtLength ? editSkirtLength : null,
@@ -648,10 +649,15 @@ export default function ItemDetailPage() {
               return;
             }
             // Return to the wardrobe tab the user came from (passed via
-            // ?from= when they tapped the item). Falls back to history.
+            // ?from= when they tapped the item) and the subcategory
+            // drill-down (?sub=) so they land exactly where they were.
+            // Falls back to history.
             const from = searchParams.get("from");
+            const sub = searchParams.get("sub");
             if (from) {
-              router.push(`/wardrobe?category=${encodeURIComponent(from)}`);
+              const qs = new URLSearchParams({ category: from });
+              if (sub) qs.set("subcategory", sub);
+              router.push(`/wardrobe?${qs.toString()}`);
             } else {
               router.back();
             }
@@ -1066,18 +1072,6 @@ export default function ItemDetailPage() {
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.SKIRT_LENGTH) as SkirtLength[]).map((s) => (
                   <button key={s} type="button" onClick={() => setEditSkirtLength(editSkirtLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSkirtLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SKIRT_LENGTH[s]}</button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Sunglasses Style - only for sunglasses */}
-          {editShowSunglassesStyle && (
-            <div className="space-y-1">
-              <Label>{t("addItem.sunglassesStyle")}</Label>
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(labels.SUNGLASSES_STYLE) as SunglassesStyle[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditSunglassesStyle(editSunglassesStyle === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSunglassesStyle === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SUNGLASSES_STYLE[s]}</button>
                 ))}
               </div>
             </div>

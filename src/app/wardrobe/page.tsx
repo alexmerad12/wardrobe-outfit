@@ -73,13 +73,17 @@ function WardrobePageInner() {
       ? (c as Category | "all" | "stored")
       : "all";
   })();
+  // Subcategory drill-down also honors ?subcategory= so back-nav from
+  // an item detail lands on the exact drilled view (e.g. tops/shirts).
+  const initialSubcategory = searchParams.get("subcategory") ?? "all";
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category | "all" | "stored">(initialCategory);
   // Subcategory drill-down — "all" = show everything in the category.
-  // Resets whenever the category changes so the user lands on a clean
-  // view of the new category by default.
-  const [activeSubcategory, setActiveSubcategory] = useState<string>("all");
+  // Reset on user-driven category changes (handled in the effect below)
+  // so switching tabs gives a clean view, but persisted on first mount
+  // so back-nav from item detail keeps the drill-down.
+  const [activeSubcategory, setActiveSubcategory] = useState<string>(initialSubcategory);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -151,23 +155,32 @@ function WardrobePageInner() {
       inline: "center",
       block: "nearest",
     });
-    // Reset subcategory filter when switching categories so the user
-    // lands on a clean view of the new category instead of carrying
-    // over an unrelated subcategory.
-    setActiveSubcategory("all");
   }, [activeCategory]);
+
+  // User-driven category switch — reset subcategory to "all" so they
+  // land on a clean view of the new tab. Kept off the effect so a
+  // URL-restored drill-down (returning from item detail) isn't wiped
+  // by Strict Mode's double-invoke or any synthetic state churn.
+  function handleCategoryChange(cat: Category | "all" | "stored") {
+    setActiveCategory(cat);
+    if (cat !== activeCategory) setActiveSubcategory("all");
+  }
 
   // Keep the URL in sync with the filter state so navigating to an item
   // and pressing back (either the app arrow or the browser back button)
-  // returns the user to the same tab. router.replace avoids piling extra
-  // history entries every time the user taps a different category.
+  // returns the user to the same tab AND drilled subcategory.
+  // router.replace avoids piling extra history entries.
   useEffect(() => {
-    const next = activeCategory === "all" ? "/wardrobe" : `/wardrobe?category=${activeCategory}`;
-    const current = searchParams.get("category") ?? "all";
-    if (current !== activeCategory) {
+    const qs = new URLSearchParams();
+    if (activeCategory !== "all") qs.set("category", activeCategory);
+    if (activeSubcategory !== "all") qs.set("subcategory", activeSubcategory);
+    const next = qs.toString() ? `/wardrobe?${qs.toString()}` : "/wardrobe";
+    const currentCat = searchParams.get("category") ?? "all";
+    const currentSub = searchParams.get("subcategory") ?? "all";
+    if (currentCat !== activeCategory || currentSub !== activeSubcategory) {
       router.replace(next, { scroll: false });
     }
-  }, [activeCategory, router, searchParams]);
+  }, [activeCategory, activeSubcategory, router, searchParams]);
 
   // Refetch the grid whenever a background upload saves, so fresh items
   // appear in place of their pending tiles.
@@ -515,7 +528,7 @@ function WardrobePageInner() {
           <button
             key={cat}
             ref={cat === activeCategory ? activeCategoryRef : undefined}
-            onClick={() => setActiveCategory(cat)}
+            onClick={() => handleCategoryChange(cat)}
             className={cn(
               "whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
               activeCategory === cat
@@ -623,6 +636,7 @@ function WardrobePageInner() {
               isSelected={selected.has(item.id)}
               onToggleSelect={() => toggleSelect(item.id)}
               fromCategory={activeCategory !== "all" ? activeCategory : undefined}
+              fromSubcategory={activeSubcategory !== "all" ? activeSubcategory : undefined}
             />
           ))}
         </div>
