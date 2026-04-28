@@ -480,39 +480,88 @@ export async function POST(request: NextRequest) {
       favorites = shuffled.slice(0, 3);
     }
 
-    // Pre-filter the wardrobe shown to the AI: when a category has 3+
-    // items that genuinely match the requested occasion and current
-    // season, hide the off-tag items in that category so the AI can't
-    // even consider them. This is the strongest enforcement of
-    // Rule 17 — instead of telling the AI "prioritize" and hoping,
-    // the off-tag items are physically not in the prompt.
+    // Pre-filter the wardrobe shown to the AI. Three independent
+    // filters layer on top of each other; an item is "appropriate for
+    // this context" only if it passes all three. When a category has
+    // 3+ items passing every filter, off-context items in that
+    // category get hidden from the AI entirely. Sparse categories
+    // (fewer than 3 fully-matching items) show ALL items so the AI
+    // has something to work with.
     //
-    // Categories with fewer than 3 in-tag matches show ALL items
-    // (sparse-wardrobe fallback) — better to suggest something off-
-    // tag than nothing at all.
-    function itemMatchesTags(it: ClothingItem): boolean {
+    // Filter 1: occasion + season tags (Rule 17 — user's explicit
+    // intent, takes priority).
+    // Filter 2: formality bucket — each occasion has an expected
+    // formality range (work = business / smart-casual / formal;
+    // brunch = casual / smart-casual; etc). Items with formality
+    // outside that range get filtered out.
+    // Filter 3: weather warmth — at warm temps, hide heavy pieces
+    // (warmth ≥ 4) on outerwear and tops; at very-cold temps, hide
+    // thin pieces (warmth ≤ 1.5) on outerwear, tops, and dresses.
+    function passesTags(it: ClothingItem): boolean {
       const occOK =
         !it.occasions || it.occasions.length === 0 || it.occasions.includes(occasion);
       const seasonOK =
         !it.seasons || it.seasons.length === 0 || it.seasons.includes(currentSeason);
       return occOK && seasonOK;
     }
+    const OCCASION_FORMALITY_BANDS: Record<Occasion, string[]> = {
+      "at-home": ["very-casual", "casual"],
+      casual: ["very-casual", "casual", "smart-casual"],
+      brunch: ["casual", "smart-casual"],
+      outdoor: ["very-casual", "casual"],
+      travel: ["very-casual", "casual", "smart-casual"],
+      work: ["smart-casual", "business-casual", "formal"],
+      "dinner-out": ["smart-casual", "business-casual", "formal"],
+      date: ["smart-casual", "business-casual", "formal"],
+      party: ["smart-casual", "business-casual", "formal"],
+      formal: ["business-casual", "formal"],
+    };
+    const allowedFormalities = new Set(OCCASION_FORMALITY_BANDS[occasion] ?? []);
+    function passesFormality(it: ClothingItem): boolean {
+      const formalities = Array.isArray(it.formality) ? it.formality : [it.formality];
+      // No formality tagged on this item — show it (no signal to filter on).
+      if (!formalities.length || formalities.every((f) => !f)) return true;
+      return formalities.some((f) => f && allowedFormalities.has(f));
+    }
+    const temp = weather && typeof weather.temp === "number" ? weather.temp : null;
+    function passesWarmth(it: ClothingItem): boolean {
+      if (temp === null) return true;
+      const warmth = it.warmth_rating ?? null;
+      if (warmth === null) return true;
+      // Warm temps (≥24°C) — block heavy outerwear / heavy tops.
+      if (temp >= 24) {
+        if ((it.category === "outerwear" || it.category === "top") && warmth >= 4) {
+          return false;
+        }
+      }
+      // Very cold (<5°C) — block thin tops / dresses / outerwear that
+      // can't actually warm a body in winter.
+      if (temp < 5) {
+        if (
+          (it.category === "outerwear" ||
+            it.category === "top" ||
+            it.category === "dress") &&
+          warmth <= 1.5
+        ) {
+          return false;
+        }
+      }
+      return true;
+    }
     const RICH_CATEGORY_THRESHOLD = 3;
-    const inTagByCategory = new Map<string, number>();
+    const inAllByCategory = new Map<string, number>();
     for (const it of items) {
       if (it.is_stored) continue;
-      if (itemMatchesTags(it)) {
-        inTagByCategory.set(it.category, (inTagByCategory.get(it.category) ?? 0) + 1);
+      if (passesTags(it) && passesFormality(it) && passesWarmth(it)) {
+        inAllByCategory.set(it.category, (inAllByCategory.get(it.category) ?? 0) + 1);
       }
     }
     const promptItems = items.filter((it) => {
       if (it.is_stored) return false;
       const richCategory =
-        (inTagByCategory.get(it.category) ?? 0) >= RICH_CATEGORY_THRESHOLD;
-      // Sparse category — show everything so the AI has options.
+        (inAllByCategory.get(it.category) ?? 0) >= RICH_CATEGORY_THRESHOLD;
       if (!richCategory) return true;
-      // Rich category — only show items that match BOTH occasion + season.
-      return itemMatchesTags(it);
+      return passesTags(it) && passesFormality(it) && passesWarmth(it);
     });
     const wardrobeList = promptItems.map(describeItem).join("\n");
 
@@ -627,15 +676,15 @@ HARD RULES — do not violate:
       - "mix patterns" / "mixer les motifs" / "mix-patterns": at least 2 items in the outfit must have a non-solid pattern (striped, plaid, floral, animal-print, etc.). Solid pieces are fine as the third/fourth.
       - "dress day" / "journée robe" / "dress-day": the outfit must be built around a dress (category="dress"). Exception: if the wardrobe has zero dresses, fall back gracefully.
    c) SOFT VIBE: any other phrase ("more drapey", "less colorful", "office chic", custom user text) is a hint — bias the outfits toward it but no hard requirement.
-13. MOOD (must be visibly expressed in EVERY outfit — different moods + same occasion MUST produce visibly different outfits):
+13. MOOD (must be visibly expressed):
    - Energized → at least one saturated bright (red, orange, yellow, fuchsia, electric blue, kelly green). No all-neutral palette.
-   - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional. No slouchy proportions. Bag should be Bag size "medium" with Bag texture "smooth" / "pebbled" / "croc-embossed" / "snake-embossed" (rigid, structured). All visible Metal finish must match (see Rule 14). PALETTE: prefer high-contrast — one strong dark anchor (black, navy, oxblood, espresso, charcoal) paired with crisp neutrals (white, cream, ivory) OR a saturated jewel tone (emerald, sapphire, ruby, plum) paired with black. AVOID all-tonal warm-earth palettes (rust + camel + beige + taupe across multiple pieces) — those read boho-cozy, not confident. If the wardrobe trends warm, anchor with a black or navy piece + ONE warm accent.
-   - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory, contrast color. Not a safe monochrome. Mixed Metal finish is ALLOWED (only mood where it is). High-low pairings welcome (a casual hat with a blazer, etc.).
-   - Cozy → soft textures (knit, cashmere, fleece, jersey, wool). Warm earth tones (camel, cream, oatmeal, rust, chocolate, brown, terracotta) OR neutrals (black/white/grey/cream) with at most ONE saturated accent. NEVER mix warm earth tones with saturated cool colors (green/teal/blue/purple/etc) in the same outfit — that combo reads as a palette clash, not cozy. Relaxed not slouchy.
+   - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional, no slouchy proportions. PALETTE: prefer high-contrast — dark anchor (black, navy, oxblood) + crisp neutrals OR jewel tone + black. AVOID all-tonal warm-earth (rust + camel + beige) — reads boho-cozy, not confident.
+   - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory. High-low pairings welcome. Mixed metals allowed (only mood where it is).
+   - Cozy → soft textures (knit, cashmere, fleece, wool). Warm earth tones (camel, cream, rust, chocolate, brown) OR neutrals. NEVER mix warm earth with saturated cool colors. Relaxed not slouchy.
    - Chill → relaxed easy silhouette, neutral palette, minimal accessories. Elevated t-shirt-and-jeans energy.
-   - Bold → at least one statement piece: bright saturated color OR distinctive pattern (animal, plaid, embellished) OR dramatic silhouette (oversized blazer, mini, leather). No safe choices.
-   - Comfort Day → elastic / drawstring / pull-on bottoms preferred. Soft top (knit, jersey, oversized). NEVER heels. NEVER tailored / fitted / structured. Easy on the body.
-   - Need a Hug → soft pastels OR oversized cozy pieces. Comfort with one warm/uplifting touch. No edgy / hard / dark. Prioritize Material in [cashmere, wool, fleece, knit]. AVOID Toe shape "pointed" (too sharp). Bag texture should be soft (woven / fringed / pebbled), NOT rigid (smooth / croc-embossed).
+   - Bold → at least one statement piece: saturated color OR distinctive pattern (animal, plaid, embellished) OR dramatic silhouette. No safe choices.
+   - Comfort Day → elastic / drawstring / pull-on bottoms. Soft top (knit, jersey, oversized). NEVER heels. NEVER tailored / fitted.
+   - Need a Hug → soft pastels OR oversized cozy pieces. Comfort + one uplifting touch. No edgy / hard / dark. Cashmere / wool / fleece / knit. AVOID pointed-toe shoes.
 14. METAL SYNC: all visible hardware Metal finish (and Bag metal finish for the bag) across shoes / belt / bag MUST match — gold-with-gold, silver-with-silver, etc. Items tagged "none" or "mixed" are neutral and pair with anything. EXCEPTION: when MOOD = Playful, mixed metals are explicitly allowed (only mood where this is true).${isMensTrack ? " On the men's track, focus the sync on belt buckle + shoe hardware — the bag is secondary." : ""}
 15. PROXIMITY (head/neck zone — anti-clutter): at most ONE focal item in the head-and-neck zone per outfit. If the outfit has a hat, do NOT also include a scarf — UNLESS temperature is below 5°C, where the scarf becomes a functional warmth layer and is exempt from this rule. (When temp ≥ 5°C, a scarf is decorative and competes for the same focal slot as the hat.)
    TURTLENECK + SCARF: same principle — a turtleneck already covers the neck, so adding a scarf reads neck-on-neck and heavy. NEVER pair turtleneck + scarf at AT-HOME (you're indoors, no warmth need). For all other occasions: only allow turtleneck + scarf when temp < 5°C AND the scarf is genuinely functional (scarf_function="functional" or warmth ≥3) — at that point the scarf is for warmth, not styling. Otherwise, drop the scarf.
