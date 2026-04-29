@@ -6,6 +6,8 @@ import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { colorFamily } from "@/lib/color-family";
+import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
 
 // Try-on / fitting-room endpoint runs on Gemini 3 Flash Preview via
 // @google/genai with thinking disabled. Two AI calls: (1) analyze the
@@ -23,25 +25,6 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 //     (versatility check)
 // Everything runs in one request so the UX can show results in one screen.
 
-const ANALYZE_SYSTEM_PROMPT = `You are a fashion expert analyzing a single clothing item photo. Return ONLY a JSON object — no preamble, no markdown fences, no explanation.
-
-For each field, pick ONE of the allowed values below. Omit the field if genuinely indeterminate. Arrays may have 1-3 entries.
-
-ENUMS:
-- category: "top" | "bottom" | "dress" | "one-piece" | "outerwear" | "shoes" | "bag" | "accessory"
-- subcategory: must match the category
-- pattern (array): "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other"
-- material (array): "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other"
-- formality (array): "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal"
-- seasons (array): "spring" | "summer" | "fall" | "winter"
-- occasions (array): "work" | "casual" | "brunch" | "dinner-out" | "date" | "outdoor" | "travel" | "party" | "formal" | "at-home"
-- name: 2-5 word human label ("Black leather jacket")
-- colors: array of { hex: "#rrggbb", name: "Title-case color name" } — up to 3 dominant colors
-- warmth_rating: 1-5 in 0.5 steps
-- is_layering_piece: true only for open cardigans, blazers, vests, open-drape pieces
-
-Return one JSON object with category, subcategory, name, colors (required), plus any of the other fields you can infer confidently.`;
-
 function describeItemForPrompt(item: ClothingItem, idLabel: string): string {
   const parts: string[] = [`[${idLabel}]`, item.name];
   parts.push(`(${item.category}${item.subcategory ? "/" + item.subcategory : ""})`);
@@ -54,35 +37,18 @@ function describeItemForPrompt(item: ClothingItem, idLabel: string): string {
   return parts.join(" | ");
 }
 
-function hexToRgb(hex: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-// Loose color match: name equality OR Euclidean RGB distance under a
-// generous threshold. The AI generates fresh color names per photo
-// ("Black" vs "Onyx" vs "Charcoal" for the same bag in different
-// lighting), so name equality alone misses too many true duplicates.
-// Hex closeness catches identical items photographed twice.
+// Color match via 12-family bucketing (brown / black / gray / red /
+// blue / etc.). Raw RGB-distance was too loose — dark browns sit
+// within ~50 RGB units of dark grays and near-blacks, so a brown
+// turtleneck pulled in black and gray "matches". Family equality
+// keeps "Crimson" ≈ "Burgundy" (both red) while cleanly rejecting
+// brown ≠ gray.
 function colorsOverlap(
   a: { hex: string; name: string }[],
   b: { hex: string; name: string }[]
 ): boolean {
-  const namesA = new Set(a.map((c) => c.name.toLowerCase().trim()));
-  if (b.some((c) => namesA.has(c.name.toLowerCase().trim()))) return true;
-  const rgbsA = a.map((c) => hexToRgb(c.hex)).filter(Boolean) as [number, number, number][];
-  const rgbsB = b.map((c) => hexToRgb(c.hex)).filter(Boolean) as [number, number, number][];
-  for (const ra of rgbsA) {
-    for (const rb of rgbsB) {
-      const d = Math.sqrt(
-        (ra[0] - rb[0]) ** 2 + (ra[1] - rb[1]) ** 2 + (ra[2] - rb[2]) ** 2
-      );
-      if (d < 60) return true;
-    }
-  }
-  return false;
+  const familiesA = new Set(a.map((c) => colorFamily(c.hex)));
+  return b.some((c) => familiesA.has(colorFamily(c.hex)));
 }
 
 export async function POST(request: NextRequest) {
@@ -159,13 +125,14 @@ export async function POST(request: NextRequest) {
       .eq("is_stored", false);
     const wardrobe = (wardrobeData ?? []) as ClothingItem[];
 
-    // 3. Similar items: subcategory match is required, then require
-    // attribute matches from (pattern, color, material, neckline,
-    // sleeve length). The threshold is category-aware: tops, dresses,
-    // outerwear, one-piece have all five attributes available so we
-    // require 2+ — one alone (e.g. shared "black" color) is too loose.
-    // Bags, shoes, accessories, bottoms have no neckline/sleeve at
-    // all, so 1+ match suffices to surface the duplicate. Color
+    // 3. Similar items: subcategory match is required, then attribute
+    // matches from (pattern, color, material, neckline, sleeve length).
+    // For tops, dresses, outerwear, one-piece we REQUIRE color to be
+    // one of the matches (plus at least one other) — without that,
+    // every solid knit sweater scored 2 against any other solid knit
+    // sweater regardless of color, so shopping for burgundy returned
+    // black/gray/orange "duplicates". Bags, shoes, accessories,
+    // bottoms have fewer matchable attrs so 1+ match suffices. Color
     // matching is loose (name OR hex closeness) so the same physical
     // item photographed twice doesn't get missed because the AI named
     // its color differently.
@@ -194,7 +161,6 @@ export async function POST(request: NextRequest) {
       attrs.category === "dress" ||
       attrs.category === "outerwear" ||
       attrs.category === "one-piece";
-    const minScore = hasShapeAttrs ? 2 : 1;
     const similarItems = wardrobe
       .filter(
         (item) =>
@@ -222,12 +188,19 @@ export async function POST(request: NextRequest) {
           phantomSleeve && item.sleeve_length && phantomSleeve === item.sleeve_length
             ? 1
             : 0;
+        const otherMatches =
+          patternMatch + materialMatch + necklineMatch + sleeveMatch;
         return {
           item,
-          score: patternMatch + colorMatch + materialMatch + necklineMatch + sleeveMatch,
+          colorMatch,
+          score: colorMatch + otherMatches,
         };
       })
-      .filter((x) => x.score >= minScore)
+      .filter((x) =>
+        hasShapeAttrs
+          ? x.colorMatch === 1 && x.score >= 3
+          : x.colorMatch === 1
+      )
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
       .map((x) => x.item);

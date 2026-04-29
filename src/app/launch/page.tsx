@@ -12,19 +12,19 @@ import { Monogram } from "@/components/brand/monogram";
 // The committed brand palette — same shape the Rose & Damask renderer
 // expects: [bg, petalHi, _, _, _, _, stem, damaskMotif].
 const BRAND_PALETTE: Palette = [
-  "#ebe0c8", // bg — ivory
-  "#f8efd6", // petalHi
-  "#0a0806", "#0a0806", "#0a0806", "#0a0806",
-  "#3a2a1e", // stem — warm dark for the diamond hairlines
-  "#0a0806", // damaskMotif — ink
+  "#ffffff", // bg — ivory
+  "#f4f4f4", // petalHi
+  "#000000", "#000000", "#000000", "#000000",
+  "#1a1a1a", // stem — warm dark for the diamond hairlines
+  "#000000", // damaskMotif — ink
 ];
 
 const BRAND = {
-  ink: "#0a0806",
-  ivory: "#ebe0c8",
-  ivoryHi: "#f8efd6",
-  hairline: "rgba(10,8,6,0.18)",
-  hairlineHi: "rgba(10,8,6,0.45)",
+  ink: "#000000",
+  ivory: "#ffffff",
+  ivoryHi: "#f4f4f4",
+  hairline: "rgba(0,0,0,0.18)",
+  hairlineHi: "rgba(0,0,0,0.45)",
   bodoni: '"Bodoni Moda", "Bodoni 72", "Didot", serif',
 } as const;
 
@@ -65,7 +65,7 @@ export default function LaunchPage() {
                 color={BRAND.ink}
                 innerFill={BRAND.ivory}
                 fontFamily={BRAND.bodoni}
-                frame="rgba(10,8,6,0.92)"
+                frame="rgba(0,0,0,0.92)"
               />
             </div>
 
@@ -110,8 +110,8 @@ const LAUNCH_CSS = `
     /* Cover the whole viewport including the app's BottomNav so the launch
        page feels like a true landing surface, not an embedded panel. */
     position: fixed; inset: 0;
-    background: #ebe0c8;
-    color: #0a0806;
+    background: #ffffff;
+    color: #000000;
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-y: auto;
@@ -128,8 +128,8 @@ const LAUNCH_CSS = `
   .launch-vignette {
     position: absolute; inset: 0;
     background:
-      radial-gradient(ellipse at 50% 35%, rgba(235,224,200,0.55) 0%, transparent 55%),
-      radial-gradient(ellipse at center, transparent 55%, rgba(58,42,30,0.32) 100%);
+      radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.55) 0%, transparent 55%),
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.32) 100%);
     pointer-events: none;
   }
 
@@ -158,11 +158,11 @@ const LAUNCH_CSS = `
     font-size: 10px;
     letter-spacing: 0.34em;
     text-transform: uppercase;
-    color: rgba(10,8,6,0.7);
+    color: rgba(0,0,0,0.7);
   }
-  .eyebrow.alt { color: rgba(10,8,6,0.55); font-variant-numeric: tabular-nums; }
+  .eyebrow.alt { color: rgba(0,0,0,0.55); font-variant-numeric: tabular-nums; }
   .rule {
-    width: 36px; height: 0.5px; background: rgba(10,8,6,0.45);
+    width: 36px; height: 0.5px; background: rgba(0,0,0,0.45);
   }
 
   /* ── Hero ── */
@@ -182,7 +182,7 @@ const LAUNCH_CSS = `
     position: absolute;
     inset: -28px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(235,224,200,0.55) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, transparent 70%);
     z-index: -1;
   }
   .launch-wordmark {
@@ -196,7 +196,7 @@ const LAUNCH_CSS = `
   }
   .launch-rule {
     width: 22px; height: 0.5px;
-    background: rgba(10,8,6,0.55);
+    background: rgba(0,0,0,0.55);
     margin: 4px 0 2px;
   }
   .launch-tagline {
@@ -204,7 +204,7 @@ const LAUNCH_CSS = `
     font-family: ${BRAND.bodoni};
     font-style: italic;
     font-size: clamp(15px, 1.8vw, 19px);
-    color: rgba(10,8,6,0.78);
+    color: rgba(0,0,0,0.78);
     letter-spacing: 0.02em;
   }
   .launch-blurb {
@@ -213,7 +213,7 @@ const LAUNCH_CSS = `
     text-align: center;
     font-size: clamp(13px, 1.4vw, 15px);
     line-height: 1.6;
-    color: rgba(10,8,6,0.66);
+    color: rgba(0,0,0,0.66);
   }
 
   /* ── CTAs ── */
@@ -245,11 +245,11 @@ const LAUNCH_CSS = `
   .btn-ghost {
     background: transparent;
     color: ${BRAND.ink};
-    border: 0.5px solid rgba(10,8,6,0.55);
+    border: 0.5px solid rgba(0,0,0,0.55);
   }
   .btn-ghost:hover {
     border-color: ${BRAND.ink};
-    background: rgba(10,8,6,0.04);
+    background: rgba(0,0,0,0.04);
   }
 
   /* ── Footer ── */
@@ -261,12 +261,12 @@ const LAUNCH_CSS = `
     font-family: 'Bodoni Moda', serif;
     font-style: italic;
     font-size: 12px;
-    color: rgba(10,8,6,0.5);
+    color: rgba(0,0,0,0.5);
   }
   .launch-foot .dot { opacity: 0.55; }
   .foot-link {
     color: inherit; text-decoration: none;
-    border-bottom: 0.5px dotted rgba(10,8,6,0.35);
+    border-bottom: 0.5px dotted rgba(0,0,0,0.35);
   }
   .foot-link:hover { color: ${BRAND.ink}; border-bottom-color: ${BRAND.ink}; }
 

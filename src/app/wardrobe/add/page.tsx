@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import type { ClothingItem } from "@/lib/types";
 import type {
   Category,
   Subcategory,
@@ -144,12 +143,6 @@ export default function AddItemPage() {
   // is usually already there and the click feels instant.
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
 
-  // Duplicate detection
-  const [existingItems, setExistingItems] = useState<ClothingItem[]>([]);
-  useEffect(() => {
-    fetch("/api/items").then((r) => r.ok ? r.json() : []).then(setExistingItems).catch(() => {});
-  }, []);
-
   // Pull the user's gender preference once on mount. Used to gate
   // feminine-specific fields (skirt_length, dress_silhouette) when the
   // user is on Track B (men's logic).
@@ -276,23 +269,6 @@ export default function AddItemPage() {
       setDetectedColors(dedupeColors(aiColors).slice(0, 3));
     }
   }
-
-  const similarItems = useMemo(() => {
-    if (!category || !name || name.length < 2) return [];
-    return existingItems.filter((item) => {
-      // Same category
-      if (item.category !== category) return false;
-      // Same subcategory if set
-      if (subcategory && item.subcategory && item.subcategory !== subcategory) return false;
-      // Similar name (case-insensitive partial match)
-      const nameLower = name.toLowerCase();
-      const itemLower = item.name.toLowerCase();
-      if (itemLower.includes(nameLower) || nameLower.includes(itemLower)) return true;
-      // Same subcategory counts as similar
-      if (subcategory && item.subcategory === subcategory) return true;
-      return false;
-    }).slice(0, 3);
-  }, [category, subcategory, name, existingItems]);
 
   // Helpers for category-specific logic
   const isJeansTrousers = ["jeans", "trousers"].includes(subcategory);
@@ -990,23 +966,6 @@ export default function AddItemPage() {
             required
           />
         </div>
-
-        {/* Duplicate warning */}
-        {similarItems.length > 0 && (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-            <p className="text-xs font-semibold text-amber-800 mb-1.5">{t("addItem.similar")}</p>
-            <div className="flex gap-2">
-              {similarItems.map((item) => (
-                <div key={item.id} className="flex items-center gap-1.5">
-                  <div className="relative h-10 w-10 rounded-md overflow-hidden bg-card flex-shrink-0">
-                    <Image src={item.image_url} alt={item.name} fill className="object-contain p-0.5" sizes="40px" />
-                  </div>
-                  <p className="text-[11px] text-amber-700 leading-tight">{item.name}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Category */}
         <div className="space-y-2">

@@ -130,9 +130,33 @@ function SuggestContent() {
         setCurrentIndex(0);
         setFavoritedIndices(new Set());
         setStep("results");
+      } else {
+        // Non-2xx response — surface as the AI-error state so the user
+        // sees something instead of the form sitting there silent. This
+        // catches server crashes, Gemini timeouts, and any other backend
+        // failure that the success path would otherwise swallow.
+        const errBody = await res.text().catch(() => "");
+        console.error(
+          `[suggest] API returned ${res.status}:`,
+          errBody.slice(0, 500)
+        );
+        setSuggestions([]);
+        setWardrobeGap(null);
+        setAiError(true);
+        setCurrentIndex(0);
+        setFavoritedIndices(new Set());
+        setStep("results");
       }
     } catch (err) {
       console.error("Failed to generate suggestions:", err);
+      // Network failure or fetch threw — show the same error state so
+      // the user can retry instead of the page silently doing nothing.
+      setSuggestions([]);
+      setWardrobeGap(null);
+      setAiError(true);
+      setCurrentIndex(0);
+      setFavoritedIndices(new Set());
+      setStep("results");
     } finally {
       setLoading(false);
     }
@@ -383,17 +407,22 @@ function SuggestContent() {
               onClick={generateSuggestions}
             >
               {loading ? (
-                <StylistLoader
-                  size="sm"
-                  phases={[
-                    t("suggest.yavStylingPhase1"),
-                    t("suggest.yavStylingPhase2"),
-                    t("suggest.yavStylingPhase3"),
-                    t("suggest.yavStylingPhase4"),
-                    t("suggest.yavStylingPhase5"),
-                    t("suggest.yavStylingPhase6"),
-                  ]}
-                />
+                // Wrapper holds a stable min-width so the button doesn't
+                // resize as the loader cycles through phrases of varying
+                // lengths ("Mixing colors" vs "Balancing silhouettes").
+                <span className="inline-flex items-center justify-center min-w-[180px]">
+                  <StylistLoader
+                    size="sm"
+                    phases={[
+                      t("suggest.yavStylingPhase1"),
+                      t("suggest.yavStylingPhase2"),
+                      t("suggest.yavStylingPhase3"),
+                      t("suggest.yavStylingPhase4"),
+                      t("suggest.yavStylingPhase5"),
+                      t("suggest.yavStylingPhase6"),
+                    ]}
+                  />
+                </span>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
@@ -408,37 +437,6 @@ function SuggestContent() {
       {/* Step 3: Results */}
       {step === "results" && suggestions.length > 0 && (
         <div className="space-y-4">
-          {/* Mood + occasion + style direction context — reminds the
-              user what they asked for so the AI's choices read in the
-              right frame. */}
-          {(mood || occasion || styleWishes.length > 0) && (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              {mood && (() => {
-                const MoodIcon = MOOD_ICONS[mood];
-                return (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium">
-                    <MoodIcon className="h-3.5 w-3.5" />
-                    {tMood(mood, "label")}
-                  </span>
-                );
-              })()}
-              {occasion && (
-                <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium">
-                  {t(`occasion.${occasion}`)}
-                </span>
-              )}
-              {styleWishes.map((wish) => (
-                <span
-                  key={wish}
-                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-medium"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  {wish}
-                </span>
-              ))}
-            </div>
-          )}
-
           <OutfitCard
             items={suggestions[0].items}
             reasoning={suggestions[0].reasoning}
@@ -450,6 +448,15 @@ function SuggestContent() {
             onWearToday={() => wearToday(suggestions[0])}
             onSwapItem={(item) => setSwapTargetItem(item)}
             lockedItemIds={anchorItemId ? new Set([anchorItemId]) : undefined}
+            contextBadges={[
+              ...(mood ? [{ label: tMood(mood, "label"), icon: MOOD_ICONS[mood] }] : []),
+              ...(occasion ? [{ label: t(`occasion.${occasion}`) }] : []),
+              ...styleWishes.map((wish) => ({
+                label: wish,
+                icon: Sparkles,
+                tone: "primary" as const,
+              })),
+            ]}
           />
 
           {/* Single-outfit mode: tap to re-generate. Variety across

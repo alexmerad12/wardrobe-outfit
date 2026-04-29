@@ -14,10 +14,10 @@ import { ImageResponse } from "next/og";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
-const IVORY = "#ebe0c8";
-const IVORY_HI = "#f8efd6";
-const INK = "#0a0806";
-const STEM = "#3a2a1e";
+const IVORY = "#ffffff";
+const IVORY_HI = "#f4f4f4";
+const INK = "#000000";
+const STEM = "#1a1a1a";
 
 // One damask medallion, rendered at scale 0.5 (matches patterns.tsx).
 function Damask({ x, y }: { x: number; y: number }) {

@@ -9,10 +9,11 @@ import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { colorFamily } from "@/lib/color-family";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
-// Suggest endpoint runs on Gemini 3 Flash with thinking enabled
-// (thinkingBudget: 8192). Pairs with the weighted-random subsetting
-// step (~22 visible items) so the AI's input is small enough that
-// thinking finishes in ~10-15s with proper rule traversal. Other
+// Suggest endpoint runs on Gemini 3 Flash with shallow thinking
+// (thinkingBudget: 3072). Pairs with weighted-random subsetting
+// (~25 visible items) + 3-outfit generation + best-of-3 server-side
+// scoring so quality comes from candidate variety + scoring rather
+// than deep single-shot reasoning. Targets ~10-15s per call. Other
 // endpoints (try-on, analyze, packing) still use their existing
 // configs — this is suggest-specific.
 // GOOGLE_API_KEY must be set in .env.local locally and in Vercel env
@@ -108,29 +109,6 @@ function pieceLabel(item: ClothingItem, locale: Locale): string {
 // Read the outfit's pieces in a natural order (base → layers → feet →
 // extras) so the resulting sentence flows the way a person would read
 // the outfit top-to-bottom.
-function orderedPieces(items: ClothingItem[]): ClothingItem[] {
-  const rank: Record<string, number> = {
-    dress: 0,
-    "one-piece": 0,
-    top: 1,
-    bottom: 2,
-    outerwear: 3,
-    shoes: 4,
-    bag: 5,
-    accessory: 6,
-  };
-  return [...items].sort(
-    (a, b) => (rank[a.category] ?? 9) - (rank[b.category] ?? 9)
-  );
-}
-
-function joinList(parts: string[], locale: Locale): string {
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0];
-  const and = locale === "fr" ? " et " : " and ";
-  return parts.slice(0, -1).join(", ") + and + parts[parts.length - 1];
-}
-
 function moodTone(mood: Mood, locale: Locale): string {
   if (locale === "fr") {
     const map: Record<Mood, string> = {
@@ -186,24 +164,122 @@ function buildReasoning(
   weather: WeatherData | null,
   locale: Locale
 ): string {
-  const ordered = orderedPieces(items);
-  const labels = ordered.map((i) => pieceLabel(i, locale));
-  const piecesList = joinList(labels, locale);
+  // Magazine-voice editorial sentence variants — pick one at random.
+  // The bar: each line should read like a one-line caption you'd see
+  // under an editorial spread. Avoid filler ("perfect for", "this
+  // outfit"), avoid checklist syntax (listing every piece), and lean
+  // on cadence — em-dashes, parallel clauses, sensory adjectives.
   const tone = moodTone(mood, locale);
   const occ = occasionLabelLocalized(occasion, locale);
   const temp = weather?.temp;
-  const includeTemp = typeof temp === "number" && (temp <= 12 || temp >= 25);
+  const tempPhrase = (() => {
+    if (typeof temp !== "number") return "";
+    if (locale === "fr") {
+      if (temp <= 5) return ` pour le froid`;
+      if (temp <= 12) return ` pour la fraîcheur`;
+      if (temp >= 25) return ` pour la chaleur`;
+      return "";
+    }
+    if (temp <= 5) return ` for the cold`;
+    if (temp <= 12) return ` for the chill`;
+    if (temp >= 25) return ` for the warmth`;
+    return "";
+  })();
 
-  if (locale === "fr") {
-    const capitalized = piecesList.charAt(0).toUpperCase() + piecesList.slice(1);
-    return includeTemp
-      ? `${capitalized} — ${tone} pour ${occ} à ${temp}°C.`
-      : `${capitalized} — ${tone} pour ${occ}.`;
+  // Material signal — gives certain variants a textural angle to lean on.
+  const materials = new Set<string>();
+  for (const it of items) {
+    const m = Array.isArray(it.material) ? it.material : [it.material];
+    for (const x of m) if (x) materials.add(x);
   }
-  const capitalized = piecesList.charAt(0).toUpperCase() + piecesList.slice(1);
-  return includeTemp
-    ? `${capitalized} — ${tone} for ${occ} at ${temp}°C.`
-    : `${capitalized} — ${tone} for ${occ}.`;
+  const hasKnit = materials.has("knit") || materials.has("wool") || materials.has("cashmere");
+  const hasDenim = materials.has("denim");
+  const hasSleek = materials.has("silk") || materials.has("satin") || materials.has("leather");
+  const hasStructured = items.some(
+    (i) => i.subcategory === "blazer" || i.subcategory === "trench-coat" || i.subcategory === "peacoat"
+  );
+
+  // Toggle that occasionally references the temperature when it's a
+  // notable extreme — adds variety without appearing every line.
+  const variants: string[] =
+    locale === "fr"
+      ? [
+          // Universal editorial openings
+          `Une composition ${tone}, pensée pour ${occ}${tempPhrase}.`,
+          `Silhouette ${tone}, posée — taillée pour ${occ}.`,
+          `Un parti pris ${tone} : moins de bruit, plus d'intention.`,
+          `Lignes nettes, ton retenu — ${tone} pour ${occ}.`,
+          `Discret, mesuré — la version ${tone} de ${occ}.`,
+          `Tout est dans la cadence : ${tone}, jamais forcé.`,
+          `Une réponse ${tone} à ${occ}, sans surcharge.`,
+          // Material-conditional flourishes
+          ...(hasKnit
+            ? [
+                `Mailles enveloppantes, palette posée — ${tone} pour ${occ}${tempPhrase}.`,
+                `La douceur de la maille fait tout le travail.`,
+              ]
+            : []),
+          ...(hasDenim
+            ? [
+                `Une pièce en denim ancre l'ensemble; le reste reste léger.`,
+                `Le denim donne la base; les détails font le reste.`,
+              ]
+            : []),
+          ...(hasSleek
+            ? [
+                `Matières fluides, proportions équilibrées — ${tone} pour ${occ}.`,
+                `Une touche de brillance pour relever l'ensemble — ${tone}, sans excès.`,
+              ]
+            : []),
+          ...(hasStructured
+            ? [
+                `Une pièce structurée pour la rigueur, le reste pour la souplesse.`,
+                `Tailoring affirmé, lignes assouplies — ${tone} et juste.`,
+              ]
+            : []),
+        ]
+      : [
+          // Universal editorial openings
+          `A ${tone} composition, tuned for ${occ}${tempPhrase}.`,
+          `Quietly ${tone} — sharp where it counts, easy where it doesn't.`,
+          `A ${tone} answer to ${occ}: less noise, more intention.`,
+          `Easy proportions, deliberate restraint — ${tone} energy throughout.`,
+          `Editorial restraint, ${tone} register — built for ${occ}.`,
+          `All the right textures, none of the noise.`,
+          `Lived-in but considered — exactly the kind of look that holds up at ${occ}${tempPhrase}.`,
+          `The mood lands first; the styling closes the deal.`,
+          `Soft edges on a structured foundation — ${tone} for ${occ}.`,
+          // Material-conditional flourishes
+          ...(hasKnit
+            ? [
+                `Soft knits, quiet palette — the kind of ease that reads intentional.`,
+                `Knit-led layering, sharpened just enough — ${tone} for ${occ}${tempPhrase}.`,
+                `Wrapped in something soft, then walked out the door.`,
+              ]
+            : []),
+          ...(hasDenim
+            ? [
+                `Denim grounds the look; everything above stays uncomplicated.`,
+                `A denim anchor with a lighter hand on top — ${tone} for ${occ}.`,
+                `Worn-in denim, sharper accents — the ${tone} math.`,
+              ]
+            : []),
+          ...(hasSleek
+            ? [
+                `Sleek surfaces, balanced proportions — ${tone} for ${occ}.`,
+                `One liquid texture, the rest matte — that's the trick.`,
+                `A whisper of sheen on a quiet base — ${tone} done well.`,
+              ]
+            : []),
+          ...(hasStructured
+            ? [
+                `Tailored at the shoulder, easier below — ${tone} with intent.`,
+                `Structure on top, softness underneath — the ${tone} cadence.`,
+              ]
+            : []),
+        ];
+
+  return variants[Math.floor(Math.random() * variants.length)];
 }
 
 // Trim AI prose down to a single sentence. Anthropic sometimes returns
@@ -256,6 +332,8 @@ function buildStylingTip(items: ClothingItem[], locale: Locale): string | null {
       items.some((i) => i.category === "bottom"));
   const belt = items.find((i) => i.category === "accessory" && i.subcategory === "belt");
   const overalls = items.find((i) => i.category === "one-piece" && i.subcategory === "overalls");
+  const scarf = items.find((i) => i.category === "accessory" && i.subcategory === "scarf");
+  const dress = items.find((i) => i.category === "dress");
   const topTuckable = items.some(
     (i) =>
       i.category === "top" &&
@@ -265,26 +343,129 @@ function buildStylingTip(items: ClothingItem[], locale: Locale): string | null {
   );
   const hasBottom = items.some((i) => i.category === "bottom");
 
+  // Pick a random variant from the matching scenario. More variants =
+  // less repetition when the AI's tip fails the consistency check and
+  // we have to fall back to the server template.
+  const pick = (variants: string[]): string =>
+    variants[Math.floor(Math.random() * variants.length)];
+
   if (outerwear && hasBase) {
     const ow = pieceLabel(outerwear, locale);
-    return locale === "fr"
-      ? `Porte ${ow} ouvert·e par-dessus la base pour du mouvement.`
-      : `Wear ${ow} open over the base for movement.`;
+    return pick(
+      locale === "fr"
+        ? [
+            `Porte ${ow} ouvert·e par-dessus la base — la structure reste optionnelle.`,
+            `Laisse ${ow} déboutonné·e; la silhouette gagne en légèreté.`,
+            `Pousse les manches de ${ow} jusqu'au coude — ça casse la rigueur sans la perdre.`,
+            `Drape ${ow} sur les épaules plutôt que de l'enfiler — plus délibéré, moins serré.`,
+            `Retrousse les poignets de ${ow} d'un tour; ça dévoile la chemise et adoucit la ligne.`,
+            `Sort le col du haut par-dessus ${ow} pour un finish moins formel.`,
+            `Garde ${ow} ouvert·e, mains dans les poches — la pose fait la moitié du travail.`,
+          ]
+        : [
+            `Wear ${ow} open and let it move; structure stays optional.`,
+            `Leave ${ow} unbuttoned — the silhouette stays uncomplicated.`,
+            `Push ${ow}'s sleeves to the elbow; relaxes the line without losing the shape.`,
+            `Drape ${ow} over your shoulders rather than wearing it — reads more deliberate.`,
+            `Cuff ${ow}'s sleeves once; the shirt peeks, the structure softens.`,
+            `Pop the collar of the layer underneath out over ${ow} for a less formal finish.`,
+            `Keep ${ow} open, hands in pockets — the posture does half the work.`,
+            `Sleeve-push and a single roll at the cuff — the easy version of structured.`,
+          ]
+    );
   }
   if (belt && hasBottom && topTuckable) {
-    return locale === "fr"
-      ? `Rentre le haut à l'avant et cinch avec la ceinture.`
-      : `Tuck the top at the front and cinch with the belt.`;
+    return pick(
+      locale === "fr"
+        ? [
+            `Rentre le devant du haut et cinch la ceinture à la taille naturelle.`,
+            `Demi-rentré devant; laisse la ceinture définir la silhouette.`,
+            `Cinch la ceinture, à peine plus haut que la taille — ça allonge la jambe.`,
+            `Front-tuck minimal, ceinture marquée — le point focal est sur l'os de la hanche.`,
+            `Glisse juste un coin du haut sous la ceinture; assez pour qu'elle se voit.`,
+          ]
+        : [
+            `Front-tuck the top, cinch the belt at the natural waist.`,
+            `Half-tuck the front and let the belt anchor the waist — barely there, but it changes everything.`,
+            `Sit the belt just above the natural waist; lengthens the leg.`,
+            `Tuck just one corner under the belt — enough to let it read.`,
+            `Front-tuck for waist definition; the belt becomes the focal point on the hip.`,
+            `Loop the belt loosely; the looseness keeps it casual without losing the line.`,
+          ]
+    );
   }
   if (overalls) {
-    return locale === "fr"
-      ? `Laisse les bretelles un peu lâches pour un tombé plus décontracté.`
-      : `Leave the straps slightly loose for an easy fit.`;
+    return pick(
+      locale === "fr"
+        ? [
+            `Laisse les bretelles un peu lâches; la salopette tombe mieux qu'elle se porte.`,
+            `Roule les revers une fois — le mollet apparaît, la silhouette s'allonge.`,
+            `Pousse les manches du haut en-dessous; ça casse la rigueur et fait bouger la mat.`,
+            `Garde un côté des bretelles légèrement déboutonné — ça lâche le côté trop sage.`,
+          ]
+        : [
+            `Loosen the straps slightly — overalls fall better than they cling.`,
+            `Roll the cuffs once; ankle reads, leg lengthens.`,
+            `Push the sleeves of whatever's underneath — softens the structure, adds movement.`,
+            `Leave one strap a touch undone for a less buttoned-up finish.`,
+          ]
+    );
+  }
+  if (scarf) {
+    return pick(
+      locale === "fr"
+        ? [
+            `Noue le foulard bas et sur le côté — volume au cou, propre en-dessous.`,
+            `Drape le foulard plutôt que de le nouer — il bouge, la silhouette reste fluide.`,
+            `Glisse le foulard à travers l'anse du sac comme accent — petit détail, gros effet.`,
+            `Plie le foulard en triangle, noue-le derrière la nuque — version années 90 maîtrisée.`,
+          ]
+        : [
+            `Knot the scarf low and to the side — volume at the neck, clean below.`,
+            `Drape the scarf loosely rather than tying it tight; let it move with you.`,
+            `Loop the scarf through a bag handle as an accent — small detail, big punch.`,
+            `Fold it triangle-style and knot it at the nape — the controlled '90s version.`,
+            `Wear it as a head scarf, sunglasses on top — old-Hollywood with a modern hand.`,
+          ]
+    );
+  }
+  if (dress) {
+    return pick(
+      locale === "fr"
+        ? [
+            `Garde le reste minimal — laisse la robe parler.`,
+            `Une seule pièce de bijouterie fine; tout le reste recule.`,
+            `Une ceinture fine à la taille définirait la silhouette si tu veux la marquer.`,
+            `Pousse les manches si elles sont longues — ça allège l'ensemble.`,
+            `Cheveux remontés pour montrer l'encolure; la robe en sort gagnante.`,
+          ]
+        : [
+            `Keep accessories minimal — let the dress lead.`,
+            `One fine piece of jewelry; let everything else recede.`,
+            `A thin belt at the natural waist would sharpen the silhouette if you want one.`,
+            `Push the sleeves if they're long — keeps the look from feeling overdressed.`,
+            `Pull hair off the neck so the neckline reads — the dress earns the spotlight.`,
+          ]
+    );
   }
   if (topTuckable && hasBottom) {
-    return locale === "fr"
-      ? `Rentre simplement le devant du haut dans le bas.`
-      : `Tuck just the front of the top into the bottoms.`;
+    return pick(
+      locale === "fr"
+        ? [
+            `Rentre juste le devant du haut — l'arrière retombe naturellement.`,
+            `Demi-rentré devant pour une ligne plus douce.`,
+            `Roule les manches au coude et front-tuck — les proportions restent justes.`,
+            `Glisse un coin du haut dans le bas; le reste flotte, tout reste désinvolte.`,
+            `Pousse les manches, déboutonne un bouton de plus — l'attitude vient du detail.`,
+          ]
+        : [
+            `Tuck just the front of the top — let the back fall naturally.`,
+            `Half-tuck the front; the line softens without losing definition.`,
+            `Roll the sleeves to the elbow and front-tuck — keeps the proportions intentional.`,
+            `Tuck just one corner; the rest floats, the whole thing stays easy.`,
+            `Push the sleeves up, undo one extra button — attitude lives in the small choices.`,
+          ]
+    );
   }
   return null;
 }
@@ -562,6 +743,18 @@ export async function POST(request: NextRequest) {
     }
     const promptItems = items.filter((it) => {
       if (it.is_stored) return false;
+      // Hard-rule pre-filters that should be applied before the AI
+      // sees the wardrobe at all — keeps the AI from anchoring on an
+      // item it can never use. The matching post-parse rules still
+      // run in case the AI references a stripped item by id anyway.
+      // R9: no athletic sneakers at work, no denim bottoms at work.
+      if (occasion === "work") {
+        if (it.category === "shoes" && it.subcategory === "sneakers") return false;
+        if (it.category === "bottom" && it.subcategory === "jeans") return false;
+      }
+      // R7: no bag at home — strip from the candidate pool entirely
+      // so the AI doesn't propose one.
+      if (occasion === "at-home" && it.category === "bag") return false;
       const richCategory =
         (inAllByCategory.get(it.category) ?? 0) >= RICH_CATEGORY_THRESHOLD;
       if (!richCategory) return true;
@@ -826,11 +1019,8 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
       // Gemini 3 Flash with SHALLOW thinking (thinkingBudget: 3072) +
       // 3-outfit generation. Variety across "Show me another" taps
-      // comes from the 2x jitter in the subset sampler (different
-      // items every call); quality comes from server-side best-of-3
-      // scoring downstream (color palette + pattern restraint +
-      // formality fit + item-count balance). Output cap bumped to
-      // fit 3 outfits without mid-JSON truncation. Targets ~10-15s.
+      // comes from the 2x jitter in the subset sampler; quality
+      // comes from server-side best-of-3 scoring downstream.
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
@@ -852,9 +1042,16 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         return { parsed: null, stopReason: stopReason ?? null };
       }
       try {
-        return { parsed: JSON.parse(text) as ParsedShape, stopReason: stopReason ?? null };
+        return {
+          parsed: JSON.parse(text) as ParsedShape,
+          stopReason: stopReason ?? null,
+        };
       } catch (err) {
-        console.error("[suggest] Failed to parse Gemini JSON:", err, text.slice(0, 200));
+        console.error(
+          "[suggest] Failed to parse Gemini JSON:",
+          err,
+          text.slice(0, 200)
+        );
         return { parsed: null, stopReason: stopReason ?? null };
       }
     }
@@ -1074,13 +1271,16 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         );
         const beforeLen = stripped.length;
         stripped = stripped.filter((i) => {
+          // R7 — no bag at home. Strip silently rather than drop the
+          // whole outfit; everything else can stay.
+          if (i.category === "bag") return false;
           if (i.category !== "accessory" || i.subcategory !== "scarf") return true;
           if ((i.warmth_rating ?? 0) >= 3) return false;
           if (hasTurtleneck) return false;
           return true;
         });
         if (stripped.length !== beforeLen) {
-          fixes.push("stripped scarf (at-home rule)");
+          fixes.push("stripped at-home offenders (bag/scarf rule)");
         }
       } else {
         // R15 TURTLENECK + SCARF strip — outside of at-home, allow the
@@ -1697,14 +1897,21 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           });
           return false;
         }
-        // R9 — no athletic sneakers at the office (Track A).
-        const sneakers = s.items.find(
+      }
+      // R9 — no athletic sneakers at the office (universal, both tracks).
+      // Athletic sneakers don't belong at any office regardless of
+      // gender. The men's prompt allows clean leather sneakers as
+      // "smart casual," but those are subcategory "loafers" or have
+      // toe_shape="round" + non-athletic upper — distinct from
+      // subcategory="sneakers" which is the athletic class.
+      if (occasion === "work") {
+        const athleticSneakers = s.items.find(
           (i) => i.category === "shoes" && i.subcategory === "sneakers"
         );
-        if (sneakers) {
+        if (athleticSneakers) {
           drops.push({
             ids: s._ids,
-            reason: `work: athletic sneakers "${sneakers.name}" not office-appropriate`,
+            reason: `work: athletic sneakers "${athleticSneakers.name}" not office-appropriate`,
           });
           return false;
         }
@@ -2535,7 +2742,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // outfits back with an appended styling tip. Base-warmth mismatches
     // are the one soft bucket left (cold-without-outerwear is auto-injected
     // upstream now).
-    let final = dedupedHard;
+    const final = dedupedHard;
 
     const admitSoft = (bucket: typeof softMismatch) => {
       for (const { outfit: s, tip } of bucket) {

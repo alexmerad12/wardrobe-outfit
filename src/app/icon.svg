@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <title>Closette — Ivory Noir</title>
+  <title>Closette — Monochrome</title>
   <defs>
     <!-- Paper-grain filter: same parameters as PatternSurface uses at runtime
          (feTurbulence + feColorMatrix to tint the noise warm). Applied to a
@@ -19,27 +19,27 @@
 
     <!-- Damask medallion at native scale (max radius ~24 with volutes). -->
     <g id="damask">
-      <path d="M0 -18 Q 8 -10 0 0 Q -8 -10 0 -18 Z" fill="#0a0806" opacity="0.95"/>
-      <path d="M0 0 Q 8 10 0 18 Q -8 10 0 0 Z" fill="#0a0806" opacity="0.95"/>
-      <path d="M-18 0 Q -10 -8 0 0 Q -10 8 -18 0 Z" fill="#0a0806" opacity="0.9"/>
-      <path d="M18 0 Q 10 -8 0 0 Q 10 8 18 0 Z" fill="#0a0806" opacity="0.9"/>
-      <path d="M0 -17 Q 13 -23 16 -12 Q 14 -6 7 -8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
-      <path d="M0 -17 Q -13 -23 -16 -12 Q -14 -6 -7 -8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
-      <path d="M0 17 Q 13 23 16 12 Q 14 6 7 8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
-      <path d="M0 17 Q -13 23 -16 12 Q -14 6 -7 8" fill="none" stroke="#0a0806" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
-      <circle cx="0" cy="-24" r="1.2" fill="#0a0806" opacity="0.75"/>
-      <circle cx="0" cy="24" r="1.2" fill="#0a0806" opacity="0.75"/>
-      <circle cx="-24" cy="0" r="1" fill="#0a0806" opacity="0.65"/>
-      <circle cx="24" cy="0" r="1" fill="#0a0806" opacity="0.65"/>
-      <circle cx="0" cy="0" r="1.8" fill="#f8efd6" opacity="0.55"/>
+      <path d="M0 -18 Q 8 -10 0 0 Q -8 -10 0 -18 Z" fill="#000000" opacity="0.95"/>
+      <path d="M0 0 Q 8 10 0 18 Q -8 10 0 0 Z" fill="#000000" opacity="0.95"/>
+      <path d="M-18 0 Q -10 -8 0 0 Q -10 8 -18 0 Z" fill="#000000" opacity="0.9"/>
+      <path d="M18 0 Q 10 -8 0 0 Q 10 8 18 0 Z" fill="#000000" opacity="0.9"/>
+      <path d="M0 -17 Q 13 -23 16 -12 Q 14 -6 7 -8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 -17 Q -13 -23 -16 -12 Q -14 -6 -7 -8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 17 Q 13 23 16 12 Q 14 6 7 8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 17 Q -13 23 -16 12 Q -14 6 -7 8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <circle cx="0" cy="-24" r="1.2" fill="#000000" opacity="0.75"/>
+      <circle cx="0" cy="24" r="1.2" fill="#000000" opacity="0.75"/>
+      <circle cx="-24" cy="0" r="1" fill="#000000" opacity="0.65"/>
+      <circle cx="24" cy="0" r="1" fill="#000000" opacity="0.65"/>
+      <circle cx="0" cy="0" r="1.8" fill="#f4f4f4" opacity="0.55"/>
     </g>
 
     <!-- Rose & Damask tile — 90×156 hex lattice with bleed filter on each
          medallion. patternTransform centers the lattice on the viewport. -->
     <pattern id="rd-tile" x="0" y="0" width="90" height="156"
              patternUnits="userSpaceOnUse" patternTransform="translate(155 161)">
-      <rect width="90" height="156" fill="#ebe0c8"/>
-      <g stroke="#3a2a1e" stroke-width="0.7" fill="none" opacity="0.55" stroke-linecap="round">
+      <rect width="90" height="156" fill="#ffffff"/>
+      <g stroke="#1a1a1a" stroke-width="0.7" fill="none" opacity="0.55" stroke-linecap="round">
         <line x1="45" y1="39" x2="0" y2="117"/>
         <line x1="45" y1="39" x2="90" y2="117"/>
         <line x1="45" y1="39" x2="0" y2="-39"/>
@@ -79,7 +79,7 @@
 
   <!-- Layered rendering, each layer rounded via rx=88 (22% of icon width)
        which matches .icon-tile's border-radius:22%. -->
-  <rect width="400" height="400" fill="#ebe0c8" rx="88" ry="88"/>
+  <rect width="400" height="400" fill="#ffffff" rx="88" ry="88"/>
   <rect width="400" height="400" fill="url(#rd-tile)" rx="88" ry="88"/>
   <rect width="400" height="400" fill="url(#grain-tile)" rx="88" ry="88" opacity="0.22" style="mix-blend-mode:multiply"/>
   <rect width="400" height="400" fill="url(#pat-vig)" rx="88" ry="88" opacity="0.35"/>
@@ -87,15 +87,15 @@
   <rect width="400" height="400" fill="url(#tile-vig)" rx="88" ry="88"/>
 
   <!-- Solid ivory disc covering the centre + twin hairline rings. -->
-  <circle cx="200" cy="200" r="130" fill="#ebe0c8"/>
-  <circle cx="200" cy="200" r="130" fill="none" stroke="#0a0806" stroke-width="2" opacity="0.92"/>
-  <circle cx="200" cy="200" r="118" fill="none" stroke="#0a0806" stroke-width="0.8" opacity="0.55"/>
+  <circle cx="200" cy="200" r="130" fill="#ffffff"/>
+  <circle cx="200" cy="200" r="130" fill="none" stroke="#000000" stroke-width="2" opacity="0.92"/>
+  <circle cx="200" cy="200" r="118" fill="none" stroke="#000000" stroke-width="0.8" opacity="0.55"/>
 
   <!-- 4 cardinal dots inside the disc edge -->
-  <circle cx="200" cy="76"  r="2.1" fill="#0a0806" opacity="0.85"/>
-  <circle cx="200" cy="324" r="2.1" fill="#0a0806" opacity="0.85"/>
-  <circle cx="76"  cy="200" r="2.1" fill="#0a0806" opacity="0.85"/>
-  <circle cx="324" cy="200" r="2.1" fill="#0a0806" opacity="0.85"/>
+  <circle cx="200" cy="76"  r="2.1" fill="#000000" opacity="0.85"/>
+  <circle cx="200" cy="324" r="2.1" fill="#000000" opacity="0.85"/>
+  <circle cx="76"  cy="200" r="2.1" fill="#000000" opacity="0.85"/>
+  <circle cx="324" cy="200" r="2.1" fill="#000000" opacity="0.85"/>
 
   <!-- The C — Bodoni Moda, geometrically centered (browsers render <text>
        natively; the apple-icon route uses a div instead since Satori
@@ -106,6 +106,6 @@
         font-family="'Bodoni Moda','Bodoni 72',Didot,'Times New Roman',Georgia,serif"
         font-weight="400"
         font-size="200"
-        fill="#0a0806"
+        fill="#000000"
         style="letter-spacing:-0.03em;font-style:normal;">C</text>
 </svg>

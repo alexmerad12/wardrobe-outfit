@@ -549,7 +549,12 @@ function WardrobePageInner() {
         <div
           className={cn(
             "sticky top-[136px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
-            scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
+            // -translate-y-[120px] moves the bar far enough up that
+            // its bottom edge clears the header on scroll-down. The
+            // category bar gets away with -translate-y-full because
+            // it's only ~44px from the header; this bar is 80px
+            // further down and its own height isn't enough.
+            scrollDir === "down" ? "-translate-y-[120px]" : "translate-y-0"
           )}
         >
           <button

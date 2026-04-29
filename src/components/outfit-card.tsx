@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Shirt, ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
+import { Heart, Shirt, ChevronLeft, ChevronRight, Shuffle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -27,6 +27,11 @@ interface OutfitCardProps {
    *  swap button (used to lock anchor pieces the user pinned). */
   onSwapItem?: (item: ClothingItem) => void;
   lockedItemIds?: Set<string>;
+  /** Optional context badges shown above the outfit name — what the
+   *  user asked for so the look reads in the right frame. Each badge
+   *  is just a label + optional icon. Pass an empty array (or omit)
+   *  to skip the row entirely. */
+  contextBadges?: { label: string; icon?: LucideIcon; tone?: "muted" | "primary" }[];
 }
 
 export function OutfitCard({
@@ -44,11 +49,36 @@ export function OutfitCard({
   isFavorited = false,
   onSwapItem,
   lockedItemIds,
+  contextBadges,
 }: OutfitCardProps) {
   const { t } = useLocale();
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
+        {/* Context badges — what the user asked for (mood / occasion /
+            style direction). Sits just above the look name so the user
+            reads the outfit in the same frame they requested. */}
+        {contextBadges && contextBadges.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            {contextBadges.map((badge, i) => {
+              const BadgeIcon = badge.icon;
+              return (
+                <span
+                  key={`${badge.label}-${i}`}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium",
+                    badge.tone === "primary"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {BadgeIcon && <BadgeIcon className="h-3 w-3" />}
+                  {badge.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
         {name && (
           <h3 className="font-heading text-lg font-medium mb-3 tracking-tight">{name}</h3>
         )}

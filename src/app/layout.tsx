@@ -3,6 +3,7 @@ import { DM_Sans, Bodoni_Moda } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
 import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
+import { LaunchSplash } from "@/components/launch-splash";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -49,9 +50,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  // Ivory · Noir brand color — matches manifest.json + the launch page so
-  // the iOS status bar / Android chrome / PWA splash all carry the maison.
-  themeColor: "#ebe0c8",
+  // Monochrome brand colour — matches manifest.json + the launch splash
+  // so the iOS status bar / Android chrome / PWA splash all carry the
+  // pure black-and-white identity.
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -72,6 +74,7 @@ export default function RootLayout({
         <PendingUploadsProvider>
           <main className="flex-1 pb-20">{children}</main>
           <BottomNav />
+          <LaunchSplash />
         </PendingUploadsProvider>
       </body>
     </html>

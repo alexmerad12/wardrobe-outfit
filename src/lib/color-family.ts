@@ -65,11 +65,21 @@ export function colorFamily(hex: string): ColorFamilyKey {
   if (lPct >= 90) return "white";
   if (lPct <= 12) return "black";
   if (sPct < 10) return "gray";
+  // Cool charcoal / slate: low-saturation darks read as gray, not
+  // their underlying hue. Without this #36454f (slate) gets bucketed
+  // as blue.
+  if (sPct < 20 && lPct < 35) return "gray";
 
   // Earth tones — warm hues at low saturation. Beige is the pale end,
   // brown is the dark end. Both override the chromatic hue buckets.
-  if (sPct < 35 && lPct >= 60 && h >= 20 && h <= 55) return "beige";
-  if (lPct < 50 && sPct < 65 && h >= 5 && h <= 45) return "brown";
+  // Beige sat cap was 35 — too tight; classic tan #d2b48c sits at
+  // sat ~44 and was falling through to orange.
+  if (sPct < 50 && lPct >= 60 && h >= 20 && h <= 55) return "beige";
+  // Brown wraps around the red boundary so wine-burgundy darks
+  // (#3C1414 at hue 0, #4a2c2a near hue 5) bucket as brown instead
+  // of red. Saturation cap stays at 65 so true dark reds (#800000,
+  // sat 100) still go to red.
+  if (lPct < 50 && sPct < 65 && (h <= 45 || h >= 345)) return "brown";
 
   // Chromatic hue buckets.
   if (h < 15 || h >= 345) return "red";

@@ -24,14 +24,14 @@ const WIDTH = 1080;
 const HEIGHT = 1350;
 const PADDING = 56;
 
-// Brand palette — Ivory · Noir
-const INK = "#0a0806";
-const IVORY = "#ebe0c8";
-const IVORY_HI = "#f8efd6";    // card surface — warmer than white but lighter than bg
-const STEM = "#3a2a1e";        // hairlines
+// Brand palette — Monochrome
+const INK = "#000000";
+const IVORY = "#ffffff";
+const IVORY_HI = "#f4f4f4";    // card surface — slightly off-white so it sits on the bg
+const STEM = "#1a1a1a";        // hairlines
 const CELL = "#ffffff";        // per-photo cell so clothing pops
-const MUTED = "rgba(10,8,6,0.55)";
-const HAIRLINE = "rgba(10,8,6,0.18)";
+const MUTED = "rgba(0,0,0,0.55)";
+const HAIRLINE = "rgba(0,0,0,0.18)";
 
 const SERIF = '"Bodoni Moda", Georgia, "Times New Roman", serif';
 const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -202,7 +202,7 @@ export async function composeOutfitImage(opts: OutfitImageOptions): Promise<Blob
   const cardW = WIDTH - PADDING * 2;
   const cardH = HEIGHT - PADDING * 2;
   ctx.save();
-  ctx.shadowColor = "rgba(58,42,30,0.18)";
+  ctx.shadowColor = "rgba(0,0,0,0.18)";
   ctx.shadowBlur = 32;
   ctx.shadowOffsetY = 12;
   ctx.fillStyle = IVORY_HI;

@@ -149,6 +149,35 @@ export async function POST(request: NextRequest) {
       occasion: row.occasion,
       loved_it: false,
     });
+
+    // Bump times_worn + last_worn_date on each item in the outfit.
+    // Without this the wardrobe item pages stay frozen at "Worn 0×"
+    // even after the user actually wears the outfit, and the rotation
+    // sampler in /api/suggest can't avoid recently-worn pieces.
+    // Fetched + applied in a tight parallel batch — typical outfits
+    // are 4-6 items so this is fast enough to inline here.
+    const itemIds = (row.item_ids ?? []) as string[];
+    if (itemIds.length > 0) {
+      const { data: currentItems } = await supabase
+        .from("clothing_items")
+        .select("id, times_worn")
+        .eq("user_id", userId)
+        .in("id", itemIds);
+      if (currentItems && currentItems.length > 0) {
+        await Promise.all(
+          currentItems.map((item) =>
+            supabase
+              .from("clothing_items")
+              .update({
+                times_worn: (item.times_worn ?? 0) + 1,
+                last_worn_date: today,
+              })
+              .eq("id", item.id)
+              .eq("user_id", userId)
+          )
+        );
+      }
+    }
   }
 
   return NextResponse.json(data);

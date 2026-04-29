@@ -478,36 +478,39 @@ export function PatternRoseDamask({
   return (
     <PatternSurface
       id={id}
-      tileWidth={90}
-      tileHeight={156}
+      tileWidth={56}
+      tileHeight={97}
       bg={bg}
       grainOpacity={0.22}
-      centerX={45}
-      centerY={39}
+      centerX={28}
+      centerY={24}
       viewBoxWidth={viewBoxWidth}
       viewBoxHeight={viewBoxHeight}
     >
-      {/* Diamond cell edges — the medallions sit at the four corners of each
-          rhombus, and these six lines (per tile) outline the diamond grid
-          when tiled. Each line is a side of one or two adjacent diamonds.
-          The previous version included a horizontal line (0,117)→(90,117)
-          and a vertical (45,39)→(45,-39) that cut diagonals through the
-          diamonds — removed here so only the rhombus outlines remain. */}
-      <g stroke={stem} strokeWidth={0.7} fill="none" opacity={0.55} strokeLinecap="round">
-        {/* Edges from the top medallion (45,39) — 4 sides going outward */}
-        <line x1={45} y1={39} x2={0} y2={117} />
-        <line x1={45} y1={39} x2={90} y2={117} />
-        <line x1={45} y1={39} x2={0} y2={-39} />
-        <line x1={45} y1={39} x2={90} y2={-39} />
-        {/* Edges from the middle-row medallions completing the diamond
-            below — connect each to the bottom vertex (45,195) which wraps
-            into the tile beneath. */}
-        <line x1={0} y1={117} x2={45} y2={195} />
-        <line x1={90} y1={117} x2={45} y2={195} />
+      {/* Whole pattern wrapped in a fade so the C reads as primary —
+          diamonds + medallions stay visible as a textile undertone
+          rather than competing with the monogram. */}
+      <g opacity={0.32}>
+        {/* Diamond cell edges — the medallions sit at the four corners of each
+            rhombus, and these six lines (per tile) outline the diamond grid
+            when tiled. Coords scale with the tile (56×97 here = ~38% smaller
+            diamonds than the original 90×156 layout). */}
+        <g stroke={stem} strokeWidth={0.7} fill="none" opacity={0.55} strokeLinecap="round">
+          {/* Edges from the top medallion (28,24) — 4 sides going outward */}
+          <line x1={28} y1={24} x2={0} y2={73} />
+          <line x1={28} y1={24} x2={56} y2={73} />
+          <line x1={28} y1={24} x2={0} y2={-24} />
+          <line x1={28} y1={24} x2={56} y2={-24} />
+          {/* Edges from the middle-row medallions completing the diamond
+              below — connect each to the bottom vertex (28,121) which wraps
+              into the tile beneath. */}
+          <line x1={0} y1={73} x2={28} y2={121} />
+          <line x1={56} y1={73} x2={28} y2={121} />
+        </g>
+        {damask(28, 24, 0.35)}
+        {damask(0, 73, 0.35)}
+        {damask(56, 73, 0.35)}
       </g>
-      {damask(45, 39, 0.5)}
-      {damask(0, 117, 0.5)}
-      {damask(90, 117, 0.5)}
     </PatternSurface>
   );
 }
@@ -624,6 +627,10 @@ export const PATTERNS: Record<string, PatternEntry> = {
       // ivoryNoir = the committed brand palette. First so it's the
       // registry default for `Object.keys(palettes)[0]` lookups.
       ivoryNoir: ["#ebe0c8", "#f8efd6", "#0a0806", "#0a0806", "#0a0806", "#0a0806", "#3a2a1e", "#0a0806"],
+      // monochrome = pure black-on-white A/B against ivoryNoir.
+      // Same slot structure, just stripped of the cream warmth so we
+      // can see whether the "painterly" tone survives without it.
+      monochrome: ["#ffffff", "#f4f4f4", "#000000", "#000000", "#000000", "#000000", "#1a1a1a", "#000000"],
       ochre: ["#2a0e10", "#f0d498", "#c08230", "#8a5a1a", "#3a2010", "#2a1a0c", "#5a2818", "#d49a3a"],
       ochreNoir: ["#1a0608", "#e8c884", "#b07428", "#784e14", "#2a1608", "#1a0c04", "#4a1e10", "#c88828"],
       saffron: ["#d89540", "#fde4b4", "#d44a58", "#8a2030", "#6a7828", "#3a4418", "#24280e", "#2a1a10"],
