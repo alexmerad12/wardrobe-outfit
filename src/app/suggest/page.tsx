@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { WeatherWidget } from "@/components/weather-widget";
 import { MoodPicker } from "@/components/mood-picker";
 import { OutfitCard } from "@/components/outfit-card";
+import { SwapItemModal } from "@/components/swap-item-modal";
 import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
 import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
@@ -54,6 +55,12 @@ function SuggestContent() {
   const [aiError, setAiError] = useState(false);
   const [anchorItem, setAnchorItem] = useState<ClothingItem | null>(null);
 
+  // Wardrobe cached on mount so the swap modal can show alternatives
+  // without a per-tap fetch. Cheap (~1 request, <500 items typically).
+  const [wardrobe, setWardrobe] = useState<ClothingItem[]>([]);
+  // Swap modal state — which item we're swapping (null = closed).
+  const [swapTargetItem, setSwapTargetItem] = useState<ClothingItem | null>(null);
+
   // Load the anchor item if one was passed
   useEffect(() => {
     if (!anchorItemId) return;
@@ -62,6 +69,32 @@ function SuggestContent() {
       .then(setAnchorItem)
       .catch(() => {});
   }, [anchorItemId]);
+
+  // Load full wardrobe once for swap-modal alternatives.
+  useEffect(() => {
+    fetch("/api/items")
+      .then((r) => r.ok ? r.json() : [])
+      .then(setWardrobe)
+      .catch(() => {});
+  }, []);
+
+  // Replace an item in the current suggestion with the chosen
+  // alternative. Local-only — saving as a favorite uses the edited
+  // outfit. Edits reset whenever a new suggestion arrives.
+  function applySwap(replacement: ClothingItem) {
+    if (!swapTargetItem) return;
+    setSuggestions((prev) =>
+      prev.map((s, i) => {
+        if (i !== 0) return s;
+        return {
+          ...s,
+          items: s.items.map((it) =>
+            it.id === swapTargetItem.id ? replacement : it
+          ),
+        };
+      })
+    );
+  }
 
   const STYLE_PRESETS = [
     { key: "dress-day", label: t("styleWish.dress-day") },
@@ -229,7 +262,7 @@ function SuggestContent() {
       {/* Anchor item banner */}
       {anchorItem && (
         <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 p-3 mb-4">
-          <div className="relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden bg-muted/30">
+          <div className="relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden bg-card">
             <Image src={anchorItem.image_url} alt={anchorItem.name} fill className="object-contain p-1" sizes="56px" />
           </div>
           <div className="flex-1 min-w-0">
@@ -415,6 +448,8 @@ function SuggestContent() {
             isFavorited={favoritedIndices.has(0)}
             onSave={() => saveFavorite(suggestions[0])}
             onWearToday={() => wearToday(suggestions[0])}
+            onSwapItem={(item) => setSwapTargetItem(item)}
+            lockedItemIds={anchorItemId ? new Set([anchorItemId]) : undefined}
           />
 
           {/* Single-outfit mode: tap to re-generate. Variety across
@@ -488,6 +523,24 @@ function SuggestContent() {
           </div>
         )
       )}
+
+      {/* Swap modal — opens when the user taps the shuffle icon on any
+          item in the current outfit. Showing alternatives in the same
+          category from the user's wardrobe. */}
+      <SwapItemModal
+        open={swapTargetItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setSwapTargetItem(null);
+        }}
+        currentItem={swapTargetItem}
+        wardrobe={wardrobe}
+        excludeIds={
+          suggestions[0]
+            ? new Set(suggestions[0].items.map((i) => i.id))
+            : undefined
+        }
+        onSelect={applySwap}
+      />
     </div>
   );
 }

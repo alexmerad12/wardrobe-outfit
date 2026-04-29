@@ -165,7 +165,7 @@ export default function TryOnPage() {
       {previewUrl && (
         <Card>
           <CardContent className="p-3 space-y-3">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-white">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-card">
               <Image
                 src={previewUrl}
                 alt="Uploaded item"
@@ -262,7 +262,7 @@ export default function TryOnPage() {
                       href={`/wardrobe/${item.id}`}
                       className="flex-shrink-0 w-20"
                     >
-                      <div className="relative aspect-square rounded-md overflow-hidden bg-white mb-1">
+                      <div className="relative aspect-square rounded-md overflow-hidden bg-card mb-1">
                         <Image
                           src={item.image_url}
                           alt={item.name}
@@ -327,7 +327,7 @@ export default function TryOnPage() {
                           {outfit.items.slice(0, isExpanded ? outfit.items.length : 4).map((item) => (
                             <div
                               key={item.id}
-                              className={`relative aspect-square rounded-md overflow-hidden bg-white ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
+                              className={`relative aspect-square rounded-md overflow-hidden bg-card ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
                             >
                               {item.id === result.phantomId ? (
                                 previewUrl ? (

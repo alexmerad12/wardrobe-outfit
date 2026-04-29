@@ -4,7 +4,7 @@ import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Shirt, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Shirt, ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -21,6 +21,12 @@ interface OutfitCardProps {
   canPrev?: boolean;
   saving?: boolean;
   isFavorited?: boolean;
+  /** Per-item swap handler. When provided, each item gets a small
+   *  swap icon button in the corner. The handler receives the item
+   *  the user wants to replace. Item ids in `lockedItemIds` skip the
+   *  swap button (used to lock anchor pieces the user pinned). */
+  onSwapItem?: (item: ClothingItem) => void;
+  lockedItemIds?: Set<string>;
 }
 
 export function OutfitCard({
@@ -36,6 +42,8 @@ export function OutfitCard({
   canPrev = false,
   saving,
   isFavorited = false,
+  onSwapItem,
+  lockedItemIds,
 }: OutfitCardProps) {
   const { t } = useLocale();
   return (
@@ -47,23 +55,40 @@ export function OutfitCard({
 
         {/* Outfit items grid */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
-            >
-              <Image
-                src={item.image_url}
-                alt={item.name}
-                fill
-                className="object-contain p-2"
-                sizes="(max-width: 640px) 45vw, 200px"
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                <p className="text-xs text-white truncate">{item.name}</p>
+          {items.map((item) => {
+            const swappable = !!onSwapItem && !lockedItemIds?.has(item.id);
+            return (
+              <div
+                key={item.id}
+                className="relative aspect-square overflow-hidden rounded-lg bg-card"
+              >
+                <Image
+                  src={item.image_url}
+                  alt={item.name}
+                  fill
+                  className="object-contain p-2"
+                  sizes="(max-width: 640px) 45vw, 200px"
+                />
+                {swappable && (
+                  <button
+                    type="button"
+                    onClick={() => onSwapItem?.(item)}
+                    aria-label={t("suggest.swap")}
+                    className={cn(
+                      "absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center",
+                      "rounded-full bg-background/90 text-foreground shadow-sm border border-border/60",
+                      "transition-all hover:bg-background hover:scale-105 active:scale-95"
+                    )}
+                  >
+                    <Shuffle className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                  <p className="text-xs text-white truncate">{item.name}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Styling note */}

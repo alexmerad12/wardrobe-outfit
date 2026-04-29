@@ -302,7 +302,7 @@ export default function HomePage() {
                       key={item.id}
                       href={`/wardrobe/${item.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
+                      className="relative aspect-square overflow-hidden rounded-lg bg-card"
                     >
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 45vw, 200px" />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
@@ -317,7 +317,7 @@ export default function HomePage() {
                 // fixed width so dragging feels predictable.
                 <div className="flex h-28 gap-0.5 -mx-4 overflow-x-auto overflow-y-hidden scrollbar-hide">
                   {todayItems.map((item) => (
-                    <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-muted/30">
+                    <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-card">
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
                     </div>
                   ))}
@@ -325,7 +325,7 @@ export default function HomePage() {
               ) : (
                 <div className="flex h-28 gap-0.5 -mx-4 overflow-hidden">
                   {todayItems.map((item) => (
-                    <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                    <div key={item.id} className="relative flex-1 overflow-hidden bg-card">
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                     </div>
                   ))}
@@ -511,7 +511,7 @@ export default function HomePage() {
                             key={item.id}
                             href={`/wardrobe/${item.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
+                            className="relative aspect-square overflow-hidden rounded-lg bg-card"
                           >
                             <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
                             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
@@ -524,7 +524,7 @@ export default function HomePage() {
                       // 6+ items — horizontal scroll for the collapsed view.
                       <div className="flex h-28 gap-0.5 overflow-x-auto overflow-y-hidden scrollbar-hide">
                         {outfit.items.map((item) => (
-                          <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-muted/30">
+                          <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-card">
                             <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
                           </div>
                         ))}
@@ -532,7 +532,7 @@ export default function HomePage() {
                     ) : (
                       <div className="flex h-28 gap-0.5">
                         {outfit.items.map((item) => (
-                          <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                          <div key={item.id} className="relative flex-1 overflow-hidden bg-card">
                             <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                           </div>
                         ))}

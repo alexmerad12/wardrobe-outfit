@@ -153,7 +153,10 @@
     "aiErrorHint": "The stylist hit a hiccup — give it another try.",
     "tryAgain": "Try again",
     "addItems": "Add Items",
-    "stylistTip": "Stylist tip"
+    "stylistTip": "Stylist tip",
+    "swap": "Swap",
+    "swapItemTitle": "Swap this piece",
+    "swapNoAlternatives": "No other items in this category to swap to."
   },
   "mood": {
     "energized": { "label": "Energized", "description": "Bright & bold" },

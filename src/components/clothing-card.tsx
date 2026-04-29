@@ -41,7 +41,7 @@ export function ClothingCard({
           pure white to match the flattened image content; a tinted
           muted color created a visible off-white halo between subject
           and card frame. */}
-      <div className="relative aspect-square bg-white">
+      <div className="relative aspect-square bg-card">
         <Image
           src={item.image_url}
           alt={item.name}

@@ -708,7 +708,7 @@ export default function AddItemPage() {
             onClick={() => libraryInputRef.current?.click()}
             className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 overflow-hidden"
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white">
+            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-card">
               <Image
                 src={imagePreview}
                 alt="Preview"
@@ -998,7 +998,7 @@ export default function AddItemPage() {
             <div className="flex gap-2">
               {similarItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-1.5">
-                  <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted/30 flex-shrink-0">
+                  <div className="relative h-10 w-10 rounded-md overflow-hidden bg-card flex-shrink-0">
                     <Image src={item.image_url} alt={item.name} fill className="object-contain p-0.5" sizes="40px" />
                   </div>
                   <p className="text-[11px] text-amber-700 leading-tight">{item.name}</p>

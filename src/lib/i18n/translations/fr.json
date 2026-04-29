@@ -153,7 +153,10 @@
     "aiErrorHint": "Le styliste a buggé — réessaie.",
     "tryAgain": "Réessayer",
     "addItems": "Ajouter des items",
-    "stylistTip": "Conseil du styliste"
+    "stylistTip": "Conseil du styliste",
+    "swap": "Remplacer",
+    "swapItemTitle": "Remplacer cette pièce",
+    "swapNoAlternatives": "Aucune autre pièce dans cette catégorie."
   },
   "mood": {
     "energized": { "label": "Énergique", "description": "Vif et audacieux" },

@@ -6,6 +6,7 @@ import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import { colorFamily } from "@/lib/color-family";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 // Suggest endpoint runs on Gemini 3 Flash with thinking enabled
@@ -438,6 +439,10 @@ export async function POST(request: NextRequest) {
     }
 
     const currentSeason = getSeasonFromMonth(new Date().getMonth() + 1);
+    // Mood / occasion labels are looked up early so Stage 1 (the
+    // wardrobe curator) can reference them. Stage 2 reuses these.
+    const moodInfo = MOOD_CONFIG[mood];
+    const occasionLabel = OCCASION_LABELS[occasion];
 
     // Favorite-sampling rules to prevent aesthetic lock-in:
     //   - 0 to 3 favorites: skip the favorites block entirely (too small
@@ -564,47 +569,25 @@ export async function POST(request: NextRequest) {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // Weighted-random subset of the pre-filtered wardrobe.
-    //
-    // Why: feeding 60+ items × 60-75 tokens each pushes the prompt
-    // past 8K input tokens, and reasoning models (GPT-5 mini medium)
-    // take 30-46s to read+reason on that. Capping the AI's view to
-    // ~35 items drops the prompt to ~5K tokens and brings latency to
-    // ~6-12s without sacrificing quality — the AI still composes a
-    // full outfit, it just picks from a curated subset rather than
-    // the entire wardrobe each call.
-    //
-    // Bonus: each "Show me another" tap re-samples with a fresh
-    // random component, naturally producing different outfits even
-    // when the AI is otherwise deterministic.
-    //
-    // Sampling rules:
-    //   - Per-category target (top 6, bottom 5, dress 3, etc) — keeps
-    //     the subset structurally balanced so the AI can always
-    //     compose a valid base.
-    //   - Weight = baseline + bonuses for never-worn / less-worn /
-    //     last-worn-long-ago, minus penalty for items in recent
-    //     suggestions. Plus a Math.random() jitter so the same
-    //     wardrobe state still produces variety across calls.
-    //   - Anchor item (when STYLE DIRECTION pins a specific piece)
-    //     is force-included regardless of sampling.
+    // Weighted-random subsetting. The pre-filter chain above
+    // (occasion / season / formality / warmth) trimmed the pool to
+    // contextually-eligible items; we now sample ~25 of them per
+    // category target, biased toward less-worn pieces and away from
+    // recently shown ones. Plus a Math.random() jitter so the same
+    // wardrobe state still produces variety across "Show me another"
+    // taps. Anchor items (pinned by STYLE DIRECTION) are force-
+    // included.
     // ─────────────────────────────────────────────────────────────
     const recentlyShownIds = new Set<string>();
     for (const idSet of kvRecentSuggestions) {
       for (const id of idSet) recentlyShownIds.add(id);
     }
-    // Tighter targets — ~22 items max instead of 34. Each item is
-    // ~60-75 tokens, so this drops the wardrobe block from ~2,400 to
-    // ~1,500 tokens (40% smaller). With smaller input, GPT-5 mini
-    // low reasoning consistently lands ~5-10s instead of 13-17s.
-    // Each category still has enough alternatives for a coherent
-    // outfit (e.g., 4 tops × 3 bottoms × 3 shoes = 36 valid combos
-    // pre-filtering by occasion/weather).
+
     const SUBSET_TARGETS: Record<string, number> = {
-      top: 4,
+      top: 5,
       bottom: 4,
       dress: 2,
-      "one-piece": 1,
+      "one-piece": 2,
       outerwear: 3,
       shoes: 3,
       bag: 2,
@@ -612,15 +595,11 @@ export async function POST(request: NextRequest) {
     };
     function itemSampleWeight(it: ClothingItem): number {
       let w = 1.0;
-      // Recently shown — strong negative (still includable as last
-      // resort, but heavily deprioritized).
       if (recentlyShownIds.has(it.id)) w -= 0.7;
-      // Never-worn — strong rotation bonus.
       const worn = it.times_worn ?? 0;
       if (worn === 0) w += 0.8;
       else if (worn <= 3) w += 0.4;
       else if (worn <= 8) w += 0.1;
-      // Last worn a while ago — additional rotation bonus.
       if (it.last_worn_date) {
         const days = Math.floor(
           (Date.now() - new Date(it.last_worn_date).getTime()) / 86_400_000
@@ -628,12 +607,15 @@ export async function POST(request: NextRequest) {
         if (days > 90) w += 0.3;
         else if (days > 30) w += 0.2;
       } else if (worn > 0) {
-        // Worn but no last_worn_date — treat as long-ago.
         w += 0.2;
       }
-      // Random jitter so each call samples differently.
-      return w + Math.random();
+      // 2x jitter — the random component (0-2) now dominates the
+      // rotation bonuses (max +1.1) and recently-shown penalty (-0.7),
+      // so each "Show me another" tap gets a meaningfully different
+      // subset even when the same items would otherwise rank highest.
+      return w + Math.random() * 2;
     }
+
     const byCategory = new Map<string, ClothingItem[]>();
     for (const it of promptItems) {
       const list = byCategory.get(it.category) ?? [];
@@ -650,8 +632,6 @@ export async function POST(request: NextRequest) {
         .map((r) => r.it);
       subsetItems.push(...ranked);
     }
-    // Anchor item — if user pinned a specific piece via STYLE DIRECTION,
-    // force-include it even if sampling missed it.
     if (anchorItemId) {
       const anchor = items.find((i) => i.id === anchorItemId && !i.is_stored);
       if (anchor && !subsetItems.some((s) => s.id === anchor.id)) {
@@ -663,9 +643,6 @@ export async function POST(request: NextRequest) {
     const weatherDesc = weather
       ? `${weather.temp}°C, feels like ${weather.feels_like}°C. ${weather.condition}. Humidity: ${weather.humidity}%, wind: ${weather.wind_speed}km/h, rain chance: ${weather.precipitation_probability}%.`
       : "Weather data unavailable.";
-
-    const moodInfo = MOOD_CONFIG[mood];
-    const occasionLabel = OCCASION_LABELS[occasion];
 
     const favoritesSection = favorites.length > 0
       ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}${f.style_notes ? `\n   Note from user: "${f.style_notes}"` : ""}`).join("\n")}`
@@ -679,7 +656,7 @@ export async function POST(request: NextRequest) {
       ...recentItemSets.map((r) => r.item_ids),
     ];
     const recentSection = allRecentSets.length > 0
-      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets the user has already seen — your 3 outfits MUST each differ from every one of these by at least 2 items):\n${allRecentSets.map((ids, i) => `${i + 1}. [${ids.join(", ")}]`).join("\n")}`
+      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets the user has already seen — each of your 3 outfits MUST differ from every one of these by at least 2 items):\n${allRecentSets.map((ids, i) => `${i + 1}. [${ids.join(", ")}]`).join("\n")}`
       : "";
 
     const cachedPrefix = `You are Yav, a sharp personal stylist with a strong point of view. Your job is to MAKE OUTFITS INTERESTING, not just compliant.
@@ -722,7 +699,7 @@ MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.labe
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
 ITERATION: ${iterationNonce}
 
-Return exactly ONE complete outfit from the wardrobe. It must be different from every set in RECENTLY SHOWN OR WORN. (The user can tap "Show me another" to get a fresh suggestion if this one doesn't land — focus all your reasoning on making THIS single outfit excellent across every rule below.)
+Return THREE distinct complete outfits from the wardrobe. Each must be different from every set in RECENTLY SHOWN OR WORN AND visibly different from the other two outfits in this response (different anchor pieces, not just a swapped accessory). The server scores all three and ships the best one to the user, so make every option a real contender — no throwaway picks.
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over. EXCEPTION: a dress with Silhouette = "slip" (satin slip / sleep-dress style) may be styled with a slim-fitted top underneath — but ONLY a top whose fit is "slim" or "regular" AND is NOT a layering piece, blazer, cardigan, hoodie, sweatshirt, or oversized item (e.g., a fitted t-shirt or thin turtleneck works; a hoodie or boxy tee does not).
@@ -808,7 +785,7 @@ HARD RULES — do not violate:
       Otherwise (jeans + tucked top, structured trousers + blouse, etc.), the belt is what separates a stylist look from a thrown-together one — add it.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
-   d) (Cross-outfit variety rule removed — we now generate one outfit at a time. Variety across "Show me another" taps is handled by the RECENTLY SHOWN list at the top of the prompt.)
+   d) CROSS-OUTFIT VARIETY (within this 3-outfit response): the three outfits MUST differ in their anchor (a different dress/top/jumpsuit driving each look), not just a swapped scarf. Different mood lever per outfit when possible — e.g., one structured, one relaxed, one playful — to give the scorer real choices.
    e) PATTERN ECHO CAP — anti-matchy-matchy: a statement print should appear ONCE per outfit, not three times. Within a single outfit, NEVER include 2+ items sharing the same Pattern when that pattern is "animal-print", "floral", "polka-dot", "graphic", "embellished", "abstract", or "camo" — pick ONE leopard piece (top OR shoes OR bag OR belt), not a leopard top AND leopard shoes AND a leopard belt. EXCEPTION: "striped" or "plaid" can appear on at most TWO items, and only when they're a deliberate top + bottom suit-style pairing (e.g., plaid blazer + plaid trousers), never spread across accessories. Solid is exempt. The Rule 12b "mix patterns" preset still requires ≥2 non-solid items, but they must be DIFFERENT patterns (leopard top + plaid skirt = mix; leopard top + leopard shoes = matchy).
 19. SHOE × BOTTOM PROPORTIONS (hard-no combos that look bad regardless of occasion):
    - TALL-SHAFT BOOTS (subcategory="knee-boots" OR Shoe height in ["knee", "over-knee"] — covers cowboy/western boots with tall shafts, riding boots, etc.) never with bottom_fit "wide-leg" / "flared" / "bootcut" / "tapered" — pant leg can't fit over the shaft or eats the boot. (Midi skirts are FINE with tall boots — boho/Western/riding-boot styling is a legitimate look.)
@@ -820,11 +797,11 @@ HARD RULES — do not violate:
 
 STYLING INTENT: One focal point. Mix textures — ideally pair one fitted piece with one looser piece. Use outerwear as a finisher when it fits the weather and occasion. Lean into the user's favorites for preferences but bring at least one fresh angle.
 
-ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Never worn", "Worn 3x", "Last worn 21d ago"). When choosing between two comparable options that both fit the rules above, prefer the LESS-WORN one. Across 4 outfits, deliberately include at least 2 pieces that are "Never worn" or haven't been worn in 30+ days IF the wardrobe has any — don't default to the same anchor items every call.
+ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Never worn", "Worn 3x", "Last worn 21d ago"). When choosing between two comparable options that both fit the rules above, prefer the LESS-WORN one — don't default to the same anchor items every call.
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Return exactly 1 outfit (as a single-element array under "outfits"). For the outfit:
+Return exactly 3 outfits in the "outfits" array. For each outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? "use masculine-coded language: \"sharp\", \"crisp\", \"clean line\", \"intentional\", \"grounded\". Avoid \"chic\", \"feminine\", \"flowy\"." : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
@@ -847,12 +824,13 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 3 Flash with MODERATE thinking (thinkingBudget: 4096).
-      // Pairs with weighted-random subsetting (~22 visible items).
-      // 4096 is the goldilocks — enough reasoning for the AI to
-      // verify color palette, layering proportions, and subtle
-      // styling rules the post-parse drops can't catch, without
-      // the 30-60s overhead of 8192. Targets ~12-18s per call.
+      // Gemini 3 Flash with SHALLOW thinking (thinkingBudget: 3072) +
+      // 3-outfit generation. Variety across "Show me another" taps
+      // comes from the 2x jitter in the subset sampler (different
+      // items every call); quality comes from server-side best-of-3
+      // scoring downstream (color palette + pattern restraint +
+      // formality fit + item-count balance). Output cap bumped to
+      // fit 3 outfits without mid-JSON truncation. Targets ~10-15s.
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
@@ -860,7 +838,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
             config: {
               temperature: 1,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 16384,
               responseMimeType: "application/json",
               responseSchema: SUGGEST_RESPONSE_SCHEMA,
               thinkingConfig: { thinkingBudget: 3072 },
@@ -1869,8 +1847,8 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         if (!hasDressy) {
           const dressyTip =
             locale === "fr"
-              ? `Astuce : pour ${occasion}, ajoute une pièce en soie / satin / dentelle / velours pour rehausser le look.`
-              : `Heads up: for ${occasion}, a silk / satin / lace / velvet piece would elevate this look.`;
+              ? `Pour ${occasion}, une pièce en soie, satin, dentelle ou velours rehausserait l'ensemble.`
+              : `For ${occasion}, a silk, satin, lace or velvet piece would elevate the look.`;
           softMismatch.push({ outfit: s, tip: dressyTip });
           return false;
         }
@@ -2115,15 +2093,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
         if (echoOffender) {
-          // Soft drop — the AI sometimes can't avoid the echo with a
-          // pattern-heavy wardrobe, and a 1-outfit response is worse
-          // UX than shipping with a "feels matchy" tip. Admitted back
-          // when the hard-valid pool is < 3.
-          const matchyTip =
-            locale === "fr"
-              ? `Note : ${echoOffender.items.length} pièces ${echoOffender.pattern} dans la même tenue — un peu trop assorti, n'hésite pas à en remplacer une.`
-              : `Heads up: ${echoOffender.items.length} ${echoOffender.pattern} pieces share the print — feels a bit matchy, swap one if you'd rather.`;
-          softMismatch.push({ outfit: s, tip: matchyTip });
+          // Soft drop — admit silently when this is the only candidate.
+          // No user-facing caveat: telling the user to swap a piece
+          // contradicts the AI's own pick and reads as broken. The
+          // relaxed flag travels for the validator.
+          softMismatch.push({ outfit: s });
           return false;
         }
       }
@@ -2136,11 +2110,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return mats.some((m) => m === "denim");
         });
         if (denimItems.length >= 2) {
-          const denimTip =
-            locale === "fr"
-              ? `Astuce : tenue tout en denim — pour casser l'effet, remplace une pièce par un haut non-denim (ou demande "tout en denim" pour l'assumer).`
-              : `Heads up: denim-on-denim look — swap one piece for a non-denim top to break it up (or ask for "full denim" to lean in).`;
-          softMismatch.push({ outfit: s, tip: denimTip });
+          // Soft drop — admit silently. Same reasoning as the matchy-
+          // print case: surfacing the warning contradicts the AI's
+          // own pick. Users who want the look opt in via STYLE
+          // DIRECTION ("full denim").
+          softMismatch.push({ outfit: s });
           return false;
         }
       }
@@ -2517,8 +2491,8 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
           const beltTip =
             locale === "fr"
-              ? "Astuce stylisme : ajoute une ceinture — elle marquerait la taille et donnerait du cachet à l'ensemble."
-              : "Stylist tip: add a belt — it would define the waist and tie the look together.";
+              ? "Une ceinture marquerait la taille et donnerait du cachet à l'ensemble."
+              : "A belt would define the waist and tie the look together.";
           softMismatch.push({ outfit: s, tip: beltTip });
           return false;
         }
@@ -2668,9 +2642,83 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       );
     }
 
-    // Show 1 outfit — single-outfit-per-call mode (with thinking on,
-    // multi-outfit responses were truncating mid-JSON).
-    const suggestions = final
+    // Best-of-3 scoring. The AI returns 3 distinct outfits; we score
+    // each one on coherence signals the post-parse rules can't catch
+    // (color palette tightness, pattern restraint, formality fit,
+    // item-count balance, material variety) and ship the highest-
+    // scoring one. The other two stay invisible to the user — they
+    // exist purely so the scorer has real choices.
+    const NEUTRAL_FAMILIES = new Set(["black", "white", "gray", "beige", "brown"]);
+    const scoreOutfit = (its: ClothingItem[]): number => {
+      let score = 100;
+
+      // Item count: ideal 4-6 head-to-toe pieces.
+      const n = its.length;
+      if (n >= 4 && n <= 6) score += 12;
+      else if (n === 3) score -= 4;
+      else if (n === 7) score -= 6;
+      else score -= 14;
+
+      // Color palette: count distinct color families across all
+      // visible colors. Tighter palette = more polished.
+      const families = new Set<string>();
+      for (const it of its) {
+        for (const c of it.colors ?? []) {
+          if (c?.hex) families.add(colorFamily(c.hex));
+        }
+      }
+      if (families.size <= 2) score += 18;
+      else if (families.size === 3) score += 10;
+      else if (families.size === 4) score += 0;
+      else score -= 12;
+
+      // Pattern restraint: one statement print is the sweet spot.
+      const patterned = its.filter((i) => {
+        const pats = Array.isArray(i.pattern) ? i.pattern : [i.pattern];
+        return pats.some((p) => p && p !== "solid");
+      });
+      if (patterned.length === 1) score += 10;
+      else if (patterned.length === 0) score += 4;
+      else if (patterned.length === 2) score -= 6;
+      else score -= 16;
+
+      // Anti-bland: every item solid + neutral palette reads flat.
+      const allNeutral = [...families].every((f) => NEUTRAL_FAMILIES.has(f));
+      if (patterned.length === 0 && allNeutral) score -= 8;
+
+      // Formality fit.
+      const expected = OCCASION_FORMALITY_BANDS[occasion] ?? [];
+      if (expected.length > 0) {
+        let matches = 0;
+        for (const it of its) {
+          const fs = Array.isArray(it.formality) ? it.formality : [it.formality];
+          if (fs.some((f) => f && expected.includes(f))) matches++;
+        }
+        score += matches * 2;
+      }
+
+      // Material variety (texture play).
+      const mats = new Set<string>();
+      for (const it of its) {
+        const m = Array.isArray(it.material) ? it.material : [it.material];
+        for (const x of m) if (x) mats.add(x);
+      }
+      if (mats.size >= 3) score += 6;
+      else if (mats.size === 2) score += 4;
+
+      return score;
+    };
+
+    const sortedFinal = [...final].sort((a, b) => {
+      // Hard-valid outfits beat relaxed ones first; within each
+      // bucket, sort by coherence score descending.
+      const aRelaxed = (a as { relaxed?: boolean }).relaxed === true ? 1 : 0;
+      const bRelaxed = (b as { relaxed?: boolean }).relaxed === true ? 1 : 0;
+      if (aRelaxed !== bRelaxed) return aRelaxed - bRelaxed;
+      return scoreOutfit(b.items) - scoreOutfit(a.items);
+    });
+
+    const suggestions = sortedFinal
       .slice(0, 1)
       .map(({ _fixes: _f, _ids: _ids2, ...rest }) => rest);
 

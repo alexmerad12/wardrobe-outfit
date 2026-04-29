@@ -806,7 +806,7 @@ function PendingTile({
   const { t } = useLocale();
   const isError = item.stage === "error";
   return (
-    <div className="relative aspect-square overflow-hidden rounded-lg bg-white">
+    <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
       <UploadPreviewImage
         src={item.previewUrl}
         className="h-full w-full object-contain opacity-70"

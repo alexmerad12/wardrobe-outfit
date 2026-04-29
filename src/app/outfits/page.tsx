@@ -358,7 +358,7 @@ export default function FavoritesPage() {
                   <div className="grid grid-cols-2 gap-1 p-1">
                     {(outfit.items ?? []).map((item) =>
                       selectMode ? (
-                        <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted/30">
+                        <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-card">
                           <Image
                             src={item.image_url}
                             alt={item.name}
@@ -375,7 +375,7 @@ export default function FavoritesPage() {
                           key={item.id}
                           href={`/wardrobe/${item.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="relative aspect-square overflow-hidden rounded-lg bg-muted/30"
+                          className="relative aspect-square overflow-hidden rounded-lg bg-card"
                         >
                           <Image
                             src={item.image_url}
@@ -398,7 +398,7 @@ export default function FavoritesPage() {
                     {(outfit.items ?? []).map((item) => (
                       <div
                         key={item.id}
-                        className="relative h-28 w-24 shrink-0 overflow-hidden bg-muted/30"
+                        className="relative h-28 w-24 shrink-0 overflow-hidden bg-card"
                       >
                         <Image
                           src={item.image_url}
@@ -413,7 +413,7 @@ export default function FavoritesPage() {
                 ) : (
                   <div className="flex h-28 gap-0.5">
                     {(outfit.items ?? []).map((item) => (
-                      <div key={item.id} className="relative flex-1 overflow-hidden bg-muted/30">
+                      <div key={item.id} className="relative flex-1 overflow-hidden bg-card">
                         <Image
                           src={item.image_url}
                           alt={item.name}

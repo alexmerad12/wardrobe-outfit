@@ -55,8 +55,8 @@ const CONDITION_KEYS: Record<string, string> = {
 
 const COORDS_KEY = "wx:coords:v1";
 const DATA_KEY_PREFIX = "wx:data:v1:";
-const COORDS_TTL_MS = 6 * 60 * 60 * 1000;  // 6h — refresh location more often if user moves
-const DATA_TTL_MS = 5 * 60 * 1000;  // 5min — keep temp readings close to live
+const COORDS_TTL_MS = 60 * 60 * 1000;  // 1h — re-acquire location often enough that moving across town is reflected within the hour
+const DATA_TTL_MS = 2 * 60 * 1000;  // 2min — keep temp readings close to live
 
 type Coords = { lat: number; lng: number };
 
