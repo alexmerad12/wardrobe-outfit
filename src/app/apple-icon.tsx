@@ -1,18 +1,51 @@
-// Apple touch icon — Ivory · Noir, rendered via Satori (next/og).
-// Mirrors the 180px tile from the logo lab: ivory rounded ground, a hex-
-// packed Rose & Damask field, solid ivory disc with twin hairline rings,
-// four cardinal dots, and a centered Bodoni C.
+// Apple touch icon — Monochrome, rendered via Satori (next/og).
+// Mirrors the 180px tile from the logo lab: white rounded ground, a
+// hex-packed Rose & Damask field at 32% opacity, white disc with twin
+// hairline rings, four cardinal dots, and a centered Bodoni C.
 //
-// Satori doesn't support SVG <pattern> elements, so instead of declaring
-// one tile and letting it repeat, every visible damask is placed
-// individually at the same hex positions PatternRoseDamask would tile to
-// in a 400×400 frame (centerX=45, centerY=39 → translate 155,161). Disc
-// hides the central medallions; ~16 stay visible around the ring.
+// Satori doesn't support SVG <pattern> elements, so instead of
+// declaring one tile and letting it repeat, every visible damask is
+// placed individually at the hex positions PatternRoseDamask would
+// tile to in a 400×400 frame with current settings (tile 56×97,
+// centerX=28, centerY=24 → translate 172,176). Disc hides the central
+// medallions; many stay visible around the ring.
+//
+// Pattern + lattice are wrapped in opacity 0.32 so the disc and C
+// dominate at the small home-screen sizes where the icon is actually
+// rendered (60-120px). Without the fade the diamonds compete with
+// the C and the border seems to disappear.
 
 import { ImageResponse } from "next/og";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
+
+// Fetch Bodoni Moda from Google Fonts at request time and pass it to
+// Satori as a TTF buffer. Without this, Satori falls back to its
+// default sans and the C renders as a sans-serif glyph instead of the
+// expected high-contrast Bodoni serif. The Google Fonts CSS endpoint
+// returns a stylesheet whose @font-face declarations point to the
+// actual font binary URL on fonts.gstatic.com — we parse one out and
+// fetch the binary.
+async function loadBodoniFont(): Promise<ArrayBuffer | null> {
+  try {
+    const cssRes = await fetch(
+      "https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400&display=swap",
+      { headers: { "User-Agent": "Mozilla/5.0" } }
+    );
+    if (!cssRes.ok) return null;
+    const css = await cssRes.text();
+    // Take the first src URL — covers latin glyphs which is all we
+    // need for "C".
+    const urlMatch = css.match(/src:\s*url\((https:\/\/[^)]+)\)/);
+    if (!urlMatch) return null;
+    const fontRes = await fetch(urlMatch[1]);
+    if (!fontRes.ok) return null;
+    return await fontRes.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
 
 const IVORY = "#ffffff";
 const IVORY_HI = "#f4f4f4";
@@ -74,7 +107,8 @@ const LATTICE_EDGES: Array<[number, number, number, number]> = [
   [200, 356, 245, 278], [245, 278, 290, 356], [290, 356, 335, 278], [335, 278, 380, 356],
 ];
 
-export default function AppleIcon() {
+export default async function AppleIcon() {
+  const bodoniData = await loadBodoniFont();
   return new ImageResponse(
     (
       <div
@@ -100,17 +134,25 @@ export default function AppleIcon() {
           height="100%"
           style={{ position: "absolute", inset: 0 }}
         >
-          <g stroke={STEM} strokeWidth={0.7} fill="none" opacity={0.45} strokeLinecap="round">
-            {LATTICE_EDGES.map(([x1, y1, x2, y2], i) => (
-              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
+          {/* Pattern (lattice + damasks) wrapped at 32% opacity so the
+              disc and C dominate at small home-screen sizes — matches
+              the logo-lab fade level. Without this the diamonds
+              competed with the C and the border seemed to disappear. */}
+          <g opacity={0.32}>
+            <g stroke={STEM} strokeWidth={0.7} fill="none" opacity={0.45} strokeLinecap="round">
+              {LATTICE_EDGES.map(([x1, y1, x2, y2], i) => (
+                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
+              ))}
+            </g>
+            {DAMASK_POSITIONS.map(([x, y], i) => (
+              <Damask key={i} x={x} y={y} />
             ))}
           </g>
-          {DAMASK_POSITIONS.map(([x, y], i) => (
-            <Damask key={i} x={x} y={y} />
-          ))}
           <circle cx={200} cy={200} r={130} fill={IVORY} />
-          <circle cx={200} cy={200} r={130} fill="none" stroke={INK} strokeWidth={2} opacity={0.92} />
-          <circle cx={200} cy={200} r={118} fill="none" stroke={INK} strokeWidth={0.8} opacity={0.55} />
+          {/* Stroke bumped 2 → 3 + 0.8 → 1 so the borders survive
+              downscaling to ~60-80px home-screen icons. */}
+          <circle cx={200} cy={200} r={130} fill="none" stroke={INK} strokeWidth={3} opacity={0.92} />
+          <circle cx={200} cy={200} r={118} fill="none" stroke={INK} strokeWidth={1} opacity={0.55} />
           <circle cx={200} cy={76} r={2.1} fill={INK} opacity={0.85} />
           <circle cx={200} cy={324} r={2.1} fill={INK} opacity={0.85} />
           <circle cx={76} cy={200} r={2.1} fill={INK} opacity={0.85} />
@@ -137,6 +179,22 @@ export default function AppleIcon() {
         </div>
       </div>
     ),
-    { ...size }
+    {
+      ...size,
+      // Pass Bodoni Moda to Satori so the C renders as the proper
+      // high-contrast serif. If the fetch failed, Satori falls back
+      // to its default sans — visible regression, but better than
+      // crashing the route.
+      fonts: bodoniData
+        ? [
+            {
+              name: "Bodoni Moda",
+              data: bodoniData,
+              weight: 400,
+              style: "normal",
+            },
+          ]
+        : undefined,
+    }
   );
 }

@@ -34,22 +34,25 @@
       <circle cx="0" cy="0" r="1.8" fill="#f4f4f4" opacity="0.55"/>
     </g>
 
-    <!-- Rose & Damask tile — 90×156 hex lattice with bleed filter on each
-         medallion. patternTransform centers the lattice on the viewport. -->
-    <pattern id="rd-tile" x="0" y="0" width="90" height="156"
-             patternUnits="userSpaceOnUse" patternTransform="translate(155 161)">
-      <rect width="90" height="156" fill="#ffffff"/>
+    <!-- Rose & Damask tile — 56×97 hex lattice (matches logo-lab's
+         current settings; older 90×156 had diamonds that overpowered
+         the C at home-screen sizes). patternTransform centers the
+         medallion at icon center (200,200): tx = 200 - 28 = 172,
+         ty = 200 - 24 = 176. -->
+    <pattern id="rd-tile" x="0" y="0" width="56" height="97"
+             patternUnits="userSpaceOnUse" patternTransform="translate(172 176)">
+      <rect width="56" height="97" fill="#ffffff"/>
       <g stroke="#1a1a1a" stroke-width="0.7" fill="none" opacity="0.55" stroke-linecap="round">
-        <line x1="45" y1="39" x2="0" y2="117"/>
-        <line x1="45" y1="39" x2="90" y2="117"/>
-        <line x1="45" y1="39" x2="0" y2="-39"/>
-        <line x1="45" y1="39" x2="90" y2="-39"/>
-        <line x1="0" y1="117" x2="45" y2="195"/>
-        <line x1="90" y1="117" x2="45" y2="195"/>
+        <line x1="28" y1="24" x2="0"  y2="73"/>
+        <line x1="28" y1="24" x2="56" y2="73"/>
+        <line x1="28" y1="24" x2="0"  y2="-24"/>
+        <line x1="28" y1="24" x2="56" y2="-24"/>
+        <line x1="0"  y1="73" x2="28" y2="121"/>
+        <line x1="56" y1="73" x2="28" y2="121"/>
       </g>
-      <g transform="translate(45 39) scale(0.5)" filter="url(#bleed-fx)"><use href="#damask"/></g>
-      <g transform="translate(0 117) scale(0.5)" filter="url(#bleed-fx)"><use href="#damask"/></g>
-      <g transform="translate(90 117) scale(0.5)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(28 24) scale(0.35)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(0  73) scale(0.35)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(56 73) scale(0.35)" filter="url(#bleed-fx)"><use href="#damask"/></g>
     </pattern>
 
     <!-- Grain overlay tiled at 200×200, multiplied over the surface. -->
@@ -78,18 +81,23 @@
   </defs>
 
   <!-- Layered rendering, each layer rounded via rx=88 (22% of icon width)
-       which matches .icon-tile's border-radius:22%. -->
+       which matches .icon-tile's border-radius:22%. The pattern tile
+       sits at opacity 0.32 — same fade level as the logo-lab — so
+       the disc + C dominate at small home-screen sizes instead of
+       being lost in the textile detail. -->
   <rect width="400" height="400" fill="#ffffff" rx="88" ry="88"/>
-  <rect width="400" height="400" fill="url(#rd-tile)" rx="88" ry="88"/>
+  <rect width="400" height="400" fill="url(#rd-tile)" rx="88" ry="88" opacity="0.32"/>
   <rect width="400" height="400" fill="url(#grain-tile)" rx="88" ry="88" opacity="0.22" style="mix-blend-mode:multiply"/>
   <rect width="400" height="400" fill="url(#pat-vig)" rx="88" ry="88" opacity="0.35"/>
   <rect width="400" height="400" fill="url(#tile-hi)" rx="88" ry="88"/>
   <rect width="400" height="400" fill="url(#tile-vig)" rx="88" ry="88"/>
 
-  <!-- Solid ivory disc covering the centre + twin hairline rings. -->
+  <!-- Solid white disc covering the centre + twin hairline rings.
+       Stroke bumped from 2 → 3 so the border survives downscaling
+       to ~60-80px home-screen icon sizes. -->
   <circle cx="200" cy="200" r="130" fill="#ffffff"/>
-  <circle cx="200" cy="200" r="130" fill="none" stroke="#000000" stroke-width="2" opacity="0.92"/>
-  <circle cx="200" cy="200" r="118" fill="none" stroke="#000000" stroke-width="0.8" opacity="0.55"/>
+  <circle cx="200" cy="200" r="130" fill="none" stroke="#000000" stroke-width="3" opacity="0.92"/>
+  <circle cx="200" cy="200" r="118" fill="none" stroke="#000000" stroke-width="1" opacity="0.55"/>
 
   <!-- 4 cardinal dots inside the disc edge -->
   <circle cx="200" cy="76"  r="2.1" fill="#000000" opacity="0.85"/>
