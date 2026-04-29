@@ -1,14 +1,18 @@
 // Closette — Launch Splash.
-// First-paint brand moment. Plays once per session: holds for 1.5s on
-// the textile + monogram + wordmark, then slides the content layer up
-// while the textile stays put. When the splash unmounts, whatever's
-// underneath (auth shell on /login, home on /) is revealed. The auth
-// shell shares the same Rose & Damask palette so the transition reads
-// as continuous to the eye.
+// First-paint brand moment. Three-phase animation:
+//   1. ENTRY (650ms): pattern + content scale up + fade in. Feels like
+//      the world materializing — pattern starts slightly oversized
+//      and settles, content starts slightly small and snaps to size.
+//   2. HOLD (1200ms): static brand moment. C, wordmark, taglines.
+//   3. EXIT (850ms): "passing through the portal" — content scales up
+//      aggressively (1 → 1.7) and fades, while the textile zooms more
+//      slowly (1 → 1.25) creating a parallax sense of depth. The
+//      underlying app (login or home) is revealed beneath.
+// Plays once per session, gated by sessionStorage.
 //
-// Visual matches /logo-lab section ii (Launch screen). Tweak there
-// first if you want to iterate the design — these styles are a
-// production copy of those values.
+// The OS-level static launch image was removed in layout.tsx so iOS
+// PWA falls back to the manifest's #ffffff theme — clean white pre-paint
+// that hands off to this splash invisibly, no cream flash.
 "use client";
 
 import * as React from "react";
@@ -23,17 +27,21 @@ const BRAND_PALETTE: Palette = [
   "#000000", // damask motif
 ];
 
-const HOLD_MS = 1500; // how long the splash sits before sliding away
-const SLIDE_MS = 700; // duration of the slide-up animation
+const ENTRY_MS = 650;
+const HOLD_MS = 1200;
+const EXIT_MS = 850;
 const SESSION_KEY = "closette_splash_seen";
 
+type Phase = "checking" | "entering" | "held" | "exiting" | "done";
+
 export function LaunchSplash() {
-  // checking → held → sliding → done
+  // checking → entering → held → exiting → done.
   // "checking" exists so the server-rendered first paint matches the
-  // client (both render nothing) and we only flip to "held" after we've
-  // checked sessionStorage. Without it returning users would briefly
-  // see the splash flash before the effect's early-return kicked in.
-  const [phase, setPhase] = React.useState<"checking" | "held" | "sliding" | "done">("checking");
+  // client (both render nothing) and we only flip to "entering" after
+  // we've checked sessionStorage. Without it returning users would
+  // briefly see the splash flash before the effect's early-return
+  // kicked in.
+  const [phase, setPhase] = React.useState<Phase>("checking");
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -41,34 +49,56 @@ export function LaunchSplash() {
       setPhase("done");
       return;
     }
-    setPhase("held");
-    const t = setTimeout(() => setPhase("sliding"), HOLD_MS);
-    return () => clearTimeout(t);
+    setPhase("entering");
   }, []);
 
   React.useEffect(() => {
-    if (phase !== "sliding") return;
-    const t = setTimeout(() => {
-      try {
-        sessionStorage.setItem(SESSION_KEY, "1");
-      } catch {
-        // sessionStorage can throw in private/incognito on some
-        // browsers — splash will just play again next visit, no real
-        // harm done.
-      }
-      setPhase("done");
-    }, SLIDE_MS);
-    return () => clearTimeout(t);
+    if (phase === "entering") {
+      // Mount with the .ls-entering pose, then on the next frame flip
+      // to .ls-held so the CSS transition fires from the small pose to
+      // the rest position. Without the rAF the browser may compute the
+      // final pose directly without ever painting the entry pose.
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const rafId = requestAnimationFrame(() => {
+        timeoutId = setTimeout(() => setPhase("held"), 0);
+      });
+      return () => {
+        cancelAnimationFrame(rafId);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    }
+    if (phase === "held") {
+      // Stay held long enough that the user gets a clear brand moment
+      // after the entry transition completes. The entry transition
+      // itself runs during the first ENTRY_MS of "held"; the remaining
+      // HOLD_MS is the static post-transition pause.
+      const t = setTimeout(() => setPhase("exiting"), ENTRY_MS + HOLD_MS);
+      return () => clearTimeout(t);
+    }
+    if (phase === "exiting") {
+      const t = setTimeout(() => {
+        try {
+          sessionStorage.setItem(SESSION_KEY, "1");
+        } catch {
+          // sessionStorage can throw in private/incognito on some
+          // browsers — splash will just play again next visit.
+        }
+        setPhase("done");
+      }, EXIT_MS);
+      return () => clearTimeout(t);
+    }
   }, [phase]);
 
   if (phase === "checking" || phase === "done") return null;
 
-  const sliding = phase === "sliding";
-
   return (
     <>
       <style>{SPLASH_CSS}</style>
-      <div className="launch-splash" aria-hidden={sliding} role="presentation">
+      <div
+        className={`launch-splash ls-${phase}`}
+        aria-hidden={phase === "exiting"}
+        role="presentation"
+      >
         <div className="ls-pat">
           <PatternRoseDamask
             palette={BRAND_PALETTE}
@@ -78,7 +108,7 @@ export function LaunchSplash() {
         </div>
         <div className="ls-vignette" />
 
-        <div className={`ls-content ${sliding ? "ls-slide" : ""}`}>
+        <div className="ls-content">
           <div className="ls-top-tag">
             <div className="ls-tag">Your AI Stylist</div>
             <div className="ls-small">for the closet you already own</div>
@@ -110,30 +140,79 @@ const SPLASH_CSS = `
     position: fixed; inset: 0; z-index: 9999;
     overflow: hidden;
     background: #ffffff;
-    /* Block pointer events so taps during the hold don't hit anything
-       below — the user shouldn't be able to interact with the page
-       behind the splash before it dismisses. */
     pointer-events: auto;
+    /* Splash itself fades on exit so the underlying page peeks through
+       through the zoom — gives the "passing through" sensation. */
+    transition: opacity 550ms cubic-bezier(0.6, 0.04, 0.98, 0.34) 200ms;
+    will-change: opacity;
   }
-  .ls-pat { position: absolute; inset: 0; }
+  .launch-splash.ls-exiting {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .ls-pat {
+    position: absolute; inset: 0;
+    /* Pattern zooms more slowly than the content — parallax depth. */
+    transition: transform 850ms cubic-bezier(0.6, 0.04, 0.98, 0.34);
+    will-change: transform;
+    /* Entry pose: slightly oversized so it settles inward. */
+    transform: scale(1.05);
+  }
+  .ls-held .ls-pat,
+  .ls-exiting .ls-pat {
+    /* Smoother entry: snap pattern to 1 during held; exit ramps to 1.25. */
+  }
+  .ls-entering .ls-pat {
+    transform: scale(1.05);
+    transition: transform ${ENTRY_MS}ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ls-held .ls-pat {
+    transform: scale(1);
+    transition: transform ${ENTRY_MS}ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ls-exiting .ls-pat {
+    transform: scale(1.25);
+    transition: transform ${EXIT_MS}ms cubic-bezier(0.6, 0.04, 0.98, 0.34);
+  }
+
   .ls-vignette {
     position: absolute; inset: 0;
     background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.18) 100%);
     pointer-events: none;
   }
+
   .ls-content {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center;
     padding: 86px 40px 68px;
     color: #000000;
-    transition:
-      transform 700ms cubic-bezier(0.7, 0, 0.3, 1),
-      opacity 500ms ease-out 200ms;
     will-change: transform, opacity;
   }
-  .ls-content.ls-slide {
-    transform: translateY(-110%);
+  .ls-entering .ls-content {
+    /* Pre-animation pose: small + invisible. */
+    transform: scale(0.92);
     opacity: 0;
+    transition:
+      transform ${ENTRY_MS}ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity ${ENTRY_MS}ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ls-held .ls-content {
+    transform: scale(1);
+    opacity: 1;
+    transition:
+      transform ${ENTRY_MS}ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity ${ENTRY_MS}ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ls-exiting .ls-content {
+    /* Zoom-through pose: aggressive scale up + fade. The user feels
+       like they're being pulled forward through the brand mark into
+       the app behind it. Faster scale than the pattern = parallax. */
+    transform: scale(1.7);
+    opacity: 0;
+    transition:
+      transform ${EXIT_MS}ms cubic-bezier(0.6, 0.04, 0.98, 0.34),
+      opacity ${EXIT_MS}ms cubic-bezier(0.7, 0, 0.84, 0);
   }
 
   .ls-top-tag { text-align: center; }
@@ -191,5 +270,18 @@ const SPLASH_CSS = `
     font-family: var(--font-heading, 'Bodoni Moda'), serif; font-style: italic;
     font-size: 15px; opacity: 0.85; letter-spacing: 0.03em;
     margin-top: 28px;
+  }
+
+  /* Respect motion-reduction preference — drop the zoom, just fade. */
+  @media (prefers-reduced-motion: reduce) {
+    .ls-entering .ls-content,
+    .ls-held .ls-content,
+    .ls-exiting .ls-content,
+    .ls-entering .ls-pat,
+    .ls-held .ls-pat,
+    .ls-exiting .ls-pat {
+      transform: none !important;
+      transition: opacity 400ms ease !important;
+    }
   }
 `;

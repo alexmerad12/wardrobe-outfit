@@ -28,16 +28,11 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Closette",
-    startupImage: [
-      { url: "/splash/iphone-15-pro-max.png", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone-15-pro.png", media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone-13.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone-mini.png", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone-xr.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" },
-      { url: "/splash/iphone-se.png", media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" },
-      { url: "/splash/ipad-11.png", media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" },
-      { url: "/splash/ipad-12-9.png", media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" },
-    ],
+    // No startupImage entries: the pre-baked PNGs were rendered from
+    // the old Ivory · Noir palette and would flash a cream screen
+    // before the animated white splash takes over. Letting iOS fall
+    // back to the manifest's theme_color (#ffffff) gives a clean
+    // white pre-paint that hands off to LaunchSplash invisibly.
   },
   // Icons come from app/icon.svg + app/apple-icon.tsx (Next file conventions),
   // which now render the Ivory · Noir mark. Manifest still references the
