@@ -65,6 +65,18 @@ export default function RootLayout({
       lang="en"
       className={`${dmSans.variable} ${bodoni.variable} h-full antialiased`}
     >
+      <head>
+        {/* Synchronously decide whether to skip the launch splash
+            BEFORE any rendering. If the user already saw the splash
+            this session, add a class to <html> so the splash CSS
+            display:nones it instantly — no flash of the brand
+            moment on every navigation. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(sessionStorage.getItem('closette_splash_seen')==='1')document.documentElement.classList.add('skip-splash');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background font-[family-name:var(--font-sans)]">
         <PendingUploadsProvider>
           <main className="flex-1 pb-20">{children}</main>
