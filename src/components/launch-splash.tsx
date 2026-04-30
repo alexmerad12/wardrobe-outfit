@@ -16,7 +16,7 @@
 //   - t=520  CLOSETTE letter-spacing tightens 0.55em → 0.14em with
 //            opacity fade-in (700ms). The "fashion house masthead"
 //            cadence (Vogue, Dior).
-//   - t=720  Top tag + bottom sub fade in (440ms).
+//   - t=720  Top tag fades in (440ms).
 //
 // Hold (1000ms): static brand moment.
 //
@@ -122,7 +122,6 @@ export function LaunchSplash() {
                 <h1 className="ls-name">CLOSETTE</h1>
                 <span className="ls-rule ls-rule-right" />
               </div>
-              <div className="ls-sub">Montréal · 2026</div>
             </div>
           </div>
         </div>
@@ -385,27 +384,6 @@ const SPLASH_CSS = `
     display: flex; flex-direction: column; align-items: center; gap: 12px;
   }
 
-  /* Halo behind the wordmark so the textile pattern fades out and
-     CLOSETTE pops. Stops are tuned to dissolve before the box edge,
-     killing the visible-rectangle artifact. */
-  .ls-brand::before {
-    content: "";
-    position: absolute;
-    left: 50%; top: 50%;
-    width: 320px; height: 96px;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(
-      ellipse at center,
-      #ffffff 0%,
-      #ffffff 30%,
-      color-mix(in srgb, #ffffff 60%, transparent) 50%,
-      color-mix(in srgb, #ffffff 20%, transparent) 60%,
-      transparent 68%
-    );
-    z-index: -1;
-    pointer-events: none;
-  }
-
   /* Hairline rules + wordmark on one row — two 1px black lines flank
      CLOSETTE and animate in BEFORE the wordmark settles, like the
      letter-spacing on a Vogue masthead. */
@@ -438,18 +416,11 @@ const SPLASH_CSS = `
        still reflows but the visual effect is what matters. */
     white-space: nowrap;
   }
-  .ls-sub {
-    font-family: var(--font-heading, 'Bodoni Moda'), serif; font-style: italic;
-    font-size: 15px; opacity: 0; letter-spacing: 0.03em;
-    margin-top: 16px;
-    animation: ls-fade-up 440ms cubic-bezier(0.16,1,0.3,1) 820ms forwards;
-  }
-
   /* Respect motion-reduction preference — drop all keyframes, just
      fade the splash in/out. */
   @media (prefers-reduced-motion: reduce) {
     .ls-pat, .ls-disc, .ls-disc-border, .ls-disc-inner, .ls-dots,
-    .ls-c, .ls-rule, .ls-name, .ls-sub, .ls-top-tag {
+    .ls-c, .ls-rule, .ls-name, .ls-top-tag {
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;
