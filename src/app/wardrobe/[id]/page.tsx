@@ -400,11 +400,48 @@ export default function ItemDetailPage() {
       // the pending bulk queue uses. (Was using the deleted /api/upload
       // Vercel-Blob endpoint, which is why Save Changes was silently
       // failing.)
+      //
+      // After the raw upload, run the same /api/items/normalize step
+      // that the bulk-add pipeline uses, so an edited photo gets the
+      // Photoroom bg-removal + flatten-onto-white treatment that the
+      // rest of the wardrobe items have. Without this, a re-uploaded
+      // photo would keep its original background while the others sit
+      // on white, breaking the visual consistency of the wardrobe grid.
       let imageUrl = item.image_url;
       if (newImageFile) {
         setUploadingImage(true);
         try {
-          imageUrl = await uploadToSupabase(newImageFile);
+          const rawUrl = await uploadToSupabase(newImageFile);
+          const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
+          if (pathMatch) {
+            try {
+              const normalizeRes = await fetch("/api/items/normalize", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sourceUrl: rawUrl, sourcePath: pathMatch[1] }),
+              });
+              if (normalizeRes.ok) {
+                const normalized = (await normalizeRes.json()) as { url?: string };
+                imageUrl = normalized.url ?? rawUrl;
+              } else {
+                // Photoroom outage / sharp failure / quota — fall back
+                // to the raw upload so the user still gets their new
+                // photo, just without the white-bg treatment.
+                console.warn(
+                  `[item-edit] normalize ${normalizeRes.status} — falling back to raw upload`
+                );
+                imageUrl = rawUrl;
+              }
+            } catch (err) {
+              console.warn("[item-edit] normalize threw — falling back to raw upload:", err);
+              imageUrl = rawUrl;
+            }
+          } else {
+            // URL didn't match the expected /clothing-images/ pattern
+            // (e.g. Supabase-side change in storage URL format) — skip
+            // normalize and use raw.
+            imageUrl = rawUrl;
+          }
         } finally {
           setUploadingImage(false);
         }
