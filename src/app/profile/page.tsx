@@ -361,9 +361,12 @@ export default function ProfilePage() {
                         />
                       </div>
                       <span className="text-sm flex-1 truncate">{item.name}</span>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {t("profile.worn", { count: item.times_worn })}
-                      </span>
+                      {/* Raw times-worn count hidden — the list is
+                          already ordered by wear count, so position in
+                          the list IS the rank. Removing the count keeps
+                          the layout consistent with the item detail
+                          page (counter hidden but data still drives
+                          suggest-engine variety scoring). */}
                     </div>
                   ))}
                 </div>
