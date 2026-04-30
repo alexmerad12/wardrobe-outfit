@@ -32,11 +32,18 @@ const INK = "#000000";
 // All pixel values scale from the 512px tile so the icon reads the
 // same at home-screen render sizes (~60-180px).
 const DISC = 370; // 72% of 512
-const BORDER = 9; // 1.8% of 512 — thick enough to survive downscale
-const INNER_INSET = 25;
+const BORDER = 14; // bolder than the spec stroke so the border survives
+                   // downscaling to ~96px home-screen tiles
+const INNER_INSET = 28;
 const INNER_RING = DISC - INNER_INSET * 2;
 const FONT_SIZE = 262;
 const C_MARGIN_TOP = -8; // optical centering nudge for tall serifs
+
+// Cardinal dots sit between the outer border and the inner hairline
+// ring at the four cardinal positions (12, 3, 6, 9 o'clock on the
+// disc). Each dot is ~6px in the 512 tile so they survive downscale.
+const DOT_SIZE = 7;
+const DOT_INSET = 18; // distance from disc edge to dot center
 
 // Fetch Bodoni Moda from Google Fonts at request time and pass it
 // to Satori as a TTF buffer. Without this, Satori falls back to
@@ -101,6 +108,31 @@ export default async function AppleIcon() {
               border: `2px solid rgba(0,0,0,0.55)`,
             }}
           />
+          {/* Four cardinal dots at 12 / 3 / 6 / 9 o'clock on the disc.
+              Sit between the outer border and the inner ring so they
+              read as part of the couture detail. Coordinates are in
+              the disc's local space — the disc itself is DISC×DISC,
+              with its center at (DISC/2, DISC/2). */}
+          {[
+            { top: DOT_INSET, left: DISC / 2 - DOT_SIZE / 2 }, // 12 o'clock
+            { top: DISC - DOT_INSET - DOT_SIZE, left: DISC / 2 - DOT_SIZE / 2 }, // 6 o'clock
+            { top: DISC / 2 - DOT_SIZE / 2, left: DOT_INSET }, // 9 o'clock
+            { top: DISC / 2 - DOT_SIZE / 2, left: DISC - DOT_INSET - DOT_SIZE }, // 3 o'clock
+          ].map((pos, i) => (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                top: pos.top,
+                left: pos.left,
+                width: DOT_SIZE,
+                height: DOT_SIZE,
+                borderRadius: DOT_SIZE,
+                backgroundColor: INK,
+                opacity: 0.85,
+              }}
+            />
+          ))}
           {/* The Bodoni C, baked into the PNG via Satori + the font
               buffer above. Renders identically on iOS, Android,
               desktop browsers — no system-font fallback needed. */}
