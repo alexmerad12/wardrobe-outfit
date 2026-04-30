@@ -838,7 +838,7 @@ export async function POST(request: NextRequest) {
       : "Weather data unavailable.";
 
     const favoritesSection = favorites.length > 0
-      ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences):\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}${f.style_notes ? `\n   Note from user: "${f.style_notes}"` : ""}`).join("\n")}`
+      ? `\n\nUSER'S FAVORITE OUTFITS (learn from these - they represent the user's style preferences). The "saved at" temperature shown for each is the weather when the user favorited the outfit — give MORE weight to favorites whose saved-at temperature is within ±5°C of TODAY'S temperature, since those represent the user's preferences for the kind of weather they're actually dressing for now. Favorites saved at very different temperatures still inform style/colour/silhouette taste but don't directly map to today's outfit.\n${favorites.map((f, i) => `${i + 1}. ${f.items}${f.mood ? ` | Mood: ${f.mood}` : ""}${f.occasion ? ` | Occasion: ${f.occasion}` : ""}${f.weather_temp !== null ? ` | saved at ${f.weather_temp}°C` : ""}${f.source === "manual" ? " (manually created)" : ""}${f.style_notes ? `\n   Note from user: "${f.style_notes}"` : ""}`).join("\n")}`
       : "";
 
     // Anti-repetition signal: combine KV-tracked recent SUGGESTIONS (across
