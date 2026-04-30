@@ -12,13 +12,13 @@
 // when picking an icon for "Add to Home screen". iOS happily
 // downscales for the apple-touch-icon use case.
 //
-// Earlier versions used JSX <svg> with nested <circle>/<line>
-// elements — Satori silently dropped all the inner shapes (only the
-// outer C div rendered), producing a Bodoni C floating on white. Now
-// rebuilt with pure div + CSS, which Satori handles reliably. Drops
-// the Rose & Damask textile (was barely visible at home-screen sizes
-// and Satori can't tile a CSS pattern), keeps the bordered-solid
-// disc + Bodoni C — the recognizable mark.
+// The bold disc border is built from two stacked solid discs (black
+// outer + ivory inner) rather than a CSS `border`. Satori renders
+// large CSS borders unevenly when combined with border-radius — the
+// stroke ends up heavier on one side. Two filled circles render
+// perfectly round at any size. Inside the ivory disc sit the inner
+// hairline ring, four cardinal dots at 12/3/6/9, and the Bodoni C —
+// matching the launch-page Monogram, minus the Rose & Damask textile.
 
 import { ImageResponse } from "next/og";
 
@@ -28,22 +28,28 @@ export const contentType = "image/png";
 const IVORY = "#ffffff";
 const INK = "#000000";
 
-// Proportions match the logo-lab Monogram bordered-solid variant.
-// All pixel values scale from the 512px tile so the icon reads the
-// same at home-screen render sizes (~60-180px).
-const DISC = 370; // 72% of 512
-const BORDER = 14; // bolder than the spec stroke so the border survives
-                   // downscaling to ~96px home-screen tiles
-const INNER_INSET = 28;
-const INNER_RING = DISC - INNER_INSET * 2;
+// Outer black disc fills 72% of the 512 tile. The 14px difference
+// between OUTER_DISC and INNER_DISC is what the eye reads as the
+// bold disc border.
+const OUTER_DISC = 370;
+const BORDER = 14;
+const INNER_DISC = OUTER_DISC - BORDER * 2;
+
+// Inner hairline ring sits inside the ivory disc. RING_INSET is
+// the gap between the ivory disc edge and the hairline — the
+// corridor where the cardinal dots live.
+const RING_INSET = 20;
+const RING_DIAMETER = INNER_DISC - RING_INSET * 2;
+const RING_STROKE = 2;
+
+// Cardinal dots sit at the midpoint of the corridor between the
+// black border and the hairline ring, so they read as part of the
+// twin-ring couture detail at home-screen size.
+const DOT_SIZE = 8;
+const DOT_RADIUS_FROM_CENTER = INNER_DISC / 2 - RING_INSET / 2;
+
 const FONT_SIZE = 262;
 const C_MARGIN_TOP = -8; // optical centering nudge for tall serifs
-
-// Cardinal dots sit between the outer border and the inner hairline
-// ring at the four cardinal positions (12, 3, 6, 9 o'clock on the
-// disc). Each dot is ~6px in the 512 tile so they survive downscale.
-const DOT_SIZE = 7;
-const DOT_INSET = 18; // distance from disc edge to dot center
 
 // Fetch Bodoni Moda from Google Fonts at request time and pass it
 // to Satori as a TTF buffer. Without this, Satori falls back to
@@ -70,6 +76,18 @@ async function loadBodoniFont(): Promise<ArrayBuffer | null> {
 
 export default async function AppleIcon() {
   const bodoniData = await loadBodoniFont();
+
+  // Dot positions inside the ivory disc (INNER_DISC × INNER_DISC,
+  // center at INNER_DISC/2). Each entry is the dot's top-left.
+  const dotCenter = INNER_DISC / 2;
+  const dotOffset = DOT_SIZE / 2;
+  const dots = [
+    { top: dotCenter - DOT_RADIUS_FROM_CENTER - dotOffset, left: dotCenter - dotOffset }, // 12
+    { top: dotCenter + DOT_RADIUS_FROM_CENTER - dotOffset, left: dotCenter - dotOffset }, // 6
+    { top: dotCenter - dotOffset, left: dotCenter - DOT_RADIUS_FROM_CENTER - dotOffset }, // 9
+    { top: dotCenter - dotOffset, left: dotCenter + DOT_RADIUS_FROM_CENTER - dotOffset }, // 3
+  ];
+
   return new ImageResponse(
     (
       <div
@@ -82,72 +100,80 @@ export default async function AppleIcon() {
           justifyContent: "center",
         }}
       >
-        {/* Outer disc — solid white inside, black border. */}
+        {/* Outer black disc — solid fill. The border isn't a CSS
+            stroke; it's the visible ring of black left exposed
+            after the ivory disc is centered on top. */}
         <div
           style={{
-            width: DISC,
-            height: DISC,
-            borderRadius: DISC,
-            backgroundColor: IVORY,
-            border: `${BORDER}px solid ${INK}`,
+            width: OUTER_DISC,
+            height: OUTER_DISC,
+            borderRadius: "50%",
+            backgroundColor: INK,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            position: "relative",
           }}
         >
-          {/* Inner hairline ring — twin-ring couture detail. */}
+          {/* Ivory inner disc — the canvas for the C, the inner
+              hairline ring, and the four cardinal dots. */}
           <div
             style={{
-              position: "absolute",
-              top: INNER_INSET,
-              left: INNER_INSET,
-              width: INNER_RING,
-              height: INNER_RING,
-              borderRadius: INNER_RING,
-              border: `2px solid rgba(0,0,0,0.55)`,
-            }}
-          />
-          {/* Four cardinal dots at 12 / 3 / 6 / 9 o'clock on the disc.
-              Sit between the outer border and the inner ring so they
-              read as part of the couture detail. Coordinates are in
-              the disc's local space — the disc itself is DISC×DISC,
-              with its center at (DISC/2, DISC/2). */}
-          {[
-            { top: DOT_INSET, left: DISC / 2 - DOT_SIZE / 2 }, // 12 o'clock
-            { top: DISC - DOT_INSET - DOT_SIZE, left: DISC / 2 - DOT_SIZE / 2 }, // 6 o'clock
-            { top: DISC / 2 - DOT_SIZE / 2, left: DOT_INSET }, // 9 o'clock
-            { top: DISC / 2 - DOT_SIZE / 2, left: DISC - DOT_INSET - DOT_SIZE }, // 3 o'clock
-          ].map((pos, i) => (
-            <div
-              key={i}
-              style={{
-                position: "absolute",
-                top: pos.top,
-                left: pos.left,
-                width: DOT_SIZE,
-                height: DOT_SIZE,
-                borderRadius: DOT_SIZE,
-                backgroundColor: INK,
-                opacity: 0.85,
-              }}
-            />
-          ))}
-          {/* The Bodoni C, baked into the PNG via Satori + the font
-              buffer above. Renders identically on iOS, Android,
-              desktop browsers — no system-font fallback needed. */}
-          <div
-            style={{
-              fontFamily: '"Bodoni Moda","Bodoni 72",Didot,Georgia,serif',
-              fontWeight: 400,
-              fontSize: FONT_SIZE,
-              lineHeight: 1,
-              letterSpacing: "-0.03em",
-              color: INK,
-              marginTop: C_MARGIN_TOP,
+              width: INNER_DISC,
+              height: INNER_DISC,
+              borderRadius: "50%",
+              backgroundColor: IVORY,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
             }}
           >
-            C
+            {/* Inner hairline ring — twin-ring couture detail. */}
+            <div
+              style={{
+                position: "absolute",
+                top: RING_INSET,
+                left: RING_INSET,
+                width: RING_DIAMETER,
+                height: RING_DIAMETER,
+                borderRadius: "50%",
+                border: `${RING_STROKE}px solid rgba(0,0,0,0.55)`,
+              }}
+            />
+            {/* Four cardinal dots at 12 / 3 / 6 / 9 — placed in the
+                corridor between the black border and the hairline
+                ring so all four survive downscaling. */}
+            {dots.map((pos, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  top: pos.top,
+                  left: pos.left,
+                  width: DOT_SIZE,
+                  height: DOT_SIZE,
+                  borderRadius: "50%",
+                  backgroundColor: INK,
+                }}
+              />
+            ))}
+            {/* Bodoni C, baked into the PNG via Satori + the font
+                buffer above. Renders identically on iOS, Android,
+                and desktop browsers. */}
+            <div
+              style={{
+                fontFamily: '"Bodoni Moda","Bodoni 72",Didot,Georgia,serif',
+                fontWeight: 400,
+                fontSize: FONT_SIZE,
+                lineHeight: 1,
+                letterSpacing: "-0.03em",
+                color: INK,
+                marginTop: C_MARGIN_TOP,
+                display: "flex",
+              }}
+            >
+              C
+            </div>
           </div>
         </div>
       </div>
