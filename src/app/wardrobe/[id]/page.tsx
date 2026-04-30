@@ -39,6 +39,7 @@ import type {
   Closure,
 } from "@/lib/types";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { formatLastWorn } from "@/lib/relative-time";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { getColorName } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
@@ -74,7 +75,7 @@ import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
 import { toColorKey } from "@/lib/color-label";
 
 export default function ItemDetailPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const labels = useLabels();
   const params = useParams();
   const router = useRouter();
@@ -1488,17 +1489,19 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Wear stats */}
-          <Separator className="my-4" />
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t("itemDetail.timesWorn")}</span>
-            <span className="font-medium">{item.times_worn}</span>
-          </div>
+          {/* Wear stats — only "last worn" is shown as a relative date
+              ("3 days ago" / "last week" / etc.). The raw "times worn"
+              counter is hidden in the UI to keep the page uncluttered;
+              the data is still stored and used by the suggest engine
+              for variety scoring. */}
           {item.last_worn_date && (
-            <div className="flex items-center justify-between text-sm mt-1">
-              <span className="text-muted-foreground">{t("itemDetail.lastWorn")}</span>
-              <span className="font-medium">{new Date(item.last_worn_date).toLocaleDateString()}</span>
-            </div>
+            <>
+              <Separator className="my-4" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("itemDetail.lastWorn")}</span>
+                <span className="font-medium">{formatLastWorn(item.last_worn_date, locale)}</span>
+              </div>
+            </>
           )}
         </>
       )}
