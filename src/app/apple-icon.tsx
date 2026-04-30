@@ -1,31 +1,48 @@
-// Apple touch icon — Monochrome, rendered via Satori (next/og).
+// PWA icon — Monochrome, rendered via Satori (next/og).
 //
-// IMPORTANT: previous version used JSX <svg> with nested <circle>,
-// <line>, <g> elements to draw the disc, border, hairline rings,
-// cardinal dots, and Rose & Damask textile field. Satori's SVG
-// renderer doesn't traverse nested SVG element trees — only the
-// outermost <svg> element gets considered, and its inner shapes were
-// silently dropped from the PNG output. Result on iOS home screen:
-// just a Bodoni C floating on white, no disc.
+// File-name convention is "apple-icon" because Next.js auto-injects
+// <link rel="apple-touch-icon" href="/apple-icon"> for iOS — but the
+// PNG it generates is also referenced from manifest.json so Android
+// Chrome / Samsung Internet pick it up. Without this, Android falls
+// back to icon.svg, where the <text>-rendered C lands on whatever
+// system serif the device has (no Bodoni Moda on Android = generic
+// serif fallback).
 //
-// Rewritten to use ONLY div + CSS, which Satori renders reliably.
-// Drops the Rose & Damask textile (was barely visible at home-screen
-// sizes anyway, and Satori can't tile a pattern). Keeps the
-// recognizable bordered-solid disc + Bodoni C, which is the brand
-// mark that has to read at any size.
+// 512×512 is the PWA-recommended size and the size Chrome prefers
+// when picking an icon for "Add to Home screen". iOS happily
+// downscales for the apple-touch-icon use case.
+//
+// Earlier versions used JSX <svg> with nested <circle>/<line>
+// elements — Satori silently dropped all the inner shapes (only the
+// outer C div rendered), producing a Bodoni C floating on white. Now
+// rebuilt with pure div + CSS, which Satori handles reliably. Drops
+// the Rose & Damask textile (was barely visible at home-screen sizes
+// and Satori can't tile a CSS pattern), keeps the bordered-solid
+// disc + Bodoni C — the recognizable mark.
 
 import { ImageResponse } from "next/og";
 
-export const size = { width: 180, height: 180 };
+export const size = { width: 512, height: 512 };
 export const contentType = "image/png";
 
 const IVORY = "#ffffff";
 const INK = "#000000";
 
-// Fetch Bodoni Moda from Google Fonts at request time and pass it to
-// Satori as a TTF buffer. Without this, Satori falls back to its
-// default sans and the C renders as sans-serif. We parse the @font-face
-// URL out of the stylesheet response, then fetch the binary.
+// Proportions match the logo-lab Monogram bordered-solid variant.
+// All pixel values scale from the 512px tile so the icon reads the
+// same at home-screen render sizes (~60-180px).
+const DISC = 370; // 72% of 512
+const BORDER = 9; // 1.8% of 512 — thick enough to survive downscale
+const INNER_INSET = 25;
+const INNER_RING = DISC - INNER_INSET * 2;
+const FONT_SIZE = 262;
+const C_MARGIN_TOP = -8; // optical centering nudge for tall serifs
+
+// Fetch Bodoni Moda from Google Fonts at request time and pass it
+// to Satori as a TTF buffer. Without this, Satori falls back to
+// its default sans and the C renders as sans-serif. We parse the
+// @font-face URL out of the stylesheet response, then fetch the
+// binary.
 async function loadBodoniFont(): Promise<ArrayBuffer | null> {
   try {
     const cssRes = await fetch(
@@ -46,10 +63,6 @@ async function loadBodoniFont(): Promise<ArrayBuffer | null> {
 
 export default async function AppleIcon() {
   const bodoniData = await loadBodoniFont();
-  // Disc proportions chosen to match the logo-lab Monogram bordered-solid
-  // variant: ~88% of icon width, with a 3px outer border that survives
-  // home-screen downscaling (60-80px) and a faint inner hairline ring
-  // 12px inside the outer border for the "twin ring" couture detail.
   return new ImageResponse(
     (
       <div
@@ -62,48 +75,44 @@ export default async function AppleIcon() {
           justifyContent: "center",
         }}
       >
-        {/* Outer disc — solid white inside, 3px black border */}
+        {/* Outer disc — solid white inside, black border. */}
         <div
           style={{
-            width: 130,
-            height: 130,
-            borderRadius: 130,
+            width: DISC,
+            height: DISC,
+            borderRadius: DISC,
             backgroundColor: IVORY,
-            border: `3px solid ${INK}`,
+            border: `${BORDER}px solid ${INK}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             position: "relative",
           }}
         >
-          {/* Inner hairline ring — 1px stroke, 12px inset, 55% opacity.
-              Satori draws this as another bordered div. */}
+          {/* Inner hairline ring — twin-ring couture detail. */}
           <div
             style={{
               position: "absolute",
-              top: 9,
-              left: 9,
-              width: 106,
-              height: 106,
-              borderRadius: 106,
-              border: `1px solid rgba(0,0,0,0.55)`,
+              top: INNER_INSET,
+              left: INNER_INSET,
+              width: INNER_RING,
+              height: INNER_RING,
+              borderRadius: INNER_RING,
+              border: `2px solid rgba(0,0,0,0.55)`,
             }}
           />
-          {/* The Bodoni C — same proportional size as the in-app
-              splash monogram (font-size 92 ≈ 51% of the 180px tile,
-              matches the logo-lab 200/400 ratio). */}
+          {/* The Bodoni C, baked into the PNG via Satori + the font
+              buffer above. Renders identically on iOS, Android,
+              desktop browsers — no system-font fallback needed. */}
           <div
             style={{
               fontFamily: '"Bodoni Moda","Bodoni 72",Didot,Georgia,serif',
               fontWeight: 400,
-              fontSize: 92,
+              fontSize: FONT_SIZE,
               lineHeight: 1,
               letterSpacing: "-0.03em",
               color: INK,
-              // Satori's vertical text alignment on tall serif glyphs
-              // sometimes drifts a few px below center. Nudge up by ~3
-              // so the C optically centers in the disc.
-              marginTop: -3,
+              marginTop: C_MARGIN_TOP,
             }}
           >
             C
