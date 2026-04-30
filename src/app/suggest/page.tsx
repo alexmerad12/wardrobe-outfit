@@ -402,15 +402,16 @@ function SuggestContent() {
               {t("common.back")}
             </Button>
             <Button
-              className="flex-1 h-12 gap-2"
+              className="flex-1 h-12 gap-2 min-w-0 overflow-hidden"
               disabled={!occasion || loading}
               onClick={generateSuggestions}
             >
               {loading ? (
-                // Wrapper holds a stable min-width so the button doesn't
-                // resize as the loader cycles through phrases of varying
-                // lengths ("Mixing colors" vs "Balancing silhouettes").
-                <span className="inline-flex items-center justify-center min-w-[180px]">
+                // Inner span fills the flex-1 slot exactly — no min-w
+                // forcing the button to grow when the loader cycles
+                // through longer phrases. Phrase strings are kept short
+                // (~13-15 chars each) so they fit naturally.
+                <span className="inline-flex items-center justify-center w-full overflow-hidden">
                   <StylistLoader
                     size="sm"
                     phases={[
