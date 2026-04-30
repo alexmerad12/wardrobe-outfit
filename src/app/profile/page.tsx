@@ -21,6 +21,7 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { colorFamily, colorFamilySwatch, type ColorFamilyKey } from "@/lib/color-family";
+import { formatLastWorn } from "@/lib/relative-time";
 
 interface CityResult {
   name: string;
@@ -31,7 +32,7 @@ interface CityResult {
 }
 
 export default function ProfilePage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const labels = useLabels();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -361,12 +362,18 @@ export default function ProfilePage() {
                         />
                       </div>
                       <span className="text-sm flex-1 truncate">{item.name}</span>
-                      {/* Raw times-worn count hidden — the list is
-                          already ordered by wear count, so position in
-                          the list IS the rank. Removing the count keeps
-                          the layout consistent with the item detail
-                          page (counter hidden but data still drives
-                          suggest-engine variety scoring). */}
+                      {/* Recency on the right — pairs with the list
+                          position to give two axes at a glance: rank
+                          (frequency) on the left/order, recency on
+                          the right. Top-ranked + worn yesterday =
+                          current daily driver; top-ranked + worn 2
+                          months ago = neglected favorite, signal to
+                          rotate it back in. */}
+                      {item.last_worn_date && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatLastWorn(item.last_worn_date, locale)}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
