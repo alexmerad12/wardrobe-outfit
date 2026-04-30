@@ -6,7 +6,6 @@
 
 import * as React from "react";
 import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
-import { Monogram } from "@/components/brand/monogram";
 
 const BRAND_PALETTE: Palette = [
   "#ffffff", // bg — pure white
@@ -17,10 +16,13 @@ const BRAND_PALETTE: Palette = [
 ];
 
 export function AuthShell({
-  eyebrow,
+  // eyebrow kept on the type for backwards compatibility with /login
+  // and /signup callers, but no longer rendered — the auth shell now
+  // shows only the textile background and the login card.
+  eyebrow: _eyebrow,
   children,
 }: {
-  eyebrow?: string; // small uppercase line above the masthead, optional
+  eyebrow?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -37,31 +39,7 @@ export function AuthShell({
         <div className="auth-vignette" aria-hidden="true" />
 
         <div className="auth-content">
-          <header className="auth-mast">
-            {eyebrow && <span className="auth-eyebrow">{eyebrow}</span>}
-            <div className="auth-logo">
-              <Monogram
-                variant="bordered-solid"
-                size={86}
-                letter="C"
-                color="#000000"
-                innerFill="#ffffff"
-                fontFamily='"Bodoni Moda", "Bodoni 72", "Didot", serif'
-                frame="rgba(0,0,0,0.92)"
-              />
-            </div>
-            <h1 className="auth-wordmark">CLOSETTE</h1>
-            <span className="auth-rule" />
-            <p className="auth-tagline"><em>une garde-robe bien tenue</em></p>
-          </header>
-
           <main className="auth-card">{children}</main>
-
-          <footer className="auth-foot">
-            <span>MMXXVI</span>
-            <span className="dot">·</span>
-            <span>une bonne tenue</span>
-          </footer>
         </div>
       </div>
     </>
@@ -94,43 +72,9 @@ const AUTH_CSS = `
     position: relative;
     min-height: 100%;
     display: flex; flex-direction: column;
-    align-items: center;
+    align-items: center; justify-content: center;
     padding: clamp(28px, 5vw, 56px) 20px;
-    gap: 24px;
     z-index: 2;
-  }
-
-  /* Masthead */
-  .auth-mast {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 10px;
-    text-align: center;
-  }
-  .auth-eyebrow {
-    font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase;
-    color: rgba(0,0,0,0.55);
-  }
-  .auth-logo { margin: 4px 0 10px; }
-  .auth-wordmark {
-    margin: 0;
-    font-family: 'Bodoni Moda', 'Bodoni 72', 'Didot', serif;
-    font-weight: 400;
-    font-size: clamp(26px, 3.4vw, 32px);
-    letter-spacing: 0.22em;
-    color: #000000;
-    line-height: 1;
-  }
-  .auth-rule {
-    width: 22px; height: 0.5px;
-    background: rgba(0,0,0,0.55);
-    margin: 2px 0;
-  }
-  .auth-tagline {
-    margin: 0;
-    font-family: 'Bodoni Moda', serif;
-    font-style: italic;
-    font-size: 14px;
-    color: rgba(0,0,0,0.78);
   }
 
   /* Card */
@@ -268,12 +212,4 @@ const AUTH_CSS = `
     text-decoration: none;
   }
 
-  /* Footer */
-  .auth-foot {
-    display: flex; gap: 10px; align-items: center;
-    font-family: 'Bodoni Moda', serif; font-style: italic;
-    font-size: 12px;
-    color: rgba(0,0,0,0.5);
-  }
-  .auth-foot .dot { opacity: 0.6; }
 `;
