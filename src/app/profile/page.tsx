@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -351,7 +352,11 @@ export default function ProfilePage() {
                 <p className="text-sm font-medium text-muted-foreground">{t("profile.mostWorn")}</p>
                 <div className="space-y-2">
                   {mostWornItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
+                    <Link
+                      key={item.id}
+                      href={`/wardrobe/${item.id}`}
+                      className="flex items-center gap-3 -mx-1 px-1 py-1 rounded-md hover:bg-muted/50 active:bg-muted transition-colors"
+                    >
                       <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
                         <Image
                           src={item.thumbnail_url ?? item.image_url}
@@ -374,7 +379,7 @@ export default function ProfilePage() {
                           {formatLastWorn(item.last_worn_date, locale)}
                         </span>
                       )}
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
