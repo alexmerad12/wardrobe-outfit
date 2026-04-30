@@ -856,7 +856,7 @@
     "metal": "Metal Finish",
     "layeringPiece": "Layering piece",
     "timesWorn": "Times worn",
-    "lastWorn": "Last worn",
+    "lastWorn": "Worn {when}",
     "saveChanges": "Save Changes"
   },
   "tryOn": {

@@ -861,7 +861,7 @@
     "metal": "Finition métal",
     "layeringPiece": "Pièce de superposition",
     "timesWorn": "Fois porté",
-    "lastWorn": "Dernier port",
+    "lastWorn": "Porté {when}",
     "saveChanges": "Enregistrer les modifications"
   },
   "tryOn": {

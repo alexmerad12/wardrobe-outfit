@@ -1489,18 +1489,18 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Wear stats — only "last worn" is shown as a relative date
-              ("3 days ago" / "last week" / etc.). The raw "times worn"
-              counter is hidden in the UI to keep the page uncluttered;
-              the data is still stored and used by the suggest engine
-              for variety scoring. */}
+          {/* Wear note — single editorial line ("Worn 3 days ago" /
+              "Porté il y a 3 jours") instead of a label/value split.
+              Raw times-worn count stays hidden but still drives the
+              suggest engine's variety scoring server-side. */}
           {item.last_worn_date && (
             <>
               <Separator className="my-4" />
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t("itemDetail.lastWorn")}</span>
-                <span className="font-medium">{formatLastWorn(item.last_worn_date, locale)}</span>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                {t("itemDetail.lastWorn", {
+                  when: formatLastWorn(item.last_worn_date, locale),
+                })}
+              </p>
             </>
           )}
         </>
