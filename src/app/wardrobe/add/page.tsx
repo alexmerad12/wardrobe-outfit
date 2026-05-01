@@ -54,6 +54,7 @@ import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { flattenOntoWhite } from "@/lib/image-utils";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
@@ -448,10 +449,17 @@ export default function AddItemPage() {
     setRemovingBg(true);
     setBgError(null);
     try {
-      const blob = await removeBg(source);
-      const cleaned = new File([blob], source.name.replace(/\.[^.]+$/, "") + ".png", {
-        type: "image/png",
-      });
+      const transparent = await removeBg(source);
+      // Auto-crop to the subject's bounding box and re-center on a square
+      // ivory canvas with padding. Without this step the bg-removed image
+      // keeps the subject wherever it was originally framed (often a small
+      // patch in a sea of transparency), so object-contain renders it tiny.
+      const flattened = await flattenOntoWhite(transparent, 1280, 0.88);
+      const cleaned = new File(
+        [flattened],
+        source.name.replace(/\.[^.]+$/, "") + ".jpg",
+        { type: "image/jpeg" }
+      );
       setImageFile(cleaned);
       const reader = new FileReader();
       reader.onload = (ev) => {

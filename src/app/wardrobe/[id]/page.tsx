@@ -72,6 +72,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { flattenOntoWhite } from "@/lib/image-utils";
 import { toColorKey } from "@/lib/color-label";
 
 export default function ItemDetailPage() {
@@ -559,8 +560,13 @@ export default function ItemDetailPage() {
     setRemovingBg(true);
     setBgError(null);
     try {
-      const resultBlob = await removeBg(source);
-      const file = new File([resultBlob], "bg-removed.png", { type: "image/png" });
+      const transparent = await removeBg(source);
+      // Auto-crop to the subject's bounding box and re-center on a square
+      // ivory canvas with padding. Without this step the bg-removed image
+      // keeps the subject wherever it was originally framed (often a small
+      // patch in a sea of transparency), so object-contain renders it tiny.
+      const flattened = await flattenOntoWhite(transparent, 1280, 0.88);
+      const file = new File([flattened], "bg-removed.jpg", { type: "image/jpeg" });
       setNewImageFile(file);
       const reader = new FileReader();
       reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
@@ -739,7 +745,18 @@ export default function ItemDetailPage() {
       {/* Image */}
       <div className="relative aspect-square overflow-hidden rounded-xl bg-card mb-4">
         <Image src={newImagePreview || item.image_url} alt={item.name} fill className="object-contain" sizes="(max-width: 448px) 100vw, 448px" priority />
-        {editing && (
+        {/* Bg-removal in-flight: dim the photo and overlay a spinner so the
+            user can see the cutout is being prepared. The image underneath
+            updates in place when it's ready. */}
+        {removingBg && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm pointer-events-none">
+            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+            <span className="mt-2 text-xs font-medium text-muted-foreground">
+              {t("itemDetail.removingBackground")}
+            </span>
+          </div>
+        )}
+        {editing && !removingBg && (
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -754,6 +771,7 @@ export default function ItemDetailPage() {
           type="file"
           accept="image/*"
           className="hidden"
+          disabled={removingBg}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;
