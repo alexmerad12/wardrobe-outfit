@@ -777,14 +777,14 @@ export async function POST(request: NextRequest) {
     }
 
     const SUBSET_TARGETS: Record<string, number> = {
-      top: 5,
-      bottom: 4,
-      dress: 2,
+      top: 9,
+      bottom: 6,
+      dress: 5,
       "one-piece": 2,
       outerwear: 3,
-      shoes: 3,
-      bag: 2,
-      accessory: 4,
+      shoes: 5,
+      bag: 3,
+      accessory: 5,
     };
     function itemSampleWeight(it: ClothingItem): number {
       let w = 1.0;
