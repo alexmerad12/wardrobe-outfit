@@ -28,11 +28,10 @@ export const contentType = "image/png";
 const IVORY = "#ffffff";
 const INK = "#000000";
 
-// Outer black disc fills 72% of the 512 tile. The 14px difference
-// between OUTER_DISC and INNER_DISC is what the eye reads as the
-// bold disc border.
+// Outer black disc fills 72% of the 512 tile. The difference between
+// OUTER_DISC and INNER_DISC is what the eye reads as the disc border.
 const OUTER_DISC = 370;
-const BORDER = 14;
+const BORDER = 10;
 const INNER_DISC = OUTER_DISC - BORDER * 2;
 
 // Inner hairline ring sits inside the ivory disc. RING_INSET is
