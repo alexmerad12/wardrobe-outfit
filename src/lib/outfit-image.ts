@@ -1,50 +1,74 @@
 /**
  * Compose a shareable outfit image on the client using Canvas.
  *
- * Produces a 1080×1350 portrait card branded as Closette — Ivory · Noir.
- * Layout: editorial masthead → grid of item photos (1–4 cells) → maison
- * footer with the C monogram + Bodoni wordmark. Returns a PNG Blob ready
- * for navigator.share() or download.
+ * 1080×1920 portrait — Instagram-Stories-native 9:16. Minimal, items-first
+ * editorial: title at the top, optional credit line beneath (weather ·
+ * occasion · date), the lookbook grid filling the central canvas, and the
+ * launch-page Monogram + spaced "CLOSETTE" wordmark anchored at the
+ * bottom. Background is the same Rose & Damask textile as the launch
+ * page (canvas-native port of the SVG pattern).
+ *
+ * Items arrive in the canonical head-to-toe order from orderOutfitItems
+ * (top → bottom → outerwear → shoes → bag → accessory):
+ *   1 item    → hero
+ *   2–4 items → vertical single-column stack
+ *   5+ items  → 2-column grid
+ *
+ * Each item sits on an ivory card with a hairline border + Bodoni-italic
+ * caption. The credit line collapses cleanly when any field is omitted.
  */
+
+import type { Category } from "./types";
 
 export interface OutfitImageItem {
   name: string;
   image_url: string;
   thumbnail_url?: string | null;
+  category?: Category;
 }
 
 export interface OutfitImageOptions {
   items: OutfitImageItem[];
-  title: string;      // "Today's Look" / "Ma tenue" / outfit name
-  subtitle?: string;  // optional — e.g. the date, occasion
-  brand?: string;     // defaults to "Closette"
+  title: string;
+  // Editorial credit-line fields. All optional — collapse cleanly when
+  // omitted. weatherTemp is always Celsius (matches the DB) and the
+  // formatter converts to display unit.
+  weatherTemp?: number | null;
+  weatherCondition?: string | null;
+  occasion?: string | null;          // pre-localized label
+  date?: string | Date | null;
+  temperatureUnit?: "celsius" | "fahrenheit";
+  // Manual override for the credit line. If set, replaces the auto-built
+  // weather/occasion/date string.
+  subtitle?: string;
 }
 
+// ── Canvas geometry ────────────────────────────────────────────────────────
 const WIDTH = 1080;
-const HEIGHT = 1350;
+const HEIGHT = 1920;        // 9:16 — Stories-native
 const PADDING = 56;
 
-// Brand palette — Monochrome
+// ── Brand palette — matches launch page Monogram + Rose & Damask ──────────
 const INK = "#000000";
 const IVORY = "#ffffff";
-const IVORY_HI = "#f4f4f4";    // card surface — slightly off-white so it sits on the bg
-const STEM = "#1a1a1a";        // hairlines
-const CELL = "#ffffff";        // per-photo cell so clothing pops
-const MUTED = "rgba(0,0,0,0.55)";
 const HAIRLINE = "rgba(0,0,0,0.18)";
+const MUTED = "rgba(0,0,0,0.55)";
 
 const SERIF = '"Bodoni Moda", Georgia, "Times New Roman", serif';
-const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+// ── Image loading ──────────────────────────────────────────────────────────
+
+function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load ${url}`));
-    img.src = url;
+    img.onerror = () => reject(new Error(`Failed to load ${src}`));
+    img.src = src;
   });
 }
+
+// ── Path primitives ────────────────────────────────────────────────────────
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -81,107 +105,354 @@ function drawContained(
     dh = h;
     dw = h * ir;
   }
-  const dx = x + (w - dw) / 2;
-  const dy = y + (h - dh) / 2;
-  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
-// Tiny hairline horizontal rule.
-function drawRule(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  y: number,
-  width: number,
-  color: string = MUTED
-) {
-  ctx.fillStyle = color;
-  ctx.fillRect(cx - width / 2, y, width, 1);
+// ── Rose & Damask textile (canvas port of patterns.tsx PatternRoseDamask) ──
+// Faithful to the launch page wallpaper at the geometry level — same
+// 56×97 tile, same three-medallion layout per tile, same diamond grid.
+// Skips the SVG filter effects (fractalNoise/displacement) since those
+// don't render reliably when an SVG is loaded via <img src="data:...">.
+
+function drawDamaskMotif(ctx: CanvasRenderingContext2D, cx: number, cy: number, scale: number) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+
+  // Four petals — alpha set per-petal via fillStyle so the textile's
+  // outer globalAlpha can multiply cleanly.
+  const petal = (path: () => void, alpha: number) => {
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+    path();
+    ctx.fill();
+  };
+  petal(() => {
+    ctx.beginPath();
+    ctx.moveTo(0, -18);
+    ctx.quadraticCurveTo(8, -10, 0, 0);
+    ctx.quadraticCurveTo(-8, -10, 0, -18);
+    ctx.closePath();
+  }, 0.95);
+  petal(() => {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(8, 10, 0, 18);
+    ctx.quadraticCurveTo(-8, 10, 0, 0);
+    ctx.closePath();
+  }, 0.95);
+  petal(() => {
+    ctx.beginPath();
+    ctx.moveTo(-18, 0);
+    ctx.quadraticCurveTo(-10, -8, 0, 0);
+    ctx.quadraticCurveTo(-10, 8, -18, 0);
+    ctx.closePath();
+  }, 0.9);
+  petal(() => {
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.quadraticCurveTo(10, -8, 0, 0);
+    ctx.quadraticCurveTo(10, 8, 18, 0);
+    ctx.closePath();
+  }, 0.9);
+
+  // Curlicue ornaments at the four corners
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.lineWidth = 1.1;
+  ctx.lineCap = "round";
+  const stroke = (path: () => void) => {
+    path();
+    ctx.stroke();
+  };
+  stroke(() => {
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.quadraticCurveTo(13, -23, 16, -12);
+    ctx.quadraticCurveTo(14, -6, 7, -8);
+  });
+  stroke(() => {
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.quadraticCurveTo(-13, -23, -16, -12);
+    ctx.quadraticCurveTo(-14, -6, -7, -8);
+  });
+  stroke(() => {
+    ctx.beginPath();
+    ctx.moveTo(0, 17);
+    ctx.quadraticCurveTo(13, 23, 16, 12);
+    ctx.quadraticCurveTo(14, 6, 7, 8);
+  });
+  stroke(() => {
+    ctx.beginPath();
+    ctx.moveTo(0, 17);
+    ctx.quadraticCurveTo(-13, 23, -16, 12);
+    ctx.quadraticCurveTo(-14, 6, -7, 8);
+  });
+
+  // Pearl accents at the cardinal points
+  const pearl = (x: number, y: number, r: number, alpha: number) => {
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  pearl(0, -24, 1.2, 0.75);
+  pearl(0, 24, 1.2, 0.75);
+  pearl(-24, 0, 1, 0.65);
+  pearl(24, 0, 1, 0.65);
+  // Center highlight
+  ctx.fillStyle = "rgba(244,244,244,0.55)";
+  ctx.beginPath();
+  ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
-// The Ivory · Noir mark — a Bodoni "C" inside a hairline-bordered ivory
-// disc with four cardinal dots. Mirrors the SVG monogram component so the
-// shared image reads as the same logo people see on the launch page.
-function drawBrandMark(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  size: number
-) {
-  const r = size / 2;
-  // Solid ivory disc (matches the bg, but with a hairline outline so it
-  // reads as a circle even though its fill matches the page).
+function drawTextileBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  // Ivory ground
+  ctx.fillStyle = IVORY;
+  ctx.fillRect(0, 0, w, h);
+
+  // Tile dimensions match patterns.tsx PatternRoseDamask (tile 56×97,
+  // medallions at local (28,24), (0,73), (56,73)). The launch page
+  // renders this at viewBox 2400×2400 — same scale-per-pixel here gives
+  // ~33 motifs across a 1080-wide canvas, which reads as a fine textile.
+  const scale = w / (56 * 18); // ~18 tiles wide — tighter than launch so
+                                // the textile reads at thumbnail share-card sizes
+  const tileW = 56 * scale;
+  const tileH = 97 * scale;
+
+  ctx.save();
+  // Wrap the whole pattern at .32 opacity — matches the <g opacity={0.32}>
+  // wrapper on the launch wallpaper so the C reads as primary.
+  ctx.globalAlpha = 0.32;
+
+  const sx = (n: number, originX: number) => originX + n * scale;
+  const sy = (n: number, originY: number) => originY + n * scale;
+
+  for (let ty = -tileH; ty < h + tileH; ty += tileH) {
+    for (let tx = -tileW; tx < w + tileW; tx += tileW) {
+      // Diamond grid — six edges per tile (four from the top medallion,
+      // two completing the bottom triangle).
+      ctx.strokeStyle = "rgba(26,26,26,0.55)";
+      ctx.lineWidth = 0.7 * scale;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(sx(28, tx), sy(24, ty)); ctx.lineTo(sx(0, tx), sy(73, ty));
+      ctx.moveTo(sx(28, tx), sy(24, ty)); ctx.lineTo(sx(56, tx), sy(73, ty));
+      ctx.moveTo(sx(28, tx), sy(24, ty)); ctx.lineTo(sx(0, tx), sy(-24, ty));
+      ctx.moveTo(sx(28, tx), sy(24, ty)); ctx.lineTo(sx(56, tx), sy(-24, ty));
+      ctx.moveTo(sx(0, tx), sy(73, ty)); ctx.lineTo(sx(28, tx), sy(121, ty));
+      ctx.moveTo(sx(56, tx), sy(73, ty)); ctx.lineTo(sx(28, tx), sy(121, ty));
+      ctx.stroke();
+
+      // Three medallions per tile — same .35 motif scale as on launch.
+      drawDamaskMotif(ctx, sx(28, tx), sy(24, ty), 0.35 * scale);
+      drawDamaskMotif(ctx, sx(0, tx), sy(73, ty), 0.35 * scale);
+      drawDamaskMotif(ctx, sx(56, tx), sy(73, ty), 0.35 * scale);
+    }
+  }
+  ctx.restore();
+
+  // Editorial vignette — soft white halo where content sits, darker
+  // corners so the centered logo group lifts forward (mirrors the
+  // .launch-vignette CSS layer).
+  const halo = ctx.createRadialGradient(w / 2, h * 0.42, 50, w / 2, h * 0.42, h * 0.65);
+  halo.addColorStop(0, "rgba(255,255,255,0.55)");
+  halo.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, w, h);
+
+  const vig = ctx.createRadialGradient(w / 2, h / 2, w * 0.5, w / 2, h / 2, Math.max(w, h) * 0.85);
+  vig.addColorStop(0, "transparent");
+  vig.addColorStop(1, "rgba(0,0,0,0.18)");
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, w, h);
+}
+
+// ── Brand mark — bordered-solid C, faithful to the launch-page Monogram ──
+// Direct port of components/brand/monogram.tsx variant "bordered-solid":
+//   r=88 ivory disc  +  1.4 outer hairline (ink, alpha .92)
+//   r=80 inner hairline ring (ink, alpha .55, stroke .5)
+//   four r=1.4 dots at radius 84
+//   Bodoni C size 140
+// All values scale from the original 200×200 viewBox; pass the desired
+// final diameter as `size`.
+
+function drawBrandMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const s = size / 200; // viewBox-to-canvas scale
+  // Solid ivory disc
   ctx.fillStyle = IVORY;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 88 * s, 0, Math.PI * 2);
   ctx.fill();
-  // Outer hairline
+  // Outer hairline (the launch-page disc border — thin, not bold)
+  ctx.save();
   ctx.strokeStyle = INK;
-  ctx.lineWidth = 1.6;
   ctx.globalAlpha = 0.92;
+  ctx.lineWidth = Math.max(1, 1.4 * s);
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 88 * s, 0, Math.PI * 2);
   ctx.stroke();
-  // Inner thin ring
-  ctx.lineWidth = 0.6;
+  // Inner hairline ring — twin-ring couture detail
   ctx.globalAlpha = 0.55;
+  ctx.lineWidth = Math.max(0.6, 0.5 * s);
   ctx.beginPath();
-  ctx.arc(cx, cy, r - r * 0.09, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 80 * s, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.globalAlpha = 1;
-  // Cardinal dots
+  ctx.restore();
+  // Four cardinal dots between the two rings (radius 84)
+  ctx.save();
   ctx.fillStyle = INK;
+  ctx.globalAlpha = 0.8;
+  const dotR = Math.max(1.2, 1.4 * s);
   for (const angle of [0, 90, 180, 270]) {
     const rad = ((angle - 90) * Math.PI) / 180;
-    const x = cx + Math.cos(rad) * (r - r * 0.045);
-    const y = cy + Math.sin(rad) * (r - r * 0.045);
-    ctx.globalAlpha = 0.85;
     ctx.beginPath();
-    ctx.arc(x, y, Math.max(1.4, size * 0.018), 0, Math.PI * 2);
+    ctx.arc(cx + Math.cos(rad) * 84 * s, cy + Math.sin(rad) * 84 * s, dotR, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
-  // The C — Bodoni, ink, geometrically centered.
+  ctx.restore();
+  // Bodoni C — optically centered. textBaseline="middle" centers on the
+  // em-square, but a serif capital with no descender sits visually high
+  // inside the em, making the C look low in the disc. Measure the glyph's
+  // actual ink bounds and offset off the alphabetic baseline so the visual
+  // center of the C lands exactly at (cx, cy).
   ctx.fillStyle = INK;
-  ctx.font = `400 ${Math.round(size * 0.74)}px ${SERIF}`;
+  ctx.font = `400 ${Math.round(140 * s)}px ${SERIF}`;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("C", cx, cy);
+  ctx.textBaseline = "alphabetic";
+  const metrics = ctx.measureText("C");
+  const visualCenterOffset =
+    (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+  ctx.fillText("C", cx, cy + visualCenterOffset);
 }
 
-function gridCells(count: number, box: { x: number; y: number; w: number; h: number }) {
-  const n = Math.min(count, 4);
-  const gap = 22;
-  const cells: { x: number; y: number; w: number; h: number }[] = [];
-  if (n === 1) {
-    cells.push(box);
-  } else if (n === 2) {
-    const cw = (box.w - gap) / 2;
-    cells.push({ x: box.x, y: box.y, w: cw, h: box.h });
-    cells.push({ x: box.x + cw + gap, y: box.y, w: cw, h: box.h });
-  } else if (n === 3) {
-    const topH = (box.h - gap) * 0.55;
-    const botH = box.h - gap - topH;
-    const cw = (box.w - gap) / 2;
-    cells.push({ x: box.x, y: box.y, w: cw, h: topH });
-    cells.push({ x: box.x + cw + gap, y: box.y, w: cw, h: topH });
-    cells.push({ x: box.x, y: box.y + topH + gap, w: box.w, h: botH });
-  } else {
-    const cw = (box.w - gap) / 2;
-    const ch = (box.h - gap) / 2;
-    cells.push({ x: box.x, y: box.y, w: cw, h: ch });
-    cells.push({ x: box.x + cw + gap, y: box.y, w: cw, h: ch });
-    cells.push({ x: box.x, y: box.y + ch + gap, w: cw, h: ch });
-    cells.push({ x: box.x + cw + gap, y: box.y + ch + gap, w: cw, h: ch });
+// ── Date / credit formatting ──────────────────────────────────────────────
+
+// Localized month + day, e.g. "April 30" (en) / "30 avril" (fr). Year is
+// omitted because outfit shares are inherently current.
+function formatShareDate(d: Date): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric" }).format(d);
+  } catch {
+    return d.toDateString();
   }
-  return cells;
 }
+
+function formatTemp(c: number, unit: "celsius" | "fahrenheit"): string {
+  if (unit === "fahrenheit") return `${Math.round((c * 9) / 5 + 32)}°F`;
+  return `${Math.round(c)}°C`;
+}
+
+function buildCreditLine(opts: OutfitImageOptions): string | null {
+  const parts: string[] = [];
+  if (opts.weatherTemp != null) {
+    parts.push(formatTemp(opts.weatherTemp, opts.temperatureUnit ?? "celsius"));
+  }
+  if (opts.weatherCondition) parts.push(opts.weatherCondition);
+  if (opts.occasion) parts.push(opts.occasion);
+  if (opts.date) {
+    const d = opts.date instanceof Date ? opts.date : new Date(opts.date);
+    if (!Number.isNaN(d.valueOf())) parts.push(formatShareDate(d));
+  }
+  if (parts.length === 0) return null;
+  return parts.join("  ·  ");
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────
+
+interface Cell { x: number; y: number; w: number; h: number; }
+
+function layoutCells(count: number, box: Cell): Cell[] {
+  if (count === 1) return [box];
+  // Single-column lookbook stack for ≤4 items; 2-col grid for 5+ so
+  // photos still get usable height when the outfit gets layered.
+  const useTwoCol = count >= 5;
+  const rowGap = 24;
+  const colGap = 20;
+  if (!useTwoCol) {
+    const h = (box.h - rowGap * (count - 1)) / count;
+    return Array.from({ length: count }, (_, i) => ({
+      x: box.x, y: box.y + i * (h + rowGap), w: box.w, h,
+    }));
+  }
+  const rows = Math.ceil(count / 2);
+  const cw = (box.w - colGap) / 2;
+  const ch = (box.h - rowGap * (rows - 1)) / rows;
+  return Array.from({ length: count }, (_, i) => {
+    const row = Math.floor(i / 2);
+    const col = i % 2;
+    return {
+      x: box.x + col * (cw + colGap),
+      y: box.y + row * (ch + rowGap),
+      w: cw,
+      h: ch,
+    };
+  });
+}
+
+function ellipsize(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (ctx.measureText(text.slice(0, mid) + "…").width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return text.slice(0, lo) + "…";
+}
+
+function drawItemCell(
+  ctx: CanvasRenderingContext2D,
+  cell: Cell,
+  img: HTMLImageElement,
+  name: string,
+  captionH: number
+) {
+  const cardR = 14;
+  const photoH = cell.h - captionH;
+
+  // Photo card — ivory, soft drop shadow so it lifts off the textile.
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.12)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  ctx.fillStyle = IVORY;
+  roundRect(ctx, cell.x, cell.y, cell.w, photoH, cardR);
+  ctx.fill();
+  ctx.restore();
+
+  // Hairline border
+  ctx.strokeStyle = HAIRLINE;
+  ctx.lineWidth = 1;
+  roundRect(ctx, cell.x, cell.y, cell.w, photoH, cardR);
+  ctx.stroke();
+
+  // Photo (contained inside a small inner padding)
+  const pad = 14;
+  drawContained(ctx, img, cell.x + pad, cell.y + pad, cell.w - pad * 2, photoH - pad * 2);
+
+  // Caption — Bodoni italic, muted ink, single line ellipsized
+  if (captionH > 0 && name) {
+    ctx.fillStyle = MUTED;
+    const fs = Math.min(22, Math.max(14, captionH * 0.6));
+    ctx.font = `italic ${fs}px ${SERIF}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const text = ellipsize(ctx, name, cell.w - 24);
+    ctx.fillText(text, cell.x + cell.w / 2, cell.y + photoH + captionH / 2 + 4);
+  }
+}
+
+// ── Composer ──────────────────────────────────────────────────────────────
 
 export async function composeOutfitImage(opts: OutfitImageOptions): Promise<Blob> {
-  const { items, title, subtitle } = opts;
+  const { items, title } = opts;
   if (items.length === 0) throw new Error("No items to render");
 
-  // Wait for Bodoni Moda (loaded via next/font) to be ready before drawing
-  // text — otherwise we fall back to Georgia silently.
+  // Make sure Bodoni Moda finishes loading so titles/captions don't fall
+  // back to Georgia silently.
   if (typeof document !== "undefined" && document.fonts?.ready) {
     try { await document.fonts.ready; } catch { /* ignore */ }
   }
@@ -192,111 +463,65 @@ export async function composeOutfitImage(opts: OutfitImageOptions): Promise<Blob
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
-  // Ivory page ground
-  ctx.fillStyle = IVORY;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  // ── Background: Rose & Damask textile + editorial vignette ──────────
+  drawTextileBackground(ctx, WIDTH, HEIGHT);
 
-  // Inner card — ivory-light, hairline border, soft shadow
-  const cardX = PADDING;
-  const cardY = PADDING;
-  const cardW = WIDTH - PADDING * 2;
-  const cardH = HEIGHT - PADDING * 2;
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.18)";
-  ctx.shadowBlur = 32;
-  ctx.shadowOffsetY = 12;
-  ctx.fillStyle = IVORY_HI;
-  roundRect(ctx, cardX, cardY, cardW, cardH, 28);
-  ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = HAIRLINE;
-  ctx.lineWidth = 1;
-  roundRect(ctx, cardX, cardY, cardW, cardH, 28);
-  ctx.stroke();
-
-  // ── Masthead ──────────────────────────────────────────────────────────────
-  // Eyebrow line above the title — sets the editorial tone.
-  ctx.fillStyle = MUTED;
-  ctx.font = `500 14px ${SANS}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  ctx.fillText("MAISON DE GARDE-ROBE", WIDTH / 2, cardY + 44);
-
-  drawRule(ctx, WIDTH / 2, cardY + 76, 36, MUTED);
-
-  // Title (Bodoni, ink)
+  // ── Title (Bodoni, ink, large) ─────────────────────────────────────
   ctx.fillStyle = INK;
-  ctx.font = `400 56px ${SERIF}`;
+  ctx.font = `400 72px ${SERIF}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillText(title, WIDTH / 2, cardY + 96);
+  const titleY = PADDING + 24;
+  ctx.fillText(ellipsize(ctx, title, WIDTH - PADDING * 4), WIDTH / 2, titleY);
 
-  // Subtitle (italic Bodoni, muted)
-  let gridTopOffset = cardY + 96 + 70;
-  if (subtitle) {
+  // ── Credit line (single italic line under the title) ──────────────
+  const credit = opts.subtitle ?? buildCreditLine(opts);
+  let titleBottom = titleY + 90;
+  if (credit) {
     ctx.fillStyle = MUTED;
-    ctx.font = `italic 22px ${SERIF}`;
-    ctx.fillText(subtitle, WIDTH / 2, cardY + 96 + 64);
-    gridTopOffset = cardY + 96 + 110;
+    ctx.font = `italic 24px ${SERIF}`;
+    ctx.fillText(credit, WIDTH / 2, titleY + 96);
+    titleBottom = titleY + 134;
   }
 
-  // ── Item grid ─────────────────────────────────────────────────────────────
-  const imageSources = items.slice(0, 4).map((i) => i.thumbnail_url || i.image_url);
-  const imgs = await Promise.all(imageSources.map(loadImage));
+  // ── Brand mark + wordmark (anchored at the bottom of the canvas) ──
+  // Sized + spaced to match the launch page's bordered-solid Monogram
+  // group. Sits above the bottom edge with comfortable breathing room.
+  const markSize = 180;
+  const wordmarkFs = 36;
+  const bottomMargin = 72;
+  const wordmarkY = HEIGHT - bottomMargin - wordmarkFs;
+  const markCY = wordmarkY - markSize / 2 - 28;
 
-  // Reserve room at the bottom for the maison footer (~210px).
-  const gridBottom = cardY + cardH - 210;
-  const gridBox = {
-    x: cardX + 44,
-    y: gridTopOffset,
-    w: cardW - 88,
-    h: gridBottom - gridTopOffset,
+  // ── Item lookbook (fills everything between the title and the mark) ─
+  const gridBox: Cell = {
+    x: PADDING + 12,
+    y: titleBottom + 32,
+    w: WIDTH - (PADDING + 12) * 2,
+    h: (markCY - markSize / 2 - 36) - (titleBottom + 32),
   };
 
-  const cells = gridCells(imgs.length, gridBox);
-  for (let i = 0; i < imgs.length; i++) {
-    const cell = cells[i];
-    // White cell so clothing photos stay neutral.
-    ctx.fillStyle = CELL;
-    roundRect(ctx, cell.x, cell.y, cell.w, cell.h, 16);
-    ctx.fill();
-    // Hairline frame
-    ctx.strokeStyle = HAIRLINE;
-    ctx.lineWidth = 1;
-    roundRect(ctx, cell.x, cell.y, cell.w, cell.h, 16);
-    ctx.stroke();
-    drawContained(ctx, imgs[i], cell.x + 16, cell.y + 16, cell.w - 32, cell.h - 32);
+  const sources = items.map((it) => it.thumbnail_url || it.image_url);
+  const imgs = await Promise.all(sources.map(loadImage));
+
+  // Caption height scales down as items get more numerous so photos
+  // breathe at any count.
+  const captionH = items.length <= 2 ? 44 : items.length <= 4 ? 38 : 30;
+  const cells = layoutCells(items.length, gridBox);
+  for (let i = 0; i < items.length; i++) {
+    drawItemCell(ctx, cells[i], imgs[i], items[i].name, captionH);
   }
 
-  // ── Maison footer ─────────────────────────────────────────────────────────
-  const footTop = cardY + cardH - 180;
-  // Top hairline rule across the card width
-  ctx.fillStyle = HAIRLINE;
-  ctx.fillRect(cardX + 80, footTop, cardW - 160, 1);
+  // Brand mark + spaced "CLOSETTE" wordmark — matches launch page group.
+  drawBrandMark(ctx, WIDTH / 2, markCY, markSize);
 
-  // The C mark
-  drawBrandMark(ctx, WIDTH / 2, footTop + 60, 60);
-
-  // Wordmark
   ctx.fillStyle = INK;
-  ctx.font = `400 30px ${SERIF}`;
+  ctx.font = `400 ${wordmarkFs}px ${SERIF}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  // Approximate letterspacing by drawing each glyph (canvas has no native
-  // letter-spacing). Skip if ctx.letterSpacing is unsupported.
-  const wordmark = "CLOSETTE";
-  ctx.save();
-  ctx.letterSpacing = "6px";
-  ctx.fillText(wordmark, WIDTH / 2, footTop + 100);
-  ctx.restore();
-
-  // Tagline
-  ctx.fillStyle = MUTED;
-  ctx.font = `italic 18px ${SERIF}`;
-  ctx.fillText("une garde-robe bien tenue", WIDTH / 2, footTop + 142);
-
-  // Tiny stem-colored corner ornament for editorial weight.
-  drawRule(ctx, WIDTH / 2, footTop + 176, 22, STEM);
+  ctx.letterSpacing = "8px";
+  ctx.fillText("CLOSETTE", WIDTH / 2, wordmarkY);
+  ctx.letterSpacing = "0px";
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -309,7 +534,6 @@ export async function composeOutfitImage(opts: OutfitImageOptions): Promise<Blob
 /**
  * Share an outfit image. Tries navigator.share({ files }) first; if that's
  * not supported (or the user cancels), falls back to downloading the PNG.
- * Returns true if shared, false if downloaded.
  */
 export async function shareOutfitImage(
   blob: Blob,

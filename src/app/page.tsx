@@ -387,6 +387,11 @@ export default function HomePage() {
                     <ShareOutfitButton
                       items={todayItems}
                       title={todayOutfit.name || t("share.todaysLook")}
+                      weatherTemp={todayOutfit.weather_temp}
+                      weatherCondition={todayOutfit.weather_condition}
+                      occasion={todayOutfit.occasion ? t(`occasion.${todayOutfit.occasion}`) : null}
+                      date={todayOutfit.date}
+                      temperatureUnit={unit}
                       variant="outline"
                       className="flex-1"
                     />

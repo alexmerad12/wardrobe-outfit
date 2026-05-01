@@ -452,6 +452,11 @@ export default function FavoritesPage() {
                         <ShareOutfitButton
                           items={outfit.items ?? []}
                           title={outfit.name || t("favorites.saved")}
+                          weatherTemp={outfit.weather_temp}
+                          weatherCondition={outfit.weather_condition}
+                          occasion={outfit.occasions[0] ? t(`occasion.${outfit.occasions[0]}`) : null}
+                          date={outfit.created_at}
+                          temperatureUnit={unit}
                           variant="outline"
                         />
                         <Button
