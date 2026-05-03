@@ -51,7 +51,15 @@
     "createAccount": "Créer mon compte",
     "alreadyHaveAccount": "Tu as déjà un compte ?",
     "continueWithGoogle": "Continuer avec Google",
-    "or": "OU"
+    "or": "OU",
+    "welcomeChoosePassword": "Choisis ton mot de passe",
+    "welcomeChoosePasswordSub": "Définis un mot de passe pour finaliser ton compte.",
+    "confirmPassword": "Confirme le mot de passe",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas.",
+    "settingPassword": "Enregistrement...",
+    "setPassword": "Enregistrer et continuer",
+    "welcomeNoSession": "Ce lien d'invitation est invalide ou a expiré.",
+    "welcomeNoSessionSub": "Demande à la personne qui t'a invité d'envoyer un nouveau lien, ou connecte-toi ci-dessous si tu as déjà un compte."
   },
   "install": {
     "installClosette": "Installe Closette",
