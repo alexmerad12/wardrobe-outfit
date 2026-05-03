@@ -530,12 +530,14 @@ export default function ItemDetailPage() {
         const text = await res.text().catch(() => "");
         console.error("[edit] PATCH failed", res.status, text);
         setSaveError(
-          text ? `Save failed (${res.status}): ${text.slice(0, 160)}` : `Save failed (${res.status})`
+          text
+            ? `${t("itemDetail.saveFailed")} (${res.status}): ${text.slice(0, 160)}`
+            : `${t("itemDetail.saveFailed")} (${res.status})`
         );
       }
     } catch (err) {
       console.error("Failed to save:", err);
-      setSaveError(err instanceof Error ? err.message : "Save failed");
+      setSaveError(err instanceof Error ? err.message : t("itemDetail.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -581,7 +583,7 @@ export default function ItemDetailPage() {
       reader.readAsDataURL(file);
     } catch (err) {
       console.error("Background removal failed:", err);
-      setBgError("Couldn't remove the background. You can keep the original or try again.");
+      setBgError(t("addItem.bgRemovalFailed"));
     } finally {
       setRemovingBg(false);
     }

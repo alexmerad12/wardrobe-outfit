@@ -473,7 +473,7 @@ export default function AddItemPage() {
       reader.readAsDataURL(cleaned);
     } catch (err) {
       console.error("Background removal failed:", err);
-      setBgError("Couldn't remove the background. You can keep the original or try again.");
+      setBgError(t("addItem.bgRemovalFailed"));
     } finally {
       setRemovingBg(false);
     }
@@ -516,7 +516,7 @@ export default function AddItemPage() {
         file = await convertHeicToJpeg(file);
       } catch (err) {
         console.error("HEIC conversion failed:", err);
-        setError("Couldn't read this photo (HEIC). Try saving as JPEG first.");
+        setError(t("addItem.heicReadFailed"));
         return;
       }
     }
@@ -659,7 +659,7 @@ export default function AddItemPage() {
 
       router.push("/wardrobe");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("addItem.somethingWentWrong"));
       setSaving(false);
     }
   }
@@ -785,12 +785,12 @@ export default function AddItemPage() {
             )}
             <span>
               {removingBg && autoFilling
-                ? "Cleaning up the photo and reading the details…"
+                ? t("addItem.statusCleaningAndReading")
                 : removingBg
-                ? "Removing the background…"
+                ? t("addItem.statusRemovingBg")
                 : autoFilling
-                ? "Reading the details with AI…"
-                : "Pre-filled by AI — review and tweak anything below"}
+                ? t("addItem.statusReadingDetails")
+                : t("addItem.statusPrefilledDone")}
             </span>
           </div>
         )}
