@@ -20,7 +20,7 @@ ENUMS:
   • bag: "handbag" | "backpack" | "tote" | "clutch" | "crossbody"
   • accessory: "belt" | "scarf" | "hat"
 - pattern (array): "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other" — "embellished" covers embroidery, beading, sequins, appliqué, stud work (any visually-textured decoration). Combine with a motif tag (e.g. ["embellished","floral"]) when the embellishment forms a recognizable motif.
-- material (array): "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other"
+- material (array): "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "flannel" | "fleece" | "fur-shearling" | "lace" | "nylon" | "patent-leather" | "satin" | "suede" | "tweed" | "velvet" | "other"
 - formality (array): "very-casual" | "casual" | "smart-casual" | "business-casual" | "formal"
 - seasons (array): "spring" | "summer" | "fall" | "winter"
 - occasions (array): "work" | "casual" | "brunch" | "dinner-out" | "date" | "outdoor" | "travel" | "party" | "formal" | "at-home"
@@ -70,17 +70,16 @@ CATEGORY DISAMBIGUATION (common misclassifications):
 - Heels vs boots: "heels" only if open-back or low-cut; anything ankle-or-higher is a boot subcategory
 
 MATERIAL GUIDANCE:
-- Cotton looks matte, slight weave. Smooth stretchy T-shirt fabric in cotton/poly blend is "jersey" (its own material now).
-- "Knit" is for obvious loops/cables (sweaters, cardigans) — smooth T-shirts are "cotton" or "jersey", not knit.
+- Cotton looks matte, slight weave. Smooth stretchy T-shirt fabric is "cotton" (or "polyester" if clearly synthetic).
+- "Knit" is for obvious loops/cables (sweaters, cardigans) — smooth T-shirts are "cotton", not knit.
 - "Cashmere" only for clearly luxury knit with a softer, finer drape than wool — don't label every sweater cashmere.
 - "Fleece" is plush synthetic fuzz (sweatshirts, pullovers); "flannel" is brushed plaid shirting.
-- "Rayon-viscose" for drapey, silky-feeling plant-based fabric (most summer dresses/blouses labeled "viscose" or "rayon").
-- "Modal" / "tencel" are eucalyptus/beech cellulosics — use when labeled, else default to rayon-viscose.
-- "Jersey" for smooth knit (the stretchy fabric of most tees / joggers / bodycon dresses).
-- "Tweed" is structured woven texture with visible fibers (classic Chanel jacket); "twill" is diagonal weave (chinos, suiting).
-- "Spandex" / elastane is rarely the only material — use only if the item is essentially all stretch (shapewear, leggings). Otherwise prefer the primary fiber.
+- "Polyester" covers all synthetic drapey fabrics — modal, tencel, rayon, viscose all collapse into polyester. Use for most summer dresses/blouses unless the label clearly says cotton/silk/linen.
+- "Tweed" is structured woven texture with visible fibers (classic Chanel jacket). For diagonal-weave fabrics like chinos / suiting, use the underlying fiber ("cotton" or "polyester"), not a separate weave name.
 - Denim is only denim — don't label chambray or canvas as denim.
 - "Leather" is the default for shiny supple hide; use "faux-leather" only if clearly synthetic (thinner, stiffer).
+- Suede is brushed-nap leather — use "suede" for both real and synthetic; don't worry about distinguishing.
+- For sheer/mesh/tulle/rubber/spandex-only items, use "other".
 - Default to ONE material entry. Only add a second if two are clearly visible (e.g. cotton shirt with lace trim).
 
 FIT/WARMTH INTUITION:

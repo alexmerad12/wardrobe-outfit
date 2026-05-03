@@ -24,7 +24,7 @@ export type Subcategory =
 
 export type Pattern = "solid" | "striped" | "plaid" | "floral" | "graphic" | "polka-dot" | "animal-print" | "camo" | "abstract" | "embellished" | "other";
 
-export type Material = "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "faux-suede" | "flannel" | "fleece" | "fur-shearling" | "jersey" | "lace" | "mesh" | "modal" | "nylon" | "patent-leather" | "rayon-viscose" | "rubber" | "satin" | "sheer" | "spandex" | "suede" | "tencel" | "tulle" | "tweed" | "twill" | "velvet" | "other";
+export type Material = "cotton" | "denim" | "wool" | "silk" | "leather" | "knit" | "polyester" | "linen" | "canvas" | "cashmere" | "chiffon" | "corduroy" | "faux-fur" | "faux-leather" | "flannel" | "fleece" | "fur-shearling" | "lace" | "nylon" | "patent-leather" | "satin" | "suede" | "tweed" | "velvet" | "other";
 
 export type Fit = "slim" | "regular" | "loose" | "oversized";
 
@@ -590,26 +590,15 @@ export const MATERIAL_LABELS: Record<Material, string> = {
   corduroy: "Corduroy",
   "faux-fur": "Faux Fur",
   "faux-leather": "Faux Leather",
-  "faux-suede": "Faux Suede",
   flannel: "Flannel",
   fleece: "Fleece",
   "fur-shearling": "Fur / Shearling",
-  jersey: "Jersey",
   lace: "Lace",
-  mesh: "Mesh",
-  modal: "Modal",
   nylon: "Nylon",
   "patent-leather": "Patent Leather",
-  "rayon-viscose": "Rayon / Viscose",
-  rubber: "Rubber",
   satin: "Satin",
-  sheer: "Sheer",
-  spandex: "Spandex",
   suede: "Suede",
-  tencel: "Tencel",
-  tulle: "Tulle",
   tweed: "Tweed",
-  twill: "Twill",
   velvet: "Velvet",
   other: "Other",
 };
