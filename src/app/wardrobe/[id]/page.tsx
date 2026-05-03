@@ -229,7 +229,9 @@ export default function ItemDetailPage() {
     if (fromFilter) qs.set("from", fromFilter);
     if (subFilter) qs.set("sub", subFilter);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
-    router.push(`/wardrobe/${targetId}${suffix}`);
+    // replace (not push) so the back button returns to the wardrobe grid
+    // the user came from, not through every sibling they swiped past.
+    router.replace(`/wardrobe/${targetId}${suffix}`);
   };
 
   // Desktop keyboard: arrow-left/arrow-right navigate siblings.
