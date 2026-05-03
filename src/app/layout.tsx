@@ -72,6 +72,14 @@ export default function RootLayout({
       style={{ colorScheme: "light" }}
     >
       <head>
+        {/* Belt-and-suspenders for in-app webviews (Gmail, Outlook,
+            Samsung Email, etc.) that aggressively force-darken pages
+            and ignore the viewport.colorScheme meta tag. The
+            "supported-color-schemes" meta is the older, more widely-
+            honored variant; the "light only" content value tells
+            engines that the page MUST NOT be auto-inverted. */}
+        <meta name="color-scheme" content="light only" />
+        <meta name="supported-color-schemes" content="light" />
         {/* Synchronously decide whether to skip the launch splash
             BEFORE any rendering. If the user already saw the splash
             this session, add a class to <html> so the splash CSS
