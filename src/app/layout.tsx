@@ -49,6 +49,11 @@ export const viewport = {
   // so the iOS status bar / Android chrome / PWA splash all carry the
   // pure black-and-white identity.
   themeColor: "#ffffff",
+  // Tell every browser / in-app webview (Gmail, Outlook, etc.) that the
+  // app is light-themed so they don't auto-invert the hardcoded #ffffff
+  // surfaces (launch page, AuthShell, /welcome, onboarding) when the
+  // user's phone is in dark mode.
+  colorScheme: "light",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -64,6 +69,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${dmSans.variable} ${bodoni.variable} h-full antialiased`}
+      style={{ colorScheme: "light" }}
     >
       <head>
         {/* Synchronously decide whether to skip the launch splash
