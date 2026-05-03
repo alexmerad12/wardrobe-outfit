@@ -127,18 +127,18 @@ export default function TryOnPage() {
                 type="button"
                 variant="default"
                 onClick={() => cameraInputRef.current?.click()}
-                className="h-14 gap-1.5"
+                className="h-14 gap-1.5 text-xs"
               >
-                <Camera className="h-4 w-4" />
+                <Camera className="h-4 w-4 shrink-0" />
                 {t("tryOn.takePhoto")}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => uploadInputRef.current?.click()}
-                className="h-14 gap-1.5"
+                className="h-14 gap-1.5 text-xs"
               >
-                <Upload className="h-4 w-4" />
+                <Upload className="h-4 w-4 shrink-0" />
                 {t("tryOn.upload")}
               </Button>
               <input
