@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { GoogleSignInButton } from "@/components/google-signin-button";
+// import { GoogleSignInButton } from "@/components/google-signin-button";
+//   Hidden during beta — see login/page.tsx for the same comment.
 import { AuthShell } from "@/components/auth-shell";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -69,9 +70,8 @@ export default function SignUpPage() {
       <h2>{t("auth.createYourClosette")}</h2>
       <p className="auth-sub">{t("auth.wardrobeTagline")}</p>
 
-      <GoogleSignInButton variant="brand" />
-
-      <div className="auth-divider">{t("auth.or")}</div>
+      {/* <GoogleSignInButton variant="brand" />
+      <div className="auth-divider">{t("auth.or")}</div> */}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>

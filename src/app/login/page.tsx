@@ -4,7 +4,11 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { GoogleSignInButton } from "@/components/google-signin-button";
+// import { GoogleSignInButton } from "@/components/google-signin-button";
+//   Hidden during beta — Google OAuth provider isn't enabled in
+//   Supabase yet, so clicking the button errored ("Unsupported
+//   provider"). Restore (uncomment this + the JSX + the divider
+//   below) once Google credentials are configured in Supabase.
 import { AuthShell } from "@/components/auth-shell";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -45,9 +49,8 @@ function LoginForm() {
       <h2>{t("auth.welcomeBack")}</h2>
       <p className="auth-sub">{t("auth.signInToClosette")}</p>
 
-      <GoogleSignInButton next={next} variant="brand" />
-
-      <div className="auth-divider">{t("auth.or")}</div>
+      {/* <GoogleSignInButton next={next} variant="brand" />
+      <div className="auth-divider">{t("auth.or")}</div> */}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
