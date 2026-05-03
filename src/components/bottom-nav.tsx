@@ -18,10 +18,14 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useLocale();
 
-  // Hide nav on auth + legal + launch + design-preview + debug pages
+  // Hide nav on auth + legal + launch + design-preview + debug pages.
+  // /welcome is part of the auth flow (invite acceptance + password reset)
+  // and the nav being visible there both looks unpolished and lets the user
+  // bypass the password-set form by tapping into the app.
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
+    pathname.startsWith("/welcome") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
     pathname.startsWith("/auth") ||
