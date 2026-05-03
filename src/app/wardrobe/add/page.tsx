@@ -284,10 +284,13 @@ export default function AddItemPage() {
   const showLength =
     (category === "top" || category === "outerwear") &&
     subcategory !== "crop-top";
-  // PantsLength: for jeans, trousers, leggings, sweatpants
+  // PantsLength: for jeans, trousers, leggings, sweatpants — and for
+  // jumpsuits + overalls, which have the same leg-cuff styling concern
+  // as trousers (and short denim overalls / cropped jumpsuits exist).
   const showPantsLength =
-    category === "bottom" &&
-    ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory);
+    (category === "bottom" &&
+      ["jeans", "trousers", "leggings", "sweatpants"].includes(subcategory)) ||
+    (category === "one-piece" && ["jumpsuit", "overalls"].includes(subcategory));
   // Waist style: where it actually means something. On tops only on
   // shirt/blouse (peplum, fitted, elastic-waist blouse). On outerwear
   // only on belted-style coats (trench, peacoat). Bottoms / dresses /

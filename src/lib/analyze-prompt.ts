@@ -27,7 +27,7 @@ ENUMS:
 - fit: "slim" | "regular" | "loose" | "oversized"
 - bottom_fit (bottoms only): "skinny" | "slim" | "straight" | "regular" | "wide-leg" | "flared" | "bootcut" | "tapered"
 - length (tops/outerwear only): "cropped" | "regular" | "long" | "extra-long"
-- pants_length (bottoms only): "capri" | "ankle-crop" | "ankle" | "full" | "extra-long"
+- pants_length (bottoms / one-piece): "capri" | "ankle-crop" | "ankle" | "full" | "extra-long"
 - waist_style: "elastic" | "fitted" | "relaxed" | "belted"
 - waist_height (bottoms only): "high" | "mid" | "low"
 - waist_closure (bottoms only): "button-zip" | "elastic" | "drawstring" | "tie" | "hook-eye" | "pull-on" | "side-zip" | "other"

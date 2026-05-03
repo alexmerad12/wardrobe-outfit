@@ -345,8 +345,14 @@ export default function ItemDetailPage() {
     (editCategory === "top" || editCategory === "outerwear") &&
     editSubcategory !== "crop-top";
   const editShowPantsLength =
-    editCategory === "bottom" &&
-    ["jeans", "trousers", "leggings", "sweatpants"].includes(editSubcategory);
+    (editCategory === "bottom" &&
+      ["jeans", "trousers", "leggings", "sweatpants"].includes(editSubcategory)) ||
+    // Jumpsuits + overalls have a leg cuff just like trousers — same
+    // styling concern (where the cuff sits relative to the shoe), and
+    // short denim overalls / cropped jumpsuits are real garments that
+    // need the field to describe accurately.
+    (editCategory === "one-piece" &&
+      ["jumpsuit", "overalls"].includes(editSubcategory));
   const editShowNeckline =
     ["top", "dress", "one-piece", "outerwear"].includes(editCategory) &&
     editSubcategory !== "hoodie" &&
