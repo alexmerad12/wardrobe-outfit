@@ -396,7 +396,14 @@ export default function ItemDetailPage() {
   const editShowSkirtLength =
     editCategory === "bottom" && editSubcategory === "skirt" && userGender !== "man";
   const editShowBagMetalFinish = editCategory === "bag";
-  const editShowDressSilhouette = editCategory === "dress" && userGender !== "man";
+  // dress_silhouette also applies to jumpsuits — the suggest engine's
+  // belt-completer consults it for both dress and one-piece (jumpsuit)
+  // categories. Without exposing it on the jumpsuit edit form, users
+  // can't set / correct it after upload.
+  const editShowDressSilhouette =
+    (editCategory === "dress" ||
+      (editCategory === "one-piece" && editSubcategory === "jumpsuit")) &&
+    userGender !== "man";
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -482,9 +489,26 @@ export default function ItemDetailPage() {
           bag_texture: editCategory === "bag" ? editBagTexture : null,
           hat_silhouette: editShowHatSilhouette ? editHatSilhouette : null,
           scarf_function: editShowScarfFunction ? editScarfFunction : null,
-          skirt_length: editShowSkirtLength ? editSkirtLength : null,
+          // skirt_length applies to the data whenever it's a skirt,
+          // regardless of the user's gender preference. The form HIDES
+          // these fields for men's-track users, but nulling them on
+          // save would silently lose data on items the user can no
+          // longer see fields for. Preserve the existing value when
+          // the field is hidden purely because of gender; null only
+          // when the category genuinely no longer applies.
+          skirt_length:
+            editCategory === "bottom" && editSubcategory === "skirt"
+              ? editShowSkirtLength ? editSkirtLength : item.skirt_length
+              : null,
           bag_metal_finish: editShowBagMetalFinish ? editBagMetalFinish : null,
-          dress_silhouette: editShowDressSilhouette ? editDressSilhouette : null,
+          // dress_silhouette applies to dresses AND jumpsuits (suggest
+          // engine's belt-completer reads it for both). Same null-vs-
+          // preserve logic as skirt_length above.
+          dress_silhouette:
+            editCategory === "dress" ||
+            (editCategory === "one-piece" && editSubcategory === "jumpsuit")
+              ? editShowDressSilhouette ? editDressSilhouette : item.dress_silhouette
+              : null,
           toe_shape: editCategory === "shoes" ? editToeShape : null,
           neckline: editShowNeckline ? editNeckline : null,
           sleeve_length: editShowSleeveLength ? editSleeveLength : null,
