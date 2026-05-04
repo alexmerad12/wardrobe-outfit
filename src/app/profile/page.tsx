@@ -1,106 +1,33 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TemperatureSensitivity, TemperatureUnit, Language, Gender, ClothingItem, Category } from "@/lib/types";
-import { MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, Combine, ChevronDown, ChevronRight, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import type { ClothingItem, Category } from "@/lib/types";
+import { ChevronRight, Settings as SettingsIcon } from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { colorFamily, colorFamilySwatch, type ColorFamilyKey } from "@/lib/color-family";
 import { formatLastWorn } from "@/lib/relative-time";
 
-interface CityResult {
-  name: string;
-  country: string;
-  admin1?: string; // state/region
-  latitude: number;
-  longitude: number;
-}
-
 export default function ProfilePage() {
   const { t, locale } = useLocale();
   const labels = useLabels();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [signingOut, setSigningOut] = useState(false);
-  const [city, setCity] = useState("");
-  const [cityLat, setCityLat] = useState(0);
-  const [cityLng, setCityLng] = useState(0);
-  const [tempSensitivity, setTempSensitivity] =
-    useState<TemperatureSensitivity>("normal");
-  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
-  const [language, setLanguage] = useState<Language>("auto");
-  const [gender, setGender] = useState<Gender>("not-specified");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
-  // Settings collapsed by default — most users come to /profile to glance
-  // at insights / discover features, not to change their language. Tapping
-  // the header expands the full settings form.
-  const [settingsExpanded, setSettingsExpanded] = useState(false);
-
-  // City search
-  const [cityQuery, setCityQuery] = useState("");
-  const [cityResults, setCityResults] = useState<CityResult[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
-    });
-  }, []);
-
-  async function handleSignOut() {
-    setSigningOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
 
   useEffect(() => {
     async function loadProfile() {
       try {
-        const [prefsRes, itemsRes, outfitsRes, logsRes] = await Promise.all([
-          fetch("/api/preferences"),
+        const [itemsRes, outfitsRes, logsRes] = await Promise.all([
           fetch("/api/items"),
           fetch("/api/outfits"),
           fetch("/api/logs"),
         ]);
-
-        if (prefsRes.ok) {
-          const prefs = await prefsRes.json();
-          if (prefs) {
-            setCity(prefs.location?.city ?? "");
-            setCityQuery(prefs.location?.city ?? "");
-            setCityLat(prefs.location?.lat ?? 0);
-            setCityLng(prefs.location?.lng ?? 0);
-            setTempSensitivity(prefs.temperature_sensitivity ?? "normal");
-            setTempUnit(prefs.temperature_unit ?? "auto");
-            setLanguage(prefs.language ?? "auto");
-            setGender(prefs.gender ?? "not-specified");
-          }
-        }
 
         if (itemsRes.ok) {
           const items = await itemsRes.json();
@@ -121,22 +48,9 @@ export default function ProfilePage() {
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
-      } finally {
-        setLoading(false);
       }
     }
     loadProfile();
-  }, []);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   // ---------- Computed stats ----------
@@ -186,88 +100,22 @@ export default function ProfilePage() {
   // to scale every wear bar relative to the most-worn piece.
   const maxWornCount = mostWornItems.length > 0 ? mostWornItems[0].times_worn : 1;
 
-  // ---------- Handlers ----------
-
-  function handleCityInput(value: string) {
-    setCityQuery(value);
-
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-
-    if (value.length < 2) {
-      setCityResults([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    // Debounce 300ms
-    searchTimeout.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(value)}&count=6&language=en&format=json`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setCityResults(data.results ?? []);
-          setShowDropdown(true);
-        }
-      } catch {
-        // ignore
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-  }
-
-  function selectCity(result: CityResult) {
-    const label = result.admin1
-      ? `${result.name}, ${result.admin1}, ${result.country}`
-      : `${result.name}, ${result.country}`;
-    setCity(label);
-    setCityQuery(label);
-    setCityLat(result.latitude);
-    setCityLng(result.longitude);
-    setShowDropdown(false);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await fetch("/api/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "default",
-          location: city
-            ? { city, lat: cityLat, lng: cityLng }
-            : null,
-          temperature_sensitivity: tempSensitivity,
-          temperature_unit: tempUnit,
-          language,
-          gender,
-          preferred_styles: [],
-          favorite_colors: [],
-          avoided_colors: [],
-        }),
-      });
-      // Clear cached locale/unit/gender so the change takes effect immediately on next render
-      try {
-        window.localStorage.removeItem("locale:v1");
-        window.localStorage.removeItem("tempUnit:v1");
-        window.localStorage.removeItem("gender:v1");
-      } catch {}
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err) {
-      console.error("Failed to save preferences:", err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-md px-4 pt-6">
-      <h1 className="font-heading text-3xl font-medium tracking-tight mb-6">{t("profile.title")}</h1>
+      {/* Header — title on the left, gear icon → /profile/settings on
+          the right. Settings + Account live on their own page so /profile
+          stays the engaging surface (stats, insights, discovery hub). */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-3xl font-medium tracking-tight">{t("profile.title")}</h1>
+        <Link
+          href="/profile/settings"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label={t("profile.settings")}
+          title={t("profile.settings")}
+        >
+          <SettingsIcon className="h-5 w-5" strokeWidth={1.75} />
+        </Link>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -460,274 +308,27 @@ export default function ProfilePage() {
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             </Link>
 
-            {/* "Build an outfit" — contextual outfit-creation paths that
-                don't have their own destinations. Last child of the
-                divide-y wrapper so it gets the same hairline above. */}
-            <div className="px-6 py-4 space-y-2">
-              <div className="flex items-center gap-1.5">
-                <Combine className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="editorial-label">{t("profile.discoverBuildOutfitTitle")}</span>
-              </div>
-              <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+            {/* Outfit shortcuts — contextual outfit-creation / refining
+                actions that don't have their own destinations. Last
+                child of the divide-y wrapper so it gets the hairline
+                above. Subhead promoted from editorial-label (faded
+                small caps) to plain dark text-sm so the block has a
+                visible anchor; bullets at foreground/70 so they're
+                readable but don't compete with the destination rows. */}
+            <div className="px-6 py-4 space-y-3">
+              <p className="text-sm font-medium text-foreground">{t("profile.discoverOutfitToolsTitle")}</p>
+              <ul className="space-y-1.5 text-xs leading-relaxed text-foreground/70">
                 <li>{t("profile.discoverTipOutfitWithThis")}</li>
                 <li>{t("profile.discoverTipCreateOutfit")}</li>
+                <li>{t("profile.discoverTipSwap")}</li>
               </ul>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Settings — collapsible. Header is the toggle (chevron when
-          closed, X when open). Content + Save button only render when
-          expanded so the closed state is just a single tappable row. */}
-      <Card>
-        <button
-          type="button"
-          onClick={() => setSettingsExpanded((v) => !v)}
-          className="w-full"
-          aria-expanded={settingsExpanded}
-          aria-controls="settings-content"
-        >
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("profile.settings")}</CardTitle>
-            {settingsExpanded ? (
-              <X className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </CardHeader>
-        </button>
-        {settingsExpanded && (loading ? (
-          <CardContent className="space-y-4">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-3 w-24 rounded bg-muted animate-pulse" />
-                <div className="h-9 w-full rounded-lg bg-muted animate-pulse" />
-              </div>
-            ))}
-          </CardContent>
-        ) : (
-        <CardContent className="space-y-4 animate-in fade-in duration-300">
-          {/* Location */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
-              {t("profile.city")}
-            </Label>
-            <div className="relative" ref={dropdownRef}>
-              <Input
-                placeholder={t("profile.cityPlaceholder")}
-                value={cityQuery}
-                onChange={(e) => handleCityInput(e.target.value)}
-                onFocus={() => {
-                  if (cityResults.length > 0) setShowDropdown(true);
-                }}
-              />
-              {searching && (
-                <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-              {showDropdown && cityResults.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full rounded-lg border bg-background shadow-lg max-h-48 overflow-y-auto">
-                  {cityResults.map((result, i) => (
-                    <button
-                      key={`${result.latitude}-${result.longitude}-${i}`}
-                      type="button"
-                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2"
-                      onClick={() => selectCity(result)}
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      <span>
-                        <span className="font-medium">{result.name}</span>
-                        {result.admin1 && (
-                          <span className="text-muted-foreground">, {result.admin1}</span>
-                        )}
-                        <span className="text-muted-foreground">, {result.country}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {city && cityLat !== 0 && (
-              <p className="text-xs text-muted-foreground">
-                {city} ({cityLat.toFixed(2)}, {cityLng.toFixed(2)})
-              </p>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Temperature sensitivity */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <Thermometer className="h-3.5 w-3.5" />
-              {t("profile.tempSensitivity")}
-            </Label>
-            <Select
-              value={tempSensitivity}
-              onValueChange={(v) =>
-                setTempSensitivity(v as TemperatureSensitivity)
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => {
-                    if (value === "runs-hot") return t("profile.runsHot");
-                    if (value === "normal") return t("profile.normal");
-                    if (value === "runs-cold") return t("profile.runsCold");
-                    return null;
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="runs-hot">{t("profile.runsHot")}</SelectItem>
-                <SelectItem value="normal">{t("profile.normal")}</SelectItem>
-                <SelectItem value="runs-cold">{t("profile.runsCold")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Temperature unit */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <Thermometer className="h-3.5 w-3.5" />
-              {t("profile.tempUnit")}
-            </Label>
-            <Select
-              value={tempUnit}
-              onValueChange={(v) => setTempUnit(v as TemperatureUnit)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => {
-                    if (value === "auto") return t("profile.tempAuto");
-                    if (value === "celsius") return t("profile.celsius");
-                    if (value === "fahrenheit") return t("profile.fahrenheit");
-                    return null;
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">{t("profile.tempAuto")}</SelectItem>
-                <SelectItem value="celsius">{t("profile.celsius")}</SelectItem>
-                <SelectItem value="fahrenheit">{t("profile.fahrenheit")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Language */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <Languages className="h-3.5 w-3.5" />
-              {t("profile.language")}
-            </Label>
-            <Select
-              value={language}
-              onValueChange={(v) => setLanguage(v as Language)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => {
-                    if (value === "auto") return t("profile.autoLang");
-                    if (value === "en") return t("profile.english");
-                    if (value === "fr") return t("profile.french");
-                    return null;
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">{t("profile.autoLang")}</SelectItem>
-                <SelectItem value="en">{t("profile.english")}</SelectItem>
-                <SelectItem value="fr">{t("profile.french")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Gender */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5" />
-              {t("profile.gender")}
-            </Label>
-            <Select
-              value={gender}
-              onValueChange={(v) => setGender(v as Gender)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => {
-                    if (value === "woman") return t("profile.woman");
-                    if (value === "man") return t("profile.man");
-                    if (value === "not-specified") return t("profile.notSpecified");
-                    return null;
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="woman">{t("profile.woman")}</SelectItem>
-                <SelectItem value="man">{t("profile.man")}</SelectItem>
-                <SelectItem value="not-specified">{t("profile.notSpecified")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button
-            className="w-full"
-            onClick={handleSave}
-            disabled={saving || saved}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("common.saving")}
-              </>
-            ) : saved ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                {t("profile.settingsSaved")}
-              </>
-            ) : (
-              t("profile.saveSettings")
-            )}
-          </Button>
-        </CardContent>
-        ))}
-      </Card>
 
       <InstallPrompt />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("profile.account")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {userEmail && (
-            <div className="text-sm">
-              <p className="text-muted-foreground">{t("profile.signedInAs")}</p>
-              <p className="font-medium break-all">{userEmail}</p>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleSignOut}
-            disabled={signingOut}
-          >
-            {signingOut ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("profile.signingOut")}
-              </>
-            ) : (
-              <>
-                <LogOut className="mr-2 h-4 w-4" />
-                {t("profile.signOut")}
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
