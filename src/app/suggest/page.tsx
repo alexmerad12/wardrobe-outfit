@@ -369,7 +369,7 @@ function SuggestContent() {
       {/* Step 3: Occasion selection */}
       {step === "occasion" && (
         <div className="space-y-4">
-          <div>
+          <div className="space-y-3">
             <h2 className="text-base font-semibold mb-2">
               {t("suggest.whatsOccasionShort")}
             </h2>
@@ -391,6 +391,13 @@ function SuggestContent() {
                 )
               )}
             </div>
+            {/* Selected-occasion description — same pattern as MoodPicker,
+                small italic line confirming what the picked occasion means. */}
+            {occasion && (
+              <p className="text-xs italic text-muted-foreground text-center px-2 leading-relaxed animate-in fade-in duration-200">
+                {t(`occasionDescription.${occasion}`)}
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3">

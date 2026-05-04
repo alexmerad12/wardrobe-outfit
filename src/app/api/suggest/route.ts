@@ -752,9 +752,17 @@ export async function POST(request: NextRequest) {
         if (it.category === "shoes" && it.subcategory === "sneakers") return false;
         if (it.category === "bottom" && it.subcategory === "jeans") return false;
       }
-      // R7: no bag at home — strip from the candidate pool entirely
-      // so the AI doesn't propose one.
+      // At-home: you are INDOORS. Strip categories that don't make
+      // sense in your living room from the candidate pool entirely so
+      // the AI can't propose them.
+      //   - Bag: nowhere to go (R7).
+      //   - Outerwear: indoors, no need for a coat / jacket / blazer.
+      //   - Shoes: barefoot / socks / slippers — even indoor-friendly
+      //     shoes (sandals, flats) read as "going out" when paired
+      //     with the rest of the outfit.
       if (occasion === "at-home" && it.category === "bag") return false;
+      if (occasion === "at-home" && it.category === "outerwear") return false;
+      if (occasion === "at-home" && it.category === "shoes") return false;
       const richCategory =
         (inAllByCategory.get(it.category) ?? 0) >= RICH_CATEGORY_THRESHOLD;
       if (!richCategory) return true;
