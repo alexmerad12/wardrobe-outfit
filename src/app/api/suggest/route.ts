@@ -537,10 +537,41 @@ function describeItem(item: ClothingItem): string {
   return parts.join(" | ");
 }
 
+// Daily suggest cap — matches the planned Closette Basic tier limit
+// (see reminder_pricing_tiers_for_launch.md). 10/day at $0.029/call
+// caps worst-case user cost at $0.29/day = ~$9/month, which keeps
+// the $40/year ($3.33/month) Basic tier sustainably above COGS.
+// Beta runs at the same cap so friends experience the real product
+// constraints, not a beta-only generosity that would set false
+// expectations and force a rough downgrade at launch.
+const SUGGEST_DAILY_CAP = 10;
+
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
+
+  // Daily-cap gate. Increment first so attempts (including rejected
+  // ones) get logged — useful telemetry on whether the cap is binding.
+  // Server UTC date is the calendar — for our small beta in similar
+  // time zones this is fine; tier-aware enforcement at launch can
+  // localize per-user if needed. 36h TTL covers any TZ wraparound.
+  const today = new Date().toISOString().slice(0, 10);
+  const countKey = `suggest_count:${userId}:${today}`;
+  const newCount = await kv.incr(countKey).catch(() => -1);
+  if (newCount === 1) {
+    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
+  }
+  if (newCount > SUGGEST_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error: "daily_limit_reached",
+        limit: SUGGEST_DAILY_CAP,
+        used: newCount,
+      },
+      { status: 429 }
+    );
+  }
 
   try {
     const { mood, occasion, styleWishes = [], anchorItemId = null, locale = "en" } = (await request.json()) as {

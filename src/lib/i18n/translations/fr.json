@@ -157,6 +157,8 @@
     "startOver": "Recommencer",
     "notEnoughItems": "Pas assez d'items dans ton dressing pour suggérer des tenues.",
     "atLeast3Items": "Ajoute au moins 3 items pour commencer !",
+    "limitTitle": "Tu as atteint la limite quotidienne.",
+    "limitHint": "Les suggestions sont limitées à 10 par jour. Réessaie demain.",
     "aiErrorTitle": "On n'a pas réussi à composer une tenue cette fois.",
     "aiErrorHint": "Le styliste a buggé — réessaie.",
     "tryAgain": "Réessayer",
@@ -825,7 +827,7 @@
     "scarfFunction": "Fonction de l'écharpe",
     "skirtLength": "Longueur de la jupe",
     "bagMetalFinish": "Finition métal du sac",
-    "dressSilhouette": "Silhouette de la robe",
+    "dressSilhouette": "Silhouette",
     "toeShape": "Forme du bout",
     "neckline": "Col / Encolure",
     "sleeveLength": "Longueur des manches",
@@ -911,7 +913,9 @@
     "noOutfits": "Difficile à styler avec ce que tu as en ce moment.",
     "outfitsCount": "{count} tenue possible",
     "outfitsCountPlural": "{count} tenues possibles",
-    "newItem": "Nouveau"
+    "newItem": "Nouveau",
+    "limitTitle": "Tu as atteint la limite quotidienne.",
+    "limitHint": "Les essayages sont limités à 10 par jour. Réessaie demain."
   },
   "packing": {
     "title": "Essentiels de voyage",
@@ -938,7 +942,9 @@
     "savingTrip": "Enregistrement...",
     "upcomingTrips": "Prochains voyages",
     "pastTrips": "Voyages passés",
-    "deleteTrip": "Supprimer le voyage"
+    "deleteTrip": "Supprimer le voyage",
+    "limitTitle": "Tu as atteint la limite quotidienne.",
+    "limitHint": "Les listes de valise sont limitées à 5 par jour. Réessaie demain."
   },
   "profile": {
     "title": "Profil",
@@ -958,9 +964,10 @@
     "discoverTryOnDesc": "Vérifie une pièce avant de l'acheter",
     "discoverStorageTitle": "Rangement",
     "discoverStorageDesc": "Range tes pièces hors saison",
-    "discoverBuildOutfitTitle": "Composer une tenue",
-    "discoverTipOutfitWithThis": "Sur la page d'un item, tape sur \"Tenue avec cet item\" pour une suggestion construite autour de cette pièce.",
-    "discoverTipCreateOutfit": "Sélectionne 2+ items dans ton Dressing, puis tape sur \"Tenue\" pour la composer toi-même.",
+    "discoverOutfitToolsTitle": "Raccourcis tenues",
+    "discoverTipOutfitWithThis": "Sur un item — tape \"Tenue avec cet item\" pour une suggestion construite autour.",
+    "discoverTipCreateOutfit": "Dans le Dressing — sélectionne 2+ items et tape \"Tenue\" pour la composer toi-même.",
+    "discoverTipSwap": "Sur une tenue suggérée — tape l'icône shuffle pour remplacer un item.",
     "settings": "Paramètres",
     "city": "Ville (pour la météo)",
     "cityPlaceholder": "Commence à taper une ville...",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { kv } from "@vercel/kv";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
@@ -8,6 +9,11 @@ import { withGeminiRetry } from "@/lib/gemini-retry";
 // with thinking disabled. Same setup as suggest, analyze, and try-on.
 // GOOGLE_API_KEY must be set in env.
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
+
+// Packing is rare-use (one trip per several weeks for most users) and
+// per-call cost is low (~$0.01), but cap anyway so a runaway client
+// retry can't rack up calls. 5/day is generous for normal use.
+const PACKING_DAILY_CAP = 5;
 
 function describeItem(item: ClothingItem): string {
   const parts: string[] = [`[${item.id}]`, item.name];
@@ -27,7 +33,25 @@ function describeItem(item: ClothingItem): string {
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase } = ctx;
+  const { supabase, userId } = ctx;
+
+  // Daily-cap gate. Same KV-counter pattern as /api/suggest.
+  const today = new Date().toISOString().slice(0, 10);
+  const countKey = `packing_count:${userId}:${today}`;
+  const newCount = await kv.incr(countKey).catch(() => -1);
+  if (newCount === 1) {
+    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
+  }
+  if (newCount > PACKING_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error: "daily_limit_reached",
+        limit: PACKING_DAILY_CAP,
+        used: newCount,
+      },
+      { status: 429 }
+    );
+  }
 
   try {
     const { destination, lat, lng, startDate, endDate, occasions, notes, locale = "en" } = await request.json();

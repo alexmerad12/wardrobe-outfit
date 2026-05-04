@@ -82,6 +82,7 @@ export default function PackingPage() {
 
   // Results
   const [loading, setLoading] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [packingList, setPackingList] = useState<PackingItem[]>([]);
   const [outfitSuggestions, setOutfitSuggestions] = useState<OutfitDay[]>([]);
   const [weatherSummary, setWeatherSummary] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export default function PackingPage() {
 
     setLoading(true);
     setSaved(false);
+    setLimitReached(false);
 
     try {
       const res = await fetch("/api/packing", {
@@ -167,7 +169,9 @@ export default function PackingPage() {
         body: JSON.stringify({ destination, lat: destLat, lng: destLng, startDate, endDate, occasions, notes, locale }),
       });
 
-      if (res.ok) {
+      if (res.status === 429) {
+        setLimitReached(true);
+      } else if (res.ok) {
         const data = await res.json();
         setPackingList(data.packing_list ?? []);
         setOutfitSuggestions(data.outfit_suggestions ?? []);
@@ -337,6 +341,13 @@ export default function PackingPage() {
       {/* ===== FORM ===== */}
       {!viewingTrip && step === "form" && (
         <div className="space-y-5">
+          {limitReached && (
+            <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
+              <p className="font-medium">{t("packing.limitTitle")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("packing.limitHint")}</p>
+            </div>
+          )}
+
           {/* Destination */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">

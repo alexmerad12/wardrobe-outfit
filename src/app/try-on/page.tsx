@@ -45,6 +45,7 @@ export default function TryOnPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const [result, setResult] = useState<TryOnResult | null>(null);
   const [analyzingStep, setAnalyzingStep] = useState(0);
   const [expandedOutfit, setExpandedOutfit] = useState<number | null>(null);
@@ -64,6 +65,7 @@ export default function TryOnPage() {
 
   async function handleFile(file: File) {
     setError(null);
+    setLimitReached(false);
     setResult(null);
     setPreviewUrl(URL.createObjectURL(file));
     setAnalyzing(true);
@@ -74,6 +76,11 @@ export default function TryOnPage() {
       const body = new FormData();
       body.append("image", resized, "try-on.jpg");
       const res = await fetch("/api/try-on", { method: "POST", body });
+      if (res.status === 429) {
+        setLimitReached(true);
+        setPreviewUrl(null);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error ?? "Analysis failed");
@@ -98,6 +105,7 @@ export default function TryOnPage() {
     setPreviewUrl(null);
     setResult(null);
     setError(null);
+    setLimitReached(false);
   }
 
   return (
@@ -113,8 +121,19 @@ export default function TryOnPage() {
         </div>
       </div>
 
+      {/* Daily limit reached */}
+      {limitReached && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="font-medium">{t("tryOn.limitTitle")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("tryOn.limitHint")}</p>
+          </div>
+        </div>
+      )}
+
       {/* Landing: pick a photo */}
-      {!previewUrl && !analyzing && (
+      {!previewUrl && !analyzing && !limitReached && (
         <Card>
           <CardContent className="p-5 space-y-3">
             <div className="text-center space-y-1">

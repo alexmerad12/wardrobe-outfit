@@ -53,6 +53,10 @@ function SuggestContent() {
   const [customWish, setCustomWish] = useState("");
   const [wardrobeGap, setWardrobeGap] = useState<string | null>(null);
   const [aiError, setAiError] = useState(false);
+  // Beta cost cap — when /api/suggest returns 429, show a "you've
+  // reached today's limit" empty-state instead of the generic AI-error
+  // message (the action to take is wait, not retry).
+  const [limitError, setLimitError] = useState(false);
   const [anchorItem, setAnchorItem] = useState<ClothingItem | null>(null);
 
   // Wardrobe cached on mount so the swap modal can show alternatives
@@ -127,6 +131,18 @@ function SuggestContent() {
         setSuggestions(data.suggestions);
         setWardrobeGap(data.wardrobe_gap ?? null);
         setAiError(Boolean(data.ai_error));
+        setLimitError(false);
+        setCurrentIndex(0);
+        setFavoritedIndices(new Set());
+        setStep("results");
+      } else if (res.status === 429) {
+        // Daily cap reached — show the dedicated limit empty-state
+        // (different message from generic AI failure: action is "wait",
+        // not "retry").
+        setSuggestions([]);
+        setWardrobeGap(null);
+        setLimitError(true);
+        setAiError(false);
         setCurrentIndex(0);
         setFavoritedIndices(new Set());
         setStep("results");
@@ -143,6 +159,7 @@ function SuggestContent() {
         setSuggestions([]);
         setWardrobeGap(null);
         setAiError(true);
+        setLimitError(false);
         setCurrentIndex(0);
         setFavoritedIndices(new Set());
         setStep("results");
@@ -500,10 +517,21 @@ function SuggestContent() {
         </div>
       )}
 
-      {/* Empty state — distinguish "AI failed (try again)" from
-          "wardrobe is genuinely thin (add more items)". */}
+      {/* Empty state — three distinct cases:
+          1. limitError → daily cap reached, action is "wait until tomorrow"
+          2. aiError → backend failure, action is "try again"
+          3. else → wardrobe is genuinely thin, action is "add items" */}
       {step === "results" && suggestions.length === 0 && !loading && (
-        aiError ? (
+        limitError ? (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
+            <p className="text-muted-foreground mb-2">
+              {t("suggest.limitTitle")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("suggest.limitHint")}
+            </p>
+          </div>
+        ) : aiError ? (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
             <p className="text-muted-foreground mb-2">
               {t("suggest.aiErrorTitle")}

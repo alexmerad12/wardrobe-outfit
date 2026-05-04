@@ -157,6 +157,8 @@
     "startOver": "Start Over",
     "notEnoughItems": "Not enough items in your wardrobe to suggest outfits.",
     "atLeast3Items": "Add at least 3 items to get started!",
+    "limitTitle": "You've reached today's limit.",
+    "limitHint": "Suggestions are capped at 10 per day. Try again tomorrow.",
     "aiErrorTitle": "Couldn't put together a look this time.",
     "aiErrorHint": "The stylist hit a hiccup — give it another try.",
     "tryAgain": "Try again",
@@ -820,7 +822,7 @@
     "scarfFunction": "Scarf Function",
     "skirtLength": "Skirt Length",
     "bagMetalFinish": "Bag Metal Finish",
-    "dressSilhouette": "Dress Silhouette",
+    "dressSilhouette": "Silhouette",
     "toeShape": "Toe Shape",
     "neckline": "Neckline",
     "sleeveLength": "Sleeve Length",
@@ -906,7 +908,9 @@
     "noOutfits": "Hard to style with what you have right now.",
     "outfitsCount": "{count} possible outfit",
     "outfitsCountPlural": "{count} possible outfits",
-    "newItem": "New"
+    "newItem": "New",
+    "limitTitle": "You've reached today's limit.",
+    "limitHint": "Try-ons are capped at 10 per day. Try again tomorrow."
   },
   "packing": {
     "title": "Trip Essentials",
@@ -933,7 +937,9 @@
     "savingTrip": "Saving...",
     "upcomingTrips": "Upcoming trips",
     "pastTrips": "Past trips",
-    "deleteTrip": "Delete trip"
+    "deleteTrip": "Delete trip",
+    "limitTitle": "You've reached today's limit.",
+    "limitHint": "Packing lists are capped at 5 per day. Try again tomorrow."
   },
   "profile": {
     "title": "Profile",
@@ -953,9 +959,10 @@
     "discoverTryOnDesc": "Check a piece before you buy",
     "discoverStorageTitle": "Storage",
     "discoverStorageDesc": "Pack away off-season pieces",
-    "discoverBuildOutfitTitle": "Build an outfit",
-    "discoverTipOutfitWithThis": "Tap any item → \"Outfit with this\" for a suggestion built around it.",
-    "discoverTipCreateOutfit": "Pick 2+ items in your Wardrobe and tap \"Outfit\" to build your own combo.",
+    "discoverOutfitToolsTitle": "Outfit shortcuts",
+    "discoverTipOutfitWithThis": "On any item — tap \"Outfit with this\" for a suggestion built around it.",
+    "discoverTipCreateOutfit": "In Wardrobe — select 2+ items and tap \"Outfit\" to build your own combo.",
+    "discoverTipSwap": "On a suggested outfit — tap the shuffle icon to swap any item.",
     "settings": "Settings",
     "city": "City (for weather)",
     "cityPlaceholder": "Start typing a city...",

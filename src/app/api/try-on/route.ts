@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
+import { kv } from "@vercel/kv";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
@@ -8,6 +9,13 @@ import { orderOutfitItems } from "@/lib/outfit-order";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { colorFamily } from "@/lib/color-family";
 import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
+
+// Try-on cap matches suggest at 10/day. Tighter caps (3/day) broke the
+// real shopping use case — a single store run is 5-8 scans. The
+// suggest-by-proxy abuse vector (photographing owned items to skip the
+// suggest cap) is bounded by per-call cost (~$0.015) — even a 10/day
+// abuser is ~$0.15/day, well within the Basic tier economics.
+const TRY_ON_DAILY_CAP = 10;
 
 // Try-on / fitting-room endpoint runs on Gemini 3 Flash Preview via
 // @google/genai with thinking disabled. Two AI calls: (1) analyze the
@@ -54,7 +62,25 @@ function colorsOverlap(
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase } = ctx;
+  const { supabase, userId } = ctx;
+
+  // Daily-cap gate. Same KV-counter pattern as /api/suggest.
+  const today = new Date().toISOString().slice(0, 10);
+  const countKey = `tryon_count:${userId}:${today}`;
+  const newCount = await kv.incr(countKey).catch(() => -1);
+  if (newCount === 1) {
+    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
+  }
+  if (newCount > TRY_ON_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error: "daily_limit_reached",
+        limit: TRY_ON_DAILY_CAP,
+        used: newCount,
+      },
+      { status: 429 }
+    );
+  }
 
   try {
     const formData = await request.formData();
