@@ -423,53 +423,56 @@ export default function ProfilePage() {
         <CardHeader>
           <CardTitle className="text-base">{t("profile.whatYouCanDo")}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Link
-            href="/wardrobe/bulk"
-            className="flex items-center gap-4 -mx-6 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-heading text-lg leading-tight">{t("profile.discoverBulkTitle")}</p>
-              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverBulkDesc")}</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </Link>
-          <Separator className="-mx-6 w-auto" />
-          <Link
-            href="/try-on"
-            className="flex items-center gap-4 -mx-6 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-heading text-lg leading-tight">{t("profile.discoverTryOnTitle")}</p>
-              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverTryOnDesc")}</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </Link>
-          <Separator className="-mx-6 w-auto" />
-          <Link
-            href="/wardrobe?category=stored"
-            className="flex items-center gap-4 -mx-6 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-heading text-lg leading-tight">{t("profile.discoverStorageTitle")}</p>
-              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverStorageDesc")}</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </Link>
+        <CardContent className="px-0">
+          {/* divide-y draws ONE consistent hairline between children, so
+              all dividers in this section are guaranteed identical (no
+              per-Separator rendering drift). The wrapper is full-bleed
+              via no horizontal padding on CardContent + per-child px-6. */}
+          <div className="divide-y divide-border">
+            <Link
+              href="/wardrobe/bulk"
+              className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-heading text-lg leading-tight">{t("profile.discoverBulkTitle")}</p>
+                <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverBulkDesc")}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </Link>
+            <Link
+              href="/try-on"
+              className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-heading text-lg leading-tight">{t("profile.discoverTryOnTitle")}</p>
+                <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverTryOnDesc")}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </Link>
+            <Link
+              href="/wardrobe?category=stored"
+              className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-heading text-lg leading-tight">{t("profile.discoverStorageTitle")}</p>
+                <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverStorageDesc")}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </Link>
 
-          {/* "Build an outfit" — contextual outfit-creation paths that
-              don't have their own destinations (live as actions on the
-              wardrobe + item pages). Sits below the numbered list under
-              its own subtle separator. */}
-          <div className="pt-4 mt-4 border-t border-border space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Combine className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="editorial-label">{t("profile.discoverBuildOutfitTitle")}</span>
+            {/* "Build an outfit" — contextual outfit-creation paths that
+                don't have their own destinations. Last child of the
+                divide-y wrapper so it gets the same hairline above. */}
+            <div className="px-6 py-4 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Combine className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="editorial-label">{t("profile.discoverBuildOutfitTitle")}</span>
+              </div>
+              <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                <li>{t("profile.discoverTipOutfitWithThis")}</li>
+                <li>{t("profile.discoverTipCreateOutfit")}</li>
+              </ul>
             </div>
-            <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
-              <li>{t("profile.discoverTipOutfitWithThis")}</li>
-              <li>{t("profile.discoverTipCreateOutfit")}</li>
-            </ul>
           </div>
         </CardContent>
       </Card>
