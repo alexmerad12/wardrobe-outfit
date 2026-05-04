@@ -4,6 +4,7 @@ import { kv } from "@vercel/kv";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { logAiCall } from "@/lib/log-ai-call";
 
 // Packing endpoint runs on Gemini 3 Flash Preview via @google/genai
 // with thinking disabled. Same setup as suggest, analyze, and try-on.
@@ -197,6 +198,13 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
       note: o.note,
     }));
 
+    logAiCall(supabase, userId, "packing", {
+      metadata: {
+        destination,
+        days: tripDays,
+        item_count: packingList.length,
+      },
+    });
     return NextResponse.json({
       packing_list: packingList,
       outfit_suggestions: outfitSuggestions,
@@ -205,6 +213,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     });
   } catch (error) {
     console.error("Packing list error:", error);
+    logAiCall(supabase, userId, "packing", { succeeded: false });
     return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
   }
 }

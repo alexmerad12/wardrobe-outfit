@@ -5,6 +5,7 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
+import { logAiCall } from "@/lib/log-ai-call";
 
 // Item analysis runs on Gemini 3 Flash Preview via @google/genai with
 // thinking disabled. The existing sanitizeAutoFill handles enum
@@ -15,6 +16,7 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
+  const { supabase, userId } = ctx;
 
   try {
     // Accept EITHER multipart (legacy single-add path) OR JSON
@@ -86,6 +88,7 @@ export async function POST(request: NextRequest) {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
       console.error("[analyze] Failed to parse Gemini response:", text.slice(0, 200));
+      logAiCall(supabase, userId, "analyze_item", { succeeded: false });
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 502 });
     }
 
@@ -94,9 +97,14 @@ export async function POST(request: NextRequest) {
     // returns close-but-invalid values ("t_shirt" for "t-shirt", "blue"
     // in the material field) — keeping those would make the Supabase
     // insert fail with a check-constraint violation.
-    return NextResponse.json(sanitizeAutoFill(parsed));
+    const sanitized = sanitizeAutoFill(parsed);
+    logAiCall(supabase, userId, "analyze_item", {
+      metadata: { category: sanitized.category ?? null },
+    });
+    return NextResponse.json(sanitized);
   } catch (err) {
     console.error("[analyze] Item analyze error:", err);
+    logAiCall(supabase, userId, "analyze_item", { succeeded: false });
     return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
   }
 }

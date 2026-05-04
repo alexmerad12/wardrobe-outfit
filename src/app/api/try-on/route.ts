@@ -9,6 +9,7 @@ import { orderOutfitItems } from "@/lib/outfit-order";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { colorFamily } from "@/lib/color-family";
 import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
+import { logAiCall } from "@/lib/log-ai-call";
 
 // Try-on cap matches suggest at 10/day. Tighter caps (3/day) broke the
 // real shopping use case — a single store run is 5-8 scans. The
@@ -327,6 +328,13 @@ ${wardrobeList}`,
       };
     });
 
+    logAiCall(supabase, userId, "try_on", {
+      metadata: {
+        category: attrs.category,
+        similar_count: similarItems.length,
+        outfit_count: resolvedOutfits.length,
+      },
+    });
     return NextResponse.json({
       item: {
         name: attrs.name ?? "New item",
@@ -342,6 +350,7 @@ ${wardrobeList}`,
     });
   } catch (err) {
     console.error("Try-on error:", err);
+    logAiCall(supabase, userId, "try_on", { succeeded: false });
     return NextResponse.json(
       { error: "Failed to analyze the item" },
       { status: 500 }

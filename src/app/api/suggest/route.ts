@@ -8,6 +8,7 @@ import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { colorFamily } from "@/lib/color-family";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { logAiCall } from "@/lib/log-ai-call";
 
 // Suggest endpoint runs on Gemini 3 Flash with shallow thinking
 // (thinkingBudget: 3072). Pairs with weighted-random subsetting
@@ -3148,6 +3149,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     // the UI shows "try again" instead of the wrong "not enough items"
     // empty state.
     const aiError = suggestions.length === 0 && !wardrobe_gap;
+    logAiCall(supabase, userId, "suggest", {
+      succeeded: !aiError,
+      metadata: { mood, occasion, outfit_count: suggestions.length },
+    });
     return NextResponse.json({
       suggestions,
       wardrobe_gap,
@@ -3155,6 +3160,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     });
   } catch (error) {
     console.error("Suggestion error:", error);
+    logAiCall(supabase, userId, "suggest", { succeeded: false });
     return NextResponse.json(
       { error: "Failed to generate suggestions" },
       { status: 500 }
