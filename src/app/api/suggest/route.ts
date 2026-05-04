@@ -1480,6 +1480,11 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         weather.temp < 18 &&
         INDOOR_LEANING.has(occasion);
       if (
+        // At-home is INDOORS — never auto-inject outerwear regardless
+        // of temperature. Mirrors the at-home pre-filter and post-parse
+        // strip; without this guard the auto-inject re-adds the
+        // outerwear we just stripped.
+        occasion !== "at-home" &&
         weather &&
         typeof weather.temp === "number" &&
         weather.temp < 12 &&
