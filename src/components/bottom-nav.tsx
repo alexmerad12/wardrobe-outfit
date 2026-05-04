@@ -31,7 +31,8 @@ export function BottomNav() {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/launch") ||
     pathname.startsWith("/design") ||
-    pathname.startsWith("/debug-upload")
+    pathname.startsWith("/debug-upload") ||
+    pathname.startsWith("/admin")
   ) {
     return null;
   }
