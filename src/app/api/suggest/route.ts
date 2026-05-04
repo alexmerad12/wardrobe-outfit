@@ -747,10 +747,15 @@ export async function POST(request: NextRequest) {
       // sees the wardrobe at all — keeps the AI from anchoring on an
       // item it can never use. The matching post-parse rules still
       // run in case the AI references a stripped item by id anyway.
-      // R9: no athletic sneakers at work, no denim bottoms at work.
+      // R9: no athletic sneakers at work, no denim bottoms at work —
+      // UNLESS the user explicitly tagged the item for "work" (their
+      // workplace allows it; user judgment overrides the generic rule).
       if (occasion === "work") {
-        if (it.category === "shoes" && it.subcategory === "sneakers") return false;
-        if (it.category === "bottom" && it.subcategory === "jeans") return false;
+        const userApproved = (it.occasions ?? []).includes("work");
+        if (!userApproved) {
+          if (it.category === "shoes" && it.subcategory === "sneakers") return false;
+          if (it.category === "bottom" && it.subcategory === "jeans") return false;
+        }
       }
       // At-home: you are INDOORS. Strip categories that don't make
       // sense in your living room from the candidate pool entirely so
@@ -1710,6 +1715,19 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     const wardrobeHasBelt = items.some(
       (i) => i.category === "accessory" && i.subcategory === "belt"
     );
+    // True if the user owns at least one bag that would PASS the formal /
+    // date / party bag rules (no backpack, no canvas/nylon material, no
+    // woven/fringed texture). When false, those rules silently skip — a
+    // user with only casual bags shouldn't get zero outfits at every
+    // dressy occasion. Same wardrobe-gap pattern as wardrobeHasDressyMaterial.
+    const wardrobeHasFormalBag = items.some((i) => {
+      if (i.is_stored || i.category !== "bag") return false;
+      if (i.subcategory === "backpack") return false;
+      const mats = Array.isArray(i.material) ? i.material : [i.material];
+      const casualMat = mats.some((m) => m === "canvas" || m === "nylon");
+      const casualTex = i.bag_texture === "woven" || i.bag_texture === "fringed";
+      return !casualMat && !casualTex;
+    });
 
     // Compute the "base layer" warmth — the warmth of what sits directly
     // against the skin. For cold weather this matters more than the
@@ -1897,11 +1915,12 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
         // R9 — no denim bottoms at the office (Track A only). Men's
         // office prompt explicitly allows jeans, so this drop is gated
-        // on Track A.
+        // on Track A. UNLESS the user explicitly tagged the jeans for
+        // "work" (their workplace allows it).
         const jeans = s.items.find(
           (i) => i.category === "bottom" && i.subcategory === "jeans"
         );
-        if (jeans) {
+        if (jeans && !(jeans.occasions ?? []).includes("work")) {
           drops.push({
             ids: s._ids,
             reason: `work: denim "${jeans.name}" not office-appropriate`,
@@ -1914,12 +1933,13 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       // gender. The men's prompt allows clean leather sneakers as
       // "smart casual," but those are subcategory "loafers" or have
       // toe_shape="round" + non-athletic upper — distinct from
-      // subcategory="sneakers" which is the athletic class.
+      // subcategory="sneakers" which is the athletic class. UNLESS the
+      // user explicitly tagged these sneakers for "work".
       if (occasion === "work") {
         const athleticSneakers = s.items.find(
           (i) => i.category === "shoes" && i.subcategory === "sneakers"
         );
-        if (athleticSneakers) {
+        if (athleticSneakers && !(athleticSneakers.occasions ?? []).includes("work")) {
           drops.push({
             ids: s._ids,
             reason: `work: athletic sneakers "${athleticSneakers.name}" not office-appropriate`,
@@ -2007,17 +2027,22 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
       // BACKPACK × dressy occasions — formal / party / date / dinner-out
-      // read student/commute with a backpack.
+      // read student/commute with a backpack. Two override gates:
+      //   1. User explicitly tagged this backpack for the occasion → respect
+      //      their judgment (the user knows their wardrobe better than us).
+      //   2. The wardrobe has no formal bag at all → skip the rule, otherwise
+      //      we'd zero out every outfit for users without a clutch / handbag.
       if (
-        occasion === "formal" ||
-        occasion === "party" ||
-        occasion === "date" ||
-        occasion === "dinner-out"
+        wardrobeHasFormalBag &&
+        (occasion === "formal" ||
+          occasion === "party" ||
+          occasion === "date" ||
+          occasion === "dinner-out")
       ) {
         const backpack = s.items.find(
           (i) => i.category === "bag" && i.subcategory === "backpack"
         );
-        if (backpack) {
+        if (backpack && !(backpack.occasions ?? []).includes(occasion)) {
           drops.push({
             ids: s._ids,
             reason: `${occasion}: backpack reads too casual`,
@@ -2044,46 +2069,33 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
-      // R8 — evening dressy material: for date / dinner-out / party /
-      // formal, prefer outfits with at least one dressy-material piece
-      // (silk / satin / chiffon / lace / velvet / patent-leather). Soft
-      // drop — admitted back with a tip when the hard pool is empty,
-      // so single-outfit mode never returns nothing just because the
-      // AI's pick wasn't dressy. Skip entirely when the wardrobe has
-      // no dressy pieces (it's a wardrobe gap).
-      if (
-        wardrobeHasDressyMaterial &&
-        (occasion === "date" ||
-          occasion === "dinner-out" ||
-          occasion === "party" ||
-          occasion === "formal")
-      ) {
-        const hasDressy = s.items.some((i) => {
-          const mats = Array.isArray(i.material) ? i.material : [i.material];
-          return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
-        });
-        if (!hasDressy) {
-          const dressyTip =
-            locale === "fr"
-              ? `Pour ${occasion}, une pièce en soie, satin, dentelle ou velours rehausserait l'ensemble.`
-              : `For ${occasion}, a silk, satin, lace or velvet piece would elevate the look.`;
-          softMismatch.push({ outfit: s, tip: dressyTip });
-          return false;
-        }
-      }
-      // (R18 belt-completer softMismatch lives at the END of this filter —
-      // see below — so it only fires on outfits that pass every other
-      // hard drop. Otherwise a belt-missing outfit would short-circuit
-      // past the bag-formality / metal-sync / etc. checks and slip back
-      // in via the softMismatch admit.)
+      // (Soft drops — R8 evening dressy material AND R18 belt completer —
+      // live at the END of this filter. They short-circuit with `return
+      // false` and push to softMismatch, where admitSoft re-introduces
+      // them when the hard pool is empty. If a soft drop fires BEFORE
+      // hard checks, the outfit can sneak back in via admit-back without
+      // ever being validated against the hard rules below it (e.g.
+      // bag formality, metal sync, rain, denim-on-denim, pattern echo).
+      // Keeping all soft drops at the bottom of the filter guarantees
+      // they only fire on outfits that already passed every hard rule.)
       // (Jewelry/watch were removed from the schema — the legacy
       // hat+statement-jewelry proximity drop and metal sync rules for
       // those subcategories are gone.)
       // Bag formality — for formal/date/party, drop bags with casual
-      // material (canvas/nylon) or casual texture (woven/fringed).
-      if (occasion === "formal" || occasion === "date" || occasion === "party") {
+      // material (canvas/nylon) or casual texture (woven/fringed). Same
+      // override pattern as the backpack rule above:
+      //   1. If the user explicitly tagged this bag for the current
+      //      occasion, skip the material/texture check entirely. They
+      //      know their wardrobe better than a generic material rule
+      //      (e.g. a Bottega-style woven leather bag is undeniably
+      //      formal but would fail "woven texture" otherwise).
+      //   2. If the wardrobe has no formal bag at all, skip too.
+      if (
+        wardrobeHasFormalBag &&
+        (occasion === "formal" || occasion === "date" || occasion === "party")
+      ) {
         const bag = s.items.find((i) => i.category === "bag");
-        if (bag) {
+        if (bag && !(bag.occasions ?? []).includes(occasion)) {
           const mats = Array.isArray(bag.material) ? bag.material : [bag.material];
           const casualMat = mats.some((m) => m === "canvas" || m === "nylon");
           const casualTex =
@@ -2644,6 +2656,36 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           }
         }
       }
+      // R8 — evening dressy material: for date / dinner-out / party /
+      // formal, prefer outfits with at least one dressy-material piece
+      // (silk / satin / chiffon / lace / velvet / patent-leather). Soft
+      // drop — admitted back with a tip when the hard pool is empty,
+      // so single-outfit mode never returns nothing just because the
+      // AI's pick wasn't dressy. Skip entirely when the wardrobe has
+      // no dressy pieces (it's a wardrobe gap). Lives at the end (with
+      // the belt-completer) so it only catches outfits that have
+      // already passed every hard drop above — admit-back can't sneak
+      // a hard-rule violator into final.
+      if (
+        wardrobeHasDressyMaterial &&
+        (occasion === "date" ||
+          occasion === "dinner-out" ||
+          occasion === "party" ||
+          occasion === "formal")
+      ) {
+        const hasDressy = s.items.some((i) => {
+          const mats = Array.isArray(i.material) ? i.material : [i.material];
+          return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
+        });
+        if (!hasDressy) {
+          const dressyTip =
+            locale === "fr"
+              ? `Pour ${occasion}, une pièce en soie, satin, dentelle ou velours rehausserait l'ensemble.`
+              : `For ${occasion}, a silk, satin, lace or velvet piece would elevate the look.`;
+          softMismatch.push({ outfit: s, tip: dressyTip });
+          return false;
+        }
+      }
       // R18 — belt completer (soft, LAST CHECK). Belt-suitability is
       // now derived from item attributes (silhouette / fit / waist) —
       // no manual flag. Lives at the end of the filter so it only
@@ -2828,6 +2870,95 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
             return false;
           }
         }
+
+        // ── Hard-rule re-validation for the fallback path ──────────────
+        // The fallback rescue used to admit outfits that violated occasion
+        // bans (sneakers at work, blazer at home), preset rules (all-black
+        // ignored), or bag formality (canvas tote at a date). Each check
+        // here mirrors a hard drop above. If a candidate fails any of
+        // them, skip it — it's better to return zero outfits than ship
+        // something the user explicitly asked to avoid.
+
+        // At-home: indoors → no outerwear / shoes / accessory / bag.
+        // Mirrors the at-home pre-filter and post-parse strip.
+        if (occasion === "at-home") {
+          if (s.items.some((i) =>
+            i.category === "outerwear" ||
+            i.category === "shoes" ||
+            i.category === "accessory" ||
+            i.category === "bag"
+          )) return false;
+        }
+
+        // Work: no athletic sneakers, no jeans, no mini skirt, no hat,
+        // no hoodie. Mirrors the work pre-filter and post-parse drops.
+        // For sneakers and jeans, the user can override by tagging the
+        // item for "work" (their workplace allows it). Other rules stay
+        // hard regardless of tags.
+        if (occasion === "work") {
+          if (s.items.some((i) =>
+            i.category === "shoes" && i.subcategory === "sneakers" &&
+            !(i.occasions ?? []).includes("work")
+          )) return false;
+          if (s.items.some((i) =>
+            i.category === "bottom" && i.subcategory === "jeans" &&
+            !(i.occasions ?? []).includes("work")
+          )) return false;
+          if (s.items.some((i) => i.category === "bottom" && i.subcategory === "skirt" && i.skirt_length === "mini")) return false;
+          if (s.items.some((i) => i.category === "accessory" && i.subcategory === "hat")) return false;
+          if (s.items.some((i) => i.category === "top" && i.subcategory === "hoodie")) return false;
+        }
+
+        // Formal / date / party bag rules (mirror the hard drops above):
+        // no backpack, no casual material (canvas / nylon), no casual
+        // texture (woven / fringed). Two override gates: user-tag (bag
+        // explicitly tagged for the occasion) and wardrobe-gap (no
+        // qualifying bag in the closet).
+        if (
+          wardrobeHasFormalBag &&
+          (occasion === "formal" || occasion === "date" || occasion === "party")
+        ) {
+          const bag = s.items.find((i) => i.category === "bag");
+          if (bag && !(bag.occasions ?? []).includes(occasion)) {
+            if (bag.subcategory === "backpack") return false;
+            const mats = Array.isArray(bag.material) ? bag.material : [bag.material];
+            const casualMat = mats.some((m) => m === "canvas" || m === "nylon");
+            const casualTex = bag.bag_texture === "woven" || bag.bag_texture === "fringed";
+            if (casualMat || casualTex) return false;
+          }
+        }
+
+        // Evening occasions: no casual hat silhouettes (baseball, trucker,
+        // bucket). Mirrors the hat-silhouette × occasion drops.
+        if (occasion === "formal" || occasion === "date" || occasion === "dinner-out") {
+          const hat = s.items.find((i) => i.category === "accessory" && i.subcategory === "hat");
+          if (hat) {
+            const sil = hat.hat_silhouette ?? "";
+            if (["baseball", "trucker", "bucket"].includes(sil)) return false;
+          }
+        }
+
+        // wantsAllBlack preset: every item in the outfit must be dark.
+        if (wantsAllBlack) {
+          if (s.items.some((i) => !isDarkItem(i))) return false;
+        }
+
+        // Cardigan-standalone (R4d): an open-front / loose / oversized
+        // cardigan as the ONLY top reads exposed without a tee under.
+        // Mirrors the hard drop in the main filter exactly (same closure
+        // and fit conditions) so the fallback never rejects a candidate
+        // the main filter would have allowed.
+        const tops = s.items.filter((i) => i.category === "top");
+        if (tops.length === 1 && tops[0].subcategory === "cardigan") {
+          const c = tops[0];
+          const exposed =
+            c.closure === "open-drape" ||
+            c.fit === "loose" ||
+            c.fit === "oversized" ||
+            c.is_layering_piece === true;
+          if (exposed) return false;
+        }
+
         return true;
       };
       const candidate = mapped.find(isStructurallyComplete);
