@@ -767,7 +767,10 @@
     "custom": "Personnalisée",
     "removeFromFavorites": "Retirer des favoris",
     "new": "Nouvelle",
-    "notesLabel": "Tes notes"
+    "notesLabel": "Tes notes",
+    "limitTitle": "Plus de 100 favoris — pense à trier",
+    "limitHint": "Les favoris fonctionnent mieux quand ils sont peu nombreux et significatifs. Pense à retirer les tenues que tu ne portes plus.",
+    "limitDismiss": "Ignorer"
   },
   "outfitDetails": {
     "createTitle": "Enregistrer cette tenue",

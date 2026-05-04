@@ -29,10 +29,22 @@ export default function FavoritesPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState(false);
+  // Soft prompt banner when favorites cross 100. Dismissible per-session
+  // via sessionStorage — re-appears next session if still over the limit
+  // so the nudge stays gentle but not silent.
+  const [favLimitDismissed, setFavLimitDismissed] = useState(false);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
   const router = useRouter();
   const scrollDir = useScrollDirection();
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("favLimitDismissed:v1") === "1") {
+        setFavLimitDismissed(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     async function fetchFavorites() {
@@ -229,6 +241,30 @@ export default function FavoritesPage() {
               {label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Soft prompt: 100+ favorites = curation nudge. Dismissible per
+          session via sessionStorage. Not a hard limit — users can keep
+          favoriting; we just suggest trimming. */}
+      {!loading && outfits.length >= 100 && !favLimitDismissed && (
+        <div className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-3 flex items-start gap-2">
+          <Heart className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium leading-tight">{t("favorites.limitTitle")}</p>
+            <p className="text-xs text-muted-foreground leading-snug mt-1">{t("favorites.limitHint")}</p>
+          </div>
+          <button
+            type="button"
+            aria-label={t("favorites.limitDismiss")}
+            onClick={() => {
+              setFavLimitDismissed(true);
+              try { sessionStorage.setItem("favLimitDismissed:v1", "1"); } catch { /* ignore */ }
+            }}
+            className="shrink-0 p-1 -m-1 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 

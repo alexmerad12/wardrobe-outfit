@@ -762,7 +762,10 @@
     "custom": "Custom",
     "removeFromFavorites": "Remove from favorites",
     "new": "New",
-    "notesLabel": "Your notes"
+    "notesLabel": "Your notes",
+    "limitTitle": "100+ favorites — consider curating",
+    "limitHint": "Favorites work best as a small, meaningful set. Try removing the outfits you no longer reach for.",
+    "limitDismiss": "Dismiss"
   },
   "outfitDetails": {
     "createTitle": "Save this outfit",
