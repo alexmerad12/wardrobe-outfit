@@ -812,10 +812,10 @@ export default function AddItemPage() {
               {removingBg ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Trying again…
+                  {t("addItem.tryingAgain")}
                 </>
               ) : (
-                "Try removing background again"
+                t("addItem.tryRemovingBgAgain")
               )}
             </Button>
           </div>

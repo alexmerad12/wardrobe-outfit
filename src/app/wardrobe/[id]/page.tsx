@@ -814,7 +814,7 @@ export default function ItemDetailPage() {
             onClick={startEditing}
           >
             <Pencil className="h-4 w-4" />
-            Edit details
+            {t("itemDetail.editDetails")}
           </Button>
         </div>
       )}
@@ -1542,14 +1542,19 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* Occasions */}
-          {item.occasions.length > 0 && (
+          {/* Occasions — filter out stale enum values that no longer
+              have a label (e.g. legacy "hangout" / "sport" pre-merge,
+              or any future enum trim). Without this filter they render
+              as empty chips. */}
+          {item.occasions.some((o) => labels.OCCASION[o]) && (
             <div className="mt-3">
               <p className="text-sm text-muted-foreground mb-2">{t("addItem.occasions")}</p>
               <div className="flex flex-wrap gap-1.5">
-                {item.occasions.map((o) => (
-                  <Badge key={o} variant="outline">{labels.OCCASION[o]}</Badge>
-                ))}
+                {item.occasions
+                  .filter((o) => labels.OCCASION[o])
+                  .map((o) => (
+                    <Badge key={o} variant="outline">{labels.OCCASION[o]}</Badge>
+                  ))}
               </div>
             </div>
           )}

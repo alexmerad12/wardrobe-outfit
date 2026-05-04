@@ -414,7 +414,7 @@ export default function FavoritesPage() {
                       </Badge>
                     ))}
                     {outfit.source === "manual" && (
-                      <Badge variant="outline" className={expandedId === outfit.id ? "text-xs" : "text-[10px]"}>Custom</Badge>
+                      <Badge variant="outline" className={expandedId === outfit.id ? "text-xs" : "text-[10px]"}>{t("favorites.custom")}</Badge>
                     )}
                   </div>
 

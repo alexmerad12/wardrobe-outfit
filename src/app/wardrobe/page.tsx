@@ -615,20 +615,33 @@ function WardrobePageInner() {
         </div>
       ) : filteredItems.length === 0 && pending.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
-          <p className="text-muted-foreground mb-3">
-            {items.length === 0
-              ? t("wardrobe.empty")
-              : t("wardrobe.noneInCategory")}
-          </p>
-          {items.length === 0 && (
-            <Button
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => router.push("/wardrobe/bulk")}
-            >
-              <Plus className="h-4 w-4" />
-              {t("wardrobe.addFirstItem")}
-            </Button>
+          {/* Three different empty states:
+              1. Wardrobe truly empty → invite to bulk-upload first items.
+              2. "Stored" filter with nothing stored → teach the user how
+                 to pack an item away (the storage feature is buried at
+                 the bottom of the item edit form, easy to miss).
+              3. Other filter with nothing matching → simple "no items". */}
+          {items.length === 0 ? (
+            <>
+              <p className="text-muted-foreground mb-3">{t("wardrobe.empty")}</p>
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => router.push("/wardrobe/bulk")}
+              >
+                <Plus className="h-4 w-4" />
+                {t("wardrobe.addFirstItem")}
+              </Button>
+            </>
+          ) : activeCategory === "stored" ? (
+            <div className="space-y-2">
+              <p className="font-medium">{t("wardrobe.noneInStorageTitle")}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t("wardrobe.noneInStorageHint")}
+              </p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">{t("wardrobe.noneInCategory")}</p>
           )}
         </div>
       ) : (
