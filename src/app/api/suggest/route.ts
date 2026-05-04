@@ -763,6 +763,7 @@ export async function POST(request: NextRequest) {
       if (occasion === "at-home" && it.category === "bag") return false;
       if (occasion === "at-home" && it.category === "outerwear") return false;
       if (occasion === "at-home" && it.category === "shoes") return false;
+      if (occasion === "at-home" && it.category === "accessory") return false;
       const richCategory =
         (inAllByCategory.get(it.category) ?? 0) >= RICH_CATEGORY_THRESHOLD;
       if (!richCategory) return true;
@@ -1006,7 +1007,7 @@ Return exactly 3 outfits in the "outfits" array. For each outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? "use masculine-coded language: \"sharp\", \"crisp\", \"clean line\", \"intentional\", \"grounded\". Avoid \"chic\", \"feminine\", \"flowy\"." : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
-- styling_tip: ONE short sentence in ${languageName} with a concrete styling ACTION (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar). If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
+- styling_tip: ONE short sentence in ${languageName} with a concrete styling ACTION applied to items already in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar). The ONLY allowed mention of items NOT in the outfit is naming a missing staple per rules 8-11 (e.g. "A pointed-toe pump would finish this"). NEVER suggest items that physically conflict with the existing outfit — tights NEVER pair with pants of any kind (jeans / trousers / leggings / sweatpants / shorts); tights are for under skirts and dresses only. If occasion is at-home, NEVER suggest weather-protection layers (no "add a coat", "throw on a scarf", "pair with thick tights") — the user is indoors. If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
 
 wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe is covered.`;
 
@@ -1267,28 +1268,25 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         }
       }
 
-      // At-home scarf stripping. The AI sometimes fixates on one warm scarf
-      // and sticks it into every outfit, which previously caused the
-      // at-home filter to nuke the whole batch. Strip-instead-of-drop:
-      //   - Remove any warm scarf (warmth >= 3) from at-home outfits.
-      //   - Remove any scarf if the outfit also has a turtleneck top
-      //     (neck is already covered — redundant styling).
+      // At-home category stripping — mirror the pre-filter as a safety
+      // net. The pre-filter excludes bag/outerwear/shoes/accessory from
+      // the AI's wardrobe view, BUT the AI can still emit IDs for those
+      // categories by referencing the RECENTLY SHOWN list (which carries
+      // IDs from earlier non-at-home requests). Without this post-parse
+      // strip, those IDs resolve back into real items and end up in the
+      // outfit. Strip-instead-of-drop: remove the offender silently
+      // rather than killing the whole outfit.
       if (occasion === "at-home") {
-        const hasTurtleneck = stripped.some(
-          (i) => i.category === "top" && i.neckline === "turtleneck"
-        );
         const beforeLen = stripped.length;
         stripped = stripped.filter((i) => {
-          // R7 — no bag at home. Strip silently rather than drop the
-          // whole outfit; everything else can stay.
           if (i.category === "bag") return false;
-          if (i.category !== "accessory" || i.subcategory !== "scarf") return true;
-          if ((i.warmth_rating ?? 0) >= 3) return false;
-          if (hasTurtleneck) return false;
+          if (i.category === "outerwear") return false;
+          if (i.category === "shoes") return false;
+          if (i.category === "accessory") return false;
           return true;
         });
         if (stripped.length !== beforeLen) {
-          fixes.push("stripped at-home offenders (bag/scarf rule)");
+          fixes.push("stripped at-home offenders (bag/outerwear/shoes/accessory)");
         }
       } else {
         // R15 TURTLENECK + SCARF strip — outside of at-home, allow the
