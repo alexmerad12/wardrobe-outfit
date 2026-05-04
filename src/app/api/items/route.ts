@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { kv } from "@vercel/kv";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 
 export async function GET() {
@@ -39,5 +40,11 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Lifetime upload counter — visibility only, no enforcement. No TTL,
+  // so we can read it later to see distribution before locking launch
+  // tier limits. Fire-and-forget — telemetry must not block insert.
+  kv.incr(`items_uploaded:${userId}`).catch(() => {});
+
   return NextResponse.json(data, { status: 201 });
 }
