@@ -167,19 +167,19 @@
     "swapNoAlternatives": "Aucune autre pièce dans cette catégorie."
   },
   "mood": {
-    "energized": { "label": "Énergique", "description": "Vif et audacieux" },
-    "confident": { "label": "Confiante", "description": "Net et raffiné" },
-    "playful": { "label": "Fun", "description": "Amusant et coloré" },
-    "cozy": { "label": "Cocooning", "description": "Doux et chaud" },
-    "chill": { "label": "Relax", "description": "Décontractée et facile" },
-    "bold": { "label": "Audacieuse", "description": "Pièces remarquables" },
-    "period": { "label": "Confort", "description": "Confortable et extensible" },
-    "sad": { "label": "Câlin", "description": "Réconfortant" }
+    "energized": { "label": "Énergique", "description": "Couleurs vives, énergie pétillante — tu veux te faire remarquer." },
+    "confident": { "label": "Confiante", "description": "Lignes nettes, pièces soignées — pour te sentir bien posée." },
+    "playful": { "label": "Fun", "description": "Fun, coloré, un peu inattendu — des vêtements qui te font sourire." },
+    "cozy": { "label": "Cocooning", "description": "Tissus doux, couches faciles — emmitoufle-toi." },
+    "chill": { "label": "Relax", "description": "Coupes décontractées, sans effort — confortable mais bien stylé." },
+    "bold": { "label": "Audacieuse", "description": "Pièces fortes, choix assumés — des vêtements qui s'imposent." },
+    "period": { "label": "Confort", "description": "Tailles élastiques, tissus doux — de la douceur pour ton corps." },
+    "sad": { "label": "Câlin", "description": "Doux et rassurant — des vêtements qui font du bien." }
   },
   "mood_m": {
-    "confident": { "label": "Confiant", "description": "Net et raffiné" },
-    "chill": { "label": "Relax", "description": "Décontracté et facile" },
-    "bold": { "label": "Audacieux", "description": "Pièces remarquables" }
+    "confident": { "label": "Confiant", "description": "Lignes nettes, pièces soignées — pour te sentir bien posé." },
+    "chill": { "label": "Relax", "description": "Coupes décontractées, sans effort — confortable mais bien stylé." },
+    "bold": { "label": "Audacieux", "description": "Pièces fortes, choix assumés — des vêtements qui s'imposent." }
   },
   "weatherWidget": {
     "feelsLike": "Ressenti {temp}°",
@@ -223,6 +223,18 @@
     "formal": "Événement formel",
     "travel": "Voyage",
     "outdoor": "Plein air"
+  },
+  "occasionDescription": {
+    "at-home": "Cocooning, courses à la maison, personne à impressionner. Confort avant tout.",
+    "casual": "Café, balade, journée ordinaire. Décontracté mais soigné.",
+    "brunch": "Plans du week-end entre ami.e.s. Décontracté mais réfléchi.",
+    "dinner-out": "Resto ou plans en soirée. Du smart-casual à habillé.",
+    "work": "Bureau ou réunions. Soigné, professionnel.",
+    "date": "Sortie, bien habillé.e. Faire une impression.",
+    "party": "Cocktails, célébrations. Audacieux, festif.",
+    "formal": "Mariage, gala, cravate noire. Tenue de soirée complète.",
+    "travel": "Longue journée en transit. Couches confortables, accès facile.",
+    "outdoor": "Pique-nique, marché, parc, balades. Chaussures confortables, attentif à la météo."
   },
   "category": {
     "all": "Tous",
@@ -723,6 +735,8 @@
     "unstore": "Sortir",
     "empty": "Ton dressing est vide",
     "noneInCategory": "Aucun item dans cette catégorie",
+    "noneInStorageTitle": "Rien rangé pour le moment",
+    "noneInStorageHint": "Pour ranger un item pour la saison, ouvre-le depuis ton dressing, tape sur \"Modifier les détails\", puis active \"Ranger\" en bas de la page.",
     "addFirstItem": "Ajoute ton premier item",
     "confirmBulkDelete": "Supprimer {count} item ?",
     "confirmBulkDeletePlural": "Supprimer {count} items ?",
@@ -778,6 +792,8 @@
     "statusReadingDetails": "Lecture des détails avec l'IA…",
     "statusPrefilledDone": "Pré-rempli par l'IA — vérifie et ajuste ci-dessous",
     "bgRemovalFailed": "Impossible de retirer le fond. Tu peux garder l'original ou réessayer.",
+    "tryRemovingBgAgain": "Réessayer de retirer le fond",
+    "tryingAgain": "Nouvelle tentative…",
     "heicReadFailed": "Impossible de lire cette photo (HEIC). Essaie de l'enregistrer en JPEG d'abord.",
     "somethingWentWrong": "Une erreur est survenue",
     "name": "Nom",
@@ -837,6 +853,7 @@
   },
   "itemDetail": {
     "outfitWithThis": "Tenue avec cet item",
+    "editDetails": "Modifier les détails",
     "removeBackground": "Retirer le fond",
     "removingBackground": "Suppression du fond...",
     "save": "Enregistrer",
@@ -931,6 +948,16 @@
     "forgottenPieces": "Pièces oubliées",
     "worn": "Porté {count}x",
     "neverWorn": "Jamais porté",
+    "whatYouCanDo": "Ce que tu peux faire",
+    "discoverBulkTitle": "Téléversement groupé",
+    "discoverBulkDesc": "Ajoute plusieurs items à la fois",
+    "discoverTryOnTitle": "Essai virtuel",
+    "discoverTryOnDesc": "Vérifie une pièce avant de l'acheter",
+    "discoverStorageTitle": "Rangement",
+    "discoverStorageDesc": "Range tes pièces hors saison",
+    "discoverBuildOutfitTitle": "Composer une tenue",
+    "discoverTipOutfitWithThis": "Sur la page d'un item, tape sur \"Tenue avec cet item\" pour une suggestion construite autour de cette pièce.",
+    "discoverTipCreateOutfit": "Sélectionne 2+ items dans ton Dressing, puis tape sur \"Tenue\" pour la composer toi-même.",
     "settings": "Paramètres",
     "city": "Ville (pour la météo)",
     "cityPlaceholder": "Commence à taper une ville...",

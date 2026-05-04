@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender, ClothingItem, Category } from "@/lib/types";
-import { MapPin, Thermometer, Loader2, Languages, LogOut, User, Check } from "lucide-react";
+import { MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, Combine, ChevronDown, ChevronRight, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
@@ -51,6 +51,10 @@ export default function ProfilePage() {
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
+  // Settings collapsed by default — most users come to /profile to glance
+  // at insights / discover features, not to change their language. Tapping
+  // the header expands the full settings form.
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
 
   // City search
   const [cityQuery, setCityQuery] = useState("");
@@ -178,6 +182,9 @@ export default function ProfilePage() {
 
   const maxColorCount = colorDistribution.length > 0 ? colorDistribution[0].count : 1;
   const maxCategoryCount = categoryBreakdown.length > 0 ? categoryBreakdown[0].count : 1;
+  // mostWornItems is sorted desc by times_worn, so [0] is the max — used
+  // to scale every wear bar relative to the most-worn piece.
+  const maxWornCount = mostWornItems.length > 0 ? mostWornItems[0].times_worn : 1;
 
   // ---------- Handlers ----------
 
@@ -346,7 +353,12 @@ export default function ProfilePage() {
             {(colorDistribution.length > 0 || categoryBreakdown.length > 0) &&
               mostWornItems.length > 0 && <Separator />}
 
-            {/* Most Worn Items */}
+            {/* Most Worn Items — same data-viz language as the color
+                and category bars above (label + horizontal bar + count).
+                The bar shows wear frequency relative to the most-worn
+                piece, the count is the raw number of wears. Recency
+                drops below the name as a small caption so we don't
+                lose the "two axes" signal (rank vs. how recent). */}
             {mostWornItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">{t("profile.mostWorn")}</p>
@@ -355,9 +367,12 @@ export default function ProfilePage() {
                     <Link
                       key={item.id}
                       href={`/wardrobe/${item.id}`}
-                      className="flex items-center gap-3 -mx-1 px-1 py-1 rounded-md hover:bg-muted/50 active:bg-muted transition-colors"
+                      className="flex items-center gap-2 -mx-1 px-1 py-1 rounded-md hover:bg-muted/50 active:bg-muted transition-colors"
                     >
-                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                      {/* bg-white (not bg-muted) so the white background of
+                          bg-removed item images blends in instead of leaving
+                          a visible gray halo around each thumbnail. */}
+                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-white">
                         <Image
                           src={item.thumbnail_url ?? item.image_url}
                           alt={item.name}
@@ -366,19 +381,26 @@ export default function ProfilePage() {
                           sizes="40px"
                         />
                       </div>
-                      <span className="text-sm flex-1 truncate">{item.name}</span>
-                      {/* Recency on the right — pairs with the list
-                          position to give two axes at a glance: rank
-                          (frequency) on the left/order, recency on
-                          the right. Top-ranked + worn yesterday =
-                          current daily driver; top-ranked + worn 2
-                          months ago = neglected favorite, signal to
-                          rotate it back in. */}
-                      {item.last_worn_date && (
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatLastWorn(item.last_worn_date, locale)}
-                        </span>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate leading-tight">{item.name}</p>
+                        {item.last_worn_date && (
+                          <p className="text-[10px] text-muted-foreground/70 leading-tight mt-0.5">
+                            {formatLastWorn(item.last_worn_date, locale)}
+                          </p>
+                        )}
+                      </div>
+                      {/* Compact 48px bar (vs the wider color/category bars
+                          above) so the name column stays generous on phones —
+                          truncation hits less aggressively. */}
+                      <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden flex-shrink-0">
+                        <div
+                          className="h-full rounded-full bg-foreground/30"
+                          style={{ width: `${(item.times_worn / maxWornCount) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground w-5 text-right tabular-nums flex-shrink-0">
+                        {item.times_worn}
+                      </span>
                     </Link>
                   ))}
                 </div>
@@ -389,12 +411,90 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* Settings */}
-      <Card>
+      {/* Discovery hub — editorial typographic list. No numbers (those
+          read as steps and these are independent features). Each row is
+          a full-width tap target with a Bodoni title + Inter caption,
+          a chevron on the right, and hairline dividers between rows.
+          Restraint is the design statement — like a luxury magazine
+          ToC. Below the list, a small "Build an outfit" block holds
+          the two contextual outfit-creation paths that don't have
+          their own destinations. */}
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base">{t("profile.settings")}</CardTitle>
+          <CardTitle className="text-base">{t("profile.whatYouCanDo")}</CardTitle>
         </CardHeader>
-        {loading ? (
+        <CardContent>
+          <Link
+            href="/wardrobe/bulk"
+            className="flex items-center gap-4 -mx-6 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="font-heading text-lg leading-tight">{t("profile.discoverBulkTitle")}</p>
+              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverBulkDesc")}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
+          <Separator className="-mx-6 w-auto" />
+          <Link
+            href="/try-on"
+            className="flex items-center gap-4 -mx-6 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="font-heading text-lg leading-tight">{t("profile.discoverTryOnTitle")}</p>
+              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverTryOnDesc")}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
+          <Separator className="-mx-6 w-auto" />
+          <Link
+            href="/wardrobe?category=stored"
+            className="flex items-center gap-4 -mx-6 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="font-heading text-lg leading-tight">{t("profile.discoverStorageTitle")}</p>
+              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverStorageDesc")}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
+
+          {/* "Build an outfit" — contextual outfit-creation paths that
+              don't have their own destinations (live as actions on the
+              wardrobe + item pages). Sits below the numbered list under
+              its own subtle separator. */}
+          <div className="pt-4 mt-4 border-t border-border space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Combine className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="editorial-label">{t("profile.discoverBuildOutfitTitle")}</span>
+            </div>
+            <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+              <li>{t("profile.discoverTipOutfitWithThis")}</li>
+              <li>{t("profile.discoverTipCreateOutfit")}</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Settings — collapsible. Header is the toggle (chevron when
+          closed, X when open). Content + Save button only render when
+          expanded so the closed state is just a single tappable row. */}
+      <Card>
+        <button
+          type="button"
+          onClick={() => setSettingsExpanded((v) => !v)}
+          className="w-full"
+          aria-expanded={settingsExpanded}
+          aria-controls="settings-content"
+        >
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">{t("profile.settings")}</CardTitle>
+            {settingsExpanded ? (
+              <X className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </CardHeader>
+        </button>
+        {settingsExpanded && (loading ? (
           <CardContent className="space-y-4">
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="space-y-2">
@@ -588,7 +688,7 @@ export default function ProfilePage() {
             )}
           </Button>
         </CardContent>
-        )}
+        ))}
       </Card>
 
       <InstallPrompt />
