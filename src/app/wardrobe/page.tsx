@@ -22,6 +22,7 @@ import {
   Trash2,
   X,
   CheckSquare,
+  CheckCheck,
   Combine,
   Archive,
   Camera,
@@ -341,8 +342,12 @@ function WardrobePageInner() {
         // reachable while scrolling through the grid. Negative -mx-4 + px-4
         // makes the frosted background extend to the viewport edges within
         // the page's max-width container. -mt-6 + pt-6 cancels the page's
-        // top padding so the bar starts flush.
-        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
+        // top padding so the bar starts flush. min-h-[88px] keeps the bar
+        // the same height as the normal header so the sticky offsets on
+        // the category/subcategory strips below (top-[92px], top-[136px])
+        // stay accurate — without this the strips dock 24px below the
+        // shorter select bar with empty page bleeding through the gap.
+        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 flex min-h-[88px] flex-col justify-center border-b bg-background px-4 pb-3 pt-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Button size="icon" variant="ghost" onClick={exitSelectMode}>
@@ -351,6 +356,40 @@ function WardrobePageInner() {
               <span className="text-sm font-medium truncate">
                 {t("wardrobe.nSelected", { count: selected.size })}
               </span>
+              {/* Select-all toggle — operates on currently filtered items
+                  (respects active category + subcategory + search). When
+                  every visible item is already selected the icon flips
+                  to a "deselect all visible" affordance. Selections from
+                  other category views are preserved across taps so the
+                  user can accumulate across multiple filters before
+                  acting (e.g. select all summer dresses, switch to
+                  shoes, select all sandals, then tap Store once). */}
+              {filteredItems.length > 0 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => {
+                    const visibleIds = filteredItems.map((i) => i.id);
+                    const allVisibleSelected = visibleIds.every((id) => selected.has(id));
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      if (allVisibleSelected) {
+                        visibleIds.forEach((id) => next.delete(id));
+                      } else {
+                        visibleIds.forEach((id) => next.add(id));
+                      }
+                      return next;
+                    });
+                  }}
+                  aria-label={
+                    filteredItems.every((i) => selected.has(i.id))
+                      ? t("wardrobe.deselectAll")
+                      : t("wardrobe.selectAll")
+                  }
+                >
+                  <CheckCheck className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <div className="flex gap-2 shrink-0">
               <Button
