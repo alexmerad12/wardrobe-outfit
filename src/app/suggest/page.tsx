@@ -25,6 +25,11 @@ interface AISuggestion {
   mood_match: Mood;
   weather_temp: number | null;
   weather_condition: string | null;
+  // Snapshot of items as the AI originally suggested them. Set when
+  // the suggestion arrives and never mutated. items[] is what the user
+  // sees / can edit; originalItems is the diff baseline used to build
+  // the swap-pairs feedback signal at save time.
+  originalItems: ClothingItem[];
 }
 
 export default function SuggestPage() {
@@ -128,7 +133,13 @@ function SuggestContent() {
 
       if (res.ok) {
         const data = await res.json();
-        setSuggestions(data.suggestions);
+        // Snapshot the AI's original item picks so we can detect swaps
+        // at save time. Spread into a new array so later mutations on
+        // .items don't bleed into originalItems.
+        const withOriginals: AISuggestion[] = (data.suggestions ?? []).map(
+          (s: AISuggestion) => ({ ...s, originalItems: [...s.items] })
+        );
+        setSuggestions(withOriginals);
         setWardrobeGap(data.wardrobe_gap ?? null);
         setAiError(Boolean(data.ai_error));
         setLimitError(false);
@@ -179,11 +190,113 @@ function SuggestContent() {
     }
   }
 
+  // Diff helpers — derive swap pairs from the original AI suggestion
+  // vs the current (possibly user-edited) item set. The shape returned
+  // matches what /api/outfits expects in `swap_pairs`. Returns an empty
+  // array when nothing was edited; that doubles as the "edited?" check
+  // — the save flow keys off pairs.length > 0.
+  function computeSwapPairs(
+    suggestion: AISuggestion,
+    savedVia: "favorite" | "wear_today"
+  ): Array<{
+    original_item_id: string;
+    replacement_item_id: string;
+    occasion: Occasion | null;
+    mood: Mood | null;
+    weather_temp: number | null;
+    weather_condition: string | null;
+    season: string | null;
+    saved_via: "favorite" | "wear_today";
+  }> {
+    const originalById = new Map(suggestion.originalItems.map((it) => [it.id, it]));
+    const currentIds = new Set(suggestion.items.map((it) => it.id));
+    const pairs = [];
+    for (const orig of suggestion.originalItems) {
+      if (currentIds.has(orig.id)) continue;
+      // This original was dropped. Find what replaced it — same
+      // category in the current items that wasn't in the originals.
+      const replacement = suggestion.items.find(
+        (it) => it.category === orig.category && !originalById.has(it.id)
+      );
+      if (!replacement) continue;
+      pairs.push({
+        original_item_id: orig.id,
+        replacement_item_id: replacement.id,
+        occasion,
+        mood,
+        weather_temp: suggestion.weather_temp,
+        weather_condition: suggestion.weather_condition,
+        season: seasonFromDate(),
+        saved_via: savedVia,
+      });
+    }
+    return pairs;
+  }
+
+  // Local season derivation matching the suggest engine's bands.
+  // Northern-hemisphere bias is fine for our beta footprint.
+  function seasonFromDate(): string {
+    const m = new Date().getMonth();
+    if (m >= 2 && m <= 4) return "spring";
+    if (m >= 5 && m <= 7) return "summer";
+    if (m >= 8 && m <= 10) return "fall";
+    return "winter";
+  }
+
+  // Re-write reasoning + styling_tip for an edited outfit. Wrapped so
+  // the save flow can graceful-degrade: if the refine call fails for
+  // any reason (network, rate limit, parse error) we fall back to the
+  // original suggestion's text. Save MUST NOT fail because of refine.
+  async function refineEditedOutfit(
+    suggestion: AISuggestion
+  ): Promise<{ reasoning: string; styling_tip: string | null }> {
+    try {
+      const res = await fetch("/api/suggest/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_ids: suggestion.items.map((i) => i.id),
+          occasion,
+          mood,
+          weather_temp: suggestion.weather_temp,
+          weather_condition: suggestion.weather_condition,
+          locale,
+        }),
+      });
+      if (!res.ok) {
+        return {
+          reasoning: suggestion.reasoning,
+          styling_tip: suggestion.styling_tip,
+        };
+      }
+      const data = (await res.json()) as {
+        reasoning?: string;
+        styling_tip?: string | null;
+      };
+      return {
+        reasoning: data.reasoning ?? suggestion.reasoning,
+        styling_tip: data.styling_tip ?? suggestion.styling_tip,
+      };
+    } catch {
+      return {
+        reasoning: suggestion.reasoning,
+        styling_tip: suggestion.styling_tip,
+      };
+    }
+  }
+
   async function saveFavorite(suggestion: AISuggestion) {
     // Guard against double-save on the same suggestion
     if (favoritedIndices.has(currentIndex) || saving) return;
     setSaving(true);
     try {
+      const swapPairs = computeSwapPairs(suggestion, "favorite");
+      // Only refine when the user actually edited the outfit. No edits
+      // = no AI cost, save flow byte-for-byte identical to before.
+      const { reasoning, styling_tip } =
+        swapPairs.length > 0
+          ? await refineEditedOutfit(suggestion)
+          : { reasoning: suggestion.reasoning, styling_tip: suggestion.styling_tip };
       await fetch("/api/outfits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,9 +311,10 @@ function SuggestContent() {
           mood: mood,
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
-          ai_reasoning: suggestion.reasoning,
-          styling_tip: suggestion.styling_tip,
+          ai_reasoning: reasoning,
+          styling_tip: styling_tip,
           source: "ai",
+          swap_pairs: swapPairs,
         }),
       });
       setFavoritedIndices((prev) => new Set(prev).add(currentIndex));
@@ -214,6 +328,11 @@ function SuggestContent() {
   async function wearToday(suggestion: AISuggestion) {
     setSaving(true);
     try {
+      const swapPairs = computeSwapPairs(suggestion, "wear_today");
+      const { reasoning, styling_tip } =
+        swapPairs.length > 0
+          ? await refineEditedOutfit(suggestion)
+          : { reasoning: suggestion.reasoning, styling_tip: suggestion.styling_tip };
       // Persist the outfit first, then pass its id into the today
       // endpoint so the outfit_log entry references the real outfit
       // row. Without this link the profile's "AI outfits worn" count
@@ -232,9 +351,10 @@ function SuggestContent() {
           mood,
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
-          ai_reasoning: suggestion.reasoning,
-          styling_tip: suggestion.styling_tip,
+          ai_reasoning: reasoning,
+          styling_tip: styling_tip,
           source: "ai",
+          swap_pairs: swapPairs,
         }),
       });
       const savedOutfit = outfitRes.ok
