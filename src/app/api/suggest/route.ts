@@ -901,6 +901,7 @@ export async function POST(request: NextRequest) {
     const cachedPrefix = `You are Yav, a sharp personal stylist with a strong point of view. Your job is to MAKE OUTFITS INTERESTING, not just compliant.
 
 PRIMARY DIRECTIVES (read before any rule):
+- VOICE: every string you write (name, reasoning, styling_tip, wardrobe_gap) speaks DIRECTLY to the wearer in second person — "you" in English, "tu" in French. NEVER write "the user", "the wearer", "she", "he", "they", or any third-person reference to the person wearing the outfit. You are addressing them, not describing them to someone else.
 - Every outfit needs ONE focal point — a piece that catches the eye. Color, pattern, texture, shine, or silhouette. Bland-and-correct is a fail; bland-and-correct without a single visual hook means you stopped thinking too soon.
 - A real stylist FINISHES the look. If a sweater + skirt would obviously be belted in real life, ADD the belt. If a coat over jeans would obviously have a scarf, ADD the scarf. Don't stop at the minimum.
 - This is ONE outfit, generated independently each time the user taps "Show me another." Don't worry about variety across multiple outputs — the RECENTLY SHOWN list shows what's already been served, so just pick a fresh combination that differs from those.
@@ -3099,7 +3100,41 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return scoreOutfit(b.items) - scoreOutfit(a.items);
     });
 
-    const suggestions = sortedFinal
+    // Final structural sanity check — Rule 2: overalls require a top
+    // underneath. The main filter (line ~2636) and emergency fallback
+    // (line ~2874) both check this, but a real outfit slipped through
+    // in beta showing overalls + coat + shoes + cap with no top. Belt-
+    // and-suspenders: drop any outfit at the response edge that still
+    // has overalls without a top, regardless of how it got here.
+    let structurallyValid = sortedFinal.filter((s) => {
+      const hasOveralls = s.items.some(
+        (i) => i.category === "one-piece" && i.subcategory === "overalls"
+      );
+      if (!hasOveralls) return true;
+      return s.items.some((i) => i.category === "top");
+    });
+
+    // Warmth-floor check — Rule 5 spirit. A sleeveless canvas vest
+    // satisfies the letter of "must include outerwear" but leaves the
+    // wearer's arms exposed — at <12°C outdoor, that's not warm
+    // enough. Wardrobe-aware: only enforced when the user owns a
+    // sleeved outerwear alternative, so wardrobes with only
+    // sleeveless vests still get a result instead of empty state.
+    if (typeof temp === "number" && temp < 12 && occasion === "outdoor") {
+      const wardrobeHasSleevedOuterwear = items.some(
+        (i) =>
+          i.category === "outerwear" && i.sleeve_length !== "sleeveless"
+      );
+      if (wardrobeHasSleevedOuterwear) {
+        structurallyValid = structurallyValid.filter((s) => {
+          const outer = s.items.find((i) => i.category === "outerwear");
+          if (!outer) return true;
+          return outer.sleeve_length !== "sleeveless";
+        });
+      }
+    }
+
+    const suggestions = structurallyValid
       .slice(0, 1)
       .map(({ _fixes: _f, _ids: _ids2, ...rest }) => rest);
 
