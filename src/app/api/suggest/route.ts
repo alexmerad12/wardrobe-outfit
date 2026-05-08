@@ -9,12 +9,16 @@ import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { colorFamily } from "@/lib/color-family";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { logAiCall } from "@/lib/log-ai-call";
+import { isCapBypassed } from "@/lib/admin-bypass";
 
 // Suggest endpoint runs on Gemini 3 Flash with shallow thinking
-// (thinkingBudget: 3072). Pairs with weighted-random subsetting
-// (~25 visible items) + 3-outfit generation + best-of-3 server-side
-// scoring so quality comes from candidate variety + scoring rather
-// than deep single-shot reasoning. Targets ~10-15s per call. Other
+// (thinkingBudget: 3072). 2026-05-08 experiment: shifted from
+// 3-outfit-generation + scoring to single-outfit generation. The
+// scorer was reliably picking outfits with the same star pieces
+// across calls, so users felt repetition even with random
+// subsetting. Single-outfit lets the model spend its full reasoning
+// on one composition; the swap + refine flow handles refinement
+// instead of a server-side picker. Targets ~8-12s per call. Other
 // endpoints (try-on, analyze, packing) still use their existing
 // configs — this is suggest-specific.
 // GOOGLE_API_KEY must be set in .env.local locally and in Vercel env
@@ -557,13 +561,19 @@ export async function POST(request: NextRequest) {
   // Server UTC date is the calendar — for our small beta in similar
   // time zones this is fine; tier-aware enforcement at launch can
   // localize per-user if needed. 36h TTL covers any TZ wraparound.
+  // Admin-bypass: ADMIN_EMAIL + CAP_BYPASS_EMAILS skip enforcement
+  // (so the operator and trusted testers can use the app freely
+  // without burning their daily limit) but the counter still
+  // increments so cost telemetry stays honest.
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const isAdmin = isCapBypassed(authUser?.email);
   const today = new Date().toISOString().slice(0, 10);
   const countKey = `suggest_count:${userId}:${today}`;
   const newCount = await kv.incr(countKey).catch(() => -1);
   if (newCount === 1) {
     kv.expire(countKey, 60 * 60 * 36).catch(() => {});
   }
-  if (newCount > SUGGEST_DAILY_CAP) {
+  if (!isAdmin && newCount > SUGGEST_DAILY_CAP) {
     return NextResponse.json(
       {
         error: "daily_limit_reached",
@@ -738,6 +748,12 @@ export async function POST(request: NextRequest) {
       const formalities = Array.isArray(it.formality) ? it.formality : [it.formality];
       // No formality tagged on this item — show it (no signal to filter on).
       if (!formalities.length || formalities.every((f) => !f)) return true;
+      // User-tag override: if the user explicitly tagged this item for
+      // the current occasion, their intent wins over the generic
+      // formality band. Same pattern as the work / sneakers + jeans
+      // overrides in the main filter — the user knows their workplace
+      // / dress-code reality better than our enum bands do.
+      if ((it.occasions ?? []).includes(occasion)) return true;
       return formalities.some((f) => f && allowedFormalities.has(f));
     }
     const temp = weather && typeof weather.temp === "number" ? weather.temp : null;
@@ -807,77 +823,102 @@ export async function POST(request: NextRequest) {
       return passesTags(it) && passesFormality(it) && passesWarmth(it);
     });
 
-    // ─────────────────────────────────────────────────────────────
-    // Weighted-random subsetting. The pre-filter chain above
-    // (occasion / season / formality / warmth) trimmed the pool to
-    // contextually-eligible items; we now sample ~25 of them per
-    // category target, biased toward less-worn pieces and away from
-    // recently shown ones. Plus a Math.random() jitter so the same
-    // wardrobe state still produces variety across "Show me another"
-    // taps. Anchor items (pinned by STYLE DIRECTION) are force-
-    // included.
-    // ─────────────────────────────────────────────────────────────
-    const recentlyShownIds = new Set<string>();
-    for (const idSet of kvRecentSuggestions) {
-      for (const id of idSet) recentlyShownIds.add(id);
-    }
-
-    const SUBSET_TARGETS: Record<string, number> = {
-      top: 9,
-      bottom: 6,
-      dress: 5,
-      "one-piece": 2,
-      outerwear: 3,
-      shoes: 5,
-      bag: 3,
-      accessory: 5,
-    };
-    function itemSampleWeight(it: ClothingItem): number {
-      let w = 1.0;
-      if (recentlyShownIds.has(it.id)) w -= 0.7;
-      const worn = it.times_worn ?? 0;
-      if (worn === 0) w += 0.8;
-      else if (worn <= 3) w += 0.4;
-      else if (worn <= 8) w += 0.1;
-      if (it.last_worn_date) {
-        const days = Math.floor(
-          (Date.now() - new Date(it.last_worn_date).getTime()) / 86_400_000
-        );
-        if (days > 90) w += 0.3;
-        else if (days > 30) w += 0.2;
-      } else if (worn > 0) {
-        w += 0.2;
-      }
-      // 2x jitter — the random component (0-2) now dominates the
-      // rotation bonuses (max +1.1) and recently-shown penalty (-0.7),
-      // so each "Show me another" tap gets a meaningfully different
-      // subset even when the same items would otherwise rank highest.
-      return w + Math.random() * 2;
-    }
-
-    const byCategory = new Map<string, ClothingItem[]>();
-    for (const it of promptItems) {
-      const list = byCategory.get(it.category) ?? [];
-      list.push(it);
-      byCategory.set(it.category, list);
-    }
-    const subsetItems: ClothingItem[] = [];
-    for (const [cat, list] of byCategory) {
-      const target = SUBSET_TARGETS[cat] ?? Math.min(list.length, 4);
-      const ranked = list
-        .map((it) => ({ it, score: itemSampleWeight(it) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, target)
-        .map((r) => r.it);
-      subsetItems.push(...ranked);
-    }
+    // EXPERIMENT 2026-05-08: removed weighted-random subsetting. The
+    // sampler had been capping the AI's view at ~38 items across
+    // categories, biased toward less-worn pieces. Symptom in beta:
+    // outputs felt repetitive — same items kept resurfacing because
+    // the AI never saw the rest of the wardrobe per call. Now we hand
+    // the full pre-filtered pool to the AI and let it choose. Cost
+    // increase is marginal (~$0.003/call extra input tokens for a
+    // 200-item wardrobe). Revert by restoring the SUBSET_TARGETS /
+    // itemSampleWeight block from git history if the model gets
+    // overwhelmed by choice and outputs feel safer / more
+    // conservative.
+    const fullPool: ClothingItem[] = [...promptItems];
+    // Anchor safety net: if the user pinned an anchor item via STYLE
+    // DIRECTION and it got filtered out by a pre-filter (off-season,
+    // wrong-occasion tag, etc.), inject it back so the AI can still
+    // build the requested outfit around it.
     if (anchorItemId) {
       const anchor = items.find((i) => i.id === anchorItemId && !i.is_stored);
-      if (anchor && !subsetItems.some((s) => s.id === anchor.id)) {
-        subsetItems.push(anchor);
+      if (anchor && !fullPool.some((s) => s.id === anchor.id)) {
+        fullPool.push(anchor);
       }
     }
-    const wardrobeList = subsetItems.map(describeItem).join("\n");
+
+    // Hard exclusion of recently-shown ANCHOR items so "Show me
+    // another" returns a genuinely new outfit, not a re-shuffle of
+    // the same look. Anchors (the pieces that define an outfit:
+    // dress, top, bottom, outerwear, jumpsuit, overalls) are banned
+    // for EXCLUSION_DEPTH outfits. Accessories (bag, shoes,
+    // accessory) are NOT banned — versatile pieces like a great
+    // handbag SHOULD recur across outfits because that's how real
+    // styling works. EXCLUSION_DEPTH = 10 covers any realistic "Show
+    // me another" session before items rotate back. Wardrobe-aware
+    // threshold + zero-count restore prevent empty results.
+    const EXCLUSION_DEPTH = 10;
+    const ANCHOR_CATEGORIES = new Set([
+      "dress",
+      "top",
+      "bottom",
+      "outerwear",
+      "one-piece",
+    ]);
+    const previousOutfitIds = Array.from(
+      new Set(kvRecentSuggestions.slice(0, EXCLUSION_DEPTH).flat())
+    );
+    if (previousOutfitIds.length > 0) {
+      const wardrobeCategoryCounts = items.reduce<Record<string, number>>(
+        (acc, i) => {
+          if (!i.is_stored) acc[i.category] = (acc[i.category] ?? 0) + 1;
+          return acc;
+        },
+        {}
+      );
+      const RICH_ENOUGH = 3;
+      const banSet = new Set<string>();
+      for (const id of previousOutfitIds) {
+        if (anchorItemId && id === anchorItemId) continue;
+        const item = items.find((i) => i.id === id);
+        if (!item) continue;
+        // Skip non-anchor categories — accessories are allowed to recur.
+        if (!ANCHOR_CATEGORIES.has(item.category)) continue;
+        if ((wardrobeCategoryCounts[item.category] ?? 0) >= RICH_ENOUGH) {
+          banSet.add(id);
+        }
+      }
+      if (banSet.size > 0) {
+        const beforeCount = fullPool.length;
+        const filtered = fullPool.filter((it) => !banSet.has(it.id));
+        // Replace fullPool only if filter didn't blow up a category
+        // worse than wardrobe-thin: if for some reason ALL items in a
+        // category got banned (shouldn't happen given the threshold
+        // check but defend anyway), restore that category's items.
+        const filteredByCat = filtered.reduce<Record<string, number>>(
+          (acc, i) => {
+            acc[i.category] = (acc[i.category] ?? 0) + 1;
+            return acc;
+          },
+          {}
+        );
+        const restored = [...filtered];
+        for (const it of fullPool) {
+          if (!banSet.has(it.id)) continue;
+          if ((filteredByCat[it.category] ?? 0) === 0) {
+            restored.push(it);
+          }
+        }
+        fullPool.length = 0;
+        fullPool.push(...restored);
+        if (fullPool.length < beforeCount) {
+          console.log(
+            `[suggest] excluded ${beforeCount - fullPool.length} items from previous outfit`
+          );
+        }
+      }
+    }
+
+    const wardrobeList = fullPool.map(describeItem).join("\n");
 
     const weatherDesc = weather
       ? `${weather.temp}°C, feels like ${weather.feels_like}°C. ${weather.condition}. Humidity: ${weather.humidity}%, wind: ${weather.wind_speed}km/h, rain chance: ${weather.precipitation_probability}%.`
@@ -895,7 +936,7 @@ export async function POST(request: NextRequest) {
       ...recentItemSets.map((r) => r.item_ids),
     ];
     const recentSection = allRecentSets.length > 0
-      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets the user has already seen — each of your 3 outfits MUST differ from every one of these by at least 2 items):\n${allRecentSets.map((ids, i) => `${i + 1}. [${ids.join(", ")}]`).join("\n")}`
+      ? `\n\nRECENTLY SHOWN OR WORN (item-id sets the user has already seen — your outfit MUST differ from every one of these by at least 2 items):\n${allRecentSets.map((ids, i) => `${i + 1}. [${ids.join(", ")}]`).join("\n")}`
       : "";
 
     const cachedPrefix = `You are Yav, a sharp personal stylist with a strong point of view. Your job is to MAKE OUTFITS INTERESTING, not just compliant.
@@ -939,7 +980,7 @@ MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.labe
 OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
 ITERATION: ${iterationNonce}
 
-Return THREE distinct complete outfits from the wardrobe. Each must be different from every set in RECENTLY SHOWN OR WORN AND visibly different from the other two outfits in this response (different anchor pieces, not just a swapped accessory). The server scores all three and ships the best one to the user, so make every option a real contender — no throwaway picks.
+Return ONE deliberate complete outfit from the wardrobe. It must be different from every set in RECENTLY SHOWN OR WORN. Spend your full reasoning on this single composition — focal point, color story, texture interplay, finishing touches. No throwaway picks. This is the user's only outfit for this tap; if it's mediocre they'll feel it.
 
 HARD RULES — do not violate:
 1. A dress or jumpsuit is STANDALONE on the body. Never combined with a "top" or "bottom" category item. Only outerwear can layer over. EXCEPTION: a dress with Silhouette = "slip" (satin slip / sleep-dress style) may be styled with a slim-fitted top underneath — but ONLY a top whose fit is "slim" or "regular" AND is NOT a layering piece, blazer, cardigan, hoodie, sweatshirt, or oversized item (e.g., a fitted t-shirt or thin turtleneck works; a hoodie or boxy tee does not).
@@ -1025,8 +1066,7 @@ HARD RULES — do not violate:
       Otherwise (jeans + tucked top, structured trousers + blouse, etc.), the belt is what separates a stylist look from a thrown-together one — add it.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
    c) STATEMENT PIECE: when EVERY chosen item so far is solid-colored AND in a neutral palette (black / white / grey / beige / brown / navy / cream), the outfit MUST include ONE piece that introduces color, pattern, texture, or shine — a printed silk scarf, a bright bag, a quilted/croc bag, a chain belt, a statement earring, embellished/metallic shoes, or a non-solid jacket. Bland in/bland out: no entirely-neutral-and-solid outfits unless the user's mood is explicitly Chill or Cozy.
-   d) CROSS-OUTFIT VARIETY (within this 3-outfit response): the three outfits MUST differ in their anchor (a different dress/top/jumpsuit driving each look), not just a swapped scarf. Different mood lever per outfit when possible — e.g., one structured, one relaxed, one playful — to give the scorer real choices.
-   e) PATTERN ECHO CAP — anti-matchy-matchy: a statement print should appear ONCE per outfit, not three times. Within a single outfit, NEVER include 2+ items sharing the same Pattern when that pattern is "animal-print", "floral", "polka-dot", "graphic", "embellished", "abstract", or "camo" — pick ONE leopard piece (top OR shoes OR bag OR belt), not a leopard top AND leopard shoes AND a leopard belt. EXCEPTION: "striped" or "plaid" can appear on at most TWO items, and only when they're a deliberate top + bottom suit-style pairing (e.g., plaid blazer + plaid trousers), never spread across accessories. Solid is exempt. The Rule 12b "mix patterns" preset still requires ≥2 non-solid items, but they must be DIFFERENT patterns (leopard top + plaid skirt = mix; leopard top + leopard shoes = matchy).
+   d) PATTERN ECHO CAP — anti-matchy-matchy: a statement print should appear ONCE per outfit, not three times. Within a single outfit, NEVER include 2+ items sharing the same Pattern when that pattern is "animal-print", "floral", "polka-dot", "graphic", "embellished", "abstract", or "camo" — pick ONE leopard piece (top OR shoes OR bag OR belt), not a leopard top AND leopard shoes AND a leopard belt. EXCEPTION: "striped" or "plaid" can appear on at most TWO items, and only when they're a deliberate top + bottom suit-style pairing (e.g., plaid blazer + plaid trousers), never spread across accessories. Solid is exempt. The Rule 12b "mix patterns" preset still requires ≥2 non-solid items, but they must be DIFFERENT patterns (leopard top + plaid skirt = mix; leopard top + leopard shoes = matchy).
 19. SHOE × BOTTOM PROPORTIONS (hard-no combos that look bad regardless of occasion):
    - TALL-SHAFT BOOTS (subcategory="knee-boots" OR Shoe height in ["knee", "over-knee"] — covers cowboy/western boots with tall shafts, riding boots, etc.) never with bottom_fit "wide-leg" / "flared" / "bootcut" / "tapered" — pant leg can't fit over the shaft or eats the boot. (Midi skirts are FINE with tall boots — boho/Western/riding-boot styling is a legitimate look.)
    - ANKLE BOOTS (subcategory="ankle-boots") never with pants_length "ankle-crop" — the hem-on-boot-shaft creates a double horizontal that visually amputates the leg. Never with bottom_fit "flared" / "bootcut" + pants_length "full" — flare buries the boot.
@@ -1041,7 +1081,7 @@ ROTATION: Keep the wardrobe moving. Each item shows a wear-frequency signal ("Ne
 
 Wardrobe gap: before suggesting one, count what the user ALREADY has per category. Don't suggest outerwear if they have any jackets; don't suggest a dress if they have dresses. Set to null when the wardrobe is covered.
 
-Return exactly 3 outfits in the "outfits" array. For each outfit:
+Return exactly 1 outfit in the "outfits" array (single-item array). For the outfit:
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? "use masculine-coded language: \"sharp\", \"crisp\", \"clean line\", \"intentional\", \"grounded\". Avoid \"chic\", \"feminine\", \"flowy\"." : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
@@ -1065,9 +1105,10 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
       // Gemini 3 Flash with SHALLOW thinking (thinkingBudget: 3072) +
-      // 3-outfit generation. Variety across "Show me another" taps
-      // comes from the 2x jitter in the subset sampler; quality
-      // comes from server-side best-of-3 scoring downstream.
+      // single-outfit generation. Variety across "Show me another"
+      // taps comes from the RECENTLY SHOWN ban list; quality comes
+      // from the model's full attention on one composition rather
+      // than splitting across competing candidates.
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
@@ -1588,43 +1629,54 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
 
       // Auto-inject shoes when the outfit is non-at-home but missing them
       // and the wardrobe has shoes available. The AI skips shoes about as
-      // often as it skips jackets. Match the current occasion's vibe via
-      // the shoe's occasions array; fall back to any shoe.
+      // often as it skips jackets. Inject from the PRE-FILTERED pool
+      // (promptItems) so the injection naturally respects occasion
+      // bans (no sneakers at work, no open-toe in rain, etc.). If the
+      // pre-filtered pool has no shoes, fall back to any wardrobe shoe
+      // — graceful degrade rather than empty.
       if (
         occasion !== "at-home" &&
         !stripped.some((i) => i.category === "shoes")
       ) {
+        const filteredShoes = promptItems.filter(
+          (i) => i.category === "shoes"
+        );
         const availableShoes = items.filter(
           (i) => i.category === "shoes" && !i.is_stored
         );
-        if (availableShoes.length > 0) {
-          const occasionMatches = availableShoes.filter((s) =>
+        const pool = filteredShoes.length > 0 ? filteredShoes : availableShoes;
+        if (pool.length > 0) {
+          const occasionMatches = pool.filter((s) =>
             Array.isArray(s.occasions) && s.occasions.includes(occasion as Occasion)
           );
-          const best = occasionMatches[0] ?? availableShoes[0];
+          const best = occasionMatches[0] ?? pool[0];
           stripped = [...stripped, best];
           fixes.push(`injected shoes: ${best.subcategory ?? "shoes"}`);
         }
       }
 
       // Auto-inject a bag for every occasion except at-home and outdoor
-      // (matches Rule 11). Same fallback pattern as shoes — prefer one
-      // whose occasions array matches the current occasion, otherwise
-      // grab any non-stored bag. Skips silently if the wardrobe has
-      // no bags at all (Rule 11 explicitly allows that).
+      // (matches Rule 11). Same pre-filter-first pattern as shoes —
+      // pull from promptItems so an auto-injected bag at a formal /
+      // date occasion isn't a casual canvas tote that the main filter
+      // would later drop.
       if (
         occasion !== "at-home" &&
         occasion !== "outdoor" &&
         !stripped.some((i) => i.category === "bag")
       ) {
+        const filteredBags = promptItems.filter(
+          (i) => i.category === "bag"
+        );
         const availableBags = items.filter(
           (i) => i.category === "bag" && !i.is_stored
         );
-        if (availableBags.length > 0) {
-          const occasionMatches = availableBags.filter((b) =>
+        const pool = filteredBags.length > 0 ? filteredBags : availableBags;
+        if (pool.length > 0) {
+          const occasionMatches = pool.filter((b) =>
             Array.isArray(b.occasions) && b.occasions.includes(occasion as Occasion)
           );
-          const best = occasionMatches[0] ?? availableBags[0];
+          const best = occasionMatches[0] ?? pool[0];
           stripped = [...stripped, best];
           fixes.push(`injected bag: ${best.subcategory ?? "bag"}`);
         }
@@ -1641,18 +1693,31 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
         occasion !== "outdoor" &&
         !stripped.some((i) => i.category === "accessory")
       ) {
-        const availableAccessories = items.filter((i) => {
-          if (i.category !== "accessory" || i.is_stored) return false;
-          // Hat is forbidden at work per Rule 11.
+        // Pre-filter-first injection — same pattern as shoes / bag.
+        // Pulls from promptItems so the injection respects occasion
+        // bans (e.g. baseball cap at work, casual hat silhouette at
+        // formal). Falls back to the full wardrobe when the
+        // pre-filtered pool is empty.
+        const filteredAccessories = promptItems.filter((i) => {
+          if (i.category !== "accessory") return false;
           if (occasion === "work" && i.subcategory === "hat") return false;
           return true;
         });
-        if (availableAccessories.length > 0) {
-          const occasionMatches = availableAccessories.filter((a) =>
+        const availableAccessories = items.filter((i) => {
+          if (i.category !== "accessory" || i.is_stored) return false;
+          if (occasion === "work" && i.subcategory === "hat") return false;
+          return true;
+        });
+        const pool =
+          filteredAccessories.length > 0
+            ? filteredAccessories
+            : availableAccessories;
+        if (pool.length > 0) {
+          const occasionMatches = pool.filter((a) =>
             Array.isArray(a.occasions) && a.occasions.includes(occasion as Occasion)
           );
-          const pool = occasionMatches.length > 0 ? occasionMatches : availableAccessories;
-          const best = pool[0];
+          const finalPool = occasionMatches.length > 0 ? occasionMatches : pool;
+          const best = finalPool[0];
           stripped = [...stripped, best];
           fixes.push(`injected accessory: ${best.subcategory ?? "accessory"}`);
         }
@@ -1811,6 +1876,35 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       /full[ -]?denim|all[ -]?denim|double[ -]?denim|denim[ -]?on[ -]?denim|canadian[ -]?tuxedo|tout en denim|total denim|denim sur denim/i.test(
         wishText
       );
+
+    // Mood-specific color/pattern detectors used by the validators
+    // below. Saturated brights cover the warm + cool sides of the
+    // bright spectrum (no neutrals, no muted earth tones). A "statement
+    // piece" qualifies on saturated color OR non-solid pattern OR an
+    // oversized fit (shape statement).
+    const SATURATED_BRIGHT_RE =
+      /\b(?:red|orange|yellow|fuchsia|magenta|pink|cobalt|royal|kelly|emerald|crimson|scarlet|tangerine|chartreuse|cyan|turquoise|coral|lime|electric|hot[- ]pink|cherry|mustard)\b/i;
+    const itemHasBright = (it: ClothingItem) =>
+      (it.colors ?? []).some((c) => SATURATED_BRIGHT_RE.test(c.name));
+    const itemHasStatement = (it: ClothingItem) => {
+      if (itemHasBright(it)) return true;
+      const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
+      if (ps.some((p) => p && p !== "solid")) return true;
+      if (it.fit === "oversized") return true;
+      return false;
+    };
+    const itemIsStructured = (it: ClothingItem) =>
+      it.subcategory === "blazer" ||
+      it.dress_silhouette === "sheath" ||
+      (it.category === "bottom" && it.subcategory === "trousers");
+
+    // Wardrobe-aware capabilities: each mood validator only fires
+    // when the wardrobe actually contains a compliant item, so a user
+    // with no bright pieces doesn't get an empty Energized result.
+    const activeWardrobe = items.filter((i) => !i.is_stored);
+    const wardrobeHasStructured = activeWardrobe.some(itemIsStructured);
+    const wardrobeHasBright = activeWardrobe.some(itemHasBright);
+    const wardrobeHasStatement = activeWardrobe.some(itemHasStatement);
 
     // Hex-based "is this item dark/near-black?" check. Accepts items
     // whose primary color is named black/jet/onyx/charcoal OR whose
@@ -2621,6 +2715,63 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           return false;
         }
       }
+      // Mood: Confident → require at least one structured/tailored
+      // piece (blazer, sheath dress, tailored trousers). Without one
+      // the outfit reads casual or boho, not confident. Wardrobe-aware:
+      // skip enforcement if the wardrobe lacks any structured piece.
+      if (mood === "confident" && wardrobeHasStructured) {
+        const hasStructured = s.items.some(itemIsStructured);
+        if (!hasStructured) {
+          drops.push({
+            ids: s._ids,
+            reason: "confident mood + no structured/tailored piece (blazer / sheath / tailored trouser)",
+          });
+          return false;
+        }
+      }
+      // Mood: Energized → require at least one saturated bright color.
+      // An all-neutral palette reads chill or cozy, not energized. The
+      // prompt rule explicitly says "no all-neutral palette."
+      if (mood === "energized" && wardrobeHasBright) {
+        const brightItem = s.items.find(itemHasBright);
+        if (!brightItem) {
+          drops.push({
+            ids: s._ids,
+            reason: "energized mood + all-neutral palette (no saturated bright in outfit)",
+          });
+          return false;
+        }
+      }
+      // Mood: Bold → require at least one statement piece (saturated
+      // color OR non-solid pattern OR oversized fit). Bold without a
+      // statement reads safe, not bold. Prompt rule: "No safe choices."
+      if (mood === "bold" && wardrobeHasStatement) {
+        const hasStatement = s.items.some(itemHasStatement);
+        if (!hasStatement) {
+          drops.push({
+            ids: s._ids,
+            reason: "bold mood + no statement piece (no bright color, pattern, or oversized fit)",
+          });
+          return false;
+        }
+      }
+      // Mood: Chill → no heels. Heels fight the relaxed-easy silhouette
+      // the prompt calls for. Other Chill rules (neutral palette,
+      // minimal accessories) are too aesthetic for a hard validator.
+      if (mood === "chill") {
+        const heeled = s.items.find(
+          (i) =>
+            i.category === "shoes" &&
+            (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
+        );
+        if (heeled) {
+          drops.push({
+            ids: s._ids,
+            reason: `chill mood + heeled shoe ("${heeled.name}")`,
+          });
+          return false;
+        }
+      }
       // (At-home scarf rules handled in the map phase via strip-instead-
       // of-drop; the filter doesn't need to re-check them here.)
       // Base completeness — this is structural, always enforced.
@@ -2793,46 +2944,26 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return true;
     });
 
-    // Dedupe hard-valid outfits. Exact-set dedup first, then fuzzy:
-    // two outfits sharing >=60% items (Jaccard index) are too similar —
-    // drop the second so the user sees visually different looks.
+    // Track which item-sets are already in final so admit-back paths
+    // (admitSoft, EMERGENCY FALLBACK) can't re-add the same outfit.
+    // The legacy exact-set + Jaccard dedup logic was removed 2026-05-08
+    // — with single-outfit generation, hardValid has at most 1 entry
+    // so cross-candidate dedup is a no-op.
     const seenSets = new Set<string>();
-    const exactDeduped = hardValid.filter((s) => {
+    const final: typeof hardValid = [];
+    for (const s of hardValid) {
       const key = [...s._ids].sort().join("|");
-      if (seenSets.has(key)) {
-        drops.push({ ids: s._ids, reason: "duplicate of another outfit" });
-        return false;
-      }
+      if (seenSets.has(key)) continue;
       seenSets.add(key);
-      return true;
-    });
-    const jaccard = (a: string[], b: string[]): number => {
-      const setB = new Set(b);
-      const intersection = a.filter((x) => setB.has(x)).length;
-      const union = new Set([...a, ...b]).size;
-      return union === 0 ? 0 : intersection / union;
-    };
-    const dedupedHard: typeof exactDeduped = [];
-    for (const s of exactDeduped) {
-      const tooSimilar = dedupedHard.some(
-        (kept) => jaccard(kept._ids, s._ids) >= 0.6
-      );
-      if (tooSimilar) {
-        drops.push({ ids: s._ids, reason: "too similar to another outfit" });
-        continue;
-      }
-      dedupedHard.push(s);
+      final.push(s);
     }
-
-    // If hard-valid outfits leave us with fewer than 3, admit soft-dropped
-    // outfits back with an appended styling tip. Base-warmth mismatches
-    // are the one soft bucket left (cold-without-outerwear is auto-injected
-    // upstream now).
-    const final = dedupedHard;
 
     const admitSoft = (bucket: typeof softMismatch) => {
       for (const { outfit: s, tip } of bucket) {
-        if (final.length >= 3) return;
+        // Single-outfit ship — admit at most one. Was >= 3 from the
+        // legacy 3-outfit architecture; under that, this would have
+        // been a "leave room for hard-valid picks" guard.
+        if (final.length >= 1) return;
         const key = [...s._ids].sort().join("|");
         if (seenSets.has(key)) continue;
         seenSets.add(key);
@@ -2992,6 +3123,56 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
           if (exposed) return false;
         }
 
+        // Pattern-echo cap (R18e). The main filter SOFT-drops these,
+        // which means the fallback used to admit them anyway → leopard
+        // top + leopard shoes + leopard belt slipped through. Hard-
+        // reject 2+ items sharing a statement pattern. Striped/plaid
+        // get a pass when they're a deliberate top+bottom suit pairing.
+        {
+          const STATEMENT_PATTERNS = new Set<string>([
+            "animal-print",
+            "floral",
+            "polka-dot",
+            "graphic",
+            "embellished",
+            "abstract",
+            "camo",
+          ]);
+          const SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
+          const patternCount = new Map<string, ClothingItem[]>();
+          for (const it of s.items) {
+            const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
+            for (const p of ps) {
+              if (!p || p === "solid") continue;
+              const list = patternCount.get(p) ?? [];
+              list.push(it);
+              patternCount.set(p, list);
+            }
+          }
+          for (const [p, list] of patternCount) {
+            if (list.length < 2) continue;
+            if (STATEMENT_PATTERNS.has(p)) return false;
+            if (SUIT_PATTERNS.has(p)) {
+              const cats = new Set(list.map((i) => i.category));
+              const isSuitPair =
+                list.length === 2 && cats.has("top") && cats.has("bottom");
+              if (!isSuitPair) return false;
+            }
+          }
+        }
+
+        // Denim-on-denim (R4c). Soft-dropped in main filter, used to
+        // sneak through here. 2+ items with denim material is the
+        // Canadian-tuxedo look — block by default; allow only when
+        // user opted in via STYLE DIRECTION ("full denim", etc.).
+        if (!wantsDenimOnDenim) {
+          const denimItems = s.items.filter((i) => {
+            const mats = Array.isArray(i.material) ? i.material : [i.material];
+            return mats.some((m) => m === "denim");
+          });
+          if (denimItems.length >= 2) return false;
+        }
+
         return true;
       };
       const candidate = mapped.find(isStructurallyComplete);
@@ -3024,80 +3205,17 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       );
     }
 
-    // Best-of-3 scoring. The AI returns 3 distinct outfits; we score
-    // each one on coherence signals the post-parse rules can't catch
-    // (color palette tightness, pattern restraint, formality fit,
-    // item-count balance, material variety) and ship the highest-
-    // scoring one. The other two stay invisible to the user — they
-    // exist purely so the scorer has real choices.
-    const NEUTRAL_FAMILIES = new Set(["black", "white", "gray", "beige", "brown"]);
-    const scoreOutfit = (its: ClothingItem[]): number => {
-      let score = 100;
-
-      // Item count: ideal 4-6 head-to-toe pieces.
-      const n = its.length;
-      if (n >= 4 && n <= 6) score += 12;
-      else if (n === 3) score -= 4;
-      else if (n === 7) score -= 6;
-      else score -= 14;
-
-      // Color palette: count distinct color families across all
-      // visible colors. Tighter palette = more polished.
-      const families = new Set<string>();
-      for (const it of its) {
-        for (const c of it.colors ?? []) {
-          if (c?.hex) families.add(colorFamily(c.hex));
-        }
-      }
-      if (families.size <= 2) score += 18;
-      else if (families.size === 3) score += 10;
-      else if (families.size === 4) score += 0;
-      else score -= 12;
-
-      // Pattern restraint: one statement print is the sweet spot.
-      const patterned = its.filter((i) => {
-        const pats = Array.isArray(i.pattern) ? i.pattern : [i.pattern];
-        return pats.some((p) => p && p !== "solid");
-      });
-      if (patterned.length === 1) score += 10;
-      else if (patterned.length === 0) score += 4;
-      else if (patterned.length === 2) score -= 6;
-      else score -= 16;
-
-      // Anti-bland: every item solid + neutral palette reads flat.
-      const allNeutral = [...families].every((f) => NEUTRAL_FAMILIES.has(f));
-      if (patterned.length === 0 && allNeutral) score -= 8;
-
-      // Formality fit.
-      const expected = OCCASION_FORMALITY_BANDS[occasion] ?? [];
-      if (expected.length > 0) {
-        let matches = 0;
-        for (const it of its) {
-          const fs = Array.isArray(it.formality) ? it.formality : [it.formality];
-          if (fs.some((f) => f && expected.includes(f))) matches++;
-        }
-        score += matches * 2;
-      }
-
-      // Material variety (texture play).
-      const mats = new Set<string>();
-      for (const it of its) {
-        const m = Array.isArray(it.material) ? it.material : [it.material];
-        for (const x of m) if (x) mats.add(x);
-      }
-      if (mats.size >= 3) score += 6;
-      else if (mats.size === 2) score += 4;
-
-      return score;
-    };
-
+    // Single-outfit shipping order. With one outfit per call (vs the
+    // legacy best-of-3 path), the scorer was a no-op — sorting one
+    // element doesn't choose anything. Removed 2026-05-08 to free
+    // ~70 lines of vestigial code. The remaining sort just makes
+    // sure relaxed-flag outfits (admitted via EMERGENCY FALLBACK or
+    // the response-edge safety net) sit AFTER any genuinely hard-
+    // valid pick that might have squeaked through.
     const sortedFinal = [...final].sort((a, b) => {
-      // Hard-valid outfits beat relaxed ones first; within each
-      // bucket, sort by coherence score descending.
       const aRelaxed = (a as { relaxed?: boolean }).relaxed === true ? 1 : 0;
       const bRelaxed = (b as { relaxed?: boolean }).relaxed === true ? 1 : 0;
-      if (aRelaxed !== bRelaxed) return aRelaxed - bRelaxed;
-      return scoreOutfit(b.items) - scoreOutfit(a.items);
+      return aRelaxed - bRelaxed;
     });
 
     // Final structural sanity check — Rule 2: overalls require a top
@@ -3114,23 +3232,136 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return s.items.some((i) => i.category === "top");
     });
 
-    // Warmth-floor check — Rule 5 spirit. A sleeveless canvas vest
-    // satisfies the letter of "must include outerwear" but leaves the
-    // wearer's arms exposed — at <12°C outdoor, that's not warm
-    // enough. Wardrobe-aware: only enforced when the user owns a
-    // sleeved outerwear alternative, so wardrobes with only
-    // sleeveless vests still get a result instead of empty state.
-    if (typeof temp === "number" && temp < 12 && occasion === "outdoor") {
-      const wardrobeHasSleevedOuterwear = items.some(
-        (i) =>
-          i.category === "outerwear" && i.sleeve_length !== "sleeveless"
-      );
-      if (wardrobeHasSleevedOuterwear) {
-        structurallyValid = structurallyValid.filter((s) => {
-          const outer = s.items.find((i) => i.category === "outerwear");
-          if (!outer) return true;
-          return outer.sleeve_length !== "sleeveless";
-        });
+    // Warmth-floor check — Rule 5 spirit, refined to preserve the
+    // layered look (sleeveless vest UNDER a coat is encouraged, not
+    // blocked). Logic:
+    //   - 0 outerwear: not our problem here (auto-injection upstream)
+    //   - 2+ outerwear (vest + coat): always allowed — the layered
+    //     winter look the prompt explicitly encourages
+    //   - 1 outerwear, sleeved: allowed
+    //   - 1 outerwear, sleeveless, warmth_rating >= 4: allowed (a
+    //     heavy sherpa or quilted vest is dense enough to stand alone)
+    //   - 1 outerwear, sleeveless, warmth_rating < 4: blocked — a
+    //     thin canvas vest alone at cold temp is the actual mistake
+    //
+    // Effective temperature shifts by user's temperature_sensitivity
+    // setting (runs-cold = -3°C, runs-hot = +3°C) so the runs-cold
+    // user actually gets warm outfits, not just told the AI nicely.
+    //
+    // Tiered thresholds:
+    //   - Outdoor + effective <12°C: enforce
+    //   - Indoor-leaning (not at-home) + effective <8°C: enforce
+    //   - At-home: never enforced (you're inside)
+    //
+    // Wardrobe-aware: skip if the user owns no qualifying alternative.
+    if (typeof temp === "number" && occasion !== "at-home") {
+      const tempShift =
+        sensitivity === "runs-cold" ? -3 : sensitivity === "runs-hot" ? 3 : 0;
+      const effectiveTemp = temp + tempShift;
+      const isOutdoor = occasion === "outdoor";
+      const enforceCold =
+        (isOutdoor && effectiveTemp < 12) ||
+        (!isOutdoor && effectiveTemp < 8);
+      if (enforceCold) {
+        const wardrobeHasWarmAlternative = items.some(
+          (i) =>
+            !i.is_stored &&
+            i.category === "outerwear" &&
+            (i.sleeve_length !== "sleeveless" ||
+              (i.warmth_rating ?? 0) >= 4)
+        );
+        if (wardrobeHasWarmAlternative) {
+          structurallyValid = structurallyValid.filter((s) => {
+            const outerwears = s.items.filter(
+              (i) => i.category === "outerwear"
+            );
+            if (outerwears.length === 0) return true;
+            if (outerwears.length >= 2) return true; // layered look
+            const single = outerwears[0];
+            if (single.sleeve_length !== "sleeveless") return true;
+            return (single.warmth_rating ?? 0) >= 4;
+          });
+        }
+      }
+    }
+
+    // Pattern-echo cap — Rule 18e. The main filter (line ~2349) does
+    // a soft-drop on this, which means with single-outfit generation
+    // the EMERGENCY FALLBACK admits the violator anyway. Hard-drop at
+    // the response edge: 2+ items sharing a statement pattern
+    // (animal-print, floral, polka-dot, graphic, embellished,
+    // abstract, camo) is matchy-matchy, not stylist. Striped/plaid
+    // get a pass when they're a deliberate top+bottom suit pairing.
+    {
+      const STATEMENT_PATTERNS = new Set<string>([
+        "animal-print",
+        "floral",
+        "polka-dot",
+        "graphic",
+        "embellished",
+        "abstract",
+        "camo",
+      ]);
+      const SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
+      structurallyValid = structurallyValid.filter((s) => {
+        const patternCount = new Map<string, ClothingItem[]>();
+        for (const it of s.items) {
+          const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
+          for (const p of ps) {
+            if (!p || p === "solid") continue;
+            const list = patternCount.get(p) ?? [];
+            list.push(it);
+            patternCount.set(p, list);
+          }
+        }
+        for (const [p, list] of patternCount) {
+          if (list.length < 2) continue;
+          if (STATEMENT_PATTERNS.has(p)) return false;
+          if (SUIT_PATTERNS.has(p)) {
+            const cats = new Set(list.map((i) => i.category));
+            const isSuitPair =
+              list.length === 2 && cats.has("top") && cats.has("bottom");
+            if (!isSuitPair) return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    // SAFETY NET — never ship empty. Two layers:
+    //   (1) If response-edge validators rejected but sortedFinal had
+    //       a candidate, ship that with the relaxed flag.
+    //   (2) If sortedFinal is also empty (entire pipeline dropped the
+    //       outfit — e.g. hard-rule violation like blazer-over-oversized-
+    //       cardigan, or anchor-exclusion starved the wardrobe so AI
+    //       produced something structurally broken), fall back to the
+    //       AI's raw mapped output. The user gets SOMETHING they can
+    //       swap items in or regenerate from, rather than a blank
+    //       screen.
+    // Quality tradeoff: occasionally ships a structurally-questionable
+    // outfit when everything else failed. The swap/refine flow gives
+    // the user the recovery path — much better UX than empty state.
+    // TODO(quality): add a server-side AI retry with explicit feedback
+    // ("your last outfit had X violating Y") before this safety net
+    // kicks in. Would cost +1 AI call on rejection. Worth it once
+    // we're confident the validators are stable.
+    if (structurallyValid.length === 0) {
+      if (sortedFinal.length > 0) {
+        const relaxed = { ...sortedFinal[0], relaxed: true };
+        structurallyValid = [relaxed];
+        console.log(
+          "[suggest] response-edge validators rejected; shipping relaxed fallback from sortedFinal"
+        );
+      } else if (mapped.length > 0) {
+        // Deepest fallback — the entire main-filter + emergency-fallback
+        // pipeline rejected. Ship the AI's raw output as-is so the user
+        // never sees blank. Add the relaxed flag for the validator/UI
+        // to know this was a degraded result.
+        const raw = { ...mapped[0], relaxed: true };
+        structurallyValid = [raw];
+        console.log(
+          "[suggest] entire pipeline rejected; shipping raw AI output as last-resort fallback"
+        );
       }
     }
 
@@ -3164,7 +3395,23 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       return false;
     };
     const rawGap = parsed.wardrobe_gap ?? null;
-    const wardrobe_gap = rawGap && gapMentionsOwnedCategory(rawGap) ? null : rawGap;
+    // Sanity-check the value — Gemini occasionally returns a template
+    // placeholder (e.g. "A_gap", "{wardrobe_gap}", "missing_item") instead
+    // of a real sentence. A real wardrobe-gap line is at least a few
+    // words. Anything that looks like an identifier (no spaces, short,
+    // snake_case / curly braces / template syntax) gets nulled.
+    const looksLikePlaceholder = (s: string): boolean => {
+      const trimmed = s.trim();
+      if (trimmed.length < 12) return true; // too short to be a sentence
+      if (!/\s/.test(trimmed)) return true; // no whitespace = identifier
+      if (/^[{<\[]/.test(trimmed)) return true; // template token
+      if (/^[a-z_]+$/i.test(trimmed)) return true; // snake_case only
+      return false;
+    };
+    const cleanedGap =
+      rawGap && !looksLikePlaceholder(rawGap) ? rawGap : null;
+    const wardrobe_gap =
+      cleanedGap && gapMentionsOwnedCategory(cleanedGap) ? null : cleanedGap;
 
     // Remember what we just showed so subsequent "Suggest" clicks bring
     // fresh combinations. Best-effort — a KV hiccup shouldn't block the

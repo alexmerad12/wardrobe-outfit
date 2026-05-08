@@ -627,10 +627,12 @@ function SuggestContent() {
             </Button>
           </div>
 
-          {/* Wardrobe gap suggestion from AI */}
+          {/* Wardrobe gap suggestion from AI — distinct from the
+              styling tip above. The AI flags missing staples here
+              (e.g. "A pointed-toe pump would finish this"). */}
           {wardrobeGap && (
             <div className="mt-2 border-t border-b border-border py-3">
-              <p className="editorial-label mb-1.5">{t("suggest.stylistTip")}</p>
+              <p className="editorial-label mb-1.5">{t("suggest.wardrobeGap")}</p>
               <p className="stylist-quote text-sm">{wardrobeGap}</p>
             </div>
           )}
