@@ -391,25 +391,38 @@ function WardrobePageInner() {
                 </Button>
               )}
             </div>
-            <div className="flex gap-2 shrink-0">
+            {/* Action buttons in select mode go icon-only — the Select all
+                toggle (CheckCheck) competes for horizontal space with the
+                count text, and label-bearing buttons (Outfit, Store) were
+                pushing "X selected" into truncation. Icons + aria-labels
+                stay accessible without crowding. */}
+            <div className="flex gap-1.5 shrink-0">
               <Button
-                size="sm"
-                className="gap-1.5"
+                size="icon"
                 disabled={selected.size < 2 || creatingOutfit}
                 onClick={openOutfitNameDialog}
+                aria-label={t("wardrobe.outfit")}
+                title={t("wardrobe.outfit")}
               >
                 <Combine className="h-4 w-4" />
-                {t("wardrobe.outfit")}
               </Button>
               <Button
-                size="sm"
+                size="icon"
                 variant="secondary"
-                className="gap-1.5"
                 disabled={selected.size === 0}
                 onClick={() => handleBulkStore(activeCategory !== "stored")}
+                aria-label={
+                  activeCategory === "stored"
+                    ? t("wardrobe.unstore")
+                    : t("wardrobe.store")
+                }
+                title={
+                  activeCategory === "stored"
+                    ? t("wardrobe.unstore")
+                    : t("wardrobe.store")
+                }
               >
                 <Archive className="h-4 w-4" />
-                {activeCategory === "stored" ? t("wardrobe.unstore") : t("wardrobe.store")}
               </Button>
               <Button
                 size="icon"
