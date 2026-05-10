@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 // import { GoogleSignInButton } from "@/components/google-signin-button";
-//   Hidden during beta — see login/page.tsx for the same comment.
+//   Hidden on /signup intentionally: Google sign-in here would let
+//   anyone with the URL bypass the invite-only beta gate by auto-
+//   creating a Supabase user. The /login page DOES show this button
+//   so existing users (including those who originally signed up via
+//   Google) can come back. Restore here only after launch when
+//   open signups are intended.
 import { AuthShell } from "@/components/auth-shell";
 import { useLocale } from "@/lib/i18n/use-locale";
 
