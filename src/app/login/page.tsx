@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleSignInButton } from "@/components/google-signin-button";
 import { AuthShell } from "@/components/auth-shell";
+import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 function LoginForm() {
@@ -43,7 +44,9 @@ function LoginForm() {
   return (
     <AuthShell eyebrow="Maison de garde-robe">
       <h2>{t("auth.welcomeBack")}</h2>
-      <p className="auth-sub">{t("auth.signInToLinette")}</p>
+      <p className="auth-sub">
+        <BrandedName template={t("auth.signInToLinette")} scriptClassName="text-lg" />
+      </p>
 
       <GoogleSignInButton next={next} variant="brand" />
 

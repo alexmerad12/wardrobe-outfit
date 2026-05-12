@@ -140,7 +140,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">
-            {t("onboarding.welcome")}
+            <BrandedName template={t("onboarding.welcome")} scriptClassName="text-4xl leading-none" />
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {t("onboarding.welcomeSub")}

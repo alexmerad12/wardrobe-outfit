@@ -28,7 +28,7 @@
   },
   "auth": {
     "welcomeBack": "Welcome back",
-    "signInToLinette": "Sign in to Linette",
+    "signInToLinette": "Sign in to {brand}",
     "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
@@ -62,7 +62,7 @@
     "welcomeNoSessionSub": "Ask your inviter to send a fresh link, or sign in below if you already have an account."
   },
   "install": {
-    "installLinette": "Install Linette",
+    "installLinette": "Install {brand}",
     "description": "Add Linette to your home screen for the best experience.",
     "installApp": "Install app",
     "androidInstruction": "Open the browser menu (⋮) and tap Install app or Add to Home screen.",
@@ -140,8 +140,8 @@
     "optional": "Optional - tap any that apply",
     "customWishPlaceholder": "Or type your own... (e.g. 'I want to wear my red boots')",
     "whatsOccasionShort": "What's the occasion?",
-    "linetteIsStyling": "Linette is styling",
-    "linetteIsPacking": "Linette is packing",
+    "linetteIsStyling": "{brand} is styling",
+    "linetteIsPacking": "{brand} is packing",
     "linetteStylingPhase1": "Browsing closet",
     "linetteStylingPhase2": "Mixing colours",
     "linetteStylingPhase3": "Sketching looks",
@@ -744,8 +744,8 @@
     "takePhoto": "Take photo",
     "chooseFromLibrary": "Choose from library",
     "fillInManually": "Fill in manually",
-    "linetteIsAdding": "Linette is adding {count} item…",
-    "linetteIsAddingPlural": "Linette is adding {count} items…",
+    "linetteIsAdding": "{brand} is adding {count} item…",
+    "linetteIsAddingPlural": "{brand} is adding {count} items…",
     "someUploadsNeedAttention": "Some uploads need attention",
     "uploadFailedCount": "{count} failed",
     "viewAll": "View all →",
@@ -993,7 +993,7 @@
     "signedInAs": "Signed in as"
   },
   "onboarding": {
-    "welcome": "Welcome to Linette",
+    "welcome": "Welcome to {brand}",
     "welcomeSub": "Just a few quick questions to set things up.",
     "step": "Step {current} of {total}",
     "languageTitle": "Pick your language",

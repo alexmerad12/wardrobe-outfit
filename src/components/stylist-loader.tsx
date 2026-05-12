@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Scissors, Ruler, Palette, Pencil, Shirt, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 const TOOLS = [Scissors, Ruler, Palette, Shirt, Pencil, Sparkles];
@@ -71,7 +72,11 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
         )}
       />
       <span className="text-sm inline-flex items-baseline">
-        {effectiveLabel}
+        {effectiveLabel.includes("{brand}") ? (
+          <BrandedName template={effectiveLabel} />
+        ) : (
+          effectiveLabel
+        )}
         <span className="inline-flex ml-0.5">
           <span className="animate-[fade_1.5s_ease-in-out_infinite]">.</span>
           <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.25s]">.</span>

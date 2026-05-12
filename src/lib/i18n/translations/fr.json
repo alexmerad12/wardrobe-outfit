@@ -28,7 +28,7 @@
   },
   "auth": {
     "welcomeBack": "Bon retour !",
-    "signInToLinette": "Connecte-toi à Linette",
+    "signInToLinette": "Connecte-toi à {brand}",
     "email": "Email",
     "password": "Mot de passe",
     "signIn": "Se connecter",
@@ -62,7 +62,7 @@
     "welcomeNoSessionSub": "Demande à la personne qui t'a invité d'envoyer un nouveau lien, ou connecte-toi ci-dessous si tu as déjà un compte."
   },
   "install": {
-    "installLinette": "Installe Linette",
+    "installLinette": "Installe {brand}",
     "description": "Ajoute Linette à ton écran d'accueil pour la meilleure expérience.",
     "installApp": "Installer l'app",
     "androidInstruction": "Ouvre le menu du navigateur (⋮) et appuie sur Installer l'app ou Ajouter à l'écran d'accueil.",
@@ -140,8 +140,8 @@
     "optional": "Optionnel - tape celles qui s'appliquent",
     "customWishPlaceholder": "Ou écris ton idée... (ex : « Je veux porter mes bottes rouges »)",
     "whatsOccasionShort": "Quelle occasion ?",
-    "linetteIsStyling": "Linette compose",
-    "linetteIsPacking": "Linette compose ta liste",
+    "linetteIsStyling": "{brand} compose",
+    "linetteIsPacking": "{brand} compose ta liste",
     "linetteStylingPhase1": "Exploration",
     "linetteStylingPhase2": "Couleurs",
     "linetteStylingPhase3": "Silhouettes",
@@ -749,8 +749,8 @@
     "takePhoto": "Prendre une photo",
     "chooseFromLibrary": "Choisir dans la galerie",
     "fillInManually": "Remplir manuellement",
-    "linetteIsAdding": "Linette ajoute {count} item…",
-    "linetteIsAddingPlural": "Linette ajoute {count} items…",
+    "linetteIsAdding": "{brand} ajoute {count} item…",
+    "linetteIsAddingPlural": "{brand} ajoute {count} items…",
     "someUploadsNeedAttention": "Certains téléchargements nécessitent ton attention",
     "uploadFailedCount": "{count} échoué",
     "viewAll": "Tout voir →",
@@ -998,7 +998,7 @@
     "signedInAs": "Connecté en tant que"
   },
   "onboarding": {
-    "welcome": "Bienvenue dans Linette",
+    "welcome": "Bienvenue dans {brand}",
     "welcomeSub": "Quelques questions rapides pour commencer.",
     "step": "Étape {current} sur {total}",
     "languageTitle": "Choisis ta langue",

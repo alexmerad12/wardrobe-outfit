@@ -17,6 +17,7 @@ import { convertTemp } from "@/lib/temperature";
 import { getLocalDateString } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
+import { BrandedName } from "@/components/brand/branded-name";
 import { cn } from "@/lib/utils";
 
 interface TodayOutfit {
@@ -233,28 +234,22 @@ export default function HomePage() {
     setTodayItems([]);
   }
 
-  // Greeting template still contains the `{brand}` placeholder so we
-  // can render "Linette" as a separately-styled span (Parisienne
-  // script) — feels like her handwritten signature on every visit
-  // rather than a typed brand mention.
+  // Greeting template carries the `{brand}` placeholder so BrandedName
+  // can render "Linette" as Parisienne script — feels like her
+  // handwritten signature on every visit rather than a typed mention.
   const greetingTemplate = (() => {
     const hour = new Date().getHours();
     if (hour < 12) return t("home.goodMorning");
     if (hour < 18) return t("home.goodAfternoon");
     return t("home.goodEvening");
   })();
-  const [greetingPrefix, greetingSuffix = ""] = greetingTemplate.split("{brand}");
 
   return (
     <div className="mx-auto max-w-md px-4 pt-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-[family-name:var(--font-heading)] text-3xl font-medium tracking-tight">
-          {greetingPrefix}
-          <span className="font-[family-name:var(--font-script)] text-4xl font-normal leading-none">
-            Linette
-          </span>
-          {greetingSuffix}
+          <BrandedName template={greetingTemplate} scriptClassName="text-4xl leading-none" />
         </h1>
         <p className="text-muted-foreground mt-0.5">
           {todayOutfit

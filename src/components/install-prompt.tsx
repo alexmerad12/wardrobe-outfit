@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, Share2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 type BeforeInstallPromptEvent = Event & {
@@ -66,7 +67,9 @@ export function InstallPrompt() {
           <Download className="h-4 w-4" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-semibold">{t("install.installLinette")}</h3>
+          <h3 className="text-sm font-semibold">
+            <BrandedName template={t("install.installLinette")} scriptClassName="text-base" />
+          </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {t("install.description")}
           </p>
