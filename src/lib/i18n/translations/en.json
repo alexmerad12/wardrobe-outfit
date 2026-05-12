@@ -94,9 +94,9 @@
     "altClothingItem": "Clothing item"
   },
   "home": {
-    "goodMorning": "Morning from Linette",
-    "goodAfternoon": "Hello from Linette",
-    "goodEvening": "Evening from Linette",
+    "goodMorning": "Morning from {brand}",
+    "goodAfternoon": "Hello from {brand}",
+    "goodEvening": "Evening from {brand}",
     "allSet": "You're all set for today.",
     "letsFindOutfit": "Let's find your perfect outfit today.",
     "todaysOutfit": "Your look",

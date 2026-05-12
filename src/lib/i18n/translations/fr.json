@@ -94,9 +94,9 @@
     "altClothingItem": "Vêtement"
   },
   "home": {
-    "goodMorning": "Bon matin de Linette",
-    "goodAfternoon": "Bonjour de Linette",
-    "goodEvening": "Bonsoir de Linette",
+    "goodMorning": "Bon matin de {brand}",
+    "goodAfternoon": "Bonjour de {brand}",
+    "goodEvening": "Bonsoir de {brand}",
     "allSet": "Tu es prête pour aujourd'hui.",
     "letsFindOutfit": "Trouvons ta tenue parfaite du jour.",
     "todaysOutfit": "Ta tenue",
