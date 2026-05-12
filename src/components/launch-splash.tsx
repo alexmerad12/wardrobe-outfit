@@ -209,7 +209,7 @@ function SplashMonogram() {
         dominantBaseline="central"
         fontFamily="'Parisienne', 'Snell Roundhand', cursive"
         fontWeight={400}
-        fontSize={180}
+        fontSize={200}
         fill="#000000"
       >
         L
