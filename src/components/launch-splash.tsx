@@ -197,8 +197,10 @@ function SplashMonogram() {
       </g>
       {/* The Parisienne L — fades + settles in from a slightly small
           scale so it lands on the disc like an inked signature.
-          Script glyphs sit smaller relative to their nominal fontSize
-          than Bodoni, so bumped to 240 to fill the disc proportionally. */}
+          Parisienne's L has both an upper loop AND a lower curl, so
+          its total vertical extent is much larger than cap height —
+          fontSize 180 keeps the flourishes inside the disc with
+          breathing room. */}
       <text
         className="ls-c"
         x={135}
@@ -207,7 +209,7 @@ function SplashMonogram() {
         dominantBaseline="central"
         fontFamily="'Parisienne', 'Snell Roundhand', cursive"
         fontWeight={400}
-        fontSize={240}
+        fontSize={180}
         fill="#000000"
       >
         L
