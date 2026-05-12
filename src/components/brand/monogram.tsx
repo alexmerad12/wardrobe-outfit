@@ -131,7 +131,7 @@ export function Monogram({
           const y = 100 + Math.sin(((a - 90) * Math.PI) / 180) * 84;
           return <circle key={a} cx={x} cy={y} r={1.4} fill={color} opacity={0.8} />;
         })}
-        <BodoniC size={95} color={color} letter={letter} {...glyphProps} />
+        <BodoniC size={78} color={color} letter={letter} {...glyphProps} />
       </svg>
     );
   }
