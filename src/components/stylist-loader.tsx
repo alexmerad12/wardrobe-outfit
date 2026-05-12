@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Scissors, Ruler, Palette, Pencil, Shirt, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 const TOOLS = [Scissors, Ruler, Palette, Shirt, Pencil, Sparkles];
@@ -17,7 +16,7 @@ interface StylistLoaderProps {
   // calls keep showing motion ("still polishing") instead of resetting
   // to "Reviewing wardrobe" (would feel dishonest) or freezing on
   // "Final touches" (would feel stuck). Falls back to `label` /
-  // linetteIsStyling when omitted.
+  // the generic "Styling" status when omitted.
   phases?: string[];
 }
 
@@ -40,7 +39,7 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
   }, [phases, phaseIndex]);
 
   const effectiveLabel =
-    phases && phases.length > 0 ? phases[Math.min(phaseIndex, phases.length - 1)] : (label ?? t("suggest.linetteIsStyling"));
+    phases && phases.length > 0 ? phases[Math.min(phaseIndex, phases.length - 1)] : (label ?? t("suggest.styling"));
 
   useEffect(() => {
     // Cycle: visible ~310ms, fade out ~140ms, swap
@@ -72,18 +71,7 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
         )}
       />
       <span className="text-sm inline-flex items-baseline">
-        {/* Wrap the label in an inner span so the BrandedName's
-            prefix/suffix text nodes aren't flex children of the
-            outer container — inline-flex collapses leading/trailing
-            whitespace between adjacent text nodes, which would eat
-            the space between "Linette" and "is packing". */}
-        <span>
-          {effectiveLabel.includes("{brand}") ? (
-            <BrandedName template={effectiveLabel} scriptClassName="text-base leading-none" />
-          ) : (
-            effectiveLabel
-          )}
-        </span>
+        {effectiveLabel}
         <span className="inline-flex ml-0.5">
           <span className="animate-[fade_1.5s_ease-in-out_infinite]">.</span>
           <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.25s]">.</span>

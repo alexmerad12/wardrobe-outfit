@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { ClothingItem, Category } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
-import { BrandedName } from "@/components/brand/branded-name";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -797,17 +796,9 @@ function PendingStrip({
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
               <span className="text-sm font-medium truncate">
-                {processing > 0 ? (
-                  <BrandedName
-                    template={t(
-                      processing === 1 ? "wardrobe.linetteIsAdding" : "wardrobe.linetteIsAddingPlural",
-                      { count: processing }
-                    )}
-                    scriptClassName="text-base leading-none"
-                  />
-                ) : (
-                  t("wardrobe.someUploadsNeedAttention")
-                )}
+                {processing > 0
+                  ? t(processing === 1 ? "wardrobe.addingCount" : "wardrobe.addingCountPlural", { count: processing })
+                  : t("wardrobe.someUploadsNeedAttention")}
                 {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
               </span>
             </div>
