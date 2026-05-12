@@ -61,7 +61,7 @@ export default function LaunchPage() {
               <Monogram
                 variant="bordered-solid"
                 size={260}
-                letter="C"
+                letter="L"
                 color={BRAND.ink}
                 innerFill={BRAND.ivory}
                 fontFamily={BRAND.bodoni}
