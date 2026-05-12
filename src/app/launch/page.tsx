@@ -95,10 +95,6 @@ export default function LaunchPage() {
           </section>
 
           <footer className="launch-foot">
-            <span>depuis MMXXVI</span>
-            <span className="dot">·</span>
-            <span>une bonne tenue</span>
-            <span className="dot">·</span>
             <Link href="/privacy" className="foot-link">Privacy</Link>
             <span className="dot">·</span>
             <Link href="/terms" className="foot-link">Terms</Link>

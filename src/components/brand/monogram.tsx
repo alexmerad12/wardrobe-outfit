@@ -178,7 +178,7 @@ export function Monogram({
           style={{ textTransform: "uppercase" }}
         >
           <textPath href={`#${ringId}`} startOffset="0">
-            Linette · Maison de Garde-Robe · Paris · MMXXVI ·
+            Linette · Paris ·
           </textPath>
         </text>
         <svg x={10} y={10} width={200} height={200} viewBox="0 0 200 200">
