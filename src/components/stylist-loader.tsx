@@ -72,11 +72,18 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
         )}
       />
       <span className="text-sm inline-flex items-baseline">
-        {effectiveLabel.includes("{brand}") ? (
-          <BrandedName template={effectiveLabel} />
-        ) : (
-          effectiveLabel
-        )}
+        {/* Wrap the label in an inner span so the BrandedName's
+            prefix/suffix text nodes aren't flex children of the
+            outer container — inline-flex collapses leading/trailing
+            whitespace between adjacent text nodes, which would eat
+            the space between "Linette" and "is packing". */}
+        <span>
+          {effectiveLabel.includes("{brand}") ? (
+            <BrandedName template={effectiveLabel} scriptClassName="text-base leading-none" />
+          ) : (
+            effectiveLabel
+          )}
+        </span>
         <span className="inline-flex ml-0.5">
           <span className="animate-[fade_1.5s_ease-in-out_infinite]">.</span>
           <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.25s]">.</span>
