@@ -26,6 +26,10 @@ const BRAND = {
   hairline: "rgba(0,0,0,0.18)",
   hairlineHi: "rgba(0,0,0,0.45)",
   bodoni: '"Bodoni Moda", "Bodoni 72", "Didot", serif',
+  // Pinyon Script — Spencerian penmanship for the brand L mark.
+  // Bodoni still owns the LINETTE wordmark beneath; script is only
+  // the handwritten L inside the disc.
+  script: '"Pinyon Script", "Snell Roundhand", cursive',
 } as const;
 
 export default function LaunchPage() {
@@ -64,7 +68,7 @@ export default function LaunchPage() {
                 letter="L"
                 color={BRAND.ink}
                 innerFill={BRAND.ivory}
-                fontFamily={BRAND.bodoni}
+                fontFamily={BRAND.script}
                 frame="rgba(0,0,0,0.92)"
               />
             </div>
