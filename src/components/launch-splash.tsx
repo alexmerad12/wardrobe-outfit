@@ -12,10 +12,10 @@
 //            LINETTE will land (scaleX 0 → 1, 320ms).
 //   - t=120  Disc border ink-draws via SVG stroke-dasharray (700ms).
 //            This is the signature couturier-signature moment.
-//   - t=320  C glyph fades in + settles from scale 0.94 (480ms).
-//   - t=520  LINETTE letter-spacing tightens 0.55em → 0.14em with
-//            opacity fade-in (700ms). The "fashion house masthead"
-//            cadence (Vogue, Dior).
+//   - t=320  L glyph fades in + settles from scale 0.94 (480ms).
+//   - t=520  Linette wordmark (Parisienne script) opacity-fades + nudges
+//            up 4px (700ms). Script glyphs can't have letter-spacing
+//            animated without breaking the joins between letters.
 //   - t=720  Top tag fades in (440ms).
 //
 // Hold (1000ms): static brand moment.
@@ -119,7 +119,7 @@ export function LaunchSplash() {
             <div className="ls-brand">
               <div className="ls-rules">
                 <span className="ls-rule ls-rule-left" />
-                <h1 className="ls-name">LINETTE</h1>
+                <h1 className="ls-name">Linette</h1>
                 <span className="ls-rule ls-rule-right" />
               </div>
             </div>
@@ -302,8 +302,8 @@ const SPLASH_CSS = `
     100% { opacity: 1; transform: scale(1); }
   }
   @keyframes ls-name-in {
-    0%   { opacity: 0; letter-spacing: 0.55em; }
-    100% { opacity: 1; letter-spacing: 0.14em; }
+    0%   { opacity: 0; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
   }
   @keyframes ls-fade-in {
     0%   { opacity: 0; }
@@ -409,17 +409,16 @@ const SPLASH_CSS = `
 
   .ls-name {
     margin: 0;
-    font-family: var(--font-heading, 'Bodoni Moda'), serif; font-weight: 400;
-    font-size: 42px; letter-spacing: 0.55em;
+    /* Parisienne script — same hand as the L inside the disc above.
+       No letter-spacing on a script (it breaks the joins between
+       glyphs). Larger font-size than the old Bodoni treatment to
+       compensate for Parisienne's smaller x-height. */
+    font-family: 'Parisienne', 'Snell Roundhand', cursive;
+    font-weight: 400;
+    font-size: 68px;
     color: #000000; line-height: 1;
-    /* The signature move: letter-spacing tightens from 0.55em to 0.14em
-       while the wordmark fades in. Reads as the masthead "settling"
-       into place. */
     opacity: 0;
     animation: ls-name-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 520ms forwards;
-    /* Compensate the layout-shift that letter-spacing animation causes
-       — keep the centerline stable by fixing the rendering. The font
-       still reflows but the visual effect is what matters. */
     white-space: nowrap;
   }
   /* Respect motion-reduction preference — drop all keyframes, just
