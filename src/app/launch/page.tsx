@@ -73,7 +73,7 @@ export default function LaunchPage() {
               />
             </div>
 
-            <h1 className="launch-wordmark">LINETTE</h1>
+            <h1 className="launch-wordmark">Linette</h1>
             <span className="launch-rule" />
             <p className="launch-tagline">
               <em>une garde-robe bien tenue</em>
@@ -199,10 +199,13 @@ const LAUNCH_CSS = `
   }
   .launch-wordmark {
     margin: 0;
-    font-family: ${BRAND.bodoni};
+    /* Parisienne script — same hand as the L inside the monogram disc.
+       No letter-spacing on a script (the join between letters is part
+       of the drawing). Bumped font-size vs the old Bodoni treatment
+       because script x-height reads smaller at the same px value. */
+    font-family: ${BRAND.script};
     font-weight: 400;
-    font-size: clamp(34px, 5.4vw, 64px);
-    letter-spacing: 0.22em;
+    font-size: clamp(56px, 9vw, 104px);
     color: ${BRAND.ink};
     line-height: 1;
   }
