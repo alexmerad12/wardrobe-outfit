@@ -803,6 +803,7 @@ function PendingStrip({
                       processing === 1 ? "wardrobe.linetteIsAdding" : "wardrobe.linetteIsAddingPlural",
                       { count: processing }
                     )}
+                    scriptClassName="text-base leading-none"
                   />
                 ) : (
                   t("wardrobe.someUploadsNeedAttention")
