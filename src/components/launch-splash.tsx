@@ -365,15 +365,18 @@ const SPLASH_CSS = `
     opacity: 0;
     animation: ls-fade-in 320ms ease-out 800ms forwards;
   }
-  /* The C glyph — fades + scales in after the disc starts filling.
+  /* The L glyph — fades + scales in after the disc starts filling.
      transform-box:fill-box + transform-origin:center makes the scale
      happen around the glyph's geometric center rather than the SVG
-     viewport origin. */
+     viewport origin. Duration is intentionally long (1100ms) with an
+     ease-in-out bell curve so the letter EMERGES gradually rather
+     than snapping in — gives the etched / ghosted feel of an inked
+     stamp settling. */
   .ls-c {
     opacity: 0;
     transform-box: fill-box;
     transform-origin: center;
-    animation: ls-c-in 480ms cubic-bezier(0.16, 1, 0.3, 1) 800ms forwards;
+    animation: ls-c-in 1100ms cubic-bezier(0.4, 0, 0.4, 1) 720ms forwards;
   }
 
   /* ─── Brand block (hairlines + wordmark + sub) ───────────────────── */
