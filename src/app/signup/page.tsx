@@ -60,7 +60,7 @@ export default function SignUpPage() {
 
   if (checkEmail) {
     return (
-      <AuthShell eyebrow="Maison de garde-robe">
+      <AuthShell eyebrow="Your AI stylist">
         <h2>{t("auth.checkInbox")}</h2>
         <p className="auth-sub">{t("auth.confirmationSent", { email })}</p>
         <p className="auth-foot-note">
@@ -71,7 +71,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <AuthShell eyebrow="Maison de garde-robe">
+    <AuthShell eyebrow="Your AI stylist">
       <h2>{t("auth.createYourAccount")}</h2>
       <p className="auth-sub">{t("auth.wardrobeTagline")}</p>
 

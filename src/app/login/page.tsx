@@ -42,7 +42,7 @@ function LoginForm() {
   }
 
   return (
-    <AuthShell eyebrow="Maison de garde-robe">
+    <AuthShell eyebrow="Your AI stylist">
       <h2>{t("auth.welcomeBack")}</h2>
       <p className="auth-sub">
         <BrandedName template={t("auth.signInToLinette")} scriptClassName="text-lg" />

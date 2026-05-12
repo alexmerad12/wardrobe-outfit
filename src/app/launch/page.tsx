@@ -55,9 +55,9 @@ export default function LaunchPage() {
 
         <div className="launch-content">
           <header className="launch-mast">
-            <span className="eyebrow">Maison de garde-robe</span>
+            <span className="eyebrow">Your AI stylist</span>
             <span className="rule" />
-            <span className="eyebrow alt">MMXXVI · Paris</span>
+            <span className="eyebrow alt">for the closet you already own</span>
           </header>
 
           <section className="launch-hero">
