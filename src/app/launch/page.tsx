@@ -179,6 +179,10 @@ const LAUNCH_CSS = `
   .launch-logo {
     position: relative;
     margin-bottom: 14px;
+    /* Slow fade + micro-scale on page load so the monogram arrives
+       like it does on the splash — settling in rather than snapping
+       on. Bell-curve easing keeps the emergence symmetric. */
+    animation: launch-mono-in 1500ms cubic-bezier(0.4, 0, 0.4, 1) 0ms both;
   }
   /* Soft halo behind the logo so it lifts off the wallpaper. */
   .launch-logo::before {
@@ -188,6 +192,10 @@ const LAUNCH_CSS = `
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, transparent 70%);
     z-index: -1;
+  }
+  @keyframes launch-mono-in {
+    0%   { opacity: 0; transform: scale(0.96); }
+    100% { opacity: 1; transform: scale(1); }
   }
   .launch-wordmark {
     margin: 0;
