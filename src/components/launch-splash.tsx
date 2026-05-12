@@ -195,18 +195,17 @@ function SplashMonogram() {
         <circle cx={11.5} cy={135} r={2.1} fill="#000000" fillOpacity={0.85} />
         <circle cx={258.5} cy={135} r={2.1} fill="#000000" fillOpacity={0.85} />
       </g>
-      {/* The Pinyon Script L — fades + settles in from a slightly small
-          scale so it lands on the disc like an inked signature. Script
-          glyphs sit smaller relative to their nominal fontSize than
-          Bodoni does, so we bump from 200 → 240 to fill the disc
-          proportionally. */}
+      {/* The Parisienne L — fades + settles in from a slightly small
+          scale so it lands on the disc like an inked signature.
+          Script glyphs sit smaller relative to their nominal fontSize
+          than Bodoni, so bumped to 240 to fill the disc proportionally. */}
       <text
         className="ls-c"
         x={135}
         y={140}
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily="'Pinyon Script', 'Snell Roundhand', cursive"
+        fontFamily="'Parisienne', 'Snell Roundhand', cursive"
         fontWeight={400}
         fontSize={240}
         fill="#000000"

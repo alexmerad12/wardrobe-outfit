@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Bodoni_Moda, Pinyon_Script } from "next/font/google";
+import { DM_Sans, Bodoni_Moda, Parisienne } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
 import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
@@ -19,10 +19,9 @@ const bodoni = Bodoni_Moda({
 });
 
 // Hand-script for the brand L mark (splash + launch-page monogram).
-// Pinyon is Spencerian-penmanship style — reads as a personal
-// signature rather than a typographic stamp, matching the Linette
-// stylist-persona positioning.
-const pinyon = Pinyon_Script({
+// Parisienne — modern French-flavored hand-script, less formal than
+// Pinyon but warmer than Bodoni. Reads as Linette's signature.
+const parisienne = Parisienne({
   variable: "--font-script",
   subsets: ["latin"],
   weight: "400",
@@ -78,7 +77,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${bodoni.variable} ${pinyon.variable} h-full antialiased`}
+      className={`${dmSans.variable} ${bodoni.variable} ${parisienne.variable} h-full antialiased`}
       style={{ colorScheme: "light" }}
     >
       <head>
