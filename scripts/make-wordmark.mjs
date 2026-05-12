@@ -16,7 +16,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const FONT_PATH = path.join(root, "parisienne.ttf");
-const OUT_PATH = path.join(root, "public", "wordmark-linette.png");
+const OUT_BLACK = path.join(root, "public", "wordmark-linette.png");
+const OUT_WHITE = path.join(root, "public", "wordmark-linette-white.png");
 
 if (!existsSync(FONT_PATH)) {
   console.error(
@@ -53,7 +54,9 @@ const y = padY - bbox.y1;
 const drawn = font.getPath(text, x, y, fontSize);
 const d = drawn.toPathData(2);
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><path fill="#000000" d="${d}"/></svg>`;
+function buildSvg(fill) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><path fill="${fill}" d="${d}"/></svg>`;
+}
 
 // Render at 2x of the display size used in email (~280px wide → 560px @ 2x)
 // so the PNG looks crisp on retina but stays well under 15 KB. Aspect
@@ -61,10 +64,16 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" wid
 const TARGET_W = 560;
 const targetH = Math.round((h / w) * TARGET_W);
 
-await sharp(Buffer.from(svg))
-  .resize(TARGET_W, targetH)
-  .png({ compressionLevel: 9, palette: true })
-  .toFile(OUT_PATH);
+async function renderVariant(fill, outPath, label) {
+  await sharp(Buffer.from(buildSvg(fill)))
+    .resize(TARGET_W, targetH)
+    .png({ compressionLevel: 9, palette: true })
+    .toFile(outPath);
+  const stat = readFileSync(outPath).length;
+  console.log(`Wordmark ${w}×${h} (${label}) -> ${path.relative(root, outPath)} (${(stat / 1024).toFixed(1)} KB)`);
+}
 
-const stat = readFileSync(OUT_PATH).length;
-console.log(`Wordmark ${w}×${h} -> public/wordmark-linette.png (${(stat / 1024).toFixed(1)} KB)`);
+// Black for light-mode surfaces, white for dark-mode masthead bands
+// (e.g. transactional email headers where the PNG can't be auto-inverted).
+await renderVariant("#000000", OUT_BLACK, "black");
+await renderVariant("#ffffff", OUT_WHITE, "white");
