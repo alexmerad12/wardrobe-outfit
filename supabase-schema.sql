@@ -1,5 +1,5 @@
 -- ============================================
--- Closette — Database Schema
+-- Linette — Database Schema
 -- Safe to re-run: uses drop-if-exists.
 -- Run this in your Supabase SQL Editor (Project → SQL Editor → New query).
 -- ============================================

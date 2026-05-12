@@ -16,7 +16,7 @@ interface StylistLoaderProps {
   // calls keep showing motion ("still polishing") instead of resetting
   // to "Reviewing wardrobe" (would feel dishonest) or freezing on
   // "Final touches" (would feel stuck). Falls back to `label` /
-  // yavIsStyling when omitted.
+  // linetteIsStyling when omitted.
   phases?: string[];
 }
 
@@ -39,7 +39,7 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
   }, [phases, phaseIndex]);
 
   const effectiveLabel =
-    phases && phases.length > 0 ? phases[Math.min(phaseIndex, phases.length - 1)] : (label ?? t("suggest.yavIsStyling"));
+    phases && phases.length > 0 ? phases[Math.min(phaseIndex, phases.length - 1)] : (label ?? t("suggest.linetteIsStyling"));
 
   useEffect(() => {
     // Cycle: visible ~310ms, fade out ~140ms, swap

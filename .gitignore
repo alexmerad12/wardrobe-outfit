@@ -50,7 +50,7 @@ playwright-report/
 .claude/
 
 # local-only design / logo experimentation — not for prod
-.closette-design-tmp/
+.linette-design-tmp/
 src/app/logo-lab/
 src/app/design/
 public/design-assets/

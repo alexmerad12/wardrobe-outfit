@@ -1,6 +1,6 @@
 # Styling Rules — Gap Analysis
 
-Cross-reference of the **102 rules** in the [`fashion-styling-rules` skill](../../../.claude/skills/fashion-styling-rules/SKILL.md) against Closette's current styling logic. **Women-first priority**: the app serves women primarily, so recommendations are ordered with women-specific impact weighted highest.
+Cross-reference of the **102 rules** in the [`fashion-styling-rules` skill](../../../.claude/skills/fashion-styling-rules/SKILL.md) against Linette's current styling logic. **Women-first priority**: the app serves women primarily, so recommendations are ordered with women-specific impact weighted highest.
 
 ## Status legend
 
@@ -19,7 +19,7 @@ Cross-reference of the **102 rules** in the [`fashion-styling-rules` skill](../.
 | potential-revise | 2 | 0 | **2** |
 | **Total** | **64** | **38** | **102** |
 
-Closette is disciplined about the rules it DOES have (structural base, duplicate subcategory, at-home scarf) but is missing nearly all women-first styling knowledge: dress silhouette, women's formality tiers, women's shoe×occasion, neckline-jewelry pairing, hosiery, undergarments. Filling these is the largest ROI area for the app.
+Linette is disciplined about the rules it DOES have (structural base, duplicate subcategory, at-home scarf) but is missing nearly all women-first styling knowledge: dress silhouette, women's formality tiers, women's shoe×occasion, neckline-jewelry pairing, hosiery, undergarments. Filling these is the largest ROI area for the app.
 
 ---
 
@@ -43,7 +43,7 @@ Closette is disciplined about the rules it DOES have (structural base, duplicate
 | W22 Strapless → choker | absent | — | Same. |
 | W23 Halter → mid-chest pendant / earrings | absent | — | Same. |
 | W24 Sweetheart → short curved pendant | absent | — | Same. |
-| W25-W29 Hosiery (denier, color, pattern, socks-with-heels) | absent | — | Requires adding a hosiery category; not in Closette today. |
+| W25-W29 Hosiery (denier, color, pattern, socks-with-heels) | absent | — | Requires adding a hosiery category; not in Linette today. |
 | **W30 First-date waist-up focus** | absent | `date` occasion | Prompt-level: for `date`, bias top-piece detail / quality; accept simpler bottoms. |
 | **W31 Cocktail wedding: no white / clutch / knee-tea length** | absent | — | High-value if user ever marks "wedding guest" context: reject white / ivory / cream / blush dresses. |
 | **W32 Office default: sheath + blazer + pump** | absent | `work` occasion | Reinforce prompt: for `work`, prefer sheath dress + blazer + pointed-toe pump (low-mid heel). |

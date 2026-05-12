@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <title>Closette — Monochrome</title>
+  <title>Linette — Monochrome</title>
   <defs>
     <!-- Paper-grain filter: same parameters as PatternSurface uses at runtime
          (feTurbulence + feColorMatrix to tint the noise warm). Applied to a
@@ -115,5 +115,5 @@
         font-weight="400"
         font-size="200"
         fill="#000000"
-        style="letter-spacing:-0.03em;font-style:normal;">C</text>
+        style="letter-spacing:-0.03em;font-style:normal;">L</text>
 </svg>

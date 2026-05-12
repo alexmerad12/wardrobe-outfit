@@ -1,4 +1,4 @@
-// Closette logo — textile wallpaper patterns.
+// Linette logo — textile wallpaper patterns.
 // Ported from the Claude Design bundle (app-logo-launch-page/patterns.jsx).
 // Each pattern is an SVG <pattern> tile with paper-grain + gouache-bleed
 // filters so the output reads as printed fabric rather than flat vector.

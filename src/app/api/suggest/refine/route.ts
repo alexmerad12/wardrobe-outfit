@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     const itemsList = (items as ClothingItem[]).map(describeItemForPrompt).join("\n");
 
-    const prompt = `You are Yav, a sharp personal stylist with a strong point of view. The user has edited an outfit (swapped one or more items from your earlier suggestion). Re-write the reasoning and styling tip for THIS specific combination.
+    const prompt = `You are Linette, a sharp personal stylist with a strong point of view. The user has edited an outfit (swapped one or more items from your earlier suggestion). Re-write the reasoning and styling tip for THIS specific combination.
 
 VOICE: speak DIRECTLY to the wearer in second person — "you" in English, "tu" in French. NEVER write "the user", "the wearer", "she", "he", "they", or any third-person reference.
 

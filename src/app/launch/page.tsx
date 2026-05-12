@@ -1,7 +1,7 @@
-// Closette — launch page.
+// Linette — launch page.
 // The first thing a visitor sees. The committed brand identity is
 // Ivory · Noir on Rose & Damask: ivory ground, ink damask, centered
-// black Bodoni C inside an opaque ivory disc. Editorial, quiet, exact.
+// black Bodoni L inside an opaque ivory disc. Editorial, quiet, exact.
 "use client";
 
 import * as React from "react";
@@ -69,7 +69,7 @@ export default function LaunchPage() {
               />
             </div>
 
-            <h1 className="launch-wordmark">CLOSETTE</h1>
+            <h1 className="launch-wordmark">LINETTE</h1>
             <span className="launch-rule" />
             <p className="launch-tagline">
               <em>une garde-robe bien tenue</em>

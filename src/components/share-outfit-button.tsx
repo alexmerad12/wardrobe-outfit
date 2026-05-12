@@ -38,7 +38,7 @@ export function ShareOutfitButton({
   occasion,
   date,
   temperatureUnit,
-  filenameBase = "closette-outfit",
+  filenameBase = "linette-outfit",
   size = "sm",
   variant = "ghost",
   iconOnly = false,

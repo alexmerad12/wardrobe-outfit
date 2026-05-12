@@ -563,12 +563,12 @@ function SuggestContent() {
                   <StylistLoader
                     size="sm"
                     phases={[
-                      t("suggest.yavStylingPhase1"),
-                      t("suggest.yavStylingPhase2"),
-                      t("suggest.yavStylingPhase3"),
-                      t("suggest.yavStylingPhase4"),
-                      t("suggest.yavStylingPhase5"),
-                      t("suggest.yavStylingPhase6"),
+                      t("suggest.linetteStylingPhase1"),
+                      t("suggest.linetteStylingPhase2"),
+                      t("suggest.linetteStylingPhase3"),
+                      t("suggest.linetteStylingPhase4"),
+                      t("suggest.linetteStylingPhase5"),
+                      t("suggest.linetteStylingPhase6"),
                     ]}
                   />
                 </span>

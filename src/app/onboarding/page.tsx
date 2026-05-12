@@ -40,7 +40,7 @@ export default function OnboardingPage() {
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
-  // Gender defaults to "woman" since Closette is women-first. We no
+  // Gender defaults to "woman" since Linette is women-first. We no
   // longer ask in onboarding; users can change in profile.
   const [gender] = useState<Gender>("woman");
 

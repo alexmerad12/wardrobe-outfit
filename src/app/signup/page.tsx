@@ -72,7 +72,7 @@ export default function SignUpPage() {
 
   return (
     <AuthShell eyebrow="Maison de garde-robe">
-      <h2>{t("auth.createYourClosette")}</h2>
+      <h2>{t("auth.createYourAccount")}</h2>
       <p className="auth-sub">{t("auth.wardrobeTagline")}</p>
 
       {/* <GoogleSignInButton variant="brand" />

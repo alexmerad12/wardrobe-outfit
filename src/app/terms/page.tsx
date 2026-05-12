@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service — Closette",
+  title: "Terms of Service — Linette",
 };
 
 const EFFECTIVE_DATE = "April 19, 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
-const CONTACT_EMAIL = "closette.boutique.app@gmail.com";
+const CONTACT_EMAIL = "hello@linette.app";
 
 export default function TermsPage() {
   return (
@@ -20,14 +20,14 @@ export default function TermsPage() {
 
       <p className="mb-6">
         These Terms of Service (the &quot;Terms&quot;) govern your access to
-        and use of Closette, operated by <strong>{OPERATOR}</strong>
+        and use of Linette, operated by <strong>{OPERATOR}</strong>
         (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;). By creating an
-        account or using Closette, you agree to these Terms.
+        account or using Linette, you agree to these Terms.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">1. Eligibility</h2>
       <p className="mb-6">
-        You must be at least 13 years old to use Closette. If you are under
+        You must be at least 13 years old to use Linette. If you are under
         the age of majority where you live, you must have your parent or
         guardian&apos;s permission.
       </p>
@@ -51,7 +51,7 @@ export default function TermsPage() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">3. Your content</h2>
       <p className="mb-3">
-        Closette lets you upload photos and information about your clothes
+        Linette lets you upload photos and information about your clothes
         (&quot;User Content&quot;). You retain all rights to your User
         Content. By uploading, you grant us a limited, non-exclusive,
         royalty-free license to store, display, and process your User
@@ -88,7 +88,7 @@ export default function TermsPage() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">6. Subscriptions and fees</h2>
       <p className="mb-6">
-        Closette may introduce paid subscription plans in the future. Fees,
+        Linette may introduce paid subscription plans in the future. Fees,
         billing terms, and cancellation policies will be presented before
         any charge. Until then, access is provided free of charge.
       </p>

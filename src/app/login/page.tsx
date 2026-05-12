@@ -43,7 +43,7 @@ function LoginForm() {
   return (
     <AuthShell eyebrow="Maison de garde-robe">
       <h2>{t("auth.welcomeBack")}</h2>
-      <p className="auth-sub">{t("auth.signInToClosette")}</p>
+      <p className="auth-sub">{t("auth.signInToLinette")}</p>
 
       <GoogleSignInButton next={next} variant="brand" />
 

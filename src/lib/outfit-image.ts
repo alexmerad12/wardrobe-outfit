@@ -4,7 +4,7 @@
  * 1080×1920 portrait — Instagram-Stories-native 9:16. Minimal, items-first
  * editorial: title at the top, optional credit line beneath (weather ·
  * occasion · date), the lookbook grid filling the central canvas, and the
- * launch-page Monogram + spaced "CLOSETTE" wordmark anchored at the
+ * launch-page Monogram + spaced "LINETTE" wordmark anchored at the
  * bottom. Background is the same Rose & Damask textile as the launch
  * page (canvas-native port of the SVG pattern).
  *
@@ -275,7 +275,7 @@ function drawTextileBackground(ctx: CanvasRenderingContext2D, w: number, h: numb
 //   r=88 ivory disc  +  1.4 outer hairline (ink, alpha .92)
 //   r=80 inner hairline ring (ink, alpha .55, stroke .5)
 //   four r=1.4 dots at radius 84
-//   Bodoni C size 140
+//   Bodoni L size 140
 // All values scale from the original 200×200 viewBox; pass the desired
 // final diameter as `size`.
 
@@ -313,7 +313,7 @@ function drawBrandMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, si
     ctx.fill();
   }
   ctx.restore();
-  // Bodoni C — optically centered. textBaseline="middle" centers on the
+  // Bodoni L — optically centered. textBaseline="middle" centers on the
   // em-square, but a serif capital with no descender sits visually high
   // inside the em, making the C look low in the disc. Measure the glyph's
   // actual ink bounds and offset off the alphabetic baseline so the visual
@@ -325,7 +325,7 @@ function drawBrandMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, si
   const metrics = ctx.measureText("C");
   const visualCenterOffset =
     (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
-  ctx.fillText("C", cx, cy + visualCenterOffset);
+  ctx.fillText("L", cx, cy + visualCenterOffset);
 }
 
 // ── Date / credit formatting ──────────────────────────────────────────────
@@ -512,7 +512,7 @@ export async function composeOutfitImage(opts: OutfitImageOptions): Promise<Blob
     drawItemCell(ctx, cells[i], imgs[i], items[i].name, captionH);
   }
 
-  // Brand mark + spaced "CLOSETTE" wordmark — matches launch page group.
+  // Brand mark + spaced "LINETTE" wordmark — matches launch page group.
   drawBrandMark(ctx, WIDTH / 2, markCY, markSize);
 
   ctx.fillStyle = INK;
@@ -520,7 +520,7 @@ export async function composeOutfitImage(opts: OutfitImageOptions): Promise<Blob
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.letterSpacing = "8px";
-  ctx.fillText("CLOSETTE", WIDTH / 2, wordmarkY);
+  ctx.fillText("LINETTE", WIDTH / 2, wordmarkY);
   ctx.letterSpacing = "0px";
 
   return new Promise((resolve, reject) => {

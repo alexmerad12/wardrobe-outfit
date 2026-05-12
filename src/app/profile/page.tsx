@@ -35,7 +35,7 @@ export default function ProfilePage() {
           setAllItems(items);
         }
 
-        // 'Outfits worn from Closette' = total wear-log entries whose outfit
+        // 'Outfits worn from Linette' = total wear-log entries whose outfit
         // was AI-generated. Counts every Wear Today click on an AI suggestion
         // (deduped per day server-side).
         if (outfitsRes.ok && logsRes.ok) {

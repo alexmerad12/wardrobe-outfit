@@ -1,4 +1,4 @@
-// Closette — Launch Splash.
+// Linette — Launch Splash.
 //
 // Editorial / atelier-grade splash animation. The target reference is
 // not "tech app loading" but "couture house masthead": the brand mark
@@ -9,11 +9,11 @@
 // Entry sequence (~1100ms total):
 //   - t=0    Pattern + white surface visible. Everything else hidden.
 //   - t=80   Hairline rules sweep in horizontally above/below where
-//            CLOSETTE will land (scaleX 0 → 1, 320ms).
+//            LINETTE will land (scaleX 0 → 1, 320ms).
 //   - t=120  Disc border ink-draws via SVG stroke-dasharray (700ms).
 //            This is the signature couturier-signature moment.
 //   - t=320  C glyph fades in + settles from scale 0.94 (480ms).
-//   - t=520  CLOSETTE letter-spacing tightens 0.55em → 0.14em with
+//   - t=520  LINETTE letter-spacing tightens 0.55em → 0.14em with
 //            opacity fade-in (700ms). The "fashion house masthead"
 //            cadence (Vogue, Dior).
 //   - t=720  Top tag fades in (440ms).
@@ -46,7 +46,7 @@ const BRAND_PALETTE: Palette = [
 const ENTRY_MS = 1100; // sum of staggered entry animations
 const HOLD_MS = 1000;
 const EXIT_MS = 850;
-const SESSION_KEY = "closette_splash_seen";
+const SESSION_KEY = "linette_splash_seen";
 
 type Phase = "entering" | "held" | "exiting" | "done";
 
@@ -119,7 +119,7 @@ export function LaunchSplash() {
             <div className="ls-brand">
               <div className="ls-rules">
                 <span className="ls-rule ls-rule-left" />
-                <h1 className="ls-name">CLOSETTE</h1>
+                <h1 className="ls-name">LINETTE</h1>
                 <span className="ls-rule ls-rule-right" />
               </div>
             </div>
@@ -195,7 +195,7 @@ function SplashMonogram() {
         <circle cx={11.5} cy={135} r={2.1} fill="#000000" fillOpacity={0.85} />
         <circle cx={258.5} cy={135} r={2.1} fill="#000000" fillOpacity={0.85} />
       </g>
-      {/* The Bodoni C — fades + settles in from a slightly small scale
+      {/* The Bodoni L — fades + settles in from a slightly small scale
           so it lands on the disc with a "settling weight" feel. */}
       <text
         className="ls-c"
@@ -385,7 +385,7 @@ const SPLASH_CSS = `
   }
 
   /* Hairline rules + wordmark on one row — two 1px black lines flank
-     CLOSETTE and animate in BEFORE the wordmark settles, like the
+     LINETTE and animate in BEFORE the wordmark settles, like the
      letter-spacing on a Vogue masthead. */
   .ls-rules {
     display: flex; align-items: center; gap: 18px;

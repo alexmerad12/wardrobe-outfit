@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — Closette",
+  title: "Privacy Policy — Linette",
 };
 
 const EFFECTIVE_DATE = "April 19, 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
-const CONTACT_EMAIL = "closette.boutique.app@gmail.com";
+const CONTACT_EMAIL = "hello@linette.app";
 
 export default function PrivacyPage() {
   return (
@@ -20,14 +20,14 @@ export default function PrivacyPage() {
 
       <section className="space-y-4 mb-8">
         <p>
-          Closette (&quot;Closette&quot;, &quot;we&quot;, &quot;us&quot;,
+          Linette (&quot;Linette&quot;, &quot;we&quot;, &quot;us&quot;,
           &quot;our&quot;) is operated by <strong>{OPERATOR}</strong>, a
           corporation formed under the laws of the Province of Quebec, Canada.
           This Privacy Policy explains what information we collect, how we use
           it, and the choices you have.
         </p>
         <p>
-          By creating an account or using Closette, you agree to this Privacy
+          By creating an account or using Linette, you agree to this Privacy
           Policy. If you do not agree, please do not use the service.
         </p>
       </section>
@@ -146,7 +146,7 @@ export default function PrivacyPage() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">9. Children</h2>
       <p className="mb-6">
-        Closette is not directed to children under 13. We do not knowingly
+        Linette is not directed to children under 13. We do not knowingly
         collect personal information from children under 13. If you believe a
         child has provided us personal information, please contact us and we
         will delete it.

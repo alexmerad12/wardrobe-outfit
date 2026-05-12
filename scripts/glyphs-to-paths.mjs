@@ -1,4 +1,4 @@
-// One-off: convert "C" and "Closette" to SVG path data using Playfair
+// One-off: convert "L" and "Linette" to SVG path data using Playfair
 // Display, so the icon and splash SVGs don't depend on a font being
 // installed at render time.
 //
@@ -45,24 +45,24 @@ function metrics(font, text, fontSize) {
   };
 }
 
-// --- Icon "C" at display size ~720 (weight 500) ---
+// --- Icon "L" at display size ~720 (weight 500) ---
 const fontC = loadFont(500);
 const iconSize = 720;
-const iconPath = glyphPath(fontC, "C", iconSize);
-const iconMetrics = metrics(fontC, "C", iconSize);
+const iconPath = glyphPath(fontC, "L", iconSize);
+const iconMetrics = metrics(fontC, "L", iconSize);
 
-// --- Splash "Closette" at display size ~260 (weight 500 to match the icon C) ---
+// --- Splash "Linette" at display size ~260 (weight 500 to match the icon C) ---
 const fontWord = loadFont(500);
 const splashSize = 260;
-const splashPath = glyphPath(fontWord, "Closette", splashSize);
-const splashMetrics = metrics(fontWord, "Closette", splashSize);
+const splashPath = glyphPath(fontWord, "Linette", splashSize);
+const splashMetrics = metrics(fontWord, "Linette", splashSize);
 
 console.log("=== ICON 'C' (weight 500, size 720) ===");
 console.log("Bounding box:", iconMetrics);
 console.log("Path data:");
 console.log(iconPath);
 console.log("");
-console.log("=== SPLASH 'Closette' (weight 400, size 260) ===");
+console.log("=== SPLASH 'Linette' (weight 400, size 260) ===");
 console.log("Bounding box:", splashMetrics);
 console.log("Path data:");
 console.log(splashPath);

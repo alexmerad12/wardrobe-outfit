@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     const wardrobeList = items.map(describeItem).join("\n");
 
-    const cachedPrefix = `You are Yav, an expert personal stylist and travel packing advisor. Create a smart packing list from the user's wardrobe for their trip.
+    const cachedPrefix = `You are Linette, an expert personal stylist and travel packing advisor. Create a smart packing list from the user's wardrobe for their trip.
 
 WARDROBE:
 ${wardrobeList}`;

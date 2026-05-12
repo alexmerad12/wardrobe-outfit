@@ -1,4 +1,4 @@
-// Closette — invite acceptance + password set page.
+// Linette — invite acceptance + password set page.
 //
 // When a beta-invited user clicks the link in their Supabase invite
 // email, they pass through /auth/callback (PKCE), arrive here with an

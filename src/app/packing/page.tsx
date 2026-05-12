@@ -421,7 +421,7 @@ export default function PackingPage() {
             disabled={!destination || !startDate || !endDate || loading}
           >
             {loading ? (
-              <StylistLoader size="sm" label={t("suggest.yavIsPacking")} />
+              <StylistLoader size="sm" label={t("suggest.linetteIsPacking")} />
             ) : (
               <><Plane className="h-4 w-4" /> {t("packing.generate")}</>
             )}

@@ -4,7 +4,7 @@
 // <link rel="apple-touch-icon" href="/apple-icon"> for iOS — but the
 // PNG it generates is also referenced from manifest.json so Android
 // Chrome / Samsung Internet pick it up. Without this, Android falls
-// back to icon.svg, where the <text>-rendered C lands on whatever
+// back to icon.svg, where the <text>-rendered L lands on whatever
 // system serif the device has (no Bodoni Moda on Android = generic
 // serif fallback).
 //
@@ -17,7 +17,7 @@
 // large CSS borders unevenly when combined with border-radius — the
 // stroke ends up heavier on one side. Two filled circles render
 // perfectly round at any size. Inside the ivory disc sit the inner
-// hairline ring, four cardinal dots at 12/3/6/9, and the Bodoni C —
+// hairline ring, four cardinal dots at 12/3/6/9, and the Bodoni L —
 // matching the launch-page Monogram, minus the Rose & Damask textile.
 
 import { ImageResponse } from "next/og";
@@ -156,7 +156,7 @@ export default async function AppleIcon() {
                 }}
               />
             ))}
-            {/* Bodoni C, baked into the PNG via Satori + the font
+            {/* Bodoni L, baked into the PNG via Satori + the font
                 buffer above. Renders identically on iOS, Android,
                 and desktop browsers. */}
             <div
@@ -171,7 +171,7 @@ export default async function AppleIcon() {
                 display: "flex",
               }}
             >
-              C
+              L
             </div>
           </div>
         </div>

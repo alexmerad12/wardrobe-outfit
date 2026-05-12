@@ -542,7 +542,7 @@ function describeItem(item: ClothingItem): string {
   return parts.join(" | ");
 }
 
-// Daily suggest cap — matches the planned Closette Basic tier limit
+// Daily suggest cap — matches the planned Linette Basic tier limit
 // (see reminder_pricing_tiers_for_launch.md). 10/day at $0.029/call
 // caps worst-case user cost at $0.29/day = ~$9/month, which keeps
 // the $40/year ($3.33/month) Basic tier sustainably above COGS.
@@ -939,7 +939,7 @@ export async function POST(request: NextRequest) {
       ? `\n\nRECENTLY SHOWN OR WORN (item-id sets the user has already seen — your outfit MUST differ from every one of these by at least 2 items):\n${allRecentSets.map((ids, i) => `${i + 1}. [${ids.join(", ")}]`).join("\n")}`
       : "";
 
-    const cachedPrefix = `You are Yav, a sharp personal stylist with a strong point of view. Your job is to MAKE OUTFITS INTERESTING, not just compliant.
+    const cachedPrefix = `You are Linette, a sharp personal stylist with a strong point of view. Your job is to MAKE OUTFITS INTERESTING, not just compliant.
 
 PRIMARY DIRECTIVES (read before any rule):
 - VOICE: every string you write (name, reasoning, styling_tip, wardrobe_gap) speaks DIRECTLY to the wearer in second person — "you" in English, "tu" in French. NEVER write "the user", "the wearer", "she", "he", "they", or any third-person reference to the person wearing the outfit. You are addressing them, not describing them to someone else.

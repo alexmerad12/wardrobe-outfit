@@ -19,15 +19,15 @@ const bodoni = Bodoni_Moda({
 });
 
 export const metadata: Metadata = {
-  title: "Closette — Your Personal Stylist",
+  title: "Linette — Your Personal Stylist",
   description:
     "Your wardrobe, beautifully organized. AI-powered outfit suggestions based on weather, mood, and occasion.",
   manifest: "/manifest.json",
-  applicationName: "Closette",
+  applicationName: "Linette",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Closette",
+    title: "Linette",
     // No startupImage entries: the pre-baked PNGs were rendered from
     // the old Ivory · Noir palette and would flash a cream screen
     // before the animated white splash takes over. Letting iOS fall
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-title": "Closette",
+    "apple-mobile-web-app-title": "Linette",
   },
 };
 
@@ -87,7 +87,7 @@ export default function RootLayout({
             moment on every navigation. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(sessionStorage.getItem('closette_splash_seen')==='1')document.documentElement.classList.add('skip-splash');}catch(e){}})();`,
+            __html: `(function(){try{if(sessionStorage.getItem('linette_splash_seen')==='1')document.documentElement.classList.add('skip-splash');}catch(e){}})();`,
           }}
         />
       </head>

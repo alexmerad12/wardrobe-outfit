@@ -1,4 +1,4 @@
-// Closette — auth shell.
+// Linette — auth shell.
 // Shared Ivory · Noir framing for /login and /signup. Same brand identity
 // as /launch (ivory ground, ink C in Bodoni, faint Rose & Damask backdrop)
 // so the auth flow feels like one continuous maison.

@@ -15,7 +15,7 @@ const admin = createClient(URL, SECRET, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const testEmail = `intruder-${Date.now()}@closette.test`;
+const testEmail = `intruder-${Date.now()}@linette.test`;
 const testPassword = "IntruderTest1234!";
 
 async function main() {

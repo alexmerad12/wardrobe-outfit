@@ -1,10 +1,10 @@
-# Closette Pre-Launch Checklist
+# Linette Pre-Launch Checklist
 
 Running list of what's done and what remains before full public launch (vs. friends/beta testing, which is ready now).
 
 **Operator:** 9537-1076 Quebec Inc.
-**Domain:** closette.boutique
-**Primary contact (user-facing):** closette.boutique.app@gmail.com
+**Domain:** linette.app
+**Primary contact (user-facing):** hello@linette.app
 **Developer contact (Google policy notices):** alex@automatable.co
 
 ---
@@ -16,7 +16,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [x] Multi-tenant schema with Row Level Security on every table
 - [x] Per-user storage bucket (`clothing-images`) with folder-level RLS
 - [x] Wife's wardrobe migrated from Vercel KV → Supabase (45 items)
-- [x] Vercel production deploy wired to `closette.boutique`
+- [x] Vercel production deploy wired to `linette.app`
 - [x] Supabase env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`) set in Vercel production
 
 ### Auth
@@ -34,7 +34,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [x] Image upload signed URLs expire quickly
 
 ### PWA install
-- [x] `manifest.json` with "Closette" name, icons, standalone display
+- [x] `manifest.json` with "Linette" name, icons, standalone display
 - [x] iOS `apple-touch-icon`, status bar, web app title
 - [x] Install prompt component on Profile page (native Android install, iOS instructions)
 
@@ -54,16 +54,16 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] Real app logo (1024×1024 PNG) for consent screens + store listings + favicon + PWA icons.
 - [ ] Have a lawyer review `/privacy` and `/terms` before large-scale public launch.
 - [ ] Add cookie/consent banner if targeting EU users seriously.
-- [ ] Set up email forwarding: `closette.boutique.app@gmail.com` → `alex@automatable.co` so support requests don't get lost.
+- [ ] Set up email forwarding: `hello@linette.app` → `alex@automatable.co` so support requests don't get lost.
 
 ### Mobile (Phase B Part 2 — separate plan)
 - [ ] **Google Play Console** enrollment ($25 one-time).
 - [ ] **Apple Developer Program** enrollment ($99/yr, 2–5 day approval). Required if shipping to App Store.
-- [ ] Capacitor wrap (iOS + Android native shells pointing at closette.boutique).
-- [ ] Bundle ID decided + locked: `boutique.closette.app` (proposed).
+- [ ] Capacitor wrap (iOS + Android native shells pointing at linette.app).
+- [ ] Bundle ID decided + locked: `app.linette` (proposed).
 - [ ] Apple Sign In (required by Apple guideline 4.8 since Google OAuth is offered on iOS).
 - [ ] Native Google Sign-In plugin (`@capgo/capacitor-social-login`) to avoid OAuth-in-WebView issues.
-- [ ] Deep link scheme (e.g. `app.closette://auth/callback`) + Universal Links.
+- [ ] Deep link scheme (e.g. `app.linette://auth/callback`) + Universal Links.
 - [ ] App icons per-platform, splash screens.
 - [ ] Privacy labels / Data Safety form submissions.
 - [ ] TestFlight / Play Internal Testing builds to 2–3 friends before public submission.
@@ -87,7 +87,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 
 ## 📅 Friend beta (ready now)
 
-Share `https://www.closette.boutique` with friends. Tell them to sign up with **email + password** (avoids the Google "unverified app" warning). They can install the PWA:
+Share `https://www.linette.app` with friends. Tell them to sign up with **email + password** (avoids the Google "unverified app" warning). They can install the PWA:
 
 - **iPhone (Safari):** Share → Add to Home Screen
 - **Android (Chrome):** the in-app install prompt on the Profile page, OR browser menu → Install app

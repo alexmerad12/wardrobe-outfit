@@ -765,7 +765,7 @@ function PendingStrip({
           `${i + 1}. ${p.file.name} (${Math.round(p.file.size / 1024)} KB, ${p.file.type || "unknown"})\n   ${p.error ?? "Unknown error"}`
       )
       .join("\n\n");
-    const summary = `Closette upload errors — ${failed.length} of ${pending.length} failed\n\n${dump}`;
+    const summary = `Linette upload errors — ${failed.length} of ${pending.length} failed\n\n${dump}`;
     void navigator.clipboard?.writeText(summary);
   }
 
@@ -797,7 +797,7 @@ function PendingStrip({
               <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
               <span className="text-sm font-medium truncate">
                 {processing > 0
-                  ? t(processing === 1 ? "wardrobe.yavIsAdding" : "wardrobe.yavIsAddingPlural", { count: processing })
+                  ? t(processing === 1 ? "wardrobe.linetteIsAdding" : "wardrobe.linetteIsAddingPlural", { count: processing })
                   : t("wardrobe.someUploadsNeedAttention")}
                 {errorCount > 0 && processing > 0 && ` · ${t("wardrobe.uploadFailedCount", { count: errorCount })}`}
               </span>
@@ -857,7 +857,7 @@ function PendingStrip({
         </div>
       ) : (
         <p className="mt-2 text-[11px] text-muted-foreground">
-          {t("wardrobe.keepUsingClosette")}
+          {t("wardrobe.keepUsingLinette")}
         </p>
       )}
     </div>

@@ -1,4 +1,4 @@
-// Closette monogram — the Bodoni "C" on wallpaper.
+// Linette monogram — the Bodoni "L" on wallpaper.
 // Ported from the Claude Design bundle (app-logo-launch-page/monogram.jsx).
 "use client";
 
@@ -30,7 +30,7 @@ function BodoniC({
   color = "#fff",
   stroke = 0,
   strokeColor,
-  letter = "C",
+  letter = "L",
   fontFamily = DEFAULT_FONT,
   fontStyle = "normal",
   fontWeight = 400,
@@ -44,7 +44,7 @@ function BodoniC({
   fontStyle?: "normal" | "italic";
   fontWeight?: number;
 }) {
-  // y=100 = geometric center of the 200×200 viewBox so the C lands dead-
+  // y=100 = geometric center of the 200×200 viewBox so the L lands dead-
   // center in framed variants (was y=107 in the original bundle for an
   // optical-balance offset). Geometric centering reads cleaner inside the
   // bordered/bordered-solid disc.
@@ -74,7 +74,7 @@ export function Monogram({
   stroke = 1,
   color = "#f7ecd4",
   frame = "rgba(20,12,8,0.65)",
-  letter = "C",
+  letter = "L",
   fontFamily = DEFAULT_FONT,
   fontStyle = "normal",
   fontWeight = 400,
@@ -178,7 +178,7 @@ export function Monogram({
           style={{ textTransform: "uppercase" }}
         >
           <textPath href={`#${ringId}`} startOffset="0">
-            Closette · Maison de Garde-Robe · Paris · MMXXVI ·
+            Linette · Maison de Garde-Robe · Paris · MMXXVI ·
           </textPath>
         </text>
         <svg x={10} y={10} width={200} height={200} viewBox="0 0 200 200">
@@ -264,7 +264,7 @@ export function Monogram({
             letterSpacing={3.5}
             style={{ textTransform: "uppercase" }}
           >
-            CLOSETTE
+            LINETTE
           </text>
         </g>
         <svg x={20} y={0} width={200} height={200} viewBox="0 0 200 200">
