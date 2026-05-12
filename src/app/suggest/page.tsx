@@ -362,7 +362,11 @@ function SuggestContent() {
         : null;
 
       // Set as today's outfit — pass outfit_id so the wear log links
-      // back to the outfit we just created.
+      // back to the outfit we just created. Use the REFINED reasoning
+      // / styling_tip when the user edited the outfit, so the home
+      // page's "today" card matches the items actually being worn.
+      // Phase 1 missed this — was passing suggestion.reasoning (the
+      // pre-edit text), so swapped outfits showed stale descriptions.
       await fetch("/api/today", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -370,8 +374,8 @@ function SuggestContent() {
           outfit_id: savedOutfit?.id,
           item_ids: suggestion.items.map((i) => i.id),
           name: suggestion.name,
-          reasoning: suggestion.reasoning,
-          styling_tip: suggestion.styling_tip,
+          reasoning: reasoning,
+          styling_tip: styling_tip,
           mood,
           occasion,
           weather_temp: suggestion.weather_temp,
