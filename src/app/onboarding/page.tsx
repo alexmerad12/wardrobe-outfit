@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { BrandedName } from "@/components/brand/branded-name";
 import type { Language, Gender, TemperatureSensitivity } from "@/lib/types";
 import { detectLocale, translate, type Locale } from "@/lib/i18n";
 
