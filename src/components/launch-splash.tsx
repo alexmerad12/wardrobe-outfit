@@ -209,7 +209,7 @@ function SplashMonogram() {
         fill="#000000"
         style={{ letterSpacing: "-0.03em" }}
       >
-        C
+        L
       </text>
     </svg>
   );
