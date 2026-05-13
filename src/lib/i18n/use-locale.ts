@@ -89,7 +89,12 @@ export function useLocale() {
     (mood: Mood, field: "label" | "description") => {
       if (locale === "fr" && gender === "man") {
         const masc = translate("fr", `mood_m.${mood}.${field}`);
-        if (masc !== `mood_m.${mood}.${field}`) return masc;
+        // translate() never returns the full key path when missing — it
+        // returns the LAST segment ("label" or "description"). Check
+        // against that instead of the full path, otherwise the missing
+        // mood_m entries (energized, playful, cozy, period, sad) leak
+        // the literal word "label" into the UI for male users.
+        if (masc !== field) return masc;
       }
       return translate(locale, `mood.${mood}.${field}`);
     },
