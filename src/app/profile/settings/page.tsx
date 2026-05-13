@@ -388,7 +388,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {userEmail && (
-            <p className="text-sm font-medium break-all">{userEmail}</p>
+            <p className="text-sm text-muted-foreground break-all">{userEmail}</p>
           )}
           <Button
             variant="outline"
