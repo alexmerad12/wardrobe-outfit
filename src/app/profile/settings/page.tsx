@@ -19,16 +19,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, Trash2, Download } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -44,12 +36,6 @@ export default function SettingsPage() {
   const { t } = useLocale();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -190,57 +176,6 @@ export default function SettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
-  }
-
-  async function handleExportData() {
-    setExporting(true);
-    setExportError(null);
-    try {
-      const res = await fetch("/api/account/export");
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "Export failed");
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      // Read the server-suggested filename out of Content-Disposition
-      // so we don't have to repeat the date-stamping logic on the
-      // client. Fall back to a sensible default if absent.
-      const cd = res.headers.get("Content-Disposition") || "";
-      const match = cd.match(/filename="([^"]+)"/);
-      const filename = match?.[1] || "linette-data.json";
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setExportError(t("profile.exportDataFailed"));
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      const res = await fetch("/api/account/delete", { method: "DELETE" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "Delete failed");
-      }
-      // The server route already calls signOut and clears session cookies,
-      // but route to /launch via a full reload so any in-memory client
-      // state (cached Supabase client, etc.) is wiped too.
-      window.location.href = "/launch";
-    } catch (err) {
-      setDeleting(false);
-      setDeleteError(t("profile.deleteAccountFailed"));
-    }
   }
 
   return (
@@ -475,116 +410,21 @@ export default function SettingsPage() {
               </>
             )}
           </Button>
-
-          {/* GDPR data-portability — user can download every row across
-              their tables (preferences, items, outfits, log, trips,
-              etc.) as a single JSON. Image binaries are not inlined;
-              clothing_items already carries the public storage URL
-              per row. */}
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleExportData}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("profile.exportingData")}
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                {t("profile.exportData")}
-              </>
-            )}
-          </Button>
-          {exportError && (
-            <p className="text-sm text-destructive" role="alert">
-              {exportError}
-            </p>
-          )}
         </CardContent>
       </Card>
 
-      {/* Account deletion — isolated card at the bottom of the page so
-          the destructive action is visually separate from routine
-          settings. Softer styling than a "danger zone" — just a muted
-          intro and an outlined destructive button. */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>{t("profile.closeAccount")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-3">
-            {t("profile.closeAccountIntro")}
-          </p>
-          <Button
-            variant="outline"
-            className="w-full border-destructive/60 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => {
-              setDeleteConfirmText("");
-              setDeleteError(null);
-              setDeleteOpen(true);
-            }}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {t("profile.deleteAccount")}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Dialog open={deleteOpen} onOpenChange={(open) => !deleting && setDeleteOpen(open)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("profile.deleteAccountTitle")}</DialogTitle>
-            <DialogDescription>{t("profile.deleteAccountWarning")}</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirm-delete" className="text-sm">
-              {t("profile.deleteAccountTypePrompt")}
-            </Label>
-            <Input
-              id="confirm-delete"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="DELETE"
-              autoComplete="off"
-              disabled={deleting}
-            />
-            {deleteError && (
-              <p className="text-sm text-destructive" role="alert">
-                {deleteError}
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteOpen(false)}
-              disabled={deleting}
-            >
-              {t("profile.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deleting || deleteConfirmText !== "DELETE"}
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("profile.deletingAccount")}
-                </>
-              ) : (
-                t("profile.deleteAccountConfirmButton")
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Sensitive actions (data export, account deletion) live one
+          click deeper at /profile/settings/privacy so they don't
+          compete visually with everyday preferences. */}
+      <div className="mt-6">
+        <Link
+          href="/profile/settings/privacy"
+          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 text-sm hover:bg-muted"
+        >
+          <span>{t("profile.privacyAndData")}</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      </div>
     </div>
   );
 }
