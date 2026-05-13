@@ -444,17 +444,17 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Danger zone — isolated card at the bottom of the page so the
-          destructive action carries its own visual context (red border
-          + muted intro text). Pattern borrowed from GitHub / Vercel /
-          Stripe settings. */}
-      <Card className="mt-6 border-destructive/40">
+      {/* Account deletion — isolated card at the bottom of the page so
+          the destructive action is visually separate from routine
+          settings. Softer styling than a "danger zone" — just a muted
+          intro and an outlined destructive button. */}
+      <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-destructive">{t("profile.dangerZone")}</CardTitle>
+          <CardTitle>{t("profile.closeAccount")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-3">
-            {t("profile.dangerZoneIntro")}
+            {t("profile.closeAccountIntro")}
           </p>
           <Button
             variant="outline"
