@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, Trash2, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -48,6 +48,8 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -188,6 +190,38 @@ export default function SettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  async function handleExportData() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/account/export");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      // Read the server-suggested filename out of Content-Disposition
+      // so we don't have to repeat the date-stamping logic on the
+      // client. Fall back to a sensible default if absent.
+      const cd = res.headers.get("Content-Disposition") || "";
+      const match = cd.match(/filename="([^"]+)"/);
+      const filename = match?.[1] || "linette-data.json";
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError(t("profile.exportDataFailed"));
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -441,6 +475,35 @@ export default function SettingsPage() {
               </>
             )}
           </Button>
+
+          {/* GDPR data-portability — user can download every row across
+              their tables (preferences, items, outfits, log, trips,
+              etc.) as a single JSON. Image binaries are not inlined;
+              clothing_items already carries the public storage URL
+              per row. */}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleExportData}
+            disabled={exporting}
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t("profile.exportingData")}
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                {t("profile.exportData")}
+              </>
+            )}
+          </Button>
+          {exportError && (
+            <p className="text-sm text-destructive" role="alert">
+              {exportError}
+            </p>
+          )}
         </CardContent>
       </Card>
 
