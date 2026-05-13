@@ -1008,7 +1008,7 @@
     "changePasswordSuccess": "Password updated.",
     "changePasswordCurrentWrong": "Current password is incorrect.",
     "changePasswordFailed": "Could not update your password. Please try again.",
-    "privacyAndData": "Privacy & data",
+    "privacyAndData": "Account & security",
     "closeAccount": "Close your account",
     "closeAccountIntro": "If you'd like to delete your Linette account, you can do so below. This is permanent and cannot be undone.",
     "exportData": "Download my data",
