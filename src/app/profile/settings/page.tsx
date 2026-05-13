@@ -388,10 +388,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {userEmail && (
-            <div className="text-sm">
-              <p className="text-muted-foreground">{t("profile.signedInAs")}</p>
-              <p className="font-medium break-all">{userEmail}</p>
-            </div>
+            <p className="text-sm font-medium break-all">{userEmail}</p>
           )}
           <Button
             variant="outline"
