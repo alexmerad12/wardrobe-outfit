@@ -59,7 +59,14 @@
     "settingPassword": "Enregistrement...",
     "setPassword": "Enregistrer et continuer",
     "welcomeNoSession": "Ce lien d'invitation est invalide ou a expiré.",
-    "welcomeNoSessionSub": "Demande à la personne qui t'a invité d'envoyer un nouveau lien, ou connecte-toi ci-dessous si tu as déjà un compte."
+    "welcomeNoSessionSub": "Demande à la personne qui t'a invité d'envoyer un nouveau lien, ou connecte-toi ci-dessous si tu as déjà un compte.",
+    "forgotPassword": "Mot de passe oublié ?",
+    "forgotPasswordTitle": "Réinitialise ton mot de passe",
+    "forgotPasswordSub": "Saisis l'email de ton compte Linette. Si on le trouve, on t'enverra un lien de réinitialisation.",
+    "sendResetLink": "Envoyer le lien",
+    "sendingResetLink": "Envoi...",
+    "resetLinkSent": "Vérifie ta boîte mail",
+    "resetLinkSentSub": "Si un compte existe pour {email}, on a envoyé un lien de réinitialisation. Il expire dans une heure."
   },
   "install": {
     "installLinette": "Installe {brand}",

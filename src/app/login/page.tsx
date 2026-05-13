@@ -66,7 +66,12 @@ function LoginForm() {
         </div>
 
         <div>
-          <label htmlFor="password" className="block mb-1.5">{t("auth.password")}</label>
+          <div className="flex items-baseline justify-between mb-1.5">
+            <label htmlFor="password">{t("auth.password")}</label>
+            <Link href="/forgot-password" className="auth-link text-[11px]">
+              {t("auth.forgotPassword")}
+            </Link>
+          </div>
           <input
             id="password"
             type="password"

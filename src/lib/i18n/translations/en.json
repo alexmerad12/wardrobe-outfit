@@ -59,7 +59,14 @@
     "settingPassword": "Setting password...",
     "setPassword": "Set password and continue",
     "welcomeNoSession": "This invite link is invalid or has expired.",
-    "welcomeNoSessionSub": "Ask your inviter to send a fresh link, or sign in below if you already have an account."
+    "welcomeNoSessionSub": "Ask your inviter to send a fresh link, or sign in below if you already have an account.",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordSub": "Enter the email on your Linette account. If we find it, we'll send a reset link.",
+    "sendResetLink": "Send reset link",
+    "sendingResetLink": "Sending...",
+    "resetLinkSent": "Check your inbox",
+    "resetLinkSentSub": "If an account exists for {email}, we sent a reset link. It expires in an hour."
   },
   "install": {
     "installLinette": "Install {brand}",
