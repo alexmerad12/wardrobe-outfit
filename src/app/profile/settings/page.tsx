@@ -441,13 +441,24 @@ export default function SettingsPage() {
               </>
             )}
           </Button>
+        </CardContent>
+      </Card>
 
-          {/* Delete account — destructive, gated behind a typed-confirm
-              dialog because account deletion is irreversible and cascades
-              all wardrobe data + storage. */}
+      {/* Danger zone — isolated card at the bottom of the page so the
+          destructive action carries its own visual context (red border
+          + muted intro text). Pattern borrowed from GitHub / Vercel /
+          Stripe settings. */}
+      <Card className="mt-6 border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">{t("profile.dangerZone")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            {t("profile.dangerZoneIntro")}
+          </p>
           <Button
-            variant="ghost"
-            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            variant="outline"
+            className="w-full border-destructive/60 text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => {
               setDeleteConfirmText("");
               setDeleteError(null);

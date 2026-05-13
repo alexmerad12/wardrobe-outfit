@@ -998,6 +998,8 @@
     "signingOut": "Signing out...",
     "account": "Account",
     "signedInAs": "Signed in as",
+    "dangerZone": "Danger zone",
+    "dangerZoneIntro": "Permanent actions. Read carefully before confirming.",
     "deleteAccount": "Delete account",
     "deleteAccountTitle": "Delete your account?",
     "deleteAccountWarning": "This is permanent. Your wardrobe, saved outfits, preferences, and account will be deleted forever. We cannot recover them.",

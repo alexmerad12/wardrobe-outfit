@@ -1003,6 +1003,8 @@
     "signingOut": "Déconnexion...",
     "account": "Compte",
     "signedInAs": "Connecté en tant que",
+    "dangerZone": "Zone sensible",
+    "dangerZoneIntro": "Actions définitives. Lis bien avant de confirmer.",
     "deleteAccount": "Supprimer mon compte",
     "deleteAccountTitle": "Supprimer ton compte ?",
     "deleteAccountWarning": "Cette action est définitive. Ton dressing, tes tenues, tes préférences et ton compte seront supprimés pour toujours. On ne pourra pas les récupérer.",
