@@ -417,9 +417,11 @@ export default function SettingsPage() {
       <div className="mt-6">
         <Link
           href="/profile/settings/privacy"
-          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 text-sm hover:bg-muted"
+          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 hover:bg-muted"
         >
-          <span>{t("profile.privacyAndData")}</span>
+          <span className="font-[family-name:var(--font-heading)] text-base">
+            {t("profile.privacyAndData")}
+          </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Link>
       </div>
