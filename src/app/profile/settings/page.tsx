@@ -19,8 +19,16 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -36,6 +44,15 @@ export default function SettingsPage() {
   const { t } = useLocale();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+
+  // Change password dialog state
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSuccess, setPwdSuccess] = useState(false);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -176,6 +193,68 @@ export default function SettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  function openPasswordDialog() {
+    setCurrentPwd("");
+    setNewPwd("");
+    setConfirmPwd("");
+    setPwdError(null);
+    setPwdSuccess(false);
+    setPwdOpen(true);
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwdError(null);
+
+    if (newPwd.length < 8) {
+      setPwdError(t("auth.passwordRequirement"));
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      setPwdError(t("auth.passwordsDoNotMatch"));
+      return;
+    }
+    if (!userEmail) {
+      // Shouldn't happen — userEmail is loaded on mount — but guard
+      // anyway since the verify step below needs it.
+      setPwdError(t("profile.changePasswordFailed"));
+      return;
+    }
+
+    setPwdSaving(true);
+    const supabase = createClient();
+
+    // Verify the current password by re-attempting sign-in. Supabase's
+    // `updateUser` doesn't require the old password (it trusts the
+    // active session), but skipping verification means anyone with
+    // access to an unlocked logged-in device could change the password
+    // and lock out the real user.
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: currentPwd,
+    });
+    if (signInErr) {
+      setPwdSaving(false);
+      setPwdError(t("profile.changePasswordCurrentWrong"));
+      return;
+    }
+
+    const { error: updateErr } = await supabase.auth.updateUser({
+      password: newPwd,
+    });
+    if (updateErr) {
+      setPwdSaving(false);
+      setPwdError(updateErr.message);
+      return;
+    }
+
+    setPwdSaving(false);
+    setPwdSuccess(true);
+    setCurrentPwd("");
+    setNewPwd("");
+    setConfirmPwd("");
   }
 
   return (
@@ -395,6 +474,15 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             className="w-full"
+            onClick={openPasswordDialog}
+          >
+            <KeyRound className="mr-2 h-4 w-4" />
+            {t("profile.changePassword")}
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full"
             onClick={handleSignOut}
             disabled={signingOut}
           >
@@ -412,6 +500,103 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={pwdOpen} onOpenChange={(open) => !pwdSaving && setPwdOpen(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("profile.changePassword")}</DialogTitle>
+            <DialogDescription>{t("profile.changePasswordSub")}</DialogDescription>
+          </DialogHeader>
+
+          {pwdSuccess ? (
+            <div className="space-y-3">
+              <p className="text-sm text-green-700" role="status">
+                {t("profile.changePasswordSuccess")}
+              </p>
+              <Button className="w-full" onClick={() => setPwdOpen(false)}>
+                {t("common.close")}
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div>
+                <Label htmlFor="current-password" className="text-sm">
+                  {t("profile.changePasswordCurrent")}
+                </Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPwd}
+                  onChange={(e) => setCurrentPwd(e.target.value)}
+                  disabled={pwdSaving}
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-password" className="text-sm">
+                  {t("profile.changePasswordNew")}
+                </Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                  disabled={pwdSaving}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {t("auth.passwordHint")}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="confirm-new-password" className="text-sm">
+                  {t("auth.confirmPassword")}
+                </Label>
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                  disabled={pwdSaving}
+                />
+              </div>
+
+              {pwdError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {pwdError}
+                </p>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPwdOpen(false)}
+                  disabled={pwdSaving}
+                >
+                  {t("profile.cancel")}
+                </Button>
+                <Button type="submit" disabled={pwdSaving}>
+                  {pwdSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t("profile.changingPassword")}
+                    </>
+                  ) : (
+                    t("profile.changePasswordConfirm")
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Sensitive actions (data export, account deletion) live one
           click deeper at /profile/settings/privacy so they don't
