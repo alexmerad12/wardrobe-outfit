@@ -165,7 +165,9 @@ export default function AccountSecurityPage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-xl font-semibold">{t("profile.privacyAndData")}</h1>
+        <h1 className="font-[family-name:var(--font-heading)] text-2xl">
+          {t("profile.privacyAndData")}
+        </h1>
       </div>
 
       {/* Password change — most common security action; placed first
