@@ -1,22 +1,31 @@
+// Privacy Policy — bilingual (EN / FR). Renders the locale-matched
+// content based on the user's preference (saved in user_preferences)
+// or browser detection. Kept as a single component with two JSX blocks
+// rather than separate routes because the content is structurally
+// identical and shipping divergent routes invites the two versions
+// drifting apart over time.
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/lib/i18n/use-locale";
 
-export const metadata = {
-  title: "Privacy Policy — Linette",
-};
-
-const EFFECTIVE_DATE = "April 19, 2026";
+const EFFECTIVE_DATE_EN = "April 19, 2026";
+const EFFECTIVE_DATE_FR = "19 avril 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
 export default function PrivacyPage() {
+  const { locale } = useLocale();
+  return locale === "fr" ? <FrenchPolicy /> : <EnglishPolicy />;
+}
+
+function EnglishPolicy() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
       <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
         Privacy Policy
       </h1>
-      <p className="text-muted-foreground mb-8">
-        Effective {EFFECTIVE_DATE}
-      </p>
+      <p className="text-muted-foreground mb-8">Effective {EFFECTIVE_DATE_EN}</p>
 
       <section className="space-y-4 mb-8">
         <p>
@@ -174,6 +183,198 @@ export default function PrivacyPage() {
         </Link>
         <Link href="/login" className="underline">
           Back to sign in
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function FrenchPolicy() {
+  return (
+    <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
+      <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
+        Politique de confidentialité
+      </h1>
+      <p className="text-muted-foreground mb-8">En vigueur le {EFFECTIVE_DATE_FR}</p>
+
+      <section className="space-y-4 mb-8">
+        <p>
+          Linette (« Linette », « nous », « notre ») est exploité par{" "}
+          <strong>{OPERATOR}</strong>, une société constituée sous le régime
+          des lois de la Province de Québec, Canada. La présente Politique
+          de confidentialité explique quels renseignements nous recueillons,
+          comment nous les utilisons et les choix qui s&apos;offrent à toi.
+        </p>
+        <p>
+          En créant un compte ou en utilisant Linette, tu acceptes la
+          présente Politique. Si tu n&apos;acceptes pas, n&apos;utilise pas
+          le service.
+        </p>
+      </section>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">1. Renseignements que nous recueillons</h2>
+      <ul className="list-disc pl-5 space-y-2 mb-6">
+        <li>
+          <strong>Renseignements de compte :</strong> adresse e-mail et mot
+          de passe (stocké sous forme de hachage salé par notre fournisseur
+          d&apos;authentification).
+        </li>
+        <li>
+          <strong>Contenu de garde-robe que tu fournis :</strong> photos de
+          vêtements, noms d&apos;articles, catégories, couleurs, marques,
+          notes et autres métadonnées que tu saisis.
+        </li>
+        <li>
+          <strong>Données d&apos;utilisation :</strong> tenues que tu crées,
+          historique de port que tu consignes, préférences que tu définis
+          (sensibilité à la température, couleurs préférées, styles).
+        </li>
+        <li>
+          <strong>Localisation (facultative) :</strong> si tu accordes la
+          permission, nous utilisons ta localisation approximative pour
+          récupérer la météo locale et te suggérer des tenues. La
+          localisation est stockée uniquement sous forme de coordonnée et de
+          nom de ville dans ton profil.
+        </li>
+        <li>
+          <strong>Données techniques :</strong> journaux serveur standards
+          (adresse IP, agent utilisateur, horodatages) pour la sécurité et
+          le débogage.
+        </li>
+      </ul>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">2. Utilisation des renseignements</h2>
+      <ul className="list-disc pl-5 space-y-2 mb-6">
+        <li>Fournir, personnaliser et améliorer le service.</li>
+        <li>
+          Générer des suggestions de tenues alimentées par l&apos;IA à
+          partir de ta garde-robe et de tes préférences (voir « Traitement
+          par l&apos;IA » ci-dessous).
+        </li>
+        <li>T&apos;authentifier et sécuriser ton compte.</li>
+        <li>
+          Communiquer des messages liés au service (par ex. vérification
+          d&apos;e-mail, réinitialisation de mot de passe). Nous
+          n&apos;envoyons pas d&apos;e-mails marketing.
+        </li>
+      </ul>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">3. Traitement par l&apos;IA</h2>
+      <p className="mb-6">
+        Les suggestions de tenues et les listes de bagages sont générées en
+        envoyant les métadonnées de ta garde-robe (et non tes photos) à un
+        grand modèle de langage exploité par Anthropic, PBC. Les photos
+        elles-mêmes ne sont pas envoyées à l&apos;IA. Le fournisseur d&apos;IA
+        traite ces données en tant que sous-traitant lié par des
+        obligations contractuelles de protection des données.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">4. Où vivent tes données</h2>
+      <ul className="list-disc pl-5 space-y-2 mb-6">
+        <li>
+          <strong>Les données applicatives</strong> (comptes, vêtements,
+          tenues) sont stockées par <strong>Supabase Inc.</strong> aux
+          États-Unis.
+        </li>
+        <li>
+          <strong>Les photos</strong> sont stockées dans un stockage objet
+          exploité par <strong>Vercel Inc.</strong> et{" "}
+          <strong>Supabase Inc.</strong>
+        </li>
+        <li>
+          Nous utilisons la sécurité au niveau des lignes (RLS) afin que
+          chaque utilisateur n&apos;accède qu&apos;à ses propres données.
+        </li>
+      </ul>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">5. Partage des données</h2>
+      <p className="mb-6">
+        Nous ne vendons pas tes renseignements personnels. Nous partageons
+        des données uniquement avec des prestataires agissant en qualité de
+        sous-traitants, strictement pour faire fonctionner le service
+        (Supabase, Vercel, Anthropic). Nous pouvons divulguer des
+        renseignements si la loi l&apos;exige ou pour protéger les droits,
+        la propriété ou la sécurité des utilisateurs ou du public.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">6. Tes droits</h2>
+      <p className="mb-3">
+        Sous réserve du droit applicable (notamment la Loi 25 du Québec, le
+        RGPD et la CPRA), tu peux :
+      </p>
+      <ul className="list-disc pl-5 space-y-2 mb-6">
+        <li>
+          Demander l&apos;accès aux renseignements personnels que nous
+          détenons à ton sujet.
+        </li>
+        <li>Demander la correction de renseignements inexacts.</li>
+        <li>
+          Demander la suppression de ton compte et des données associées.
+        </li>
+        <li>Exporter tes données dans un format portable.</li>
+        <li>
+          Retirer ton consentement à la collecte facultative (par ex.
+          localisation).
+        </li>
+      </ul>
+      <p className="mb-6">
+        Contacte-nous à{" "}
+        <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>
+          {CONTACT_EMAIL}
+        </a>{" "}
+        pour exercer ces droits. Nous répondrons dans un délai de 30 jours.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">7. Conservation des données</h2>
+      <p className="mb-6">
+        Nous conservons les données de ton compte tant qu&apos;il reste
+        actif. Lorsque tu supprimes ton compte, nous supprimons tes données
+        personnelles dans les 30 jours, sauf si la loi exige leur
+        conservation.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">8. Sécurité</h2>
+      <p className="mb-6">
+        Nous utilisons des mesures conformes aux standards de
+        l&apos;industrie, dont le chiffrement en transit (HTTPS), le
+        chiffrement au repos (via Supabase et Vercel) et la sécurité au
+        niveau des lignes de la base de données. Aucun système n&apos;est
+        parfaitement sécurisé ; tu utilises le service à tes propres
+        risques.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">9. Enfants</h2>
+      <p className="mb-6">
+        Linette n&apos;est pas destiné aux enfants de moins de 13 ans. Nous
+        ne recueillons pas sciemment de renseignements personnels auprès
+        d&apos;enfants de moins de 13 ans. Si tu crois qu&apos;un enfant
+        nous a fourni des renseignements personnels, contacte-nous et nous
+        les supprimerons.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">10. Modifications</h2>
+      <p className="mb-6">
+        Nous pouvons mettre à jour cette Politique de temps à autre. Les
+        changements importants seront annoncés dans l&apos;application ou
+        par e-mail. Toute utilisation continue après une modification vaut
+        acceptation.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">11. Contact</h2>
+      <p className="mb-6">
+        Des questions sur cette Politique ? Écris-nous à{" "}
+        <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>
+          {CONTACT_EMAIL}
+        </a>
+        .
+      </p>
+
+      <div className="mt-12 flex gap-6 text-sm">
+        <Link href="/terms" className="underline">
+          Conditions d&apos;utilisation
+        </Link>
+        <Link href="/login" className="underline">
+          Retour à la connexion
         </Link>
       </div>
     </div>

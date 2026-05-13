@@ -1,22 +1,27 @@
+// Terms of Service — bilingual (EN / FR). Renders the locale-matched
+// content. See ./privacy/page.tsx for the structural rationale.
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/lib/i18n/use-locale";
 
-export const metadata = {
-  title: "Terms of Service — Linette",
-};
-
-const EFFECTIVE_DATE = "April 19, 2026";
+const EFFECTIVE_DATE_EN = "April 19, 2026";
+const EFFECTIVE_DATE_FR = "19 avril 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
 export default function TermsPage() {
+  const { locale } = useLocale();
+  return locale === "fr" ? <FrenchTerms /> : <EnglishTerms />;
+}
+
+function EnglishTerms() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
       <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
         Terms of Service
       </h1>
-      <p className="text-muted-foreground mb-8">
-        Effective {EFFECTIVE_DATE}
-      </p>
+      <p className="text-muted-foreground mb-8">Effective {EFFECTIVE_DATE_EN}</p>
 
       <p className="mb-6">
         These Terms of Service (the &quot;Terms&quot;) govern your access to
@@ -168,6 +173,189 @@ export default function TermsPage() {
         </Link>
         <Link href="/login" className="underline">
           Back to sign in
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function FrenchTerms() {
+  return (
+    <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
+      <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
+        Conditions d&apos;utilisation
+      </h1>
+      <p className="text-muted-foreground mb-8">En vigueur le {EFFECTIVE_DATE_FR}</p>
+
+      <p className="mb-6">
+        Les présentes Conditions d&apos;utilisation (les « Conditions »)
+        régissent ton accès et ton utilisation de Linette, exploité par{" "}
+        <strong>{OPERATOR}</strong> (« nous », « notre »). En créant un
+        compte ou en utilisant Linette, tu acceptes les présentes
+        Conditions.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">1. Admissibilité</h2>
+      <p className="mb-6">
+        Tu dois avoir au moins 13 ans pour utiliser Linette. Si tu es en
+        dessous de l&apos;âge de la majorité dans ta région, tu dois avoir
+        la permission d&apos;un parent ou tuteur.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">2. Ton compte</h2>
+      <ul className="list-disc pl-5 space-y-2 mb-6">
+        <li>
+          Tu es responsable de la confidentialité de ton mot de passe et de
+          toute activité sur ton compte.
+        </li>
+        <li>
+          Fournis des renseignements exacts lors de la création du compte.
+        </li>
+        <li>Ne partage pas ton compte avec d&apos;autres personnes.</li>
+        <li>
+          Avise-nous immédiatement à{" "}
+          <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>
+            {CONTACT_EMAIL}
+          </a>{" "}
+          si tu soupçonnes un accès non autorisé.
+        </li>
+      </ul>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">3. Ton contenu</h2>
+      <p className="mb-3">
+        Linette te permet de téléverser des photos et des renseignements
+        sur tes vêtements (« Contenu utilisateur »). Tu conserves tous les
+        droits sur ton Contenu utilisateur. En le téléversant, tu nous
+        accordes une licence limitée, non exclusive et libre de redevances
+        pour stocker, afficher et traiter ton Contenu utilisateur
+        uniquement pour faire fonctionner le service à ton intention.
+      </p>
+      <p className="mb-6">
+        Tu es responsable de ton Contenu utilisateur et de t&apos;assurer
+        que tu as le droit de le téléverser. Ne téléverse pas de contenu
+        illégal, qui porte atteinte aux droits d&apos;autrui, ou qui
+        contient des renseignements personnels sensibles concernant
+        d&apos;autres personnes.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">4. Utilisation acceptable</h2>
+      <p className="mb-3">Tu acceptes de ne pas :</p>
+      <ul className="list-disc pl-5 space-y-2 mb-6">
+        <li>Utiliser le service à des fins illégales.</li>
+        <li>
+          Tenter d&apos;accéder au compte ou aux données d&apos;autres
+          utilisateurs, ni interférer avec la sécurité.
+        </li>
+        <li>
+          Faire de la rétro-ingénierie, du scraping ou de la revente du
+          service.
+        </li>
+        <li>Téléverser des logiciels malveillants, du spam ou du contenu abusif.</li>
+        <li>
+          Abuser des fonctionnalités d&apos;IA (par ex. prompt injection,
+          scraping automatisé).
+        </li>
+      </ul>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">5. Suggestions générées par l&apos;IA</h2>
+      <p className="mb-6">
+        Les suggestions de tenues et de bagages sont générées par un modèle
+        d&apos;IA tiers. Elles sont fournies à titre de commodité et
+        peuvent contenir des inexactitudes ou des recommandations
+        inadaptées. Utilise ton propre jugement. Nous déclinons toute
+        responsabilité concernant les choix vestimentaires ou les résultats
+        fondés sur la sortie de l&apos;IA.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">6. Abonnements et frais</h2>
+      <p className="mb-6">
+        Linette pourra introduire des forfaits d&apos;abonnement payants
+        dans le futur. Les tarifs, conditions de facturation et politiques
+        d&apos;annulation seront présentés avant toute facturation.
+        D&apos;ici là, l&apos;accès est gratuit.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">7. Modifications & disponibilité du service</h2>
+      <p className="mb-6">
+        Nous pouvons modifier, suspendre ou interrompre des
+        fonctionnalités à tout moment. Nous ne garantissons pas que le
+        service sera ininterrompu ou exempt d&apos;erreurs. Des entretiens
+        planifiés ou d&apos;urgence peuvent causer des interruptions.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">8. Résiliation</h2>
+      <p className="mb-6">
+        Tu peux supprimer ton compte à tout moment. Nous pouvons suspendre
+        ou résilier ton compte si tu enfreins les présentes Conditions ou
+        adoptes un comportement abusif. À la résiliation, ton droit
+        d&apos;utiliser le service prend fin et nous supprimerons tes
+        données conformément à notre{" "}
+        <Link href="/privacy" className="underline">
+          Politique de confidentialité
+        </Link>
+        .
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">9. Avis de non-responsabilité</h2>
+      <p className="mb-6 uppercase text-xs tracking-wide">
+        Le service est fourni « tel quel » et « selon disponibilité », sans
+        garantie d&apos;aucune sorte, expresse, implicite, légale ou autre,
+        y compris la qualité marchande, l&apos;adéquation à un usage
+        particulier ou la non-contrefaçon.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">10. Limitation de responsabilité</h2>
+      <p className="mb-6 uppercase text-xs tracking-wide">
+        Dans toute la mesure permise par la loi, {OPERATOR} et ses
+        affiliés, dirigeants, employés et agents ne pourront être tenus
+        responsables de dommages indirects, accessoires, consécutifs,
+        spéciaux, exemplaires ou punitifs découlant de ton utilisation du
+        service ou liés à celle-ci. Notre responsabilité totale et
+        cumulative pour toute réclamation ne dépassera pas 100 $ CA ou la
+        somme que tu nous as versée au cours des 12 derniers mois, selon
+        le montant le plus élevé.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">11. Indemnisation</h2>
+      <p className="mb-6">
+        Tu acceptes d&apos;indemniser et de tenir à couvert {OPERATOR} de
+        toute réclamation découlant de ton Contenu utilisateur, de ton
+        utilisation du service ou de ta violation des présentes
+        Conditions.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">12. Droit applicable</h2>
+      <p className="mb-6">
+        Les présentes Conditions sont régies par les lois de la Province
+        de Québec et les lois applicables du Canada. La compétence
+        exclusive pour tout litige revient aux tribunaux du district
+        judiciaire de Montréal, Québec, sauf disposition impérative
+        contraire du droit local de la consommation.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">13. Modifications des Conditions</h2>
+      <p className="mb-6">
+        Nous pouvons mettre à jour les présentes Conditions de temps à
+        autre. Les changements importants seront annoncés dans
+        l&apos;application ou par e-mail. Toute utilisation continue après
+        une modification vaut acceptation.
+      </p>
+
+      <h2 className="font-semibold text-lg mt-8 mb-3">14. Contact</h2>
+      <p className="mb-6">
+        Des questions ? Écris-nous à{" "}
+        <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>
+          {CONTACT_EMAIL}
+        </a>
+        .
+      </p>
+
+      <div className="mt-12 flex gap-6 text-sm">
+        <Link href="/privacy" className="underline">
+          Politique de confidentialité
+        </Link>
+        <Link href="/login" className="underline">
+          Retour à la connexion
         </Link>
       </div>
     </div>
