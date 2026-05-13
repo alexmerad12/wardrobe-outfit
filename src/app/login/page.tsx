@@ -68,7 +68,7 @@ function LoginForm() {
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
             <label htmlFor="password">{t("auth.password")}</label>
-            <Link href="/forgot-password" className="auth-link text-[11px]">
+            <Link href="/forgot-password" className="auth-link-subtle text-[11px]">
               {t("auth.forgotPassword")}
             </Link>
           </div>
@@ -93,7 +93,7 @@ function LoginForm() {
 
       <p className="auth-foot-note">
         {t("auth.noAccount")}{" "}
-        <Link href="/signup" className="auth-link">{t("auth.signUp")}</Link>
+        <Link href="/signup" className="auth-link-subtle">{t("auth.signUp")}</Link>
       </p>
 
       <p className="auth-terms">

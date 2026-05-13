@@ -194,6 +194,17 @@ const AUTH_CSS = `
   }
   .auth-card .auth-link:hover { border-bottom-color: #000000; }
 
+  /* Quieter variant — no underline, used for utility links inline with
+     form fields or footnotes (e.g. "Forgot password?", "Sign up" next
+     to "Don't have an account?") where the dotted line reads as
+     visual noise. */
+  .auth-card .auth-link-subtle {
+    color: rgba(0,0,0,0.65);
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .auth-card .auth-link-subtle:hover { color: #000000; }
+
   .auth-card .auth-foot-note {
     margin-top: 18px;
     font-size: 13px; text-align: center;
