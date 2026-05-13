@@ -411,21 +411,21 @@ export default function SettingsPage() {
               </>
             )}
           </Button>
+
+          {/* "More" row inside the Account card — keeps the Account
+              section conceptually whole (email + sign-out + a row to
+              go deeper for password / data / delete) instead of
+              floating a separately-named "Account & security" card
+              below. Instagram / Spotify pattern. */}
+          <Link
+            href="/profile/settings/privacy"
+            className="flex items-center justify-between w-full rounded-md border border-input bg-background px-4 py-3 text-sm hover:bg-muted"
+          >
+            <span>{t("profile.privacyAndData")}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
         </CardContent>
       </Card>
-
-      {/* Sensitive actions (password change, data export, account deletion) live one
-          click deeper at /profile/settings/privacy so they don't
-          compete visually with everyday preferences. */}
-      <div className="mt-6">
-        <Link
-          href="/profile/settings/privacy"
-          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 text-sm hover:bg-muted"
-        >
-          <span>{t("profile.privacyAndData")}</span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-      </div>
     </div>
   );
 }
