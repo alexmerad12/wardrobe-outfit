@@ -997,7 +997,15 @@
     "signOut": "Sign out",
     "signingOut": "Signing out...",
     "account": "Account",
-    "signedInAs": "Signed in as"
+    "signedInAs": "Signed in as",
+    "deleteAccount": "Delete account",
+    "deleteAccountTitle": "Delete your account?",
+    "deleteAccountWarning": "This is permanent. Your wardrobe, saved outfits, preferences, and account will be deleted forever. We cannot recover them.",
+    "deleteAccountTypePrompt": "Type DELETE to confirm.",
+    "deleteAccountConfirmButton": "Delete my account",
+    "deletingAccount": "Deleting...",
+    "deleteAccountFailed": "Could not delete your account. Please try again or contact support.",
+    "cancel": "Cancel"
   },
   "onboarding": {
     "welcome": "Welcome to {brand}",

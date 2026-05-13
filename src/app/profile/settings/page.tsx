@@ -19,8 +19,16 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -36,6 +44,10 @@ export default function SettingsPage() {
   const { t } = useLocale();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -176,6 +188,25 @@ export default function SettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Delete failed");
+      }
+      // The server route already calls signOut and clears session cookies,
+      // but route to /launch via a full reload so any in-memory client
+      // state (cached Supabase client, etc.) is wiped too.
+      window.location.href = "/launch";
+    } catch (err) {
+      setDeleting(false);
+      setDeleteError(t("profile.deleteAccountFailed"));
+    }
   }
 
   return (
@@ -410,8 +441,76 @@ export default function SettingsPage() {
               </>
             )}
           </Button>
+
+          {/* Delete account — destructive, gated behind a typed-confirm
+              dialog because account deletion is irreversible and cascades
+              all wardrobe data + storage. */}
+          <Button
+            variant="ghost"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              setDeleteConfirmText("");
+              setDeleteError(null);
+              setDeleteOpen(true);
+            }}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {t("profile.deleteAccount")}
+          </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={deleteOpen} onOpenChange={(open) => !deleting && setDeleteOpen(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("profile.deleteAccountTitle")}</DialogTitle>
+            <DialogDescription>{t("profile.deleteAccountWarning")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm-delete" className="text-sm">
+              {t("profile.deleteAccountTypePrompt")}
+            </Label>
+            <Input
+              id="confirm-delete"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              autoComplete="off"
+              disabled={deleting}
+            />
+            {deleteError && (
+              <p className="text-sm text-destructive" role="alert">
+                {deleteError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              {t("profile.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleting || deleteConfirmText !== "DELETE"}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("profile.deletingAccount")}
+                </>
+              ) : (
+                t("profile.deleteAccountConfirmButton")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

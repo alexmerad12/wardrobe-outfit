@@ -1002,7 +1002,15 @@
     "signOut": "Déconnexion",
     "signingOut": "Déconnexion...",
     "account": "Compte",
-    "signedInAs": "Connecté en tant que"
+    "signedInAs": "Connecté en tant que",
+    "deleteAccount": "Supprimer mon compte",
+    "deleteAccountTitle": "Supprimer ton compte ?",
+    "deleteAccountWarning": "Cette action est définitive. Ton dressing, tes tenues, tes préférences et ton compte seront supprimés pour toujours. On ne pourra pas les récupérer.",
+    "deleteAccountTypePrompt": "Tape DELETE pour confirmer.",
+    "deleteAccountConfirmButton": "Supprimer mon compte",
+    "deletingAccount": "Suppression...",
+    "deleteAccountFailed": "Impossible de supprimer ton compte. Réessaie ou contacte le support.",
+    "cancel": "Annuler"
   },
   "onboarding": {
     "welcome": "Bienvenue dans {brand}",
