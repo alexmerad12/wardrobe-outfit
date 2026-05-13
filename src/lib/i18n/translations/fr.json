@@ -102,6 +102,11 @@
     "altClothingItem": "Vêtement"
   },
   "home": {
+    "welcomeToBrand": "Bienvenue chez {brand}",
+    "emptyWardrobeSub": "Ton dressing est vide — ajoute ta première pièce pour qu'on puisse commencer à te styliser.",
+    "emptyWardrobeHint": "Prends une photo d'une pièce et je m'occupe du reste — fond retiré, détails identifiés, et sauvegarde dans ton dressing.",
+    "uploadFirstPiece": "Ajouter ma première pièce",
+    "uploadMany": "Ou en ajouter plusieurs",
     "goodMorning": "Bon matin de {brand}",
     "goodAfternoon": "Bonjour de {brand}",
     "goodEvening": "Bonsoir de {brand}",

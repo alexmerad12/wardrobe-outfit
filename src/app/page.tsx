@@ -37,6 +37,11 @@ interface TodayOutfit {
 export default function HomePage() {
   const [todayOutfit, setTodayOutfit] = useState<TodayOutfit | null>(null);
   const [todayItems, setTodayItems] = useState<ClothingItem[]>([]);
+  // wardrobeCount === null means we haven't loaded /api/items yet, so we
+  // can't decide between the normal home and the first-time empty
+  // state. Showing nothing during the load avoids a flash of the
+  // "Add your first piece" CTA for users who already have a wardrobe.
+  const [wardrobeCount, setWardrobeCount] = useState<number | null>(null);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [todayExpanded, setTodayExpanded] = useState(false);
@@ -54,6 +59,7 @@ export default function HomePage() {
         ]);
 
         const allItems: ClothingItem[] = itemsRes.ok ? await itemsRes.json() : [];
+        setWardrobeCount(allItems.length);
 
         if (todayRes.ok) {
           const { today, recent } = await todayRes.json();
@@ -243,6 +249,45 @@ export default function HomePage() {
     if (hour < 18) return t("home.goodAfternoon");
     return t("home.goodEvening");
   })();
+
+  // First-time experience: wardrobe is empty. "Je mets quoi ?" with no
+  // items is nonsensical, so swap the whole greeting + outfit area for
+  // a single welcoming CTA pointing at /wardrobe/add. Once the user
+  // adds their first piece, this branch falls through automatically.
+  if (wardrobeCount === 0) {
+    return (
+      <div className="mx-auto max-w-md px-4 pt-6">
+        <div className="mb-8">
+          <h1 className="font-[family-name:var(--font-heading)] text-3xl font-medium tracking-tight">
+            <BrandedName template={t("home.welcomeToBrand")} scriptClassName="text-4xl leading-none" />
+          </h1>
+          <p className="text-muted-foreground mt-2 leading-relaxed">
+            {t("home.emptyWardrobeSub")}
+          </p>
+        </div>
+
+        <Card className="mb-4">
+          <CardContent className="p-6 flex flex-col items-center text-center gap-4">
+            <div className="rounded-full bg-secondary/60 p-4">
+              <Shirt className="h-8 w-8 text-foreground/70" />
+            </div>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              {t("home.emptyWardrobeHint")}
+            </p>
+            <Link href="/wardrobe/add" className="w-full">
+              <Button className="w-full">
+                <Plus className="mr-2 h-4 w-4" />
+                {t("home.uploadFirstPiece")}
+              </Button>
+            </Link>
+            <Link href="/wardrobe/bulk" className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+              {t("home.uploadMany")}
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md px-4 pt-6">
