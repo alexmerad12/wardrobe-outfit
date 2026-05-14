@@ -12,6 +12,12 @@ const PUBLIC_PATHS = [
   // is dynamically rendered by apple-icon.tsx) needed an explicit
   // entry here.
   "/apple-icon",
+  // Sentry tunnel route — the browser SDK POSTs error events here so
+  // ad-blockers don't strip *.ingest.sentry.io calls. Must be public
+  // because errors fire from logged-out pages too (login, launch, the
+  // empty-state home before signup) — auth-gating it would 307 events
+  // to /login and Sentry would never see them.
+  "/monitoring",
 ];
 
 function isPublicPath(pathname: string) {
