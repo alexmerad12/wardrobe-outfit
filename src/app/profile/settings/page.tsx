@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
 import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -39,6 +40,10 @@ export default function SettingsPage() {
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
+  // Toggle for whether the weather widget follows the user's device
+  // location (true) or stays fixed to the city above (false). Default
+  // true matches legacy behavior — the widget always asked for GPS.
+  const [useDeviceLocation, setUseDeviceLocation] = useState(true);
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
   const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
   const [language, setLanguage] = useState<Language>("auto");
@@ -77,6 +82,9 @@ export default function SettingsPage() {
             setTempUnit(prefs.temperature_unit ?? "auto");
             setLanguage(prefs.language ?? "auto");
             setGender(prefs.gender ?? "not-specified");
+            // ?? true rather than ?? false — preserves legacy behavior
+            // (always-on GPS) for rows created before this column.
+            setUseDeviceLocation(prefs.use_device_location ?? true);
           }
         }
       } catch (err) {
@@ -147,6 +155,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           user_id: "default",
           location: city ? { city, lat: cityLat, lng: cityLng } : null,
+          use_device_location: useDeviceLocation,
           temperature_sensitivity: tempSensitivity,
           temperature_unit: tempUnit,
           language,
@@ -255,6 +264,30 @@ export default function SettingsPage() {
                   {city} ({cityLat.toFixed(2)}, {cityLng.toFixed(2)})
                 </p>
               )}
+            </div>
+
+            <Separator />
+
+            {/* Use device location toggle — sits right under the city
+                picker since the two settings are coupled. When ON,
+                weather follows the device's GPS (asking for browser
+                permission). When OFF, the saved city above is used. */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="use-device-location" className="flex-1">
+                  {t("profile.useDeviceLocation")}
+                </Label>
+                <Switch
+                  id="use-device-location"
+                  checked={useDeviceLocation}
+                  onCheckedChange={setUseDeviceLocation}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {useDeviceLocation
+                  ? t("profile.useDeviceLocationOnHint")
+                  : t("profile.useDeviceLocationOffHint")}
+              </p>
             </div>
 
             <Separator />

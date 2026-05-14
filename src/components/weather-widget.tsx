@@ -182,28 +182,78 @@ export function WeatherWidget() {
       }
     }
 
-    const cachedCoords = readCachedCoords();
-    if (cachedCoords) {
-      loadForCoords(cachedCoords);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    loadFromIpGeo();
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-          writeCachedCoords(coords);
-          loadForCoords(coords);
-        },
-        () => {
-          // Denied or unavailable — keep whatever IP-based data we got.
+    // Branch on user_preferences.use_device_location:
+    //   true (default) → cached GPS → IP geo → fresh GPS prompt (legacy)
+    //   false          → use saved city's lat/lng, skip GPS prompt entirely
+    //                    Falls back to IP geo if the user toggled this on
+    //                    but never saved a city.
+    async function decideAndLoad() {
+      let useDeviceLocation = true;
+      let savedCoords: Coords | null = null;
+      try {
+        const res = await fetch("/api/preferences");
+        if (res.ok) {
+          const prefs = await res.json();
+          if (prefs) {
+            // Fall back to true so users on rows from before the column
+            // existed keep their legacy behavior.
+            useDeviceLocation = prefs.use_device_location ?? true;
+            const loc = prefs.location as
+              | { lat?: number; lng?: number }
+              | null
+              | undefined;
+            if (
+              loc &&
+              typeof loc.lat === "number" &&
+              typeof loc.lng === "number" &&
+              loc.lat !== 0 &&
+              loc.lng !== 0
+            ) {
+              savedCoords = { lat: loc.lat, lng: loc.lng };
+            }
+          }
         }
-      );
+      } catch {
+        // Network failure or auth error — fall through to legacy behavior.
+      }
+
+      if (cancelled) return;
+
+      if (!useDeviceLocation) {
+        if (savedCoords) {
+          loadForCoords(savedCoords);
+        } else {
+          loadFromIpGeo();
+        }
+        return;
+      }
+
+      const cachedCoords = readCachedCoords();
+      if (cachedCoords) {
+        loadForCoords(cachedCoords);
+        return;
+      }
+
+      loadFromIpGeo();
+
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const coords = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            writeCachedCoords(coords);
+            loadForCoords(coords);
+          },
+          () => {
+            // Denied or unavailable — keep whatever IP-based data we got.
+          },
+        );
+      }
     }
+
+    decideAndLoad();
 
     return () => {
       cancelled = true;
