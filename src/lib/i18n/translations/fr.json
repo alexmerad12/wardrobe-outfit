@@ -1019,6 +1019,7 @@
     "changePasswordCurrentWrong": "Le mot de passe actuel est incorrect.",
     "changePasswordFailed": "Impossible de mettre à jour le mot de passe. Réessaie.",
     "privacyAndData": "Compte & sécurité",
+    "needHelp": "Besoin d'aide ? Écris-nous à",
     "closeAccount": "Fermer ton compte",
     "closeAccountIntro": "Si tu souhaites supprimer ton compte Linette, tu peux le faire ci-dessous. Cette action est définitive et irréversible.",
     "exportData": "Télécharger mes données",

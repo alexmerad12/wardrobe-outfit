@@ -425,6 +425,20 @@ export default function SettingsPage() {
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Link>
       </div>
+
+      {/* Contact link — a quieter "fine print" line at the very bottom
+          of settings. Sized down vs the Account & security row because
+          most users will never need it; the few who do (account
+          recovery, bug reports, billing questions) will spot it. */}
+      <p className="mt-8 text-center text-xs text-muted-foreground">
+        {t("profile.needHelp")}{" "}
+        <a
+          href="mailto:hello@linette.app"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          hello@linette.app
+        </a>
+      </p>
     </div>
   );
 }
