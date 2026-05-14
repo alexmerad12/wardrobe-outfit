@@ -18,12 +18,6 @@ const PUBLIC_PATHS = [
   // empty-state home before signup) — auth-gating it would 307 events
   // to /login and Sentry would never see them.
   "/monitoring",
-  // Sentry onboarding-verifier page + its companion API. Public so the
-  // wizard's Verify step works regardless of auth state. Delete from
-  // PUBLIC_PATHS (and remove the route files) after the wizard flips
-  // to complete.
-  "/sentry-example-page",
-  "/api/sentry-example-api",
 ];
 
 function isPublicPath(pathname: string) {
