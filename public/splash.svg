@@ -1,37 +1,89 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Splash V4 — Radial gradient (vermillion core, navy edges, green below).
-     "Linette" rendered via <text> with Playfair Display fallback chain. Was
-     previously baked path data from scripts/glyphs-to-paths.mjs; switched to
-     <text> in the Linette rebrand for simplicity. Re-bake paths later via
-     `node scripts/glyphs-to-paths.mjs` if a font-independent splash is
-     needed for export pipelines. -->
+<!-- iOS PWA splash, V5 — matches the home screen icon design:
+     Rose & Damask textile backdrop + bordered Parisienne-L disc
+     centered slightly above the optical middle. No wordmark — the
+     splash is shown for ~1-2s when the PWA opens, the disc is the
+     brand mark people recognize.
+
+     viewBox is sized for iPhone 13/14 portrait (1170×2532). Other
+     device sizes are produced by scripts/export-icons.mjs which
+     resizes this SVG with fit:"cover" so the textile bleeds past
+     the edges on wider devices instead of leaving blank bars. -->
 <svg viewBox="0 0 1170 2532" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
-      <stop offset="0%"   stop-color="#bf3f2f"/>
-      <stop offset="40%"  stop-color="#5a1e2a"/>
-      <stop offset="100%" stop-color="#0d1a2b"/>
+    <!-- Same damask medallion + tile from icon.svg, scaled up so the
+         repeat reads at phone-screen size (not the icon-tile size). -->
+    <filter id="bleed-fx" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3"/>
+      <feDisplacementMap in="SourceGraphic" scale="2.5"/>
+    </filter>
+
+    <g id="damask">
+      <path d="M0 -18 Q 8 -10 0 0 Q -8 -10 0 -18 Z" fill="#000000" opacity="0.95"/>
+      <path d="M0 0 Q 8 10 0 18 Q -8 10 0 0 Z" fill="#000000" opacity="0.95"/>
+      <path d="M-18 0 Q -10 -8 0 0 Q -10 8 -18 0 Z" fill="#000000" opacity="0.9"/>
+      <path d="M18 0 Q 10 -8 0 0 Q 10 8 18 0 Z" fill="#000000" opacity="0.9"/>
+      <path d="M0 -17 Q 13 -23 16 -12 Q 14 -6 7 -8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 -17 Q -13 -23 -16 -12 Q -14 -6 -7 -8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 17 Q 13 23 16 12 Q 14 6 7 8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <path d="M0 17 Q -13 23 -16 12 Q -14 6 -7 8" fill="none" stroke="#000000" stroke-width="1.1" stroke-linecap="round" opacity="0.85"/>
+      <circle cx="0" cy="-24" r="1.2" fill="#000000" opacity="0.75"/>
+      <circle cx="0" cy="24" r="1.2" fill="#000000" opacity="0.75"/>
+      <circle cx="-24" cy="0" r="1" fill="#000000" opacity="0.65"/>
+      <circle cx="24" cy="0" r="1" fill="#000000" opacity="0.65"/>
+      <circle cx="0" cy="0" r="1.8" fill="#f4f4f4" opacity="0.55"/>
+    </g>
+
+    <!-- 90×156 tile — bigger than the icon's 56×97 so the medallions
+         don't tile like a poster on the much larger splash viewport. -->
+    <pattern id="rd-tile" x="0" y="0" width="90" height="156"
+             patternUnits="userSpaceOnUse">
+      <rect width="90" height="156" fill="#ffffff"/>
+      <g stroke="#1a1a1a" stroke-width="0.8" fill="none" opacity="0.45" stroke-linecap="round">
+        <line x1="45" y1="39"  x2="0"  y2="117"/>
+        <line x1="45" y1="39"  x2="90" y2="117"/>
+        <line x1="45" y1="39"  x2="0"  y2="-39"/>
+        <line x1="45" y1="39"  x2="90" y2="-39"/>
+        <line x1="0"  y1="117" x2="45" y2="195"/>
+        <line x1="90" y1="117" x2="45" y2="195"/>
+      </g>
+      <g transform="translate(45 39) scale(0.55)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(0  117) scale(0.55)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+      <g transform="translate(90 117) scale(0.55)" filter="url(#bleed-fx)"><use href="#damask"/></g>
+    </pattern>
+
+    <radialGradient id="pat-vig" cx="50%" cy="50%" r="80%">
+      <stop offset="55%" stop-color="white" stop-opacity="0"/>
+      <stop offset="100%" stop-color="black" stop-opacity="0.32"/>
     </radialGradient>
-    <linearGradient id="greenTint" x1="0%" y1="50%" x2="0%" y2="100%">
-      <stop offset="0%"   stop-color="#234233" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#234233" stop-opacity="0.55"/>
-    </linearGradient>
   </defs>
 
-  <rect width="1170" height="2532" fill="url(#bg)"/>
-  <rect width="1170" height="2532" fill="url(#greenTint)"/>
+  <!-- Textile + soft vignette so the centered disc has a quiet halo. -->
+  <rect width="1170" height="2532" fill="#ffffff"/>
+  <rect width="1170" height="2532" fill="url(#rd-tile)" opacity="0.42"/>
+  <rect width="1170" height="2532" fill="url(#pat-vig)"/>
 
-  <!-- Wordmark centered at (585, 1266). Same paint-order trick (stroke
-       under fill) the previous baked path used for the editorial outline. -->
-  <text x="585" y="1266"
-        text-anchor="middle"
-        dominant-baseline="central"
-        font-family="'Playfair Display','Bodoni Moda',Didot,'Times New Roman',Georgia,serif"
-        font-weight="500"
-        font-size="220"
-        fill="#ffffff"
-        stroke="#0d1a2b"
-        stroke-width="6"
-        paint-order="stroke"
-        style="letter-spacing:-0.01em;">Linette</text>
+  <!-- Centered disc, optical center slightly above geometric middle.
+       Disc proportions match icon.svg (r/viewport-width ≈ 0.205). -->
+  <g transform="translate(585 1180)">
+    <circle cx="0" cy="0" r="240" fill="#ffffff"/>
+    <circle cx="0" cy="0" r="240" fill="none" stroke="#000000" stroke-width="5.5" opacity="0.92"/>
+    <circle cx="0" cy="0" r="218" fill="none" stroke="#000000" stroke-width="1.8" opacity="0.55"/>
+
+    <!-- 4 cardinal dots between the two rings, scaled 1.85× the icon's. -->
+    <circle cx="0"    cy="-229" r="3.9" fill="#000000" opacity="0.85"/>
+    <circle cx="0"    cy="229"  r="3.9" fill="#000000" opacity="0.85"/>
+    <circle cx="-229" cy="0"    r="3.9" fill="#000000" opacity="0.85"/>
+    <circle cx="229"  cy="0"    r="3.9" fill="#000000" opacity="0.85"/>
+
+    <!-- Same Parisienne L path as icon.svg, scaled 1.85× and re-centered
+         on the disc origin. Path data is the baked output of
+         scripts/extract-l-path.mjs at fontSize 200, originally centered
+         at (200,200) of a 400×400 viewBox; the transform here lifts it
+         into this group's local origin (0,0) and resizes it for the
+         larger disc. -->
+    <g transform="translate(-370 -287) scale(1.85)">
+      <path fill="#000000" d="M215.53 277.54L215.53 277.54Q209.18 277.54 202.69 276.42Q196.19 275.29 189.55 273.49Q182.91 271.68 176.27 269.53Q169.63 267.38 163.18 265.33L163.18 265.33Q155.47 270.02 147.07 272.71Q138.67 275.39 129.39 275.39L129.39 275.39Q121.48 275.39 117.29 272.56Q113.09 269.73 113.09 265.04L113.09 265.04Q113.09 258.89 119.92 255.57Q126.76 252.25 140.63 252.25L140.63 252.25Q146.68 252.25 152.83 253.13Q158.98 254.00 165.33 255.37L165.33 255.37Q171.48 250 177.05 243.26Q182.62 236.52 187.89 228.81L187.89 228.81Q183.89 229.30 179.79 229.54Q175.68 229.79 171.48 229.79L171.48 229.79Q156.15 229.79 144.14 226.12Q132.13 222.46 123.83 216.06Q115.53 209.67 111.18 201.03Q106.84 192.38 106.84 182.42L106.84 182.42Q106.84 170.70 111.33 161.62Q115.82 152.54 123.68 146.34Q131.54 140.14 142.19 136.87Q152.83 133.59 165.04 133.59L165.04 133.59Q172.75 133.59 179.10 134.77Q185.45 135.94 190.09 137.30Q194.73 138.67 197.36 139.94Q200 141.21 200.29 141.31L200.29 141.31L197.75 145.70Q197.66 145.70 195.31 144.58Q192.97 143.46 188.87 142.19Q184.77 140.92 179.10 139.84Q173.44 138.77 166.89 138.77L166.89 138.77Q155.37 138.77 146.24 142.14Q137.11 145.51 130.81 151.37Q124.51 157.23 121.14 165.09Q117.77 172.95 117.77 181.84L117.77 181.84Q117.77 191.80 122.36 199.66Q126.95 207.52 134.67 212.94Q142.38 218.36 152.59 221.19Q162.79 224.02 174.02 224.02L174.02 224.02Q178.61 224.02 183.06 223.73Q187.50 223.44 191.89 222.75L191.89 222.75Q198.83 211.91 205.32 200.29Q211.82 188.67 218.26 177.54Q224.71 166.41 231.25 156.40Q237.79 146.39 244.87 138.87Q251.95 131.35 259.77 126.90Q267.58 122.46 276.56 122.46L276.56 122.46Q280.08 122.46 283.11 123.58Q286.13 124.71 288.38 127.00Q290.63 129.30 291.89 132.81Q293.16 136.33 293.16 141.02L293.16 141.02Q293.16 148.63 290.23 157.08Q287.30 165.53 281.74 173.97Q276.17 182.42 268.16 190.58Q260.16 198.73 250 205.66Q239.84 212.60 227.73 218.02Q215.63 223.44 201.95 226.46L201.95 226.46Q195.51 235.35 188.67 243.21Q181.84 251.07 174.22 257.42L174.22 257.42Q181.64 259.38 188.77 261.57Q195.90 263.77 202.29 265.58Q208.69 267.38 214.16 268.60Q219.63 269.82 223.83 269.82L223.83 269.82Q230.08 269.82 235.89 267.68Q241.70 265.53 247.46 260.06L247.46 260.06L251.46 263.18Q251.37 263.28 250.39 264.40Q249.41 265.53 247.46 267.14Q245.51 268.75 242.58 270.56Q239.65 272.36 235.69 273.93Q231.74 275.49 226.71 276.51Q221.68 277.54 215.53 277.54ZM276.95 127.83L276.95 127.83Q271.48 127.83 266.11 131.74Q260.74 135.64 255.27 142.33Q249.80 149.02 244.19 158.06Q238.57 167.09 232.62 177.29Q226.66 187.50 220.21 198.34Q213.77 209.18 206.74 219.63L206.74 219.63Q218.46 216.41 229.05 211.23Q239.65 206.05 248.68 199.61Q257.71 193.16 264.99 185.79Q272.27 178.42 277.39 170.70Q282.52 162.99 285.25 155.42Q287.99 147.85 287.99 140.92L287.99 140.92Q287.99 137.30 287.11 134.81Q286.23 132.32 284.72 130.76Q283.20 129.20 281.20 128.52Q279.20 127.83 276.95 127.83ZM128.81 270.31L128.81 270.31Q136.04 270.31 142.48 268.31Q148.93 266.31 154.98 262.79L154.98 262.79Q148.54 260.94 142.53 259.77Q136.52 258.59 130.96 258.59L130.96 258.59Q124.32 258.59 121.24 260.55Q118.16 262.50 118.16 265.04L118.16 265.04Q118.16 265.82 118.60 266.75Q119.04 267.68 120.21 268.46Q121.39 269.24 123.44 269.78Q125.49 270.31 128.81 270.31Z"/>
+    </g>
+  </g>
 </svg>
