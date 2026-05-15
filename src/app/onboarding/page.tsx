@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Languages, Thermometer, Loader2 } from "lucide-react";
+import { MapPin, Languages, Thermometer, Loader2, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ interface CityResult {
   longitude: number;
 }
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -41,6 +42,10 @@ export default function OnboardingPage() {
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
+  // Defaults to true — match the user_preferences column default + the
+  // weather widget's fallback. Step 3 of onboarding fires the OS
+  // permission prompt when the user advances past it with this on.
+  const [useDeviceLocation, setUseDeviceLocation] = useState(true);
   // Gender defaults to "woman" since Linette is women-first. We no
   // longer ask in onboarding; users can change in profile.
   const [gender] = useState<Gender>("woman");
@@ -108,7 +113,32 @@ export default function OnboardingPage() {
   const canAdvance =
     (step === 1) ||
     (step === 2 && city && cityLat !== 0) ||
-    (step === 3);
+    (step === 3) ||
+    (step === 4);
+
+  // Called when the user clicks "Next" from step 3 with the location
+  // toggle ON. Fires `navigator.geolocation.getCurrentPosition()` which
+  // triggers the native OS / browser permission prompt — that's the
+  // whole reason this step exists. We don't actually use the resolved
+  // coords here (the weather widget on the home page reads them
+  // freshly anyway); we just need the user to grant or deny so the
+  // prompt doesn't ambush them later. If they deny, fine — the widget
+  // falls back to IP geo and they can still use the app.
+  function requestLocationPermission() {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      () => {},
+      () => {},
+      { maximumAge: 60000, timeout: 5000 },
+    );
+  }
+
+  function handleNext() {
+    if (step === 3 && useDeviceLocation) {
+      requestLocationPermission();
+    }
+    setStep(step + 1);
+  }
 
   async function handleFinish() {
     setSaving(true);
@@ -118,6 +148,7 @@ export default function OnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           location: city ? { city, lat: cityLat, lng: cityLng } : null,
+          use_device_location: useDeviceLocation,
           language,
           gender,
           temperature_sensitivity: tempSensitivity,
@@ -252,6 +283,40 @@ export default function OnboardingPage() {
               <div className="space-y-3">
                 <div>
                   <h2 className="text-lg font-medium">
+                    {t("onboarding.locationTitle")}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("onboarding.locationSub")}
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label
+                      htmlFor="onboarding-use-device-location"
+                      className="flex items-center gap-1.5"
+                    >
+                      <Navigation className="h-3.5 w-3.5" />
+                      {t("profile.useDeviceLocation")}
+                    </Label>
+                    <Switch
+                      id="onboarding-use-device-location"
+                      checked={useDeviceLocation}
+                      onCheckedChange={setUseDeviceLocation}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {useDeviceLocation
+                      ? t("onboarding.locationHintOn")
+                      : t("onboarding.locationHintOff")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-medium">
                     {t("onboarding.tempTitle")}
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -301,7 +366,7 @@ export default function OnboardingPage() {
               {step < TOTAL_STEPS ? (
                 <Button
                   className="flex-1"
-                  onClick={() => setStep(step + 1)}
+                  onClick={handleNext}
                   disabled={!canAdvance}
                 >
                   {t("onboarding.next")}
