@@ -32,8 +32,13 @@ export function BrandedName({
     <>
       {prefix}
       <span
+        // tracking-normal forces letter-spacing back to 0 inside the
+        // script span, because most callsites (home page heading,
+        // wordmark blocks) use `tracking-tight` on the parent. Negative
+        // letter-spacing breaks Parisienne's join strokes between
+        // letters — the "i → n" connection visibly snaps mid-stroke.
         className={cn(
-          "font-[family-name:var(--font-script)] font-normal align-baseline",
+          "font-[family-name:var(--font-script)] font-normal align-baseline tracking-normal",
           scriptClassName
         )}
       >
