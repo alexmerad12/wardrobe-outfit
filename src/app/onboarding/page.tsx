@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BrandedName } from "@/components/brand/branded-name";
 import type { Language, Gender, TemperatureSensitivity } from "@/lib/types";
 import { detectLocale, translate, type Locale } from "@/lib/i18n";
+import { reverseGeocode } from "@/lib/reverse-geocode";
 
 interface CityResult {
   name: string;
@@ -53,10 +54,13 @@ export default function OnboardingPage() {
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
-  // Defaults to true — match the user_preferences column default + the
-  // weather widget's fallback. Step 3 of onboarding fires the OS
-  // permission prompt when the user advances past it with this on.
-  const [useDeviceLocation, setUseDeviceLocation] = useState(true);
+  // Defaults to false in onboarding so the user starts in fixed-city
+  // mode (privacy-friendly, no surprise permission prompt). Flipping
+  // the toggle to ON fires the OS permission prompt + reverse-geocodes
+  // the result to auto-fill the city picker above, so users who DO
+  // want location-following don't have to type a city manually.
+  const [useDeviceLocation, setUseDeviceLocation] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   // Re-added to onboarding so men get a real choice up front
   // (Linette is women-first but is meant to be usable by men too;
   // the AI suggestions are gender-aware and need this signal).
@@ -128,29 +132,43 @@ export default function OnboardingPage() {
     (step === 3) ||
     (step === 4);
 
-  // Called when the user clicks "Next" from step 2 with the location
-  // toggle ON. Fires `navigator.geolocation.getCurrentPosition()` which
-  // triggers the native OS / browser permission prompt — that's the
-  // whole reason this lives in onboarding rather than ambushing the
-  // user on the home page when the weather widget loads. We don't
-  // actually use the resolved coords here (the widget reads them
-  // freshly anyway); we just want the user to grant or deny in
-  // context. If they deny, fine — the widget falls back to IP geo
-  // and they can still use the app.
-  function requestLocationPermission() {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      () => {},
-      () => {},
-      { maximumAge: 60000, timeout: 5000 },
-    );
-  }
-
-  function handleNext() {
-    if (step === 2 && useDeviceLocation) {
-      requestLocationPermission();
+  // Called the moment the user flips the location toggle ON. Triggers
+  // the OS / browser permission prompt, then reverse-geocodes the
+  // resolved coordinates and auto-fills the city picker above so the
+  // user doesn't have to type it manually. If permission is denied or
+  // detection fails, the toggle is reverted so the UI doesn't lie
+  // about state.
+  function handleLocationToggle(checked: boolean) {
+    setUseDeviceLocation(checked);
+    if (!checked) return;
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setUseDeviceLocation(false);
+      return;
     }
-    setStep(step + 1);
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const result = await reverseGeocode(
+          position.coords.latitude,
+          position.coords.longitude,
+          locale,
+        );
+        setDetectingLocation(false);
+        if (result) {
+          setCity(result.city);
+          setCityQuery(result.city);
+          setCityLat(result.lat);
+          setCityLng(result.lng);
+        }
+      },
+      () => {
+        // Denied / timeout / unavailable — revert to fixed-city mode
+        // so the user knows manual entry is required.
+        setDetectingLocation(false);
+        setUseDeviceLocation(false);
+      },
+      { timeout: 8000, maximumAge: 60000 },
+    );
   }
 
   async function handleFinish() {
@@ -181,7 +199,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-6 py-12">
+    <div className="fixed inset-0 flex items-center justify-center overflow-hidden px-6 py-12">
       {/* Damask wallpaper — same Rose & Damask textile that backs the
           launch page and splash, so the brand entry stays cohesive
           from first paint through onboarding. Slightly desaturated +
@@ -284,8 +302,9 @@ export default function OnboardingPage() {
                       onFocus={() => {
                         if (cityResults.length > 0) setShowDropdown(true);
                       }}
+                      disabled={detectingLocation}
                     />
-                    {searching && (
+                    {(searching || detectingLocation) && (
                       <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {showDropdown && cityResults.length > 0 && (
@@ -336,7 +355,7 @@ export default function OnboardingPage() {
                     <Switch
                       id="onboarding-use-device-location"
                       checked={useDeviceLocation}
-                      onCheckedChange={setUseDeviceLocation}
+                      onCheckedChange={handleLocationToggle}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -440,7 +459,7 @@ export default function OnboardingPage() {
               {step < TOTAL_STEPS ? (
                 <Button
                   className="flex-1"
-                  onClick={handleNext}
+                  onClick={() => setStep(step + 1)}
                   disabled={!canAdvance}
                 >
                   {t("onboarding.next")}

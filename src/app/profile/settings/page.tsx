@@ -24,6 +24,7 @@ import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "
 import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { reverseGeocode } from "@/lib/reverse-geocode";
 
 interface CityResult {
   name: string;
@@ -34,7 +35,7 @@ interface CityResult {
 }
 
 export default function SettingsPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [city, setCity] = useState("");
@@ -44,6 +45,7 @@ export default function SettingsPage() {
   // location (true) or stays fixed to the city above (false). Default
   // true matches legacy behavior — the widget always asked for GPS.
   const [useDeviceLocation, setUseDeviceLocation] = useState(true);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
   const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
   const [language, setLanguage] = useState<Language>("auto");
@@ -180,6 +182,42 @@ export default function SettingsPage() {
     }
   }
 
+  // When the location toggle flips ON, fire the geolocation prompt
+  // and reverse-geocode the result to auto-fill the city picker
+  // above. Matches the onboarding behavior so both surfaces feel the
+  // same. If permission is denied or detection fails, revert the
+  // toggle so the UI doesn't lie about state.
+  function handleLocationToggle(checked: boolean) {
+    setUseDeviceLocation(checked);
+    if (!checked) return;
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setUseDeviceLocation(false);
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const result = await reverseGeocode(
+          position.coords.latitude,
+          position.coords.longitude,
+          locale,
+        );
+        setDetectingLocation(false);
+        if (result) {
+          setCity(result.city);
+          setCityQuery(result.city);
+          setCityLat(result.lat);
+          setCityLng(result.lng);
+        }
+      },
+      () => {
+        setDetectingLocation(false);
+        setUseDeviceLocation(false);
+      },
+      { timeout: 8000, maximumAge: 60000 },
+    );
+  }
+
   async function handleSignOut() {
     setSigningOut(true);
     const supabase = createClient();
@@ -234,7 +272,7 @@ export default function SettingsPage() {
                 <Switch
                   id="use-device-location"
                   checked={useDeviceLocation}
-                  onCheckedChange={setUseDeviceLocation}
+                  onCheckedChange={handleLocationToggle}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -257,7 +295,7 @@ export default function SettingsPage() {
                     }}
                     disabled={useDeviceLocation}
                   />
-                  {searching && (
+                  {(searching || detectingLocation) && (
                     <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                   )}
                   {showDropdown && cityResults.length > 0 && (
