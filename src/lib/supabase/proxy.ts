@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
-  "/login", "/signup", "/auth", "/privacy", "/terms",
+  "/login", "/signup", "/forgot-password", "/auth", "/privacy", "/terms",
   "/logo-lab", "/launch", "/design",
   // PWA / browser-icon endpoints. iOS fetches /apple-icon WITHOUT
   // any auth session when adding to home screen, so the auth-gate
@@ -74,6 +74,34 @@ export async function updateSession(request: NextRequest) {
     homeUrl.pathname = "/";
     homeUrl.search = "";
     return NextResponse.redirect(homeUrl);
+  }
+
+  // Onboarding gate. If the user is signed in but doesn't have a
+  // user_preferences row yet, they bailed mid-onboarding (or never
+  // started it) — kick them back to /onboarding until they finish.
+  // Skip the check on:
+  //   - /onboarding itself (would infinite-loop)
+  //   - /welcome (invite-acceptance flow; prefs row doesn't exist yet)
+  //   - API routes (the onboarding form needs to PUT /api/preferences;
+  //     other API calls from app pages will just return their normal
+  //     error rather than getting redirected)
+  if (
+    user &&
+    !pathname.startsWith("/onboarding") &&
+    !pathname.startsWith("/welcome") &&
+    !pathname.startsWith("/api/")
+  ) {
+    const { data: prefs } = await supabase
+      .from("user_preferences")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!prefs) {
+      const onboardingUrl = request.nextUrl.clone();
+      onboardingUrl.pathname = "/onboarding";
+      onboardingUrl.search = "";
+      return NextResponse.redirect(onboardingUrl);
+    }
   }
 
   return supabaseResponse;

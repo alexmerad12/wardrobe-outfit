@@ -21,11 +21,15 @@ export function BottomNav() {
   // Hide nav on auth + legal + launch + design-preview + debug pages.
   // /welcome is part of the auth flow (invite acceptance + password reset)
   // and the nav being visible there both looks unpolished and lets the user
-  // bypass the password-set form by tapping into the app.
+  // bypass the password-set form by tapping into the app. /onboarding is
+  // the same — the user has to finish those steps before reaching the app
+  // proper, so the nav would only let them escape with a half-filled profile.
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/welcome") ||
+    pathname.startsWith("/onboarding") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
     pathname.startsWith("/auth") ||
