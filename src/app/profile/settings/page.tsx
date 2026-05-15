@@ -219,63 +219,17 @@ export default function SettingsPage() {
           </CardContent>
         ) : (
           <CardContent className="space-y-4 animate-in fade-in duration-300">
-            {/* Location */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
-                {t("profile.city")}
-              </Label>
-              <div className="relative" ref={dropdownRef}>
-                <Input
-                  placeholder={t("profile.cityPlaceholder")}
-                  value={cityQuery}
-                  onChange={(e) => handleCityInput(e.target.value)}
-                  onFocus={() => {
-                    if (cityResults.length > 0) setShowDropdown(true);
-                  }}
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-                {showDropdown && cityResults.length > 0 && (
-                  <div className="absolute z-50 mt-1 w-full rounded-lg border bg-background shadow-lg max-h-48 overflow-y-auto">
-                    {cityResults.map((result, i) => (
-                      <button
-                        key={`${result.latitude}-${result.longitude}-${i}`}
-                        type="button"
-                        className="w-full px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2"
-                        onClick={() => selectCity(result)}
-                      >
-                        <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                        <span>
-                          <span className="font-medium">{result.name}</span>
-                          {result.admin1 && (
-                            <span className="text-muted-foreground">, {result.admin1}</span>
-                          )}
-                          <span className="text-muted-foreground">, {result.country}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {city && cityLat !== 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {city} ({cityLat.toFixed(2)}, {cityLng.toFixed(2)})
-                </p>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Use device location toggle — sits right under the city
-                picker since the two settings are coupled. When ON,
-                weather follows the device's GPS (asking for browser
-                permission). When OFF, the saved city above is used. */}
-            <div className="space-y-2">
+            {/* Weather location — unified section combining the
+                "follow my location" toggle and the city fallback.
+                The two settings are conceptually one decision ("where
+                does weather come from?") so they live in a single
+                block. City field stays visible but dims when the
+                toggle is ON since it's not in use in that mode. */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="use-device-location" className="flex-1">
-                  {t("profile.useDeviceLocation")}
+                <Label htmlFor="use-device-location" className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {t("profile.weatherLocation")}
                 </Label>
                 <Switch
                   id="use-device-location"
@@ -288,6 +242,52 @@ export default function SettingsPage() {
                   ? t("profile.useDeviceLocationOnHint")
                   : t("profile.useDeviceLocationOffHint")}
               </p>
+
+              <div
+                className={useDeviceLocation ? "opacity-50 pointer-events-none" : ""}
+                aria-disabled={useDeviceLocation}
+              >
+                <div className="relative" ref={dropdownRef}>
+                  <Input
+                    placeholder={t("profile.cityPlaceholder")}
+                    value={cityQuery}
+                    onChange={(e) => handleCityInput(e.target.value)}
+                    onFocus={() => {
+                      if (cityResults.length > 0) setShowDropdown(true);
+                    }}
+                    disabled={useDeviceLocation}
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {showDropdown && cityResults.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-lg border bg-background shadow-lg max-h-48 overflow-y-auto">
+                      {cityResults.map((result, i) => (
+                        <button
+                          key={`${result.latitude}-${result.longitude}-${i}`}
+                          type="button"
+                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                          onClick={() => selectCity(result)}
+                        >
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          <span>
+                            <span className="font-medium">{result.name}</span>
+                            {result.admin1 && (
+                              <span className="text-muted-foreground">, {result.admin1}</span>
+                            )}
+                            <span className="text-muted-foreground">, {result.country}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {city && cityLat !== 0 && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {city} ({cityLat.toFixed(2)}, {cityLng.toFixed(2)})
+                  </p>
+                )}
+              </div>
             </div>
 
             <Separator />
