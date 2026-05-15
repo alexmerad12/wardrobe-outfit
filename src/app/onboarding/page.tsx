@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Languages, Thermometer, Loader2, Navigation } from "lucide-react";
+import { MapPin, Languages, Thermometer, Loader2, Navigation, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
 import {
   Select,
   SelectContent,
@@ -29,6 +30,16 @@ interface CityResult {
 
 const TOTAL_STEPS = 4;
 
+// Same palette the launch page uses — keeps the brand entry surface
+// (launch → splash → onboarding) visually continuous.
+const BRAND_PALETTE: Palette = [
+  "#ffffff", // bg — ivory
+  "#f4f4f4", // petalHi
+  "#000000", "#000000", "#000000", "#000000",
+  "#1a1a1a", // stem — warm dark for the diamond hairlines
+  "#000000", // damaskMotif — ink
+];
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -46,9 +57,10 @@ export default function OnboardingPage() {
   // weather widget's fallback. Step 3 of onboarding fires the OS
   // permission prompt when the user advances past it with this on.
   const [useDeviceLocation, setUseDeviceLocation] = useState(true);
-  // Gender defaults to "woman" since Linette is women-first. We no
-  // longer ask in onboarding; users can change in profile.
-  const [gender] = useState<Gender>("woman");
+  // Re-added to onboarding so men get a real choice up front
+  // (Linette is women-first but is meant to be usable by men too;
+  // the AI suggestions are gender-aware and need this signal).
+  const [gender, setGender] = useState<Gender>("woman");
 
   const [cityQuery, setCityQuery] = useState("");
   const [cityResults, setCityResults] = useState<CityResult[]>([]);
@@ -116,14 +128,15 @@ export default function OnboardingPage() {
     (step === 3) ||
     (step === 4);
 
-  // Called when the user clicks "Next" from step 3 with the location
+  // Called when the user clicks "Next" from step 2 with the location
   // toggle ON. Fires `navigator.geolocation.getCurrentPosition()` which
   // triggers the native OS / browser permission prompt — that's the
-  // whole reason this step exists. We don't actually use the resolved
-  // coords here (the weather widget on the home page reads them
-  // freshly anyway); we just need the user to grant or deny so the
-  // prompt doesn't ambush them later. If they deny, fine — the widget
-  // falls back to IP geo and they can still use the app.
+  // whole reason this lives in onboarding rather than ambushing the
+  // user on the home page when the weather widget loads. We don't
+  // actually use the resolved coords here (the widget reads them
+  // freshly anyway); we just want the user to grant or deny in
+  // context. If they deny, fine — the widget falls back to IP geo
+  // and they can still use the app.
   function requestLocationPermission() {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -134,7 +147,7 @@ export default function OnboardingPage() {
   }
 
   function handleNext() {
-    if (step === 3 && useDeviceLocation) {
+    if (step === 2 && useDeviceLocation) {
       requestLocationPermission();
     }
     setStep(step + 1);
@@ -168,8 +181,35 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center px-6 py-12">
+      {/* Damask wallpaper — same Rose & Damask textile that backs the
+          launch page and splash, so the brand entry stays cohesive
+          from first paint through onboarding. Slightly desaturated +
+          softened so it reads as a backdrop and the card content
+          dominates. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.55]"
+        style={{ filter: "saturate(0.85)" }}
+      >
+        <PatternRoseDamask
+          palette={BRAND_PALETTE}
+          viewBoxWidth={2400}
+          viewBoxHeight={2400}
+        />
+      </div>
+      {/* Light vignette so the centered card has a quiet halo and the
+          textile doesn't fight the type around the edges. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.65) 0%, transparent 55%), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.18) 100%)",
+        }}
+      />
+
+      <div className="relative w-full max-w-sm">
         <div className="mb-6 text-center">
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">
             <BrandedName template={t("onboarding.welcome")} scriptClassName="text-4xl leading-none" />
@@ -276,20 +316,15 @@ export default function OnboardingPage() {
                     </p>
                   )}
                 </div>
-              </div>
-            )}
 
-            {step === 3 && (
-              <div className="space-y-3">
-                <div>
-                  <h2 className="text-lg font-medium">
-                    {t("onboarding.locationTitle")}
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("onboarding.locationSub")}
-                  </p>
-                </div>
-                <div className="space-y-3">
+                {/* Follow-my-location toggle, merged into this step
+                    because the city and the toggle are conceptually one
+                    decision ("where does weather come from?"). When
+                    OFF, the saved city is the source; when ON, the
+                    device's GPS overrides it (with the saved city as
+                    fallback if permission is denied). The OS prompt
+                    fires when the user advances past this step. */}
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between gap-3">
                     <Label
                       htmlFor="onboarding-use-device-location"
@@ -309,6 +344,45 @@ export default function OnboardingPage() {
                       ? t("onboarding.locationHintOn")
                       : t("onboarding.locationHintOff")}
                   </p>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-medium">
+                    {t("onboarding.genderTitle")}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("onboarding.genderSub")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    {t("profile.gender")}
+                  </Label>
+                  <Select
+                    value={gender}
+                    onValueChange={(v) => setGender(v as Gender)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue>
+                        {(value) => {
+                          if (value === "woman") return t("profile.woman");
+                          if (value === "man") return t("profile.man");
+                          if (value === "not-specified") return t("profile.notSpecified");
+                          return null;
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="woman">{t("profile.woman")}</SelectItem>
+                      <SelectItem value="man">{t("profile.man")}</SelectItem>
+                      <SelectItem value="not-specified">{t("profile.notSpecified")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
