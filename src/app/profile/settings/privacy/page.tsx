@@ -250,7 +250,7 @@ export default function AccountSecurityPage() {
 
           {pwdSuccess ? (
             <div className="space-y-3">
-              <p className="text-sm text-green-700" role="status">
+              <p className="text-sm italic text-muted-foreground" role="status">
                 {t("profile.changePasswordSuccess")}
               </p>
               <Button className="w-full" onClick={() => setPwdOpen(false)}>

@@ -28,11 +28,30 @@ const parisienne = Parisienne({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://linette.app"),
   title: "Linette — Your Personal Stylist",
   description:
     "Your wardrobe, beautifully organized. AI-powered outfit suggestions based on weather, mood, and occasion.",
   manifest: "/manifest.json",
   applicationName: "Linette",
+  // OG + Twitter share previews. The image itself is auto-resolved by
+  // Next.js from src/app/opengraph-image.png and src/app/twitter-image.png
+  // (file-system convention). Explicit metadata block sets the title /
+  // description / siteName so shared linette.app links show the right
+  // text alongside the image on iMessage / Slack / Twitter / Facebook.
+  openGraph: {
+    title: "Linette — Your AI Stylist",
+    description: "Your wardrobe, beautifully organized. For the closet you already own.",
+    siteName: "Linette",
+    url: "https://linette.app",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Linette — Your AI Stylist",
+    description: "Your wardrobe, beautifully organized. For the closet you already own.",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -43,9 +62,9 @@ export const metadata: Metadata = {
     // back to the manifest's theme_color (#ffffff) gives a clean
     // white pre-paint that hands off to LaunchSplash invisibly.
   },
-  // Icons come from app/icon.svg + app/apple-icon.tsx (Next file conventions),
-  // which now render the Ivory · Noir mark. Manifest still references the
-  // PWA-specific PNGs in /public for installed-app icons.
+  // Icons come from app/icon.svg + app/apple-icon.png (Next file conventions).
+  // Manifest still references the PWA-specific PNGs in /public for
+  // installed-app icons.
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",

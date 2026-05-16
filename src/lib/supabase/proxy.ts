@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
-  "/login", "/signup", "/forgot-password", "/auth", "/privacy", "/terms",
+  "/login", "/signup", "/forgot-password", "/auth", "/privacy", "/terms", "/faq",
   "/logo-lab", "/launch", "/design",
   // PWA / browser-icon endpoints. iOS fetches /apple-icon WITHOUT
   // any auth session when adding to home screen, so the auth-gate

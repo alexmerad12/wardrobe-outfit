@@ -20,8 +20,17 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
@@ -38,6 +47,16 @@ export default function SettingsPage() {
   const { t, locale } = useLocale();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+
+  // Send-feedback dialog state. The form POSTs to /api/feedback which
+  // forwards the message via Resend to hello@linette.app — no
+  // database row, the support inbox is the source of truth.
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<"bug" | "idea" | "other">("other");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -216,6 +235,38 @@ export default function SettingsPage() {
       },
       { timeout: 8000, maximumAge: 60000 },
     );
+  }
+
+  function openFeedbackDialog() {
+    setFeedbackType("other");
+    setFeedbackMessage("");
+    setFeedbackError(null);
+    setFeedbackSent(false);
+    setFeedbackOpen(true);
+  }
+
+  async function handleSubmitFeedback(e: React.FormEvent) {
+    e.preventDefault();
+    setFeedbackError(null);
+    const trimmed = feedbackMessage.trim();
+    if (!trimmed) return;
+    setFeedbackSending(true);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: feedbackType, message: trimmed }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Feedback failed");
+      }
+      setFeedbackSent(true);
+    } catch {
+      setFeedbackError(t("profile.feedbackFailed"));
+    } finally {
+      setFeedbackSending(false);
+    }
   }
 
   async function handleSignOut() {
@@ -452,6 +503,41 @@ export default function SettingsPage() {
         )}
       </Card>
 
+      {/* Sub-page nav rows — sit above the Sign-in card so the
+          Sign-out button is the visual terminus of the page (the
+          last thing you'd do before leaving). Privacy & help live
+          here as navigational entries, not destructive actions. */}
+      <div className="space-y-2 mb-6">
+        <Link
+          href="/profile/settings/privacy"
+          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 hover:bg-muted"
+        >
+          <span className="font-heading text-base leading-snug font-medium">
+            {t("profile.privacyAndData")}
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link
+          href="/faq"
+          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 hover:bg-muted"
+        >
+          <span className="font-heading text-base leading-snug font-medium">
+            {t("profile.helpAndFaq")}
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <button
+          type="button"
+          onClick={openFeedbackDialog}
+          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 hover:bg-muted text-left"
+        >
+          <span className="font-heading text-base leading-snug font-medium">
+            {t("profile.sendFeedback")}
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+      </div>
+
       {/* Account card */}
       <Card>
         <CardHeader>
@@ -482,21 +568,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Sensitive actions (password change, data export, account
-          deletion) live one click deeper at /profile/settings/privacy
-          so they don't compete visually with everyday preferences. */}
-      <div className="mt-6">
-        <Link
-          href="/profile/settings/privacy"
-          className="flex items-center justify-between w-full rounded-lg border border-input bg-background px-4 py-3 hover:bg-muted"
-        >
-          <span className="font-[family-name:var(--font-heading)] text-base">
-            {t("profile.privacyAndData")}
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-      </div>
-
       {/* Contact link — a quieter "fine print" line at the very bottom
           of settings. Sized down vs the Account & security row because
           most users will never need it; the few who do (account
@@ -510,6 +581,97 @@ export default function SettingsPage() {
           hello@linette.app
         </a>
       </p>
+
+      <Dialog open={feedbackOpen} onOpenChange={(open) => !feedbackSending && setFeedbackOpen(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("profile.sendFeedback")}</DialogTitle>
+            <DialogDescription>{t("profile.feedbackIntro")}</DialogDescription>
+          </DialogHeader>
+
+          {feedbackSent ? (
+            <div className="space-y-3">
+              <p className="text-sm italic text-muted-foreground" role="status">
+                {t("profile.feedbackSentSuccess")}
+              </p>
+              <Button className="w-full" onClick={() => setFeedbackOpen(false)}>
+                {t("common.close")}
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmitFeedback} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="feedback-type" className="text-sm">
+                  {t("profile.feedbackTypeLabel")}
+                </Label>
+                <Select
+                  value={feedbackType}
+                  onValueChange={(v) => setFeedbackType(v as "bug" | "idea" | "other")}
+                >
+                  <SelectTrigger id="feedback-type" className="w-full">
+                    <SelectValue>
+                      {(value) => {
+                        if (value === "bug") return t("profile.feedbackTypeBug");
+                        if (value === "idea") return t("profile.feedbackTypeIdea");
+                        if (value === "other") return t("profile.feedbackTypeOther");
+                        return null;
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bug">{t("profile.feedbackTypeBug")}</SelectItem>
+                    <SelectItem value="idea">{t("profile.feedbackTypeIdea")}</SelectItem>
+                    <SelectItem value="other">{t("profile.feedbackTypeOther")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="feedback-message" className="text-sm">
+                  {t("profile.feedbackMessageLabel")}
+                </Label>
+                <Textarea
+                  id="feedback-message"
+                  value={feedbackMessage}
+                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                  placeholder={t("profile.feedbackMessagePlaceholder")}
+                  required
+                  maxLength={5000}
+                  rows={6}
+                  disabled={feedbackSending}
+                />
+              </div>
+
+              {feedbackError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {feedbackError}
+                </p>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setFeedbackOpen(false)}
+                  disabled={feedbackSending}
+                >
+                  {t("profile.cancel")}
+                </Button>
+                <Button type="submit" disabled={feedbackSending || !feedbackMessage.trim()}>
+                  {feedbackSending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t("profile.feedbackSending")}
+                    </>
+                  ) : (
+                    t("profile.feedbackSubmit")
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
