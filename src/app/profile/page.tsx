@@ -307,22 +307,6 @@ export default function ProfilePage() {
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             </Link>
-
-            {/* Outfit shortcuts — contextual outfit-creation / refining
-                actions that don't have their own destinations. Last
-                child of the divide-y wrapper so it gets the hairline
-                above. Subhead promoted from editorial-label (faded
-                small caps) to plain dark text-sm so the block has a
-                visible anchor; bullets at foreground/70 so they're
-                readable but don't compete with the destination rows. */}
-            <div className="px-6 py-4 space-y-3">
-              <p className="text-sm font-medium text-foreground">{t("profile.discoverOutfitToolsTitle")}</p>
-              <ul className="space-y-1.5 text-xs leading-relaxed text-foreground/70">
-                <li>{t("profile.discoverTipOutfitWithThis")}</li>
-                <li>{t("profile.discoverTipCreateOutfit")}</li>
-                <li>{t("profile.discoverTipSwap")}</li>
-              </ul>
-            </div>
           </div>
         </CardContent>
       </Card>

@@ -9,7 +9,7 @@ import { OutfitCard } from "@/components/outfit-card";
 import { SwapItemModal } from "@/components/swap-item-modal";
 import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
-import { Sparkles, Loader2, ArrowLeft, Pin } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeft, Pin, Plus } from "lucide-react";
 import { MOOD_ICONS } from "@/lib/mood-icons";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -67,6 +67,9 @@ function SuggestContent() {
   // Wardrobe cached on mount so the swap modal can show alternatives
   // without a per-tap fetch. Cheap (~1 request, <500 items typically).
   const [wardrobe, setWardrobe] = useState<ClothingItem[]>([]);
+  // Gates the empty-wardrobe CTA so we don't flash it during initial
+  // load before the wardrobe fetch resolves.
+  const [wardrobeLoaded, setWardrobeLoaded] = useState(false);
   // Swap modal state — which item we're swapping (null = closed).
   const [swapTargetItem, setSwapTargetItem] = useState<ClothingItem | null>(null);
 
@@ -79,13 +82,25 @@ function SuggestContent() {
       .catch(() => {});
   }, [anchorItemId]);
 
-  // Load full wardrobe once for swap-modal alternatives.
+  // Load full wardrobe once for swap-modal alternatives AND the
+  // empty-wardrobe CTA below. Same fetch serves both — no second call.
   useEffect(() => {
     fetch("/api/items")
       .then((r) => r.ok ? r.json() : [])
-      .then(setWardrobe)
-      .catch(() => {});
+      .then((data) => {
+        setWardrobe(data);
+        setWardrobeLoaded(true);
+      })
+      .catch(() => setWardrobeLoaded(true));
   }, []);
+
+  // Active wardrobe count (stored items don't count — the suggest API
+  // filters them out). Matches the API's `items.length < 3` gate so
+  // we surface the empty state before the user invests time in the
+  // mood/occasion form only to hit the same threshold server-side.
+  const activeWardrobeCount = wardrobe.filter((i) => !i.is_stored).length;
+  const showEmptyWardrobeCTA =
+    wardrobeLoaded && activeWardrobeCount < 3 && step !== "results";
 
   // Replace an item in the current suggestion with the chosen
   // alternative. Local-only — saving as a favorite uses the edited
@@ -424,8 +439,10 @@ function SuggestContent() {
         </div>
       </div>
 
-      {/* Anchor item banner */}
-      {anchorItem && (
+      {/* Anchor item banner — hidden when the wardrobe is too thin to
+          style anything; the "styling around X" promise can't be
+          fulfilled until the user has at least 3 pieces. */}
+      {anchorItem && !showEmptyWardrobeCTA && (
         <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 p-3 mb-4">
           <div className="relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden bg-card">
             <Image src={anchorItem.image_url} alt={anchorItem.name} fill className="object-contain p-1" sizes="56px" />
@@ -440,13 +457,65 @@ function SuggestContent() {
         </div>
       )}
 
-      {/* Weather context */}
-      <div className="mb-4">
-        <WeatherWidget />
-      </div>
+      {/* Weather context — hidden in the empty state since there's no
+          outfit to weather-adjust yet. */}
+      {!showEmptyWardrobeCTA && (
+        <div className="mb-4">
+          <WeatherWidget />
+        </div>
+      )}
+
+      {/* Empty wardrobe CTA — replaces the mood/style/occasion form
+          when the user has fewer than 3 active pieces. Leads with the
+          add-items action and includes a preview of what styling will
+          look like once they're ready, so the screen teaches the
+          feature instead of leaving them at a dead end. */}
+      {showEmptyWardrobeCTA && (
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
+          <Sparkles className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
+          <p className="font-heading text-lg mb-1.5">
+            {t("suggest.empty.title")}
+          </p>
+          <p className="text-sm text-muted-foreground mb-5">
+            {t("suggest.empty.subtitle")}
+          </p>
+          <Button
+            className="gap-1.5"
+            onClick={() => router.push("/wardrobe/add")}
+          >
+            <Plus className="h-4 w-4" />
+            {t("suggest.addItems")}
+          </Button>
+          <div className="mt-7 pt-5 border-t border-muted-foreground/10 text-left">
+            <p className="text-xs font-medium text-foreground mb-3">
+              {t("suggest.empty.previewTitle")}
+            </p>
+            <ul className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+              <li>• {t("suggest.empty.previewMood")}</li>
+              <li>• {t("suggest.empty.previewWish")}</li>
+              <li>• {t("suggest.empty.previewSwap")}</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Skeleton — covers the brief window between mount and the
+          wardrobe fetch resolving, so we don't flash either the form
+          (to a wardrobe-less user) or the empty CTA (to an established
+          user) before we know which one belongs here. */}
+      {!wardrobeLoaded && step !== "results" && (
+        <div className="space-y-4">
+          <div className="h-6 w-1/2 animate-pulse rounded-md bg-muted" />
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Step 1: Mood selection */}
-      {step === "mood" && (
+      {wardrobeLoaded && !showEmptyWardrobeCTA && step === "mood" && (
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-3">
@@ -465,7 +534,7 @@ function SuggestContent() {
       )}
 
       {/* Step 2: Style wishes (optional) */}
-      {step === "style" && (
+      {wardrobeLoaded && !showEmptyWardrobeCTA && step === "style" && (
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-1">
@@ -508,7 +577,7 @@ function SuggestContent() {
       )}
 
       {/* Step 3: Occasion selection */}
-      {step === "occasion" && (
+      {wardrobeLoaded && !showEmptyWardrobeCTA && step === "occasion" && (
         <div className="space-y-4">
           <div className="space-y-3">
             <h2 className="text-base font-semibold mb-2">

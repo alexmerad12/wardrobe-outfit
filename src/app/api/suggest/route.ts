@@ -524,6 +524,7 @@ function describeItem(item: ClothingItem): string {
   parts.push(`Warmth: ${item.warmth_rating}/5`);
   // rain_appropriate no longer surfaced to AI — material-intelligence covers it
   if (item.brand) parts.push(`Brand: ${item.brand}`);
+  if (item.is_favorite) parts.push("Favorited");
   // Wear-frequency signal: lets the AI prefer under-rotated pieces
   // when choosing between comparable options.
   const wornCount = item.times_worn ?? 0;
@@ -946,6 +947,7 @@ PRIMARY DIRECTIVES (read before any rule):
 - Every outfit needs ONE focal point — a piece that catches the eye. Color, pattern, texture, shine, or silhouette. Bland-and-correct is a fail; bland-and-correct without a single visual hook means you stopped thinking too soon.
 - A real stylist FINISHES the look. If a sweater + skirt would obviously be belted in real life, ADD the belt. If a coat over jeans would obviously have a scarf, ADD the scarf. Don't stop at the minimum.
 - This is ONE outfit, generated independently each time the user taps "Show me another." Don't worry about variety across multiple outputs — the RECENTLY SHOWN list shows what's already been served, so just pick a fresh combination that differs from those.
+- Items tagged "Favorited" in the wardrobe list are pieces the wearer especially loves. Give them a soft preference when they fit the brief, but don't force them — an outfit that's wrong for the occasion or doesn't make stylistic sense is worse than one that skips a favorite.
 
 The hard rules below exist to prevent visually wrong choices. They do NOT excuse boring choices. Build the outfit a stylist would build, then check it against the rules — not the other way around.
 

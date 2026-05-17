@@ -29,6 +29,7 @@ import {
   ImageIcon,
   Search,
   Sparkles,
+  Shirt,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -42,7 +43,7 @@ import {
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
 
-const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
+const ALL_CATEGORIES: (Category | "all" | "favorites" | "stored")[] = [
   "all",
   "top",
   "bottom",
@@ -52,6 +53,7 @@ const ALL_CATEGORIES: (Category | "all" | "stored")[] = [
   "shoes",
   "bag",
   "accessory",
+  "favorites",
   "stored",
 ];
 
@@ -71,7 +73,7 @@ function WardrobePageInner() {
     const c = searchParams.get("category");
     if (!c) return "all";
     return (ALL_CATEGORIES as readonly string[]).includes(c)
-      ? (c as Category | "all" | "stored")
+      ? (c as Category | "all" | "favorites" | "stored")
       : "all";
   })();
   // Subcategory drill-down also honors ?subcategory= so back-nav from
@@ -79,7 +81,7 @@ function WardrobePageInner() {
   const initialSubcategory = searchParams.get("subcategory") ?? "all";
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<Category | "all" | "stored">(initialCategory);
+  const [activeCategory, setActiveCategory] = useState<Category | "all" | "favorites" | "stored">(initialCategory);
   // Subcategory drill-down — "all" = show everything in the category.
   // Reset on user-driven category changes (handled in the effect below)
   // so switching tabs gives a clean view, but persisted on first mount
@@ -92,6 +94,10 @@ function WardrobePageInner() {
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Welcome card visibility — defaults to dismissed so the card doesn't
+  // flash for established users between mount and the localStorage read.
+  // useEffect below flips it on for first-time users.
+  const [welcomeDismissed, setWelcomeDismissed] = useState(true);
   const router = useRouter();
   const { t } = useLocale();
   // Ref to the active category pill so we can scroll it into view when
@@ -147,6 +153,22 @@ function WardrobePageInner() {
     refetchItems().finally(() => setLoading(false));
   }, [refetchItems]);
 
+  // Read welcome-card dismissal from localStorage on mount. If never
+  // dismissed, show the card (auto-hide threshold is handled below by
+  // the showWelcomeCard derived flag).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const dismissed = localStorage.getItem("wardrobe-welcome-dismissed") === "true";
+    setWelcomeDismissed(dismissed);
+  }, []);
+
+  function dismissWelcome() {
+    setWelcomeDismissed(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("wardrobe-welcome-dismissed", "true");
+    }
+  }
+
   // Bring the active category pill into view whenever it changes (mount
   // with a non-default category, tapping a different tab, etc.) so the
   // user doesn't have to scroll the filter bar by hand.
@@ -162,7 +184,7 @@ function WardrobePageInner() {
   // land on a clean view of the new tab. Kept off the effect so a
   // URL-restored drill-down (returning from item detail) isn't wiped
   // by Strict Mode's double-invoke or any synthetic state churn.
-  function handleCategoryChange(cat: Category | "all" | "stored") {
+  function handleCategoryChange(cat: Category | "all" | "favorites" | "stored") {
     setActiveCategory(cat);
     if (cat !== activeCategory) setActiveSubcategory("all");
   }
@@ -300,10 +322,21 @@ function WardrobePageInner() {
   }
 
   const storedCount = items.filter((i) => i.is_stored).length;
+  const favoriteCount = items.filter((i) => i.is_favorite && !i.is_stored).length;
+  // Sparse-wardrobe welcome card — only visible to first-time users
+  // before they've built a real wardrobe. Auto-hides at >=5 active
+  // items so it stops showing once they're past onboarding, and
+  // respects manual dismissal via localStorage in case a user wants
+  // it gone immediately.
+  const activeItemCount = items.filter((i) => !i.is_stored).length;
+  const showWelcomeCard =
+    !loading && !welcomeDismissed && activeItemCount > 0 && activeItemCount < 5;
 
   const categoryFiltered =
     activeCategory === "stored"
       ? items.filter((item) => item.is_stored)
+      : activeCategory === "favorites"
+      ? items.filter((item) => item.is_favorite && !item.is_stored)
       : activeCategory === "all"
       ? items.filter((item) => !item.is_stored)
       : items.filter((item) => item.category === activeCategory && !item.is_stored);
@@ -313,7 +346,7 @@ function WardrobePageInner() {
   // Derive the available subcategories from the items themselves so we
   // don't render empty pills for subcategories the user doesn't own.
   const availableSubcategories: string[] = (() => {
-    if (activeCategory === "all" || activeCategory === "stored") return [];
+    if (activeCategory === "all" || activeCategory === "stored" || activeCategory === "favorites") return [];
     const seen = new Set<string>();
     for (const item of categoryFiltered) {
       if (item.subcategory) seen.add(item.subcategory);
@@ -588,7 +621,11 @@ function WardrobePageInner() {
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            {cat === "stored" ? `${t("categoryTab.stored")}${storedCount > 0 ? ` (${storedCount})` : ""}` : t(`categoryTab.${cat}`)}
+            {cat === "stored"
+              ? `${t("categoryTab.stored")}${storedCount > 0 ? ` (${storedCount})` : ""}`
+              : cat === "favorites"
+              ? `${t("categoryTab.favorites")}${favoriteCount > 0 ? ` (${favoriteCount})` : ""}`
+              : t(`categoryTab.${cat}`)}
           </button>
         ))}
       </div>
@@ -658,6 +695,32 @@ function WardrobePageInner() {
         />
       )}
 
+      {/* Sparse-wardrobe welcome card — teaches the wardrobe-specific
+          actions a first-time user wouldn't know to look for (tap to
+          edit, multi-select for bulk actions, the new category filters).
+          Only on the "all" view so it doesn't fight the filter narrative,
+          and only while activeItemCount is 1-4. */}
+      {activeCategory === "all" && showWelcomeCard && (
+        <div className="relative mb-4 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
+          <button
+            type="button"
+            onClick={dismissWelcome}
+            aria-label={t("common.dismiss")}
+            className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+          <p className="font-medium text-sm mb-2 pr-6">
+            {t("wardrobe.welcomeTitle")}
+          </p>
+          <ul className="space-y-1.5 text-xs leading-relaxed text-foreground/70">
+            <li>• {t("wardrobe.welcomeTipTap")}</li>
+            <li>• {t("wardrobe.welcomeTipSelect")}</li>
+            <li>• {t("wardrobe.welcomeTipFilter")}</li>
+          </ul>
+        </div>
+      )}
+
       {/* Items grid */}
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -675,21 +738,50 @@ function WardrobePageInner() {
               3. Other filter with nothing matching → simple "no items". */}
           {items.length === 0 ? (
             <>
-              <p className="text-muted-foreground mb-3">{t("wardrobe.empty")}</p>
+              <Shirt className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
+              <p className="font-heading text-lg mb-1.5">{t("wardrobe.empty")}</p>
+              <p className="text-sm text-muted-foreground mb-5">
+                {t("wardrobe.emptySubtitle")}
+              </p>
               <Button
-                variant="outline"
                 className="gap-1.5"
-                onClick={() => router.push("/wardrobe/bulk")}
+                onClick={() => router.push("/wardrobe/add")}
               >
                 <Plus className="h-4 w-4" />
                 {t("wardrobe.addFirstItem")}
               </Button>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => router.push("/wardrobe/bulk")}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  {t("home.uploadMany")}
+                </button>
+              </div>
+              <div className="mt-7 pt-5 border-t border-muted-foreground/10 text-left">
+                <p className="text-xs font-medium text-foreground mb-3">
+                  {t("wardrobe.emptyPreviewTitle")}
+                </p>
+                <ul className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+                  <li>• {t("wardrobe.welcomeTipTap")}</li>
+                  <li>• {t("wardrobe.welcomeTipSelect")}</li>
+                  <li>• {t("wardrobe.welcomeTipFilter")}</li>
+                </ul>
+              </div>
             </>
           ) : activeCategory === "stored" ? (
             <div className="space-y-2">
               <p className="font-medium">{t("wardrobe.noneInStorageTitle")}</p>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {t("wardrobe.noneInStorageHint")}
+              </p>
+            </div>
+          ) : activeCategory === "favorites" ? (
+            <div className="space-y-2">
+              <p className="font-medium">{t("wardrobe.noneInFavoritesTitle")}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {t("wardrobe.noneInFavoritesHint")}
               </p>
             </div>
           ) : (

@@ -25,7 +25,8 @@
     "optional": "optionnel",
     "redirecting": "Redirection...",
     "new": "Nouveau",
-    "select": "Sélectionner"
+    "select": "Sélectionner",
+    "dismiss": "Fermer"
   },
   "auth": {
     "welcomeBack": "Bon retour !",
@@ -103,8 +104,8 @@
   },
   "home": {
     "welcomeToBrand": "Bienvenue chez {brand}",
-    "emptyWardrobeSub": "Ton dressing est vide — ajoute ta première pièce pour qu'on puisse commencer à te styliser.",
-    "emptyWardrobeHint": "Prends une photo d'une pièce et je m'occupe du reste — fond retiré, détails identifiés, et sauvegarde dans ton dressing.",
+    "emptyWardrobeSub": "Ton dressing est vide — ajoute ta première pièce pour que Linette puisse commencer à te styliser.",
+    "emptyWardrobeHint": "Prends une photo d'une pièce et Linette s'occupe du reste — fond retiré, détails identifiés, et sauvegarde dans ton dressing.",
     "uploadFirstPiece": "Ajouter ma première pièce",
     "uploadMany": "Ou en ajouter plusieurs",
     "goodMorning": "Bon matin de {brand}",
@@ -180,7 +181,15 @@
     "wardrobeGap": "Pièce manquante",
     "swap": "Remplacer",
     "swapItemTitle": "Remplacer cette pièce",
-    "swapNoAlternatives": "Aucune autre pièce dans cette catégorie."
+    "swapNoAlternatives": "Aucune autre pièce dans cette catégorie.",
+    "empty": {
+      "title": "Linette n'a rien à styler pour l'instant",
+      "subtitle": "Ajoute au moins 3 pièces à ton dressing pour commencer à recevoir des suggestions de tenues.",
+      "previewTitle": "Voici ce que tu pourras faire :",
+      "previewMood": "Choisir une humeur et une occasion",
+      "previewWish": "Préciser une envie comme « Je veux porter mes bottes rouges »",
+      "previewSwap": "Remplacer une pièce d'une suggestion en tapant l'icône shuffle"
+    }
   },
   "mood": {
     "energized": { "label": "Énergique", "description": "Couleurs vives, énergie pétillante — tu veux te faire remarquer." },
@@ -274,6 +283,7 @@
     "shoes": "Chaussures",
     "bag": "Sacs",
     "accessory": "Accessoires",
+    "favorites": "Favoris",
     "stored": "Rangés"
   },
   "subcategory": {
@@ -750,9 +760,17 @@
     "store": "Ranger",
     "unstore": "Sortir",
     "empty": "Ton dressing est vide",
+    "emptySubtitle": "Ajoute au moins 3 pièces pour commencer à recevoir des suggestions de tenues de Linette.",
+    "emptyPreviewTitle": "Une fois que tu auras des pièces, tu pourras :",
+    "welcomeTitle": "Bienvenue dans ton dressing — voici ce que tu peux faire",
+    "welcomeTipTap": "Taper sur une pièce pour l'éditer, la marquer comme favorite, ou la ranger",
+    "welcomeTipSelect": "Sélectionner plusieurs pièces pour composer des tenues ou en ranger plusieurs d'un coup",
+    "welcomeTipFilter": "Utiliser la barre de catégories au-dessus pour filtrer par type, Favoris, ou Rangés",
     "noneInCategory": "Aucun item dans cette catégorie",
     "noneInStorageTitle": "Rien rangé pour le moment",
     "noneInStorageHint": "Pour ranger un item pour la saison, ouvre-le depuis ton dressing, tape sur \"Modifier les détails\", puis active \"Ranger\" en bas de la page.",
+    "noneInFavoritesTitle": "Aucune pièce favorite pour le moment",
+    "noneInFavoritesHint": "Ouvre une pièce et tape sur le cœur en haut à droite pour la marquer. Linette proposera tes favoris plus souvent dans ses suggestions.",
     "addFirstItem": "Ajoute ton premier item",
     "confirmBulkDelete": "Supprimer {count} item ?",
     "confirmBulkDeletePlural": "Supprimer {count} items ?",
@@ -779,7 +797,9 @@
     "title": "Favoris",
     "subtitle": "Des tenues qui te ressemblent",
     "none": "Aucune tenue favorite pour le moment",
-    "noneHint": "Demande des suggestions et enregistre celles que tu aimes. Tes favoris aident l'IA à apprendre ton style !",
+    "noneHint": "Demande des suggestions et enregistre celles que tu aimes. Tes favoris aident Linette à apprendre ton style !",
+    "noneNeedItems": "Ajoute d'abord des pièces à ton dressing",
+    "noneNeedItemsHint": "Linette a besoin de quelques pièces dans ton dressing avant de pouvoir te suggérer des tenues à mettre en favoris.",
     "getSuggestions": "Obtenir des suggestions",
     "saved": "Tenue enregistrée",
     "custom": "Personnalisée",
@@ -810,8 +830,8 @@
     "removingBackground": "Suppression du fond... (ça peut prendre un moment)",
     "statusCleaningAndReading": "Nettoyage de la photo et lecture des détails…",
     "statusRemovingBg": "Suppression du fond…",
-    "statusReadingDetails": "Lecture des détails avec l'IA…",
-    "statusPrefilledDone": "Pré-rempli par l'IA — vérifie et ajuste ci-dessous",
+    "statusReadingDetails": "Linette lit les détails…",
+    "statusPrefilledDone": "Pré-rempli par Linette — vérifie et ajuste ci-dessous",
     "bgRemovalFailed": "Impossible de retirer le fond. Tu peux garder l'original ou réessayer.",
     "tryRemovingBgAgain": "Réessayer de retirer le fond",
     "tryingAgain": "Nouvelle tentative…",
@@ -873,7 +893,7 @@
     "photoRequired": "Ajoute une photo, un nom et une catégorie"
   },
   "itemDetail": {
-    "outfitWithThis": "Tenue avec cet item",
+    "outfitWithThis": "Styler cet item",
     "editDetails": "Modifier les détails",
     "removeBackground": "Retirer le fond",
     "removingBackground": "Suppression du fond...",
@@ -980,10 +1000,6 @@
     "discoverTryOnDesc": "Vérifie une pièce avant de l'acheter",
     "discoverStorageTitle": "Rangement",
     "discoverStorageDesc": "Range tes pièces hors saison",
-    "discoverOutfitToolsTitle": "Raccourcis tenues",
-    "discoverTipOutfitWithThis": "Sur un item — tape \"Tenue avec cet item\" pour une suggestion construite autour de cette pièce.",
-    "discoverTipCreateOutfit": "Dans le Dressing — sélectionne 2+ items et tape \"Tenue\" pour la composer toi-même.",
-    "discoverTipSwap": "Sur une tenue suggérée — tape l'icône shuffle pour remplacer un item.",
     "settings": "Paramètres",
     "city": "Ville (pour la météo)",
     "weatherLocation": "Lieu de la météo",

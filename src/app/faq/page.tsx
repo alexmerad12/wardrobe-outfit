@@ -121,6 +121,24 @@ function EnglishFAQ() {
             using the app while it works, just don&apos;t close the tab.
           </p>
         </Q>
+        <Q q="Can I check if a piece would work before I buy it?">
+          <p>
+            Tap &quot;Try it before buying&quot;, snap a photo of an item
+            you&apos;re considering, and Linette tells you if you already
+            own similar pieces and how you could style it with what&apos;s
+            in your wardrobe.
+          </p>
+        </Q>
+        <Q q="Can I hide off-season pieces?">
+          <p>
+            Open any item, tap &quot;Edit details&quot;, and toggle
+            &quot;Stored&quot; at the bottom. Stored pieces stay in your
+            wardrobe but don&apos;t appear in suggestions or the default
+            grid until you bring them back. To pack away many pieces at
+            once, multi-select items in your Wardrobe and tap the storage
+            action.
+          </p>
+        </Q>
         <Q q="What if Linette tags an item incorrectly?">
           <p>
             Tap into the item and edit any field — category, color, material,
@@ -143,8 +161,7 @@ function EnglishFAQ() {
             She reads your wardrobe — every piece you&apos;ve added, with its
             color, material, occasion tags, and how often you&apos;ve worn it —
             and combines them according to styling rules (silhouette
-            balance, color harmony, weather, mood, occasion). She also
-            learns from outfits you favorite over time.
+            balance, color harmony, weather, mood, occasion).
           </p>
         </Q>
         <Q q="I keep seeing the same items — why?">
@@ -161,12 +178,50 @@ function EnglishFAQ() {
             Favorites, and Linette learns your taste from them.
           </p>
         </Q>
-        <Q q="Can I tell Linette I'm in a different mood or going somewhere specific?">
+        <Q q="How does Linette learn from my favorites?">
           <p>
-            Yes — on the Suggest screen, set a mood (Confident, Cozy,
-            Playful, Bold, etc.) and an occasion (Work, Date, Brunch,
-            Formal). You can also add a free-text style direction like
-            &quot;more drapey&quot; or &quot;all black.&quot;
+            Over time, your favorites tell her which color palettes you
+            gravitate to, which silhouettes recur, which pieces anchor a lot
+            of your outfits, and which fits and cuts you keep coming back to.
+            Future suggestions lean on those patterns — so the more you
+            favorite, the more her picks feel like yours.
+          </p>
+        </Q>
+        <Q q="What does the heart on a single piece do?">
+          <p>
+            It marks that piece as a favorite. Linette gives favorited
+            pieces a soft preference in her suggestions when they fit the
+            brief, and you can tap the &quot;Favorites&quot; tab in your
+            Wardrobe to quickly find the pieces you love most.
+          </p>
+        </Q>
+        <Q q="Can I give Linette a specific want or context?">
+          <p>
+            Yes — on the Suggest screen, in addition to mood and occasion,
+            you can add a free-text direction. For example: &quot;I want to
+            wear my red boots,&quot; &quot;all black,&quot; or &quot;I&apos;m
+            going to a wedding.&quot;
+          </p>
+        </Q>
+        <Q q="Can I get a suggestion built around a specific piece?">
+          <p>
+            Open any item in your wardrobe and tap &quot;Outfit with
+            this&quot;. Linette builds a suggestion around that piece, so
+            you can style something you specifically want to wear.
+          </p>
+        </Q>
+        <Q q="Can I build my own outfit instead of asking Linette?">
+          <p>
+            In your Wardrobe, tap to select two or more items, then tap
+            &quot;Outfit&quot; to compose it yourself. Save it to Favorites
+            or wear it today.
+          </p>
+        </Q>
+        <Q q="Can I swap just one piece in a suggestion?">
+          <p>
+            Tap the shuffle icon on any item in a suggested outfit and
+            Linette will replace just that piece with an alternative from
+            your wardrobe, keeping the rest of the look intact.
           </p>
         </Q>
       </Section>
@@ -299,6 +354,25 @@ function FrenchFAQ() {
             pas l&apos;onglet.
           </p>
         </Q>
+        <Q q="Je peux vérifier si une pièce me conviendrait avant de l'acheter ?">
+          <p>
+            Tape sur « Essaie avant d&apos;acheter », prends en photo une
+            pièce qui te tente, et Linette te dit si tu as déjà des items
+            similaires et comment tu pourrais la styler avec ce que tu as
+            déjà dans ton dressing.
+          </p>
+        </Q>
+        <Q q="Je peux cacher mes pièces hors saison ?">
+          <p>
+            Ouvre n&apos;importe quel item, tape sur « Modifier les
+            détails », puis active « Ranger » en bas de la page. Les
+            pièces rangées restent dans ton dressing mais n&apos;apparaissent
+            plus dans les suggestions ni dans la grille par défaut jusqu&apos;à
+            ce que tu les ressortes. Pour en ranger plusieurs d&apos;un
+            coup, sélectionne plusieurs pièces dans ton Dressing et tape
+            sur l&apos;action de rangement.
+          </p>
+        </Q>
         <Q q="Et si Linette catégorise mal une pièce ?">
           <p>
             Ouvre la pièce et modifie n&apos;importe quel champ — catégorie,
@@ -323,7 +397,6 @@ function FrenchFAQ() {
             couleur, sa matière, ses occasions, et la fréquence de port — et
             les combine selon des règles de style (équilibre des
             silhouettes, harmonie des couleurs, météo, humeur, occasion).
-            Elle apprend aussi de tes tenues favorites au fil du temps.
           </p>
         </Q>
         <Q q="Je vois souvent les mêmes pièces — pourquoi ?">
@@ -342,12 +415,55 @@ function FrenchFAQ() {
             d&apos;elles.
           </p>
         </Q>
-        <Q q="Je peux dire à Linette que je suis d'humeur différente ou que je vais quelque part de précis ?">
+        <Q q="Comment Linette apprend de mes favoris ?">
           <p>
-            Oui — sur l&apos;écran Suggest, choisis une humeur (Confiante,
-            Cocooning, Fun, Audacieuse, etc.) et une occasion (Travail,
-            Date, Brunch, Formel). Tu peux aussi ajouter une indication
-            libre comme « plus fluide » ou « tout en noir ».
+            Au fil du temps, tes favoris lui montrent les palettes de
+            couleurs que tu privilégies, les silhouettes qui reviennent, les
+            pièces qui ancrent beaucoup de tes tenues, et les coupes
+            auxquelles tu retournes toujours. Ses suggestions s&apos;appuient
+            sur ces motifs — plus tu ajoutes de favoris, plus ses choix te
+            ressemblent.
+          </p>
+        </Q>
+        <Q q="À quoi sert le cœur sur une pièce individuelle ?">
+          <p>
+            Il marque la pièce comme favorite. Linette propose plus
+            souvent les pièces favorites dans ses suggestions quand elles
+            correspondent à ce que tu cherches, et tu peux taper sur
+            l&apos;onglet « Favoris » dans ton Dressing pour retrouver
+            d&apos;un coup les pièces que tu préfères.
+          </p>
+        </Q>
+        <Q q="Je peux dire à Linette une envie ou un contexte particulier ?">
+          <p>
+            Oui — sur l&apos;écran Suggest, en plus de l&apos;humeur et de
+            l&apos;occasion, tu peux écrire une indication libre. Par
+            exemple : « Je veux porter mes bottes rouges », « tout en
+            noir », ou « je vais à un mariage ».
+          </p>
+        </Q>
+        <Q q="Je peux avoir une suggestion construite autour d'une pièce précise ?">
+          <p>
+            Ouvre n&apos;importe quelle pièce dans ton dressing et tape sur
+            « Styler cet item ». Linette construit une suggestion autour
+            de cette pièce, parfait quand tu veux porter quelque chose de
+            précis.
+          </p>
+        </Q>
+        <Q q="Je peux composer ma propre tenue plutôt que demander à Linette ?">
+          <p>
+            Dans ton Dressing, tape pour sélectionner deux pièces ou plus,
+            puis tape sur « Tenue » pour la composer toi-même. Tu peux
+            l&apos;enregistrer dans tes Favoris ou la porter
+            aujourd&apos;hui.
+          </p>
+        </Q>
+        <Q q="Je peux remplacer juste une pièce dans une suggestion ?">
+          <p>
+            Tape l&apos;icône shuffle sur n&apos;importe quelle pièce
+            d&apos;une tenue suggérée et Linette la remplacera par une
+            alternative de ton dressing, en gardant le reste du look
+            intact.
           </p>
         </Q>
       </Section>

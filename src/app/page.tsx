@@ -250,6 +250,22 @@ export default function HomePage() {
     return t("home.goodEvening");
   })();
 
+  // Hold the render until we know whether the wardrobe is empty.
+  // Without this gate, the populated home flashes for first-time users
+  // before the empty-state CTA mounts (and vice-versa for established
+  // users we'd flash the CTA at). A neutral skeleton avoids both.
+  if (wardrobeCount === null) {
+    return (
+      <div className="mx-auto max-w-md px-4 pt-6">
+        <div className="mb-8 space-y-3">
+          <div className="h-9 w-2/3 animate-pulse rounded-md bg-muted" />
+          <div className="h-4 w-1/2 animate-pulse rounded-md bg-muted" />
+        </div>
+        <div className="h-48 animate-pulse rounded-xl bg-muted" />
+      </div>
+    );
+  }
+
   // First-time experience: wardrobe is empty. "Je mets quoi ?" with no
   // items is nonsensical, so swap the whole greeting + outfit area for
   // a single welcoming CTA pointing at /wardrobe/add. Once the user
@@ -266,25 +282,23 @@ export default function HomePage() {
           </p>
         </div>
 
-        <Card className="mb-4">
-          <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-            <div className="rounded-full bg-secondary/60 p-4">
-              <Shirt className="h-8 w-8 text-foreground/70" />
-            </div>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-              {t("home.emptyWardrobeHint")}
-            </p>
-            <Link href="/wardrobe/add" className="w-full">
-              <Button className="w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                {t("home.uploadFirstPiece")}
-              </Button>
-            </Link>
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center mb-4">
+          <Shirt className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed mb-5">
+            {t("home.emptyWardrobeHint")}
+          </p>
+          <Link href="/wardrobe/add">
+            <Button className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              {t("home.uploadFirstPiece")}
+            </Button>
+          </Link>
+          <div className="mt-3">
             <Link href="/wardrobe/bulk" className="text-xs text-muted-foreground underline-offset-2 hover:underline">
               {t("home.uploadMany")}
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }

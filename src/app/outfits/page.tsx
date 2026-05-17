@@ -275,19 +275,40 @@ export default function FavoritesPage() {
           ))}
         </div>
       ) : outfits.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
-          <Heart className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-          <p className="text-muted-foreground mb-1">{t("favorites.none")}</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t("favorites.noneHint")}
-          </p>
-          <Link href="/suggest">
-            <Button variant="outline" className="gap-1.5">
-              <Sparkles className="h-4 w-4" />
-              {t("favorites.getSuggestions")}
-            </Button>
-          </Link>
-        </div>
+        // Branch on wardrobe count — a first-time user with zero items
+        // landing on Favorites would otherwise be told to "Get
+        // Suggestions" only to hit the Suggest empty state and be
+        // bounced again to add items. Cut the hop by pointing them at
+        // add-items directly when their wardrobe is empty.
+        allItems.filter((i) => !i.is_stored).length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
+            <Heart className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
+            <p className="font-heading text-lg mb-1.5">{t("favorites.noneNeedItems")}</p>
+            <p className="text-sm text-muted-foreground mb-5">
+              {t("favorites.noneNeedItemsHint")}
+            </p>
+            <Link href="/wardrobe/add">
+              <Button className="gap-1.5">
+                <Sparkles className="h-4 w-4" />
+                {t("suggest.addItems")}
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">
+            <Heart className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
+            <p className="font-heading text-lg mb-1.5">{t("favorites.none")}</p>
+            <p className="text-sm text-muted-foreground mb-5">
+              {t("favorites.noneHint")}
+            </p>
+            <Link href="/suggest">
+              <Button className="gap-1.5">
+                <Sparkles className="h-4 w-4" />
+                {t("favorites.getSuggestions")}
+              </Button>
+            </Link>
+          </div>
+        )
       ) : (
         <div className="grid gap-4">
           {outfits
