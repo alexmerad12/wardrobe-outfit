@@ -313,8 +313,26 @@ const HALLUCINATION_WORDS: Record<string, string[]> = {
   accessory: ["belt", "scarf", "beanie"],
 };
 
+// Gemini 3 Flash Preview occasionally garbles accented French chars
+// in JSON-schema string outputs — é flips to `)`, ô flips to `"`, etc.
+// The pattern is consistent: a letter, a stray bracket / quote / paren
+// (the chars that would normally be JSON delimiters), then another
+// letter — i.e. punctuation appearing INSIDE a word where it has no
+// business being. Detect that and treat the field as inconsistent so
+// the textIsConsistent gate below falls back to the clean server
+// template instead of shipping garbled prose to the user.
+const FRENCH_CORRUPTION_RX = /[a-zà-ÿ][")(\][}{<>][a-zà-ÿ]/i;
+
+export function hasFrenchCorruption(text: string): boolean {
+  return FRENCH_CORRUPTION_RX.test(text);
+}
+
 function textIsConsistent(items: ClothingItem[], text: string): boolean {
   if (!text) return false;
+  // Bail before the hallucination check if the string is character-
+  // corrupted — fixing the hallucination would still ship "dor)e" to
+  // the user.
+  if (hasFrenchCorruption(text)) return false;
   const lower = text.toLowerCase();
   const present = new Set(items.map((i) => i.category));
   for (const [cat, words] of Object.entries(HALLUCINATION_WORDS)) {
@@ -3460,8 +3478,16 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
     };
     const cleanedGap =
       rawGap && !looksLikePlaceholder(rawGap) ? rawGap : null;
-    const wardrobe_gap =
-      cleanedGap && gapMentionsOwnedCategory(cleanedGap) ? null : cleanedGap;
+    // Drop the gap line entirely when the AI returned character-
+    // corrupted French (é -> `)`, ô -> `"`). No template to fall back
+    // to here — null is better than shipping "Un pantalon c\"tel)
+    // marron" to the user.
+    const gapCorrupted = cleanedGap ? hasFrenchCorruption(cleanedGap) : false;
+    const wardrobe_gap = gapCorrupted
+      ? null
+      : cleanedGap && gapMentionsOwnedCategory(cleanedGap)
+        ? null
+        : cleanedGap;
 
     // Remember what we just showed so subsequent "Suggest" clicks bring
     // fresh combinations. Best-effort — a KV hiccup shouldn't block the
