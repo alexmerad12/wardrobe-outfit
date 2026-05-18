@@ -545,7 +545,7 @@ function WardrobePageInner() {
                       <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
                       <li>• Hanger for coats, blazers, dresses, long skirts</li>
                       <li>• Good light, no strong shadows</li>
-                      <li>• Up to 5 photos at a time</li>
+                      <li>• Up to 10 photos at a time</li>
                     </ul>
                   </div>
                 </DropdownMenuContent>
@@ -602,7 +602,11 @@ function WardrobePageInner() {
 
       {/* Category filters — sticky strip that hides on scroll-down
           and slides back into view on scroll-up so users can switch
-          tabs without scrolling all the way to the top. */}
+          tabs without scrolling all the way to the top. Hidden entirely
+          on an empty wardrobe — categories filter nothing when there's
+          nothing to filter, and the strip competes with the empty-state
+          welcome card for vertical space. */}
+      {items.length > 0 && (
       <div
         className={cn(
           "sticky top-[92px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
@@ -629,6 +633,7 @@ function WardrobePageInner() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Subcategory drill-down pills — only visible when a real
           category is active and the user has at least 2 distinct
@@ -754,7 +759,7 @@ function WardrobePageInner() {
                 <button
                   type="button"
                   onClick={() => router.push("/wardrobe/bulk")}
-                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                  className="text-xs text-foreground/80 underline underline-offset-2"
                 >
                   {t("home.uploadMany")}
                 </button>

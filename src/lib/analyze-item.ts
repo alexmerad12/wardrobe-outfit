@@ -75,7 +75,7 @@ export type AutoFillResult = {
   colors?: { hex: string; name: string }[];
 };
 
-export async function analyzeItem(image: Blob): Promise<AutoFillResult> {
+export async function analyzeItem(image: Blob, locale: "en" | "fr" = "en"): Promise<AutoFillResult> {
   // HEIC → JPEG first if needed. Without this, Chrome's canvas can't
   // decode HEIC and downscaleImage silently passes the raw HEIC bytes
   // through; the analyze server then can't decode them either.
@@ -90,6 +90,7 @@ export async function analyzeItem(image: Blob): Promise<AutoFillResult> {
   const downscaled = await downscaleImage(renderable, 1280);
   const body = new FormData();
   body.append("image", downscaled);
+  body.append("locale", locale);
   const res = await fetch("/api/items/analyze", { method: "POST", body });
   if (!res.ok) throw new Error(`Analyze failed: ${res.status}`);
   return (await res.json()) as AutoFillResult;

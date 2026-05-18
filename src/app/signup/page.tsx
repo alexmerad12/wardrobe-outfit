@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 //   Google) can come back. Restore here only after launch when
 //   open signups are intended.
 import { AuthShell } from "@/components/auth-shell";
+import { PasswordInput } from "@/components/password-input";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 export default function SignUpPage() {
@@ -93,9 +94,8 @@ export default function SignUpPage() {
 
         <div>
           <label htmlFor="password" className="block mb-1.5">{t("auth.password")}</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             required
             minLength={8}
             autoComplete="new-password"

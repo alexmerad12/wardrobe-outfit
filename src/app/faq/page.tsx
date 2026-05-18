@@ -116,9 +116,10 @@ function EnglishFAQ() {
         </Q>
         <Q q="Can I add many items at once?">
           <p>
-            Yes — there&apos;s a bulk upload mode. Pick as many photos as you
-            want; Linette processes them in the background. You can keep
+            Yes — there&apos;s a bulk upload mode. Pick up to 10 photos at a
+            time; Linette processes them in the background. You can keep
             using the app while it works, just don&apos;t close the tab.
+            Need to add more than 10? Finish the batch, then pick another.
           </p>
         </Q>
         <Q q="Can I check if a piece would work before I buy it?">
@@ -348,10 +349,11 @@ function FrenchFAQ() {
         </Q>
         <Q q="Je peux en ajouter plusieurs à la fois ?">
           <p>
-            Oui — il y a un mode téléversement en lot. Choisis autant de
-            photos que tu veux ; Linette les traite en arrière-plan. Tu peux
-            continuer à utiliser l&apos;app pendant ce temps, ne ferme juste
-            pas l&apos;onglet.
+            Oui — il y a un mode téléversement en lot. Choisis jusqu&apos;à
+            10 photos à la fois ; Linette les traite en arrière-plan. Tu
+            peux continuer à utiliser l&apos;app pendant ce temps, ne ferme
+            juste pas l&apos;onglet. Tu en as plus de 10 ? Termine le lot,
+            puis recommence.
           </p>
         </Q>
         <Q q="Je peux vérifier si une pièce me conviendrait avant de l'acheter ?">

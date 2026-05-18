@@ -34,13 +34,15 @@ export type PendingItem = {
   error?: string;
 };
 
-// Hard cap per batch. Keeping this tight (5) is a reliability win,
-// not a limitation: each photo's pipeline has roughly a 5% chance of
-// hitting a transient network hiccup on mobile cellular, and the more
-// items in flight, the more likely *something* stalls. A 5-item batch
-// finishes cleanly in ~15-20s; a 10-item batch was triggering stuck
-// tiles more often than users have patience for.
-export const MAX_BATCH = 5;
+// Hard cap per batch. Each photo's pipeline has roughly a 5% chance
+// of hitting a transient network hiccup on mobile cellular, and the
+// more items in flight, the more likely *something* stalls. 5 was
+// safe but felt restrictive once beta users with real wardrobes
+// started uploading; bumping to 10 doubles throughput while staying
+// within the reliability envelope (10-item batch was previously
+// flaky, but auto-retry-on-focus + the worker-level pipeline have
+// stabilised since the original tuning).
+export const MAX_BATCH = 10;
 
 type ContextValue = {
   items: PendingItem[];
@@ -281,7 +283,18 @@ export function PendingUploadsProvider({
         fetch("/api/items/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceUrl: rawUrl }),
+          // Read the cached locale (set by useLocale at "locale:v1") so
+          // the AI-generated item name comes back in the user's chosen
+          // language. Defaults to "en" if missing or unreadable —
+          // matches the analyze endpoint's own default.
+          body: JSON.stringify({
+            sourceUrl: rawUrl,
+            locale:
+              typeof window !== "undefined" &&
+              window.localStorage.getItem("locale:v1") === "fr"
+                ? "fr"
+                : "en",
+          }),
         }).then(async (res) => {
           if (!res.ok) {
             console.warn(

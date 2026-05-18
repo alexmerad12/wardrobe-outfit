@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { withGeminiRetry } from "@/lib/gemini-retry";
-import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
+import { ANALYZE_SYSTEM_PROMPT, buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 
 // Item analysis runs on Gemini 3 Flash Preview via @google/genai with
@@ -26,11 +26,13 @@ export async function POST(request: NextRequest) {
     // limit even after client-side downscale.
     const ct = request.headers.get("content-type") ?? "";
     let rawBuffer: Buffer;
+    let locale: "en" | "fr" = "en";
     if (ct.includes("application/json")) {
-      const body = (await request.json()) as { sourceUrl?: string };
+      const body = (await request.json()) as { sourceUrl?: string; locale?: string };
       if (!body.sourceUrl) {
         return NextResponse.json({ error: "Missing sourceUrl" }, { status: 400 });
       }
+      if (body.locale === "fr") locale = "fr";
       const fetchRes = await fetch(body.sourceUrl);
       if (!fetchRes.ok) {
         return NextResponse.json(
@@ -45,6 +47,8 @@ export async function POST(request: NextRequest) {
       if (!(file instanceof Blob)) {
         return NextResponse.json({ error: "Missing image" }, { status: 400 });
       }
+      const localeField = formData.get("locale");
+      if (typeof localeField === "string" && localeField === "fr") locale = "fr";
       rawBuffer = Buffer.from(await file.arrayBuffer());
     }
     // Downsize before sending — Gemini's image-token cost scales with
@@ -68,7 +72,7 @@ export async function POST(request: NextRequest) {
             {
               role: "user",
               parts: [
-                { text: ANALYZE_SYSTEM_PROMPT },
+                { text: buildAnalyzePrompt(locale) },
                 { inlineData: { mimeType: mediaType, data: base64 } },
                 { text: "Analyze this garment and return the JSON object." },
               ],

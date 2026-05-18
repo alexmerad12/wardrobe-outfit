@@ -813,9 +813,16 @@ export default function ItemDetailPage() {
             const reader = new FileReader();
             reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
             reader.readAsDataURL(file);
-            // Auto-run the cutout — the preview above shows instantly, the
-            // cutout replaces it when ready.
-            void runBgRemoval(file);
+            // No client-side imgly auto-trigger here: the save flow
+            // already runs the server-side /api/items/normalize on
+            // the new image (Photoroom + sharp), which is fast on
+            // every device and doesn't pin the page open while a
+            // multi-minute WASM job grinds away on a slow Android.
+            // The optimistic preview above is the raw photo; the
+            // final clean version comes back from the server during
+            // save. Users can still trigger imgly explicitly via the
+            // manual "Remove background" button if they want a
+            // preview before committing.
           }}
         />
       </div>

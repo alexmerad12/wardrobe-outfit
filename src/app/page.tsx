@@ -294,7 +294,7 @@ export default function HomePage() {
             </Button>
           </Link>
           <div className="mt-3">
-            <Link href="/wardrobe/bulk" className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+            <Link href="/wardrobe/bulk" className="text-xs text-foreground/80 underline underline-offset-2">
               {t("home.uploadMany")}
             </Link>
           </div>

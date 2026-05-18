@@ -65,7 +65,7 @@ export default function AddItemPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const labels = useLabels();
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -201,7 +201,7 @@ export default function AddItemPage() {
     if (autoFillAppliedForRef.current === originalFile) return;
     const target = originalFile;
     setAutoFilling(true);
-    analyzeItem(target)
+    analyzeItem(target, locale)
       .then((result) => {
         if (originalFile !== target) return; // user swapped photos
         autoFillAppliedForRef.current = target;
@@ -535,10 +535,13 @@ export default function AddItemPage() {
     };
     reader.readAsDataURL(file);
 
-    // Auto-remove the background — matches how Photoroom/Stitch Fix flows
-    // work. The preview above shows instantly; the cutout replaces it when
-    // ready.
-    void runBgRemoval(file);
+    // No client-side imgly auto-trigger: save now runs server-side
+    // /api/items/normalize (Photoroom + sharp) which is faster and
+    // doesn't grind down mid-range Android phones. The optimistic
+    // preview above shows the raw photo; the clean white-bg version
+    // comes back from the server during save. The "Remove background"
+    // button is still available for users who want a preview before
+    // committing.
   }
 
   function togglePattern(p: Pattern) {
@@ -595,6 +598,33 @@ export default function AddItemPage() {
         imageUrl = await (uploadPromiseRef.current ?? uploadImage(imageFile));
       } catch {
         imageUrl = await uploadImage(imageFile);
+      }
+
+      // Server-side normalize — Photoroom + sharp. Faster than the
+      // client-side imgly path on weaker phones, and importantly it
+      // doesn't depend on the page staying mounted while a WASM model
+      // grinds. Falls back to the raw upload if the endpoint fails so
+      // the user always gets SOME image saved, just without the
+      // white-bg treatment in the worst case.
+      const pathMatch = imageUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
+      if (pathMatch) {
+        try {
+          const normalizeRes = await fetch("/api/items/normalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sourceUrl: imageUrl, sourcePath: pathMatch[1] }),
+          });
+          if (normalizeRes.ok) {
+            const normalized = (await normalizeRes.json()) as { url?: string };
+            if (normalized.url) imageUrl = normalized.url;
+          } else {
+            console.warn(
+              `[add-item] normalize ${normalizeRes.status} — falling back to raw upload`
+            );
+          }
+        } catch (err) {
+          console.warn("[add-item] normalize threw — falling back to raw upload:", err);
+        }
       }
 
       const allColors = [...manualColors, ...detectedColors];
@@ -740,7 +770,7 @@ export default function AddItemPage() {
                 <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
                 <li>• Hanger for coats, blazers, dresses, long skirts</li>
                 <li>• Good light, no strong shadows</li>
-                <li>• Up to 5 photos at a time</li>
+                <li>• Up to 10 photos at a time</li>
               </ul>
             </div>
           </>

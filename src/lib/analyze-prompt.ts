@@ -91,3 +91,20 @@ RULES:
 - Prefer a confident best guess over omitting — user reviews and edits. When between two close enum values, pick the more specific one.
 - Never invent values outside the enums above. If unsure, omit the field rather than invent.
 - Respond with one JSON object, nothing else`;
+
+// Locale-aware variant. Same prompt, plus a one-line directive at the
+// end telling the model what language to write the `name` field in.
+// All other fields are enum values that stay language-neutral; only the
+// item name and the color names need translation. The old static
+// ANALYZE_SYSTEM_PROMPT stays exported as the EN default so non-locale-
+// aware callers (e.g. /api/try-on, which discards the name anyway) keep
+// working without changes.
+export function buildAnalyzePrompt(locale: "en" | "fr" = "en"): string {
+  if (locale === "fr") {
+    return (
+      ANALYZE_SYSTEM_PROMPT +
+      `\n\nLANGUAGE: Write the \`name\` field in French (e.g. "Bottines noires en cuir", "T-shirt blanc en coton"). Keep the \`colors[].name\` values in English Title Case ("Black", "Navy Blue") — the app translates color names at render time.`
+    );
+  }
+  return ANALYZE_SYSTEM_PROMPT;
+}

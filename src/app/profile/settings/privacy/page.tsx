@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Trash2, Download, KeyRound } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Download, KeyRound, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -36,6 +36,11 @@ export default function AccountSecurityPage() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdError, setPwdError] = useState<string | null>(null);
   const [pwdSuccess, setPwdSuccess] = useState(false);
+  // Eye-toggle visibility for each of the three password fields, kept
+  // independent so revealing one doesn't expose the others.
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -263,30 +268,54 @@ export default function AccountSecurityPage() {
                 <Label htmlFor="current-password" className="text-sm">
                   {t("profile.changePasswordCurrent")}
                 </Label>
-                <Input
-                  id="current-password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={currentPwd}
-                  onChange={(e) => setCurrentPwd(e.target.value)}
-                  disabled={pwdSaving}
-                />
+                <div className="relative">
+                  <Input
+                    id="current-password"
+                    type={showCurrentPwd ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    value={currentPwd}
+                    onChange={(e) => setCurrentPwd(e.target.value)}
+                    disabled={pwdSaving}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={showCurrentPwd ? "Hide password" : "Show password"}
+                    onClick={() => setShowCurrentPwd((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <Label htmlFor="new-password" className="text-sm">
                   {t("profile.changePasswordNew")}
                 </Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={newPwd}
-                  onChange={(e) => setNewPwd(e.target.value)}
-                  disabled={pwdSaving}
-                />
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showNewPwd ? "text" : "password"}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={newPwd}
+                    onChange={(e) => setNewPwd(e.target.value)}
+                    disabled={pwdSaving}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={showNewPwd ? "Hide password" : "Show password"}
+                    onClick={() => setShowNewPwd((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {t("auth.passwordHint")}
                 </p>
@@ -295,16 +324,28 @@ export default function AccountSecurityPage() {
                 <Label htmlFor="confirm-new-password" className="text-sm">
                   {t("auth.confirmPassword")}
                 </Label>
-                <Input
-                  id="confirm-new-password"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={confirmPwd}
-                  onChange={(e) => setConfirmPwd(e.target.value)}
-                  disabled={pwdSaving}
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm-new-password"
+                    type={showConfirmPwd ? "text" : "password"}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={confirmPwd}
+                    onChange={(e) => setConfirmPwd(e.target.value)}
+                    disabled={pwdSaving}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={showConfirmPwd ? "Hide password" : "Show password"}
+                    onClick={() => setShowConfirmPwd((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               {pwdError && (

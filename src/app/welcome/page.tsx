@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { AuthShell } from "@/components/auth-shell";
+import { PasswordInput } from "@/components/password-input";
 import { useLocale } from "@/lib/i18n/use-locale";
 
 export default function WelcomePage() {
@@ -106,9 +107,8 @@ export default function WelcomePage() {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label htmlFor="password" className="block mb-1.5">{t("auth.password")}</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             required
             minLength={8}
             autoComplete="new-password"
@@ -120,9 +120,8 @@ export default function WelcomePage() {
 
         <div>
           <label htmlFor="confirm" className="block mb-1.5">{t("auth.confirmPassword")}</label>
-          <input
+          <PasswordInput
             id="confirm"
-            type="password"
             required
             minLength={8}
             autoComplete="new-password"
