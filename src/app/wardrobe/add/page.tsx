@@ -711,7 +711,11 @@ export default function AddItemPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.back()}
+          // Back goes to /wardrobe (not browser history) so the user
+          // lands on the grid where the pending-upload tile is already
+          // visible — they see their upload is in-flight instead of
+          // ending up wherever they came from with no feedback.
+          onClick={() => router.push("/wardrobe")}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>

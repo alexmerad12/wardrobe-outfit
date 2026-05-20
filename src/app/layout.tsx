@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Bodoni_Moda, Parisienne } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
+import { AddItemFab } from "@/components/add-item-fab";
 import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
 import { LaunchSplash } from "@/components/launch-splash";
 
@@ -122,6 +123,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background font-[family-name:var(--font-sans)]">
         <PendingUploadsProvider>
           <main className="flex-1 pb-20">{children}</main>
+          <AddItemFab />
           <BottomNav />
           <LaunchSplash />
         </PendingUploadsProvider>

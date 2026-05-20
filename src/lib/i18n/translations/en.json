@@ -26,7 +26,8 @@
     "redirecting": "Redirecting...",
     "new": "New",
     "select": "Select",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "orTapPlus": "Or tap the + button below"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -124,7 +125,9 @@
     "addItem": "Add Item",
     "myWardrobe": "Wardrobe",
     "pack": "Pack",
-    "tryBeforeBuying": "Try it before buying",
+    "packCaption": "Travel outfits",
+    "tryBeforeBuying": "Try-on",
+    "tryBeforeBuyingCaption": "Before you buy",
     "recentOutfits": "Recent Outfits",
     "outfitHistoryEmpty": "Your outfit history will appear here.",
     "outfitHistoryHint": "Tap \"Wear Today\" on a suggestion to start logging!",
@@ -770,8 +773,8 @@
     "confirmBulkDelete": "Delete {count} item?",
     "confirmBulkDeletePlural": "Delete {count} items?",
     "nSelected": "{count} selected",
-    "selectAll": "Select all visible",
-    "deselectAll": "Deselect all visible",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
     "takePhoto": "Take photo",
     "chooseFromLibrary": "Choose from library",
     "fillInManually": "Fill in manually",

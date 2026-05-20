@@ -486,6 +486,13 @@ function SuggestContent() {
             <Plus className="h-4 w-4" />
             {t("suggest.addItems")}
           </Button>
+          {/* Subtle pointer at the global FAB so a first-time user
+              learns there's a persistent "+" they can use from now on.
+              Muted text-xs so it doesn't compete with the primary
+              button — it's a teaching aid, not a second affordance. */}
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t("common.orTapPlus")}
+          </p>
           <div className="mt-7 pt-5 border-t border-muted-foreground/10 text-left">
             <p className="text-xs font-medium text-foreground mb-3">
               {t("suggest.empty.previewTitle")}

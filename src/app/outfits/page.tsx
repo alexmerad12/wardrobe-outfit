@@ -293,6 +293,9 @@ export default function FavoritesPage() {
                 {t("suggest.addItems")}
               </Button>
             </Link>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {t("common.orTapPlus")}
+            </p>
           </div>
         ) : (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">

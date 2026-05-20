@@ -84,7 +84,15 @@ export default function BulkUploadPage() {
     <div className="mx-auto max-w-2xl px-4 pt-4 pb-32">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button
+          variant="ghost"
+          size="icon"
+          // Back goes to /wardrobe (not browser history) so the user
+          // lands on the grid where pending tiles are already visible —
+          // they see their batch is in flight instead of ending up
+          // wherever they came from with no feedback.
+          onClick={() => router.push("/wardrobe")}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="font-heading text-2xl font-medium tracking-tight">{t("bulk.title")}</h1>

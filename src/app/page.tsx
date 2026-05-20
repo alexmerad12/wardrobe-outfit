@@ -483,35 +483,39 @@ export default function HomePage() {
           </Button>
         </Link>
 
-        {/* Shopping helper — analyze an item before buying. Secondary CTA
-            so it doesn't compete with the main Suggest button. */}
-        <Link href="/try-on">
-          <Button
-            variant="outline"
-            className="w-full h-12 text-sm gap-2"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            {t("home.tryBeforeBuying")}
-          </Button>
-        </Link>
-
-        <div className="grid grid-cols-3 gap-3">
-          <Link href="/wardrobe/add">
-            <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
-              <Plus className="h-4 w-4" />
-              {t("home.addItem")}
-            </Button>
-          </Link>
-          <Link href="/wardrobe">
-            <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
-              <Shirt className="h-4 w-4" />
-              {t("home.myWardrobe")}
+        {/* Situational tools — shopping (Try-on) and travel (Pack).
+            Both are feature-discovery surfaces people forget exist
+            between uses, so they get a title + caption treatment
+            (instead of single-word buttons) to communicate what they
+            actually do. Two-line layout also visually balances the
+            short "Pack" word against the longer Try-on caption. */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/try-on">
+            <Button
+              variant="outline"
+              className="w-full h-auto flex-col items-center gap-0.5 py-2.5"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                <ShoppingBag className="h-4 w-4" />
+                {t("home.tryBeforeBuying")}
+              </span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                {t("home.tryBeforeBuyingCaption")}
+              </span>
             </Button>
           </Link>
           <Link href="/packing">
-            <Button variant="outline" className="w-full h-12 gap-1 text-xs" size="lg">
-              <Plane className="h-4 w-4" />
-              {t("home.pack")}
+            <Button
+              variant="outline"
+              className="w-full h-auto flex-col items-center gap-0.5 py-2.5"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                <Plane className="h-4 w-4" />
+                {t("home.pack")}
+              </span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                {t("home.packCaption")}
+              </span>
             </Button>
           </Link>
         </div>

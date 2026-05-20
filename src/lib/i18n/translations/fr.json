@@ -26,7 +26,8 @@
     "redirecting": "Redirection...",
     "new": "Nouveau",
     "select": "Sélectionner",
-    "dismiss": "Fermer"
+    "dismiss": "Fermer",
+    "orTapPlus": "Ou tape sur le + en bas"
   },
   "auth": {
     "welcomeBack": "Bon retour !",
@@ -120,11 +121,13 @@
     "lastWorn": "Porté il y a {days}j",
     "neverWorn": "Jamais porté",
     "getMoreSuggestions": "Plus de suggestions",
-    "whatShouldIWear": "Je mets quoi ?",
+    "whatShouldIWear": "Suggérer une tenue",
     "addItem": "Ajouter",
     "myWardrobe": "Dressing",
     "pack": "Voyage",
-    "tryBeforeBuying": "Essaie avant d'acheter",
+    "packCaption": "Tenues de voyage",
+    "tryBeforeBuying": "Essai",
+    "tryBeforeBuyingCaption": "Avant d'acheter",
     "recentOutfits": "Tenues récentes",
     "outfitHistoryEmpty": "Ton historique de tenues apparaîtra ici.",
     "outfitHistoryHint": "Tape « Porter aujourd'hui » sur une suggestion pour commencer !",

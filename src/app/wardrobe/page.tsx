@@ -12,12 +12,6 @@ import {
   type OutfitDetails,
 } from "@/components/outfit-details-dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Plus,
   Trash2,
   X,
@@ -25,8 +19,6 @@ import {
   CheckCheck,
   Combine,
   Archive,
-  Camera,
-  ImageIcon,
   Search,
   Sparkles,
   Shirt,
@@ -37,7 +29,6 @@ import { useLocale } from "@/lib/i18n/use-locale";
 import { useScrollDirection } from "@/lib/use-scroll-direction";
 import { cn } from "@/lib/utils";
 import {
-  MAX_BATCH,
   usePendingUploads,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
@@ -108,34 +99,12 @@ function WardrobePageInner() {
 
   const {
     items: pending,
-    addFiles,
     retry,
     dismiss,
     dismissAllFailed,
     clearReady,
     onItemSaved,
   } = usePendingUploads();
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const libraryInputRef = useRef<HTMLInputElement>(null);
-
-  // Unified picker handler — routes by photo count so the UX matches
-  // intent without asking: a single photo goes to the review screen
-  // where the user can edit AI-pre-filled attributes; multiple photos
-  // go to the bulk grid where they can tap any tile to tweak.
-  function handlePickedFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const result = addFiles(files);
-    if (result.rejected > 0) {
-      alert(
-        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
-      );
-    }
-    if (result.accepted > 0) {
-      router.push("/wardrobe/bulk");
-    }
-    e.target.value = "";
-  }
 
   const refetchItems = useCallback(async () => {
     try {
@@ -382,28 +351,32 @@ function WardrobePageInner() {
         // shorter select bar with empty page bleeding through the gap.
         <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 flex min-h-[88px] flex-col justify-center border-b bg-background px-4 pb-3 pt-6">
           <div className="flex items-center justify-between gap-2">
+            {/* Left slot: exit + count + labeled Select-all button.
+                Count uses muted text-color and no bold so it reads as
+                passive status; the Select-all button stays a real
+                button shape (icon + label, foreground color) so it
+                reads as an action. ml-2 inserts an explicit gap
+                between the count text and the button — without it
+                they collapsed into one phrase ("3 selected — select
+                all"); with it they're clearly two separate UI roles
+                sitting on the same line. */}
             <div className="flex items-center gap-2 min-w-0">
               <Button size="icon" variant="ghost" onClick={exitSelectMode}>
                 <X className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium truncate">
+              <span className="text-sm text-muted-foreground truncate">
                 {t("wardrobe.nSelected", { count: selected.size })}
               </span>
-              {/* Select-all toggle — operates on currently filtered items
-                  (respects active category + subcategory + search). When
-                  every visible item is already selected the icon flips
-                  to a "deselect all visible" affordance. Selections from
-                  other category views are preserved across taps so the
-                  user can accumulate across multiple filters before
-                  acting (e.g. select all summer dresses, switch to
-                  shoes, select all sandals, then tap Store once). */}
               {filteredItems.length > 0 && (
                 <Button
-                  size="icon"
+                  size="sm"
                   variant="ghost"
+                  className="ml-2 gap-1.5"
                   onClick={() => {
                     const visibleIds = filteredItems.map((i) => i.id);
-                    const allVisibleSelected = visibleIds.every((id) => selected.has(id));
+                    const allVisibleSelected = visibleIds.every((id) =>
+                      selected.has(id)
+                    );
                     setSelected((prev) => {
                       const next = new Set(prev);
                       if (allVisibleSelected) {
@@ -414,21 +387,18 @@ function WardrobePageInner() {
                       return next;
                     });
                   }}
-                  aria-label={
-                    filteredItems.every((i) => selected.has(i.id))
-                      ? t("wardrobe.deselectAll")
-                      : t("wardrobe.selectAll")
-                  }
                 >
                   <CheckCheck className="h-4 w-4" />
+                  {filteredItems.every((i) => selected.has(i.id))
+                    ? t("wardrobe.deselectAll")
+                    : t("wardrobe.selectAll")}
                 </Button>
               )}
             </div>
-            {/* Action buttons in select mode go icon-only — the Select all
-                toggle (CheckCheck) competes for horizontal space with the
-                count text, and label-bearing buttons (Outfit, Store) were
-                pushing "X selected" into truncation. Icons + aria-labels
-                stay accessible without crowding. */}
+            {/* Action group on the right — bulk operations. Icon-only
+                with aria-labels + title tooltips so they fit on a
+                375 px phone without crowding the count + Select-all
+                pair on the left. */}
             <div className="flex gap-1.5 shrink-0">
               <Button
                 size="icon"
@@ -506,70 +476,11 @@ function WardrobePageInner() {
                   <CheckSquare className="h-4 w-4" />
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button size="sm" className="gap-1.5">
-                      <Plus className="h-4 w-4" />
-                      {t("wardrobe.add")}
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end" className="w-72">
-                  <DropdownMenuItem
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <Camera className="h-4 w-4" />
-                    {t("wardrobe.takePhoto")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => libraryInputRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    {t("wardrobe.chooseFromLibrary")}
-                  </DropdownMenuItem>
-                  {/* Photo tips — keep this tight. Users read it once,
-                      skim it forever; a wall of text hurts more than
-                      it helps. The four bullets cover the actual
-                      failure modes we've seen: cluttered background
-                      defeats bg removal, cropping chops sleeves/hems,
-                      multi-item shots confuse AI tagging, and the
-                      5-at-a-time cap catches people who select 20 in
-                      their library. */}
-                  <div className="border-t mt-1 pt-2 px-2 pb-2 text-[11px] leading-relaxed">
-                    <p className="editorial-label mb-1.5">Photo tips</p>
-                    <ul className="space-y-1 text-muted-foreground">
-                      <li>• One item per photo, fully visible</li>
-                      <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
-                      <li>• Hanger for coats, blazers, dresses, long skirts</li>
-                      <li>• Good light, no strong shadows</li>
-                      <li>• Up to 10 photos at a time</li>
-                    </ul>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {/* Hidden file inputs — routed by photo count: a single
-                  photo lands on the manual Add page for review/edit,
-                  multiple go to the Bulk page for grid-based batch
-                  management. Unified entry, intent inferred. */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handlePickedFiles}
-              />
-              <input
-                ref={libraryInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handlePickedFiles}
-              />
+              {/* Add button removed — superseded by the global FAB
+                  (AddItemFab) which lives just above the bottom nav
+                  on every screen. The header now keeps only the
+                  context-specific affordances (Search, Select) so
+                  Wardrobe doesn't double-up on the create action. */}
             </>
             </div>
           </div>
