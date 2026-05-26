@@ -562,13 +562,20 @@ function describeItem(item: ClothingItem): string {
 }
 
 // Daily suggest cap — matches the planned Linette Basic tier limit
-// (see reminder_pricing_tiers_for_launch.md). 10/day at $0.029/call
-// caps worst-case user cost at $0.29/day = ~$9/month, which keeps
-// the $40/year ($3.33/month) Basic tier sustainably above COGS.
-// Beta runs at the same cap so friends experience the real product
-// constraints, not a beta-only generosity that would set false
-// expectations and force a rough downgrade at launch.
-const SUGGEST_DAILY_CAP = 10;
+// 2026-05-26 — dropped 10 -> 3 after the gemini-3-flash-preview ->
+// gemini-3.5-flash model swap. New cost is ~$0.087/call vs old
+// $0.029, so 10/day would put worst-case at $26/mo per user (~8x
+// the $3.33/mo Linette tier revenue). 3/day keeps worst-case at
+// ~$7.83/mo per user — still over revenue at worst case but the
+// average user lands well under, so unit economics work on the mix.
+// Three cap presets to keep in mind once subscription tiers ship:
+//   - Conservative: 2/day (~$5/mo worst)
+//   - Balanced:     3/day (~$7.83/mo worst)  ← current beta cap
+//   - Generous:     5/day (~$13/mo worst)    ← future Atelier tier
+// Beta runs at the cap that matches the eventual Linette tier so
+// friends experience the real constraint, not beta-only generosity
+// that would force a rough downgrade at launch.
+const SUGGEST_DAILY_CAP = 3;
 
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
@@ -962,6 +969,7 @@ export async function POST(request: NextRequest) {
 
 PRIMARY DIRECTIVES (read before any rule):
 - VOICE: every string you write (name, reasoning, styling_tip, wardrobe_gap) speaks DIRECTLY to the wearer in second person — "you" in English, "tu" in French. NEVER write "the user", "the wearer", "she", "he", "they", or any third-person reference to the person wearing the outfit. You are addressing them, not describing them to someone else. CRITICAL for French: use ONLY the informal "tu" form — "tu", "ton", "ta", "tes", and imperative verbs in tu form ("rentre", "ajoute", "porte"). NEVER use "vous", "votre", "vos", or vous-form imperatives ("rentrez", "ajoutez", "portez"). The user signed up for a personal stylist friend, not a department store concierge.
+- OUTPUT LANGUAGE: every string field in your JSON response (name, reasoning, styling_tip, wardrobe_gap) MUST be written entirely in ${languageName}. Do not mix languages, do not slip into another language for any field, do not let the language of item names in the wardrobe list bias your output. If ${languageName} is English, every word you produce in those fields is English. If ${languageName} is French, every word is French.
 - Every outfit needs ONE focal point — a piece that catches the eye. Color, pattern, texture, shine, or silhouette. Bland-and-correct is a fail; bland-and-correct without a single visual hook means you stopped thinking too soon.
 - A real stylist FINISHES the look. If a sweater + skirt would obviously be belted in real life, ADD the belt. If a coat over jeans would obviously have a scarf, ADD the scarf. Don't stop at the minimum.
 - This is ONE outfit, generated independently each time the user taps "Show me another." Don't worry about variety across multiple outputs — the RECENTLY SHOWN list shows what's already been served, so just pick a fresh combination that differs from those.
@@ -1155,7 +1163,7 @@ Return exactly 1 outfit in the "outfits" array (single-item array). For the outf
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? "use masculine-coded language: \"sharp\", \"crisp\", \"clean line\", \"intentional\", \"grounded\". Avoid \"chic\", \"feminine\", \"flowy\"." : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
 - styling_tip: ONE short sentence in ${languageName} with a concrete styling ACTION applied to items already in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar). The ONLY allowed mention of items NOT in the outfit is naming a missing staple per rules 8-11 (e.g. "A pointed-toe pump would finish this"). NEVER suggest items that physically conflict with the existing outfit — tights NEVER pair with pants of any kind (jeans / trousers / leggings / sweatpants / shorts); tights are for under skirts and dresses only. If occasion is at-home, NEVER suggest weather-protection layers (no "add a coat", "throw on a scarf", "pair with thick tights") — the user is indoors. If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
 
-wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe is covered.`;
+wardrobe_gap: One short sentence in ${languageName} about a missing staple, or null if the wardrobe is covered.`;
 
     // Use Anthropic's tool_use with a JSON schema instead of asking for raw
     // JSON in a text response. Free-form JSON was failing to parse ~30% of
@@ -1172,7 +1180,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       wardrobe_gap?: string | null;
     };
     async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 3 Flash with SHALLOW thinking (thinkingBudget: 3072) +
+      // Gemini 3.5 Flash with SHALLOW thinking (thinkingBudget: 3072) +
       // single-outfit generation. Variety across "Show me another"
       // taps comes from the RECENTLY SHOWN ban list; quality comes
       // from the model's full attention on one composition rather
@@ -1180,7 +1188,7 @@ wardrobe_gap: One short sentence about a missing staple, or null if the wardrobe
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-3.5-flash",
             contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
             config: {
               temperature: 1,

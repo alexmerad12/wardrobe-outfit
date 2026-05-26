@@ -20,10 +20,16 @@ import { isCapBypassed } from "@/lib/admin-bypass";
 // economics even if the user swaps every save.
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
-// Daily cap is generous — refine is gated by save behaviour (user
-// commits to keeping the outfit), so abuse vector is minimal. 30/day
-// is well above any realistic save pattern.
-const REFINE_DAILY_CAP = 30;
+// 2026-05-26 — dropped 30 -> 10 alongside the suggest / try-on / pack
+// reductions after the gemini-3.5-flash swap. Refine is cheap per call
+// (~$0.005, thinkingBudget: 0, maxOutputTokens: 512) so even 30/day
+// would have been only ~$4.50/mo worst case — kept aligned at 10/day
+// just so caps read consistently across endpoints. Tier presets to
+// keep in mind:
+//   - Conservative: 5/day
+//   - Balanced:    10/day  ← current beta cap
+//   - Generous:    15/day  ← future Atelier tier
+const REFINE_DAILY_CAP = 10;
 
 function describeItemForPrompt(item: ClothingItem): string {
   const parts: string[] = [item.name];
@@ -123,7 +129,7 @@ Respond with ONLY:
     const result = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-3.5-flash",
           contents: prompt,
           config: {
             temperature: 0.7,

@@ -12,9 +12,14 @@ import { logAiCall } from "@/lib/log-ai-call";
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 
 // Packing is rare-use (one trip per several weeks for most users) and
-// per-call cost is low (~$0.01), but cap anyway so a runaway client
-// retry can't rack up calls. 5/day is generous for normal use.
-const PACKING_DAILY_CAP = 5;
+// per-call cost is low (~$0.012 on gemini-3.5-flash). 2/day worst case
+// is ~$0.72/mo per user. Tier presets to keep in mind:
+//   - Conservative: 1/day
+//   - Balanced:     2/day  ← current beta cap
+//   - Generous:     3/day  ← future Atelier tier
+// Most users won't trigger this once per week, let alone twice per
+// day, so the cap mostly guards against runaway client retries.
+const PACKING_DAILY_CAP = 2;
 
 function describeItem(item: ClothingItem): string {
   const parts: string[] = [`[${item.id}]`, item.name];
@@ -165,7 +170,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     const result = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-3.5-flash",
           contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
           config: {
             temperature: 0.7,

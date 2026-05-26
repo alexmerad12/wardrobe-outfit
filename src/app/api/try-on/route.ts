@@ -11,12 +11,18 @@ import { colorFamily } from "@/lib/color-family";
 import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 
-// Try-on cap matches suggest at 10/day. Tighter caps (3/day) broke the
-// real shopping use case — a single store run is 5-8 scans. The
-// suggest-by-proxy abuse vector (photographing owned items to skip the
-// suggest cap) is bounded by per-call cost (~$0.015) — even a 10/day
-// abuser is ~$0.15/day, well within the Basic tier economics.
-const TRY_ON_DAILY_CAP = 10;
+// 2026-05-26 — dropped 10 -> 3 alongside the suggest cap reduction
+// after the gemini-3-flash-preview -> gemini-3.5-flash swap. Try-on
+// is two Gemini calls per session at ~$0.024/use total, so 3/day caps
+// worst-case at ~$2.16/mo per user. Tier presets to keep in mind:
+//   - Conservative: 2/day
+//   - Balanced:     3/day  ← current beta cap
+//   - Generous:     5/day  ← future Atelier tier
+// Tighter caps risk breaking a real store-run scenario (user pinging
+// 5-8 items in one outing); 3/day is the floor where it still works
+// for casual shopping. Beta matches the eventual Linette tier so the
+// constraint reads as the real launch experience.
+const TRY_ON_DAILY_CAP = 3;
 
 // Try-on / fitting-room endpoint runs on Gemini 3 Flash Preview via
 // @google/genai with thinking disabled. Two AI calls: (1) analyze the
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
     const analyzeRes = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-3.5-flash",
           contents: [
             {
               role: "user",
@@ -244,7 +250,7 @@ export async function POST(request: NextRequest) {
       const simRes = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash",
         contents: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
 
 Rules for each outfit:
