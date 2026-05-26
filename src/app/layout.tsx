@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { AddItemFab } from "@/components/add-item-fab";
 import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
 import { LaunchSplash } from "@/components/launch-splash";
+import { SwRegister } from "@/components/sw-register";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -126,6 +127,7 @@ export default function RootLayout({
           <AddItemFab />
           <BottomNav />
           <LaunchSplash />
+          <SwRegister />
         </PendingUploadsProvider>
       </body>
     </html>
