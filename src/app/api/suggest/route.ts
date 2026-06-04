@@ -786,23 +786,95 @@ export async function POST(request: NextRequest) {
     function passesWarmth(it: ClothingItem): boolean {
       if (temp === null) return true;
       const warmth = it.warmth_rating ?? null;
-      if (warmth === null) return true;
-      // Warm temps (≥24°C) — block heavy outerwear / heavy tops.
-      if (temp >= 24) {
-        if ((it.category === "outerwear" || it.category === "top") && warmth >= 4) {
+      // Hot (≥25°C) — block mid-weight long-sleeves, jeans, sweaters,
+      // heavy bottoms, heavy footwear, and tall-shaft boots. Previously
+      // the only cutoff was warmth ≥4 on tops, which let mid-weight
+      // cotton long-sleeves and any boot pass through at 27°C. The
+      // base-layer gate is warmth ≤2 to qualify; outerwear is fully
+      // blocked; shoes need warmth ≤3 (sandals, espadrilles, light
+      // sneakers, ballet flats) AND must not be knee/over-knee
+      // height — wool-lined boots and tall-shaft boots read winter
+      // even when the warmth tag is forgiving.
+      if (temp >= 25) {
+        if (it.category === "outerwear") return false;
+        if (
+          (it.category === "top" ||
+            it.category === "bottom" ||
+            it.category === "dress" ||
+            it.category === "one-piece") &&
+          warmth !== null &&
+          warmth >= 3
+        ) {
+          return false;
+        }
+        if (it.category === "shoes") {
+          if (warmth !== null && warmth >= 4) return false;
+          if (it.subcategory === "knee-boots") return false;
+          if (it.shoe_height === "knee" || it.shoe_height === "over-knee") {
+            return false;
+          }
+        }
+      }
+      // Warm-to-mild (18–25°C) — block genuinely heavy outerwear and
+      // heavy tops (warmth ≥4). At 18°C a chunky wool sweater or
+      // double-breasted coat is already too much; blocking them here
+      // prevents the AI from defaulting to winter staples on a
+      // shoulder-season morning when the wardrobe also has lighter
+      // options. Mid-weight (warmth 2-3) pieces stay available.
+      if (temp >= 18 && temp < 25) {
+        if (
+          (it.category === "outerwear" || it.category === "top") &&
+          warmth !== null &&
+          warmth >= 4
+        ) {
           return false;
         }
       }
-      // Very cold (<5°C) — block thin tops / dresses / outerwear that
-      // can't actually warm a body in winter.
+      // Cool (5–10°C) — block thin upper layers (warmth ≤1.5 on tops,
+      // dresses, one-piece) and open-toe shoes. At 7°C a tank top or
+      // summer dress isn't realistic even under a coat; the prompt's
+      // "base warmth ≥2 at <10°C" rule wants this enforced. Bottoms
+      // stay un-gated here (a jean skirt with tights at 8°C is fine);
+      // they only get the thin-block at the <5°C tier below.
+      if (temp >= 5 && temp < 10) {
+        if (
+          (it.category === "top" ||
+            it.category === "dress" ||
+            it.category === "one-piece") &&
+          warmth !== null &&
+          warmth <= 1.5
+        ) {
+          return false;
+        }
+        if (it.category === "shoes") {
+          if (it.subcategory === "sandals") return false;
+          if (it.toe_shape === "open-toe" || it.toe_shape === "peep-toe") {
+            return false;
+          }
+        }
+      }
+      // Very cold (<5°C) — block thin pieces on every base-layer
+      // category (not just tops / dresses — the previous gate let
+      // shorts and summer jumpsuits through at -5°C). Also block
+      // open-toe shoes and sandals — never appropriate in freezing
+      // weather even if the user happens to own them.
       if (temp < 5) {
         if (
           (it.category === "outerwear" ||
             it.category === "top" ||
-            it.category === "dress") &&
+            it.category === "bottom" ||
+            it.category === "dress" ||
+            it.category === "one-piece") &&
+          warmth !== null &&
           warmth <= 1.5
         ) {
           return false;
+        }
+        if (it.category === "shoes") {
+          if (it.subcategory === "sandals") return false;
+          if (it.toe_shape === "open-toe" || it.toe_shape === "peep-toe") {
+            return false;
+          }
         }
       }
       return true;
@@ -1023,7 +1095,11 @@ HARD RULES — do not violate:
      CARDIGAN-AS-OUTERWEAR EXCEPTION: a chunky cardigan (subcategory="cardigan" AND Warmth ≥ 3 AND NOT a layering piece) MAY substitute for outerwear when BOTH conditions are true: (a) temp is 10–17°C (mild cold — real outerwear is overkill); (b) occasion is indoor-leaning (at-home, work, dinner-out, date, party, formal, brunch). For outdoor / travel / casual, you still need real outerwear regardless of temp. Below 10°C the cardigan is never enough — pick real outerwear.
      If the wardrobe has zero qualifying outerwear AND zero qualifying cardigan substitute, skip this rule.
    - Cold base layer: the dress / jumpsuit / top+bottom under the coat must ALSO handle the temperature — the coat comes off indoors. At <10°C, base Warmth ≥2; at <5°C, Warmth ≥2.5. Prefer midi/maxi, knit/wool, fall or winter in Seasons.
+   - Warm-mild (18–22°C): no heavy coats, no chunky wool sweaters, no wool tops. Warmth ≥4 on outerwear or tops is too much at these temps even when the user owns them.
    - Warm (>22°C): no heavy coats, no wool, no heavy boots.
+   - Hot (≥25°C): the BASE outfit must read summer. Prefer Warmth ≤2 across top, bottom, and dress. Specifically: pick a short-sleeve / sleeveless top over a long-sleeve one when the wardrobe has both; pick shorts / skirt / lightweight dress over full-length pants when the wardrobe has both; never include outerwear; never include heavy footwear (boots, closed boots, wool-lined shoes); never include tall-shaft boots (knee or over-knee Shoe height) — they read winter even in light leather. At ≥28°C this is non-negotiable — if every option in a category is too warm, name the gap in styling_tip rather than ship a heatwave outfit in long sleeves and trousers.
+   - Cool (5–10°C): no tank tops, no sleeveless dresses, no summer jumpsuits, no sandals — anything Warmth ≤1.5 on tops / dresses / one-piece is too thin even under a coat. Bottoms can run lighter (a denim skirt with tights, etc.).
+   - Very cold (<5°C): block thin pieces on EVERY base layer (top, bottom, dress, one-piece) with Warmth ≤1.5 — shorts and summer jumpsuits at -5°C are never the answer. Block open-toe shoes and sandals regardless of weather material — bare-toe footwear in freezing weather is wrong even if the rest of the outfit compensates.
    - Mild-warm (≥20°C) at INDOOR occasions (at-home, work, dinner-out, formal): SKIP cardigans, hoodies, and other layering pieces stacked OVER an existing top or dress. The base outfit is enough — no over-layer needed when it's not cold. (Cardigan as the BASE top, e.g. cardigan + jeans, still fine. The block is on doubling up.)
    - RAIN (rain% ≥ 40% OR Condition contains "rain" / "showers"): apply automated Material-Intelligence filters to element-facing layers (Outerwear, Shoes, Bag):
      · BLOCK Material in [suede, silk, satin, canvas] for these categories — non-rain-proof.

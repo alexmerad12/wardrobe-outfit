@@ -218,6 +218,18 @@ function EnglishFAQ() {
             or wear it today.
           </p>
         </Q>
+        <Q q="Why does Linette never suggest some of my favorite pieces for certain occasions?">
+          <p>
+            Linette uses each item&apos;s &quot;Occasions&quot; tags to
+            decide where it fits. If she&apos;s filtering out a piece
+            you&apos;d actually wear for work or a date, open the item,
+            tap &quot;Edit details&quot;, and add the occasion you want.
+            She&apos;ll trust your call over her default filter — useful
+            when your workplace is more relaxed than the average, or
+            when a piece reads casual but feels right to you for a
+            specific event.
+          </p>
+        </Q>
         <Q q="Can I swap just one piece in a suggestion?">
           <p>
             Tap the shuffle icon on any item in a suggested outfit and
@@ -458,6 +470,19 @@ function FrenchFAQ() {
             puis tape sur « Tenue » pour la composer toi-même. Tu peux
             l&apos;enregistrer dans tes Favoris ou la porter
             aujourd&apos;hui.
+          </p>
+        </Q>
+        <Q q="Pourquoi Linette ne propose jamais certaines de mes pièces préférées pour certaines occasions ?">
+          <p>
+            Linette se sert des tags « Occasions » de chaque pièce pour
+            décider où elle convient. Si elle écarte une pièce que tu
+            porterais vraiment au travail ou à un rendez-vous, ouvre la
+            pièce, tape sur « Modifier les détails », et ajoute
+            l&apos;occasion que tu veux. Elle fera confiance à ton
+            choix plutôt qu&apos;à son filtre par défaut — pratique
+            quand ton lieu de travail est plus décontracté que la
+            moyenne, ou quand une pièce semble décontractée mais te
+            paraît bonne pour un événement précis.
           </p>
         </Q>
         <Q q="Je peux remplacer juste une pièce dans une suggestion ?">
