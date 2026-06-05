@@ -1052,7 +1052,7 @@ The hard rules below exist to prevent visually wrong choices. They do NOT excuse
 
 
 WARDROBE:
-${wardrobeList}${favoritesSection}${recentSection}`;
+${wardrobeList}${favoritesSection}`;
 
     // Variation nonce in the dynamic suffix only — keeps the cached prefix
     // hot while giving Claude a different starting context so we don't get
@@ -1072,12 +1072,23 @@ ${wardrobeList}${favoritesSection}${recentSection}`;
         ? "USER PREFERENCE: runs COLD — treat the temperature as ~3°C cooler than reported. Require outerwear at <15°C (not <12°C). Layer earlier. Avoid sandals until >25°C. Lean warmer."
         : "";
 
+    // recentSection lives in the DYNAMIC suffix, not the cached prefix.
+    // Each "Show me another" tap appends one more entry to the recent-
+    // shown list; if that grew inside cachedPrefix, the byte-identical
+    // prompt-prefix requirement for Gemini's prompt cache would be
+    // violated on every tap (tap 1 vs tap 2 vs tap 3 = three different
+    // prefixes), causing a full uncached re-process every time. Beta
+    // user reported "the third Show me another feels like forever" —
+    // that's the cache miss showing up. Moving it down here keeps the
+    // wardrobe + rules portion ~constant across taps so the cache
+    // actually hits, and only the small variable-state delta is
+    // re-processed each call.
     const dynamicSuffix = `
 
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
 MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.label} — ${moodInfo.description}
-OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}
+OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}${recentSection}
 ITERATION: ${iterationNonce}
 
 Return ONE deliberate complete outfit from the wardrobe. It must be different from every set in RECENTLY SHOWN OR WORN. Spend your full reasoning on this single composition — focal point, color story, texture interplay, finishing touches. No throwaway picks. This is the user's only outfit for this tap; if it's mediocre they'll feel it.
@@ -1850,14 +1861,56 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         // bans (e.g. baseball cap at work, casual hat silhouette at
         // formal). Falls back to the full wardrobe when the
         // pre-filtered pool is empty.
+        //
+        // CRITICAL: exclude belts from the pool when the base outfit
+        // already blocks belts (belted dress, slim-fit base, elastic
+        // waist, etc.). The BELT STRIP a few blocks above just removed
+        // a belt for exactly this reason; without this guard the
+        // accessory minimum re-injects the same belt right back —
+        // shipping the wrong-belt outfit the strip was meant to
+        // prevent. The check mirrors the R18a beltBlocked predicate.
+        const NO_BELT_DRESS_SILHOUETTES = new Set<string>([
+          "slip",
+          "bodycon",
+          "mermaid",
+          "sheath",
+          "shift",
+        ]);
+        const NO_BELT_BOTTOM_CLOSURES = new Set<string>([
+          "elastic",
+          "drawstring",
+          "pull-on",
+          "side-zip",
+        ]);
+        const NO_BELT_BOTTOM_SUBS = new Set<string>([
+          "leggings",
+          "sweatpants",
+        ]);
+        const baseBlocksBelt = stripped.some((i) => {
+          if (i.category === "dress" || i.category === "one-piece") {
+            if (i.dress_silhouette && NO_BELT_DRESS_SILHOUETTES.has(i.dress_silhouette)) return true;
+            if (i.fit === "slim") return true;
+            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
+            if (i.category === "one-piece" && i.subcategory === "overalls") return true;
+          }
+          if (i.category === "bottom") {
+            if (i.subcategory && NO_BELT_BOTTOM_SUBS.has(i.subcategory)) return true;
+            if (i.waist_closure && NO_BELT_BOTTOM_CLOSURES.has(i.waist_closure)) return true;
+            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
+            if (i.fit === "slim") return true;
+          }
+          return false;
+        });
         const filteredAccessories = promptItems.filter((i) => {
           if (i.category !== "accessory") return false;
           if (occasion === "work" && i.subcategory === "hat") return false;
+          if (baseBlocksBelt && i.subcategory === "belt") return false;
           return true;
         });
         const availableAccessories = items.filter((i) => {
           if (i.category !== "accessory" || i.is_stored) return false;
           if (occasion === "work" && i.subcategory === "hat") return false;
+          if (baseBlocksBelt && i.subcategory === "belt") return false;
           return true;
         });
         const pool =

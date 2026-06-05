@@ -35,28 +35,16 @@ export function AddItemFab() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
 
-  // Same suppression rules as BottomNav, plus the add/edit/bulk
-  // screens themselves — those already have their own upload UI and
-  // a floating duplicate would just compete with it.
-  if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
-    pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/welcome") ||
-    pathname.startsWith("/onboarding") ||
-    pathname.startsWith("/privacy") ||
-    pathname.startsWith("/terms") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/launch") ||
-    pathname.startsWith("/design") ||
-    pathname.startsWith("/debug-upload") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/wardrobe/add") ||
-    pathname.startsWith("/wardrobe/bulk") ||
-    // /wardrobe/[id] — item detail / edit screen. Match anything
-    // under /wardrobe/ that isn't the listing index itself.
-    /^\/wardrobe\/[^/]+/.test(pathname)
-  ) {
+  // FAB is contextual to wardrobe management — adding items only
+  // makes sense from /wardrobe (the listing). On Home / Suggest /
+  // Favorites / Profile the user is consuming outfits, not curating,
+  // so a floating "+" there is noise. The Wardrobe tab is one tap
+  // away on the bottom nav from any screen.
+  //
+  // Also hidden on the wardrobe sub-routes (/wardrobe/add, /bulk,
+  // /[id]) — those already have their own upload UI and a floating
+  // duplicate would just compete with it.
+  if (pathname !== "/wardrobe") {
     return null;
   }
 

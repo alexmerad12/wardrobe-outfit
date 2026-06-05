@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import type { ClothingItem, Category } from "@/lib/types";
+import { SUBCATEGORY_OPTIONS, type ClothingItem, type Category } from "@/lib/types";
 import { ClothingCard, ClothingCardSkeleton } from "@/components/clothing-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -320,7 +320,17 @@ function WardrobePageInner() {
     for (const item of categoryFiltered) {
       if (item.subcategory) seen.add(item.subcategory);
     }
-    return Array.from(seen);
+    // Sort by the canonical order in SUBCATEGORY_OPTIONS — without this
+    // the pills render in upload-order (whichever item was added first
+    // wins its subcategory's slot), which makes dresses show as e.g.
+    // "Maxi / Midi / Mini" instead of the conventional small-to-large
+    // "Mini / Midi / Maxi". Same fix applies to all categories.
+    const canonical = SUBCATEGORY_OPTIONS[activeCategory as Category];
+    if (!canonical) return Array.from(seen);
+    const order = new Map(canonical.map((opt, i) => [opt.value as string, i]));
+    return Array.from(seen).sort(
+      (a, b) => (order.get(a) ?? 999) - (order.get(b) ?? 999)
+    );
   })();
 
   const subcategoryFiltered =

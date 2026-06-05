@@ -27,14 +27,14 @@
 
 import * as React from "react";
 
-const WORDMARK_START_MS = 800; // wait for eyebrow to settle
-const LETTER_SETTLE_MS = 950; // per-letter fade + drift + scale
-const LETTER_STAGGER_MS = 280; // gap between consecutive letters
+const WORDMARK_START_MS = 350; // wait for eyebrow to settle
+const LETTER_SETTLE_MS = 520; // per-letter fade + drift + scale
+const LETTER_STAGGER_MS = 140; // gap between consecutive letters
 const ENTRY_TOTAL_MS =
   WORDMARK_START_MS + LETTER_STAGGER_MS * 6 + LETTER_SETTLE_MS;
 
-const HOLD_MS = 1100;
-const EXIT_MS = 600;
+const HOLD_MS = 400;
+const EXIT_MS = 400;
 const SESSION_KEY = "linette_splash_seen";
 
 type Phase = "entering" | "held" | "exiting" | "done";
@@ -224,8 +224,8 @@ const SPLASH_CSS = `
     transform-origin: center;
     transform: translateY(3px) scale(0.96);
     filter: blur(1.2px);
-    animation: ls-ink-settle 950ms cubic-bezier(0.16, 1, 0.3, 1)
-      calc(800ms + var(--i) * 280ms) forwards;
+    animation: ls-ink-settle 520ms cubic-bezier(0.16, 1, 0.3, 1)
+      calc(350ms + var(--i) * 140ms) forwards;
   }
 
   @keyframes ls-ink-settle {
