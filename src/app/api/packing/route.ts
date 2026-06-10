@@ -170,7 +170,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     const result = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-3-flash-preview",
           contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
           config: {
             temperature: 0.7,

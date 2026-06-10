@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const result = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-3-flash-preview",
           contents: [
             {
               role: "user",
