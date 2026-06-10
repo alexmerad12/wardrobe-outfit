@@ -175,7 +175,7 @@
     "notEnoughItems": "Pas assez d'items dans ton dressing pour suggérer des tenues.",
     "atLeast3Items": "Ajoute au moins 3 items pour commencer !",
     "limitTitle": "Tu as atteint la limite quotidienne.",
-    "limitHint": "Les suggestions sont limitées à 10 par jour. Réessaie demain.",
+    "limitHint": "Les suggestions sont limitées à 3 par jour. Réessaie demain.",
     "aiErrorTitle": "On n'a pas réussi à composer une tenue cette fois.",
     "aiErrorHint": "Le styliste a buggé — réessaie.",
     "tryAgain": "Réessayer",
@@ -954,7 +954,7 @@
     "outfitsCountPlural": "{count} tenues possibles",
     "newItem": "Nouveau",
     "limitTitle": "Tu as atteint la limite quotidienne.",
-    "limitHint": "Les essayages sont limités à 10 par jour. Réessaie demain."
+    "limitHint": "Les essayages sont limités à 3 par jour. Réessaie demain."
   },
   "packing": {
     "title": "Essentiels de voyage",
@@ -983,7 +983,7 @@
     "pastTrips": "Voyages passés",
     "deleteTrip": "Supprimer le voyage",
     "limitTitle": "Tu as atteint la limite quotidienne.",
-    "limitHint": "Les listes de valise sont limitées à 5 par jour. Réessaie demain."
+    "limitHint": "Les listes de valise sont limitées à 2 par jour. Réessaie demain."
   },
   "profile": {
     "title": "Profil",

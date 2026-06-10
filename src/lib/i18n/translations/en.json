@@ -175,7 +175,7 @@
     "notEnoughItems": "Not enough items in your wardrobe to suggest outfits.",
     "atLeast3Items": "Add at least 3 items to get started!",
     "limitTitle": "You've reached today's limit.",
-    "limitHint": "Suggestions are capped at 10 per day. Try again tomorrow.",
+    "limitHint": "Suggestions are capped at 3 per day. Try again tomorrow.",
     "aiErrorTitle": "Couldn't put together a look this time.",
     "aiErrorHint": "The stylist hit a hiccup — give it another try.",
     "tryAgain": "Try again",
@@ -949,7 +949,7 @@
     "outfitsCountPlural": "{count} possible outfits",
     "newItem": "New",
     "limitTitle": "You've reached today's limit.",
-    "limitHint": "Try-ons are capped at 10 per day. Try again tomorrow."
+    "limitHint": "Try-ons are capped at 3 per day. Try again tomorrow."
   },
   "packing": {
     "title": "Trip Essentials",
@@ -978,7 +978,7 @@
     "pastTrips": "Past trips",
     "deleteTrip": "Delete trip",
     "limitTitle": "You've reached today's limit.",
-    "limitHint": "Packing lists are capped at 5 per day. Try again tomorrow."
+    "limitHint": "Packing lists are capped at 2 per day. Try again tomorrow."
   },
   "profile": {
     "title": "Profile",
