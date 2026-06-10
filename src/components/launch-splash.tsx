@@ -20,7 +20,7 @@
 "use client";
 
 import * as React from "react";
-import Lottie from "lottie-react";
+import Lottie, { type LottieRefCurrentProps } from "lottie-react";
 import linetteAnimation from "@/assets/linette-lottie.json";
 
 // Lottie metadata: 133 frames / 30 fps = 4.433s native. We play it
@@ -42,6 +42,10 @@ export function LaunchSplash() {
   // but we still skip rendering <Lottie> until we know we're in the
   // browser to avoid the hydration mismatch warning.
   const [mounted, setMounted] = React.useState(false);
+  // lottie-react has no `speed` prop — it's set imperatively via the
+  // ref after the animation initialises. The DOMLoaded event is what
+  // tells us the lottie player has bound to its container.
+  const lottieRef = React.useRef<LottieRefCurrentProps>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -94,10 +98,11 @@ export function LaunchSplash() {
           <div className="ls-wordmark" aria-label="Linette">
             {mounted && (
               <Lottie
+                lottieRef={lottieRef}
                 animationData={linetteAnimation}
                 loop={false}
                 autoplay
-                speed={LOTTIE_SPEED}
+                onDOMLoaded={() => lottieRef.current?.setSpeed(LOTTIE_SPEED)}
                 rendererSettings={{ preserveAspectRatio: "xMidYMid meet" }}
                 style={{ width: "100%", height: "100%" }}
               />
