@@ -95,7 +95,7 @@ function EnglishFAQ() {
           <p>A few quirks worth knowing:</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>She speaks English and French, and switches based on your preference.</li>
-            <li>She won&apos;t let you wear sandals in the rain.</li>
+            <li>Rain in the forecast? Don&apos;t expect her to sign off on suede.</li>
             <li>
               She only allows mixing metals when your mood is &quot;Playful.&quot;
               Otherwise — gold with gold, silver with silver.
@@ -133,11 +133,11 @@ function EnglishFAQ() {
         <Q q="Can I hide off-season pieces?">
           <p>
             Open any item, tap &quot;Edit details&quot;, and toggle
-            &quot;Stored&quot; at the bottom. Stored pieces stay in your
-            wardrobe but don&apos;t appear in suggestions or the default
-            grid until you bring them back. To pack away many pieces at
-            once, multi-select items in your Wardrobe and tap the storage
-            action.
+            &quot;Pack away&quot; near the bottom. Packed-away pieces stay
+            in your wardrobe but don&apos;t appear in suggestions or the
+            default grid until you bring them back. To pack away many
+            pieces at once, multi-select items in your Wardrobe and tap
+            the storage action.
           </p>
         </Q>
         <Q q="What if Linette tags an item incorrectly?">
@@ -170,7 +170,9 @@ function EnglishFAQ() {
             Linette tries to rotate your wardrobe, but if certain pieces
             anchor a lot of your favorites or are the only items that fit the
             weather and occasion, they&apos;ll come up more. Tap &quot;Show me
-            another&quot; for a fresh combination.
+            another&quot; for a fresh combination — just know each one counts
+            toward your daily suggestion limit (see &quot;Is Linette
+            free?&quot; below).
           </p>
         </Q>
         <Q q="How do I save an outfit?">
@@ -181,11 +183,12 @@ function EnglishFAQ() {
         </Q>
         <Q q="How does Linette learn from my favorites?">
           <p>
-            Over time, your favorites tell her which color palettes you
-            gravitate to, which silhouettes recur, which pieces anchor a lot
-            of your outfits, and which fits and cuts you keep coming back to.
-            Future suggestions lean on those patterns — so the more you
-            favorite, the more her picks feel like yours.
+            Your favorites tell her which color palettes you gravitate to,
+            which silhouettes recur, which pieces anchor a lot of your
+            outfits, and which fits and cuts you keep coming back to. On
+            each request she studies a small rotating sample of them so no
+            single look takes over — a handful of genuine favorites guides
+            her better than hearting everything.
           </p>
         </Q>
         <Q q="What does the heart on a single piece do?">
@@ -214,8 +217,9 @@ function EnglishFAQ() {
         <Q q="Can I build my own outfit instead of asking Linette?">
           <p>
             In your Wardrobe, tap to select two or more items, then tap
-            &quot;Outfit&quot; to compose it yourself. Save it to Favorites
-            or wear it today.
+            &quot;Outfit&quot; to compose it yourself. It&apos;s saved to
+            your Favorites, where you can wear it today or keep it for
+            later.
           </p>
         </Q>
         <Q q="Why does Linette never suggest some of my favorite pieces for certain occasions?">
@@ -233,8 +237,9 @@ function EnglishFAQ() {
         <Q q="Can I swap just one piece in a suggestion?">
           <p>
             Tap the shuffle icon on any item in a suggested outfit and
-            Linette will replace just that piece with an alternative from
-            your wardrobe, keeping the rest of the look intact.
+            pick a replacement from your wardrobe — the rest of the look
+            stays intact, and Linette rewrites her styling notes around
+            your swap.
           </p>
         </Q>
       </Section>
@@ -262,9 +267,10 @@ function EnglishFAQ() {
         </Q>
         <Q q="Where are my photos stored? Do you sell my data?">
           <p>
-            Photos live in Supabase and Vercel object storage, with row-level
-            security so only your account can read them. We do not sell your
-            data. Details in our{" "}
+            Photos live in object storage at Supabase, our database
+            provider. Your wardrobe data is protected by row-level security,
+            so only your signed-in account can access it. We do not sell
+            your data. Details in our{" "}
             <Link href="/privacy" className="underline">
               Privacy Policy
             </Link>
@@ -276,9 +282,11 @@ function EnglishFAQ() {
       <Section title="Pricing & support">
         <Q q="Is Linette free?">
           <p>
-            Linette is free during the beta. Paid plans are coming later this
-            year — a Linette tier and an Atelier tier, both yearly. You&apos;ll
-            see them before you&apos;re asked to pay anything.
+            Linette is free during the beta. To keep the lights on, AI
+            features have daily limits — currently 3 outfit suggestions,
+            3 try-ons, and 2 packing lists per day. Paid plans will come
+            later; you&apos;ll see them in the app well before you&apos;re
+            asked to pay anything.
           </p>
         </Q>
         <Q q="I have a question, bug, or idea — how do I reach you?">
@@ -337,7 +345,7 @@ function FrenchFAQ() {
           <p>Quelques particularités à savoir :</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Elle parle anglais et français, et bascule selon ta préférence.</li>
-            <li>Elle ne te laissera pas porter des sandales sous la pluie.</li>
+            <li>De la pluie au programme ? Ne compte pas sur elle pour approuver le suède.</li>
             <li>
               Elle ne permet de mélanger les métaux que lorsque ton humeur est
               « Fun ». Sinon — or avec or, argent avec argent.
@@ -418,8 +426,10 @@ function FrenchFAQ() {
             Linette essaie de faire tourner ton dressing, mais si certaines
             pièces ancrent beaucoup de tes favoris ou sont les seules à
             convenir à la météo et à l&apos;occasion, elles reviendront plus
-            souvent. Appuie sur « Une autre » pour une nouvelle
-            combinaison.
+            souvent. Appuie sur « Une autre suggestion » pour une nouvelle
+            combinaison — chaque demande compte toutefois dans ta limite
+            quotidienne (voir « Est-ce que Linette est gratuit ? » plus
+            bas).
           </p>
         </Q>
         <Q q="Comment enregistrer une tenue ?">
@@ -431,12 +441,13 @@ function FrenchFAQ() {
         </Q>
         <Q q="Comment Linette apprend de mes favoris ?">
           <p>
-            Au fil du temps, tes favoris lui montrent les palettes de
-            couleurs que tu privilégies, les silhouettes qui reviennent, les
-            pièces qui ancrent beaucoup de tes tenues, et les coupes
-            auxquelles tu retournes toujours. Ses suggestions s&apos;appuient
-            sur ces motifs — plus tu ajoutes de favoris, plus ses choix te
-            ressemblent.
+            Tes favoris lui montrent les palettes de couleurs que tu
+            privilégies, les silhouettes qui reviennent, les pièces qui
+            ancrent beaucoup de tes tenues, et les coupes auxquelles tu
+            retournes toujours. À chaque demande, elle étudie un petit
+            échantillon tournant de tes favoris pour qu&apos;aucun look ne
+            prenne toute la place — quelques vrais coups de cœur la
+            guident mieux qu&apos;un cœur sur tout.
           </p>
         </Q>
         <Q q="À quoi sert le cœur sur une pièce individuelle ?">
@@ -467,9 +478,9 @@ function FrenchFAQ() {
         <Q q="Je peux composer ma propre tenue plutôt que demander à Linette ?">
           <p>
             Dans ton Dressing, tape pour sélectionner deux pièces ou plus,
-            puis tape sur « Tenue » pour la composer toi-même. Tu peux
-            l&apos;enregistrer dans tes Favoris ou la porter
-            aujourd&apos;hui.
+            puis tape sur « Tenue » pour la composer toi-même. Elle est
+            enregistrée dans tes Favoris, d&apos;où tu peux la porter
+            aujourd&apos;hui ou la garder pour plus tard.
           </p>
         </Q>
         <Q q="Pourquoi Linette ne propose jamais certaines de mes pièces préférées pour certaines occasions ?">
@@ -488,9 +499,9 @@ function FrenchFAQ() {
         <Q q="Je peux remplacer juste une pièce dans une suggestion ?">
           <p>
             Tape l&apos;icône shuffle sur n&apos;importe quelle pièce
-            d&apos;une tenue suggérée et Linette la remplacera par une
-            alternative de ton dressing, en gardant le reste du look
-            intact.
+            d&apos;une tenue suggérée et choisis une remplaçante dans ton
+            dressing — le reste du look reste intact, et Linette réécrit
+            ses notes de style autour de ton échange.
           </p>
         </Q>
       </Section>
@@ -518,9 +529,11 @@ function FrenchFAQ() {
         </Q>
         <Q q="Où sont stockées mes photos ? Vendez-vous mes données ?">
           <p>
-            Les photos sont stockées chez Supabase et Vercel, avec sécurité
-            au niveau des lignes — seul ton compte peut les lire. Nous ne
-            vendons pas tes données. Détails dans notre{" "}
+            Les photos sont stockées dans le stockage objet de Supabase,
+            notre fournisseur de base de données. Les données de ton
+            dressing sont protégées par la sécurité au niveau des lignes —
+            seul ton compte connecté y a accès. Nous ne vendons pas tes
+            données. Détails dans notre{" "}
             <Link href="/privacy" className="underline">
               Politique de confidentialité
             </Link>
@@ -532,9 +545,11 @@ function FrenchFAQ() {
       <Section title="Tarifs & support">
         <Q q="Est-ce que Linette est gratuit ?">
           <p>
-            Linette est gratuit pendant la phase bêta. Les forfaits payants
-            arrivent plus tard cette année — un forfait Linette et un
-            forfait Atelier, tous deux annuels. Tu les verras avant
+            Linette est gratuit pendant la phase bêta. Pour garder les
+            coûts raisonnables, les fonctions IA ont des limites
+            quotidiennes — actuellement 3 suggestions de tenues, 3 essayages
+            et 2 listes de bagages par jour. Les forfaits payants
+            arriveront plus tard ; tu les verras dans l&apos;app bien avant
             qu&apos;on te demande de payer quoi que ce soit.
           </p>
         </Q>
