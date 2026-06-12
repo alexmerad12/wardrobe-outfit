@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WeatherData } from "@/lib/types";
 import {
   Droplets,
@@ -142,7 +142,13 @@ const STRIP_BASE =
   "relative overflow-hidden rounded-xl px-5 py-3 transition-colors duration-500";
 
 export function WeatherWidget() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weather, setWeatherState] = useState<WeatherData | null>(null);
+  // The loaders run inside a mount-only effect, so reading the `weather`
+  // state from their closures always saw the mount-time null — a slow
+  // IP-geo response could clobber fresher GPS data, and the error
+  // guards never knew data had arrived (audit P2). The ref is the live
+  // value the closures can trust.
+  const weatherRef = useRef<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const unit = useTemperatureUnit();
@@ -151,34 +157,47 @@ export function WeatherWidget() {
   useEffect(() => {
     let cancelled = false;
 
+    const applyWeather = (data: WeatherData) => {
+      weatherRef.current = data;
+      setWeatherState(data);
+      setLoading(false);
+    };
+    // Failure paths must also clear `loading`: the render checks
+    // loading BEFORE error, so without this the widget sat on the
+    // skeleton forever whenever the fetch failed (audit P2 — the
+    // error state was unreachable).
+    const applyError = () => {
+      if (!weatherRef.current) {
+        setError("weather_unavailable");
+        setLoading(false);
+      }
+    };
+
     async function loadForCoords(coords: Coords) {
       const cached = readCachedData(coords);
       if (cached) {
-        if (!cancelled) {
-          setWeather(cached);
-          setLoading(false);
-        }
+        if (!cancelled) applyWeather(cached);
         return;
       }
       try {
         const data = await fetchWeatherFromApi(coords);
         if (cancelled) return;
         writeCachedData(coords, data);
-        setWeather(data);
-        setLoading(false);
+        applyWeather(data);
       } catch {
-        if (!cancelled && !weather) setError("Couldn't fetch weather");
+        if (!cancelled) applyError();
       }
     }
 
     async function loadFromIpGeo() {
       try {
         const data = await fetchWeatherFromApi(null);
-        if (cancelled || weather) return;
-        setWeather(data);
-        setLoading(false);
+        // GPS data may have landed while the IP request was in flight —
+        // never overwrite it with the coarser IP result.
+        if (cancelled || weatherRef.current) return;
+        applyWeather(data);
       } catch {
-        if (!cancelled && !weather) setError("Couldn't fetch weather");
+        if (!cancelled) applyError();
       }
     }
 
