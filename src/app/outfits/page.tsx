@@ -350,9 +350,16 @@ export default function FavoritesPage() {
                 {t("suggest.addItems")}
               </Button>
             </Link>
-            <p className="mt-3 text-xs text-muted-foreground">
-              {t("common.orTapPlus")}
-            </p>
+            {/* Same secondary affordance as home + wardrobe — bulk link
+                with identical copy. */}
+            <div className="mt-3">
+              <Link
+                href="/wardrobe/bulk"
+                className="text-xs text-foreground/80 underline underline-offset-2"
+              >
+                {t("home.uploadMany")}
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">

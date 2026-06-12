@@ -49,6 +49,9 @@ playwright-report/
 # claude code local state
 .claude/
 
+# audit session scratch notes (AUDIT_REPORT.md is the committed record)
+.audit/
+
 # local-only design / logo experimentation — not for prod
 .linette-design-tmp/
 src/app/logo-lab/
