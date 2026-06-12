@@ -253,6 +253,7 @@ Staged so each commit is independently shippable:
 8. Auth UX: render OAuth `error` param; `pageshow` reset for the Google button; password-input padding fix.
 
 ### Group D — i18n (~1 day)
+**Progress: D1+D2 ✅ `5547bb9` (2026-06-13) — duplicate `suggest.styling` shadow-key removed, fr « pièce(s) » counters, localized "No items" strips + translated weather-condition badges via shared `src/lib/weather-condition-label.ts`, try-on locale plumb-through (page sends locale; route uses `buildAnalyzePrompt(locale)` + reasons in user language). REMAINING D: hardcoded-string harvest (entire `/wardrobe/review` page ~17 strings, wardrobe pending-upload strip CTAs, bulk page alert/copy/category enums, FAB photo tips, launch-splash taglines + aria-label, upload tile error messages incl. unused `heicReadFailed` key), auth/API error mapping (login/signup raw Supabase messages, try-on error strings), `html lang` follows locale, password/prev-next aria-labels.**
 1. Hardcoded-string sweep into dictionaries (review page, upload strip/tiles, bulk page, FAB tips, home/outfits leftovers, aria-labels) — keys exist for some (e.g. `heicReadFailed`).
 2. Auth/API error mapping to localized messages (login/signup/try-on/packing).
 3. `lang` attribute follows locale; date formatting via locale; try-on locale plumb-through; fr fixes (`item(s)`, duplicate `suggest.styling` key, FAQ FR drift).
