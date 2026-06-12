@@ -30,7 +30,7 @@
     "new": "Nouveau",
     "select": "Sélectionner",
     "dismiss": "Fermer",
-    "orTapPlus": "Ou tape sur le + en bas"
+    "orTapPlus": "Ou utilise le + dans l'onglet Dressing"
   },
   "splash": {
     "tagline": "Ta styliste IA",
@@ -136,7 +136,7 @@
     "noItemsStrip": "Aucune pièce",
     "welcomeToBrand": "Bienvenue chez {brand}",
     "emptyWardrobeSub": "Ton dressing est vide — ajoute ta première pièce pour que Linette puisse commencer à te styliser.",
-    "emptyWardrobeHint": "Prends une photo d'une pièce et Linette s'occupe du reste — fond retiré, détails identifiés, et sauvegarde dans ton dressing.",
+    "emptyWardrobeHint": "Prends une photo d'une pièce et Linette s'occupe du reste — fond retiré, détails identifiés, et pièce sauvegardée dans ton dressing.",
     "uploadFirstPiece": "Ajouter ma première pièce",
     "uploadMany": "Ou en ajouter jusqu'à 10 à la fois",
     "goodMorning": "Bon matin de {brand}",

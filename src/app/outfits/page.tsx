@@ -10,7 +10,7 @@ import { MOOD_ICONS } from "@/lib/mood-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check, ChevronDown } from "lucide-react";
+import { Heart, Sparkles, Trash2, Thermometer, Shirt, CheckSquare, X, Check, ChevronDown, Plus } from "lucide-react";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
@@ -343,7 +343,10 @@ export default function FavoritesPage() {
             </p>
             <Link href="/wardrobe/add">
               <Button className="gap-1.5">
-                <Sparkles className="h-4 w-4" />
+                {/* Plus = add-items everywhere; Sparkles stays reserved
+                    for suggestion CTAs (beta feedback: the mismatch
+                    read as a different action). */}
+                <Plus className="h-4 w-4" />
                 {t("suggest.addItems")}
               </Button>
             </Link>
