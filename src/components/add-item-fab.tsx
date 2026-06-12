@@ -57,7 +57,9 @@ export function AddItemFab() {
         `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
       );
     }
-    if (result.accepted > 0) {
+    if (result.accepted > 0 || result.duplicates > 0) {
+      // Duplicates = these files are ALREADY in the queue; taking the
+      // user to it beats silently doing nothing (audit P2).
       router.push("/wardrobe/bulk");
     }
     e.target.value = "";

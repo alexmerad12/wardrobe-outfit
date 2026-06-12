@@ -46,7 +46,13 @@ export const MAX_BATCH = 10;
 
 type ContextValue = {
   items: PendingItem[];
-  addFiles: (files: FileList | File[]) => { accepted: number; rejected: number };
+  addFiles: (files: FileList | File[]) => {
+    accepted: number;
+    rejected: number;
+    // Files skipped because they're already in the queue — callers
+    // should treat "all duplicates" as "show me the queue", not a no-op.
+    duplicates: number;
+  };
   retry: (id: string) => void;
   dismiss: (id: string) => void;
   dismissAllFailed: () => void;
@@ -167,6 +173,10 @@ export function PendingUploadsProvider({
 }) {
   const [items, setItems] = useState<PendingItem[]>([]);
   const kickedOffRef = useRef<Set<string>>(new Set());
+  // Item ids whose run timed out / errored while the underlying pipeline
+  // may still be executing — the save step refuses to commit for these
+  // so a zombie run can't duplicate an item the user already retried.
+  const abandonedRef = useRef<Set<string>>(new Set());
   const savedListenersRef = useRef<Set<() => void>>(new Set());
   const batchCompleteListenersRef = useRef<Set<(ids: string[]) => void>>(
     new Set()
@@ -279,6 +289,13 @@ export function PendingUploadsProvider({
             );
           }
           return res.json() as Promise<{ url: string; bytes: number }>;
+        }).catch((err): null => {
+          // RAW FALLBACK (audit P2): the original photo is already
+          // safely uploaded — a transient Photoroom/sharp failure used
+          // to turn the whole tile permanently red. Save the item with
+          // the raw photo instead; bg-removal can be redone later.
+          bgLog("normalize failed — saving with the raw photo", err);
+          return null;
         }),
         fetch("/api/items/analyze", {
           method: "POST",
@@ -307,29 +324,40 @@ export function PendingUploadsProvider({
       ]);
       bgLog(
         `server processing done in ${Math.round(performance.now() - serverT0)}ms`,
-        { bytes: normalizeResult.bytes }
+        { bytes: normalizeResult?.bytes ?? null }
       );
 
       // 3. Refresh tile preview to the normalized (white-bg) image.
       //    The URL the server returned ALREADY has ?v=timestamp baked
       //    in for cache-busting — don't append another `?t=`, that
       //    produces a double-`?` invalid URL that 404s and renders
-      //    the tile as blank/white.
-      try {
-        const cleanedRes = await fetch(normalizeResult.url);
-        if (cleanedRes.ok) {
-          const cleanedBlob = await cleanedRes.blob();
-          const cleanedPreview = URL.createObjectURL(cleanedBlob);
-          const oldPreview = item.previewUrl;
-          patchItem(item.id, { previewUrl: cleanedPreview });
-          setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
+      //    the tile as blank/white. Skipped on raw fallback — the tile
+      //    already shows the original photo.
+      if (normalizeResult) {
+        try {
+          const cleanedRes = await fetch(normalizeResult.url);
+          if (cleanedRes.ok) {
+            const cleanedBlob = await cleanedRes.blob();
+            const cleanedPreview = URL.createObjectURL(cleanedBlob);
+            const oldPreview = item.previewUrl;
+            patchItem(item.id, { previewUrl: cleanedPreview });
+            setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
+          }
+        } catch (err) {
+          bgLog("tile preview refresh failed (non-fatal)", err);
         }
-      } catch (err) {
-        bgLog("tile preview refresh failed (non-fatal)", err);
       }
 
       const attrs = sanitizeAutoFill(attrsRaw);
-      const imageUrl = normalizeResult.url;
+      const imageUrl = normalizeResult?.url ?? rawUrl;
+
+      // ZOMBIE GUARD (audit P2): if the per-item timeout already marked
+      // this tile as errored, the user may have retried — a late save
+      // from THIS run would create a duplicate wardrobe item. Bail
+      // before the only DB-mutating step.
+      if (abandonedRef.current.has(item.id)) {
+        throw new Error("abandoned after timeout — skipping save");
+      }
 
       // Save with the same retry strategy as upload — the DB write
       // can also drop under transient network/server stress and we
@@ -420,12 +448,20 @@ export function PendingUploadsProvider({
   const processItem = useCallback(
     async (item: PendingItem) => {
       patchItem(item.id, { stage: "processing" });
+      // This run is the live one — clear any abandonment from a prior
+      // timed-out attempt so the retry can save normally.
+      abandonedRef.current.delete(item.id);
       try {
         await withTimeout(processItemOnce(item), "Item");
       } catch (err) {
         // Single attempt. If it fails, mark the tile error immediately.
         // The user taps Retry to try again — that's clearer than silent
         // 2-attempt backoff loops that just look like the app is hung.
+        // ALSO mark the run abandoned: withTimeout doesn't cancel the
+        // underlying pipeline, and a zombie run that eventually reached
+        // the save step used to commit a duplicate item after the user
+        // retried (audit P2). The save step checks this flag.
+        abandonedRef.current.add(item.id);
         console.error(`[pending ${item.id}] upload failed`, err);
         patchItem(item.id, {
           stage: "error",
@@ -563,6 +599,7 @@ export function PendingUploadsProvider({
 
     let accepted = 0;
     let rejected = 0;
+    let duplicates = 0;
     setItems((prev) => {
       const knownKeys = new Set(
         prev.map((i) => `${i.file.name}:${i.file.size}:${i.file.lastModified}`)
@@ -574,10 +611,14 @@ export function PendingUploadsProvider({
       const incoming: PendingItem[] = [];
       let localAccepted = 0;
       let localRejected = 0;
+      let localDuplicates = 0;
       for (const c of candidates) {
         if (knownKeys.has(c.key)) {
-          // Already in state — don't leak its blob URL.
+          // Already in state — don't leak its blob URL. Counted so
+          // callers can react: re-picking already-queued files used to
+          // return {0,0} and look like the tap did nothing (audit P2).
           URL.revokeObjectURL(c.previewUrl);
+          localDuplicates++;
           continue;
         }
         if (remainingCapacity <= 0) {
@@ -606,11 +647,17 @@ export function PendingUploadsProvider({
       if (incoming.length > 0) {
         accepted = localAccepted;
         rejected = localRejected;
+        duplicates = localDuplicates;
         return [...incoming, ...prev];
       }
+      // No new items committed — still surface duplicate count from
+      // this pass (Strict Mode's second invoke sees everything as
+      // duplicate, so only take the count when nothing was accepted
+      // on any pass).
+      if (accepted === 0) duplicates = localDuplicates;
       return prev;
     });
-    return { accepted, rejected };
+    return { accepted, rejected, duplicates };
   }, []);
 
   const retry = useCallback((id: string) => {
