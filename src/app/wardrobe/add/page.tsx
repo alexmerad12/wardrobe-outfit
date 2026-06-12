@@ -53,7 +53,7 @@ import {
 import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
-import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { removeBg } from "@/lib/bg-removal";
 import { flattenOntoWhite } from "@/lib/image-utils";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
@@ -158,10 +158,9 @@ export default function AddItemPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    // Eagerly fetch the model weights so the first click is instant
-    preloadBgRemoval();
-  }, []);
+  // (No eager imgly preload — it pulled ~45MB on every mount for a
+  // manual path most users never trigger; removeBg lazy-loads on
+  // first use instead. Audit P2.)
 
   async function uploadImage(file: File): Promise<string> {
     const supabase = createClient();

@@ -71,7 +71,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { preloadBgRemoval, removeBg } from "@/lib/bg-removal";
+import { removeBg } from "@/lib/bg-removal";
+import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { flattenOntoWhite } from "@/lib/image-utils";
 import { toColorKey } from "@/lib/color-label";
 
@@ -269,10 +270,9 @@ export default function ItemDetailPage() {
     else goToSibling(prevId); // swipe right → prev
   };
 
-  useEffect(() => {
-    // Eagerly fetch the model weights so the first click is instant
-    preloadBgRemoval();
-  }, []);
+  // (The eager ~45MB imgly model preload that used to run on every
+  // mount is gone — audit P2. removeBg lazy-loads on first use, which
+  // only the manual remove-background path can trigger.)
 
   // When arriving from a freshly-processed upload (`?edit=1`), drop straight
   // into edit mode so users can correct any AI guesses in one tap.
@@ -586,8 +586,16 @@ export default function ItemDetailPage() {
 
   async function deleteItem() {
     if (!item || !confirm(t("itemDetail.deleteConfirm"))) return;
-    await fetch(`/api/items/${item.id}`, { method: "DELETE" });
-    router.push("/wardrobe");
+    try {
+      const res = await fetch(`/api/items/${item.id}`, { method: "DELETE" });
+      // Navigating on failure made the item look deleted until the
+      // grid refetched it (audit P2).
+      if (!res.ok) throw new Error(`/api/items ${res.status}`);
+      router.push("/wardrobe");
+    } catch (err) {
+      console.error("[item-delete] failed:", err);
+      alert(t("common.saveFailed"));
+    }
   }
 
   async function runBgRemoval(source: Blob) {
@@ -806,13 +814,25 @@ export default function ItemDetailPage() {
           accept="image/*"
           className="hidden"
           disabled={removingBg}
-          onChange={(e) => {
+          onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
-            setNewImageFile(file);
+            // HEIC → JPEG, same as the bulk pipeline: iPhone/Samsung
+            // share-sheet picks used to save as unrenderable HEIC
+            // straight into storage (audit P2).
+            let usable = file;
+            if (await isHeicFileDeep(file)) {
+              try {
+                usable = await convertHeicToJpeg(file);
+              } catch {
+                alert(t("addItem.bgRemovalFailed"));
+                return;
+              }
+            }
+            setNewImageFile(usable);
             const reader = new FileReader();
             reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(usable);
             // No client-side imgly auto-trigger here: the save flow
             // already runs the server-side /api/items/normalize on
             // the new image (Photoroom + sharp), which is fast on
