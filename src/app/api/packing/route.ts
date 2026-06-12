@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI } from "@google/genai";
-import { kv } from "@vercel/kv";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
+import { isCapBypassed } from "@/lib/admin-bypass";
+import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
 
 // Packing endpoint runs on Gemini 3 Flash Preview via @google/genai
 // with thinking disabled. Same setup as suggest, analyze, and try-on.
@@ -42,23 +43,16 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  // Daily-cap gate. Same KV-counter pattern as /api/suggest.
+  // Daily-cap gate. Same pattern as /api/suggest: consumed only after
+  // the free validation exits (so a thin wardrobe doesn't silently eat
+  // the 2/day budget — audit C4), refunded when the request fails, and
+  // admin/tester emails bypass enforcement like every other AI route
+  // (this route and try-on were missing the bypass).
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const isAdmin = isCapBypassed(authUser?.email);
   const today = new Date().toISOString().slice(0, 10);
   const countKey = `packing_count:${userId}:${today}`;
-  const newCount = await kv.incr(countKey).catch(() => -1);
-  if (newCount === 1) {
-    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
-  }
-  if (newCount > PACKING_DAILY_CAP) {
-    return NextResponse.json(
-      {
-        error: "daily_limit_reached",
-        limit: PACKING_DAILY_CAP,
-        used: newCount,
-      },
-      { status: 429 }
-    );
-  }
+  let capCount: number | null = null;
 
   try {
     const { destination, lat, lng, startDate, endDate, occasions, notes, locale = "en" } = await request.json();
@@ -77,6 +71,18 @@ export async function POST(request: NextRequest) {
 
     if (items.length < 3) {
       return NextResponse.json({ error: "Add more items to your wardrobe first" }, { status: 400 });
+    }
+
+    capCount = await consumeDailyCap(countKey);
+    if (!isAdmin && capCount > PACKING_DAILY_CAP) {
+      return NextResponse.json(
+        {
+          error: "daily_limit_reached",
+          limit: PACKING_DAILY_CAP,
+          used: Math.min(capCount, PACKING_DAILY_CAP),
+        },
+        { status: 429 }
+      );
     }
 
     let weatherInfo = "Weather data unavailable.";
@@ -220,6 +226,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
   } catch (error) {
     console.error("Packing list error:", error);
     Sentry.captureException(error);
+    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
     logAiCall(supabase, userId, "packing", { succeeded: false });
     return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
   }

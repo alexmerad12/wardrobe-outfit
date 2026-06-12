@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI, Type } from "@google/genai";
-import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
+import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
 import { oneSentence, textIsConsistent } from "@/lib/suggest-text-guards";
 
 // Refine endpoint — re-writes reasoning + styling_tip for an outfit
@@ -50,22 +50,13 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  // Daily-cap gate. Same KV-counter pattern as /api/suggest. Admin +
-  // CAP_BYPASS_EMAILS bypass enforcement; counter still increments.
+  // Daily-cap gate. Same pattern as /api/suggest: consumed after the
+  // free validation exits, refunded when the request delivers nothing.
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isAdmin = isCapBypassed(authUser?.email);
   const today = new Date().toISOString().slice(0, 10);
   const countKey = `refine_count:${userId}:${today}`;
-  const newCount = await kv.incr(countKey).catch(() => -1);
-  if (newCount === 1) {
-    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
-  }
-  if (!isAdmin && newCount > REFINE_DAILY_CAP) {
-    return NextResponse.json(
-      { error: "daily_limit_reached", limit: REFINE_DAILY_CAP, used: newCount },
-      { status: 429 }
-    );
-  }
+  let capCount: number | null = null;
 
   try {
     const body = (await request.json()) as {
@@ -98,6 +89,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Could not load items" },
         { status: 502 }
+      );
+    }
+
+    capCount = await consumeDailyCap(countKey);
+    if (!isAdmin && capCount > REFINE_DAILY_CAP) {
+      return NextResponse.json(
+        {
+          error: "daily_limit_reached",
+          limit: REFINE_DAILY_CAP,
+          used: Math.min(capCount, REFINE_DAILY_CAP),
+        },
+        { status: 429 }
       );
     }
 
@@ -160,6 +163,7 @@ Respond with ONLY:
       // client gets SOMETHING usable rather than an error. Save flow
       // already graceful-degrades on errors but a usable string is
       // better than nothing.
+      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
       logAiCall(supabase, userId, "refine", { succeeded: false });
       return NextResponse.json(
         { error: "Failed to parse refine response" },
@@ -196,6 +200,7 @@ Respond with ONLY:
   } catch (err) {
     console.error("[refine] error:", err);
     Sentry.captureException(err);
+    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
     logAiCall(supabase, userId, "refine", { succeeded: false });
     return NextResponse.json(
       { error: "Refine failed" },

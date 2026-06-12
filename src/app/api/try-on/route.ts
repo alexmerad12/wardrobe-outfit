@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI, Type } from "@google/genai";
-import { kv } from "@vercel/kv";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
@@ -11,6 +10,8 @@ import { withGeminiRetry } from "@/lib/gemini-retry";
 import { colorFamily } from "@/lib/color-family";
 import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
+import { isCapBypassed } from "@/lib/admin-bypass";
+import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
 
 // 2026-05-26 — dropped 10 -> 3 alongside the suggest cap reduction
 // after the gemini-3-flash-preview -> gemini-3.5-flash swap. Try-on
@@ -72,29 +73,32 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  // Daily-cap gate. Same KV-counter pattern as /api/suggest.
+  // Daily-cap gate. Same pattern as /api/suggest: consumed after the
+  // free validation exits, refunded when the request delivers nothing,
+  // admin/tester bypass like every other AI route (was missing here).
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const isAdmin = isCapBypassed(authUser?.email);
   const today = new Date().toISOString().slice(0, 10);
   const countKey = `tryon_count:${userId}:${today}`;
-  const newCount = await kv.incr(countKey).catch(() => -1);
-  if (newCount === 1) {
-    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
-  }
-  if (newCount > TRY_ON_DAILY_CAP) {
-    return NextResponse.json(
-      {
-        error: "daily_limit_reached",
-        limit: TRY_ON_DAILY_CAP,
-        used: newCount,
-      },
-      { status: 429 }
-    );
-  }
+  let capCount: number | null = null;
 
   try {
     const formData = await request.formData();
     const file = formData.get("image");
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: "Missing image" }, { status: 400 });
+    }
+
+    capCount = await consumeDailyCap(countKey);
+    if (!isAdmin && capCount > TRY_ON_DAILY_CAP) {
+      return NextResponse.json(
+        {
+          error: "daily_limit_reached",
+          limit: TRY_ON_DAILY_CAP,
+          used: Math.min(capCount, TRY_ON_DAILY_CAP),
+        },
+        { status: 429 }
+      );
     }
 
     const rawBuffer = Buffer.from(await file.arrayBuffer());
@@ -137,6 +141,9 @@ export async function POST(request: NextRequest) {
     const analyzeText = analyzeRes.text ?? "";
     const match = analyzeText.match(/\{[\s\S]*\}/);
     if (!match) {
+      // The user got nothing — three unreadable photos used to lock the
+      // feature for the whole day.
+      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
       return NextResponse.json(
         { error: "Couldn't read the photo — try a cleaner shot of the item." },
         { status: 502 }
@@ -146,6 +153,7 @@ export async function POST(request: NextRequest) {
     const attrs = sanitizeAutoFill(rawAttrs);
 
     if (!attrs.category) {
+      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
       return NextResponse.json(
         { error: "Couldn't identify the item category — try a clearer photo." },
         { status: 502 }
@@ -358,6 +366,7 @@ ${wardrobeList}`,
   } catch (err) {
     console.error("Try-on error:", err);
     Sentry.captureException(err);
+    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
     logAiCall(supabase, userId, "try_on", { succeeded: false });
     return NextResponse.json(
       { error: "Failed to analyze the item" },

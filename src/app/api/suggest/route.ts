@@ -10,6 +10,7 @@ import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
+import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
 import {
   oneSentence,
   textIsConsistent,
@@ -545,20 +546,10 @@ export async function POST(request: NextRequest) {
   const isAdmin = isCapBypassed(authUser?.email);
   const today = new Date().toISOString().slice(0, 10);
   const countKey = `suggest_count:${userId}:${today}`;
-  const newCount = await kv.incr(countKey).catch(() => -1);
-  if (newCount === 1) {
-    kv.expire(countKey, 60 * 60 * 36).catch(() => {});
-  }
-  if (!isAdmin && newCount > SUGGEST_DAILY_CAP) {
-    return NextResponse.json(
-      {
-        error: "daily_limit_reached",
-        limit: SUGGEST_DAILY_CAP,
-        used: newCount,
-      },
-      { status: 429 }
-    );
-  }
+  // Consumed AFTER the free early-exits (body parse, <3-items) so a
+  // malformed request or thin wardrobe doesn't burn quota; refunded on
+  // every exit that delivered nothing. null = not consumed yet.
+  let capCount: number | null = null;
 
   try {
     const { mood, occasion, styleWishes = [], anchorItemId = null, locale = "en" } = (await request.json()) as {
@@ -623,6 +614,22 @@ export async function POST(request: NextRequest) {
         suggestions: [],
         message: "Add at least 3 items to get outfit suggestions",
       });
+    }
+
+    // Daily-cap gate — all free early-exits have passed; from here on
+    // the request does real AI work.
+    capCount = await consumeDailyCap(countKey);
+    if (!isAdmin && capCount > SUGGEST_DAILY_CAP) {
+      return NextResponse.json(
+        {
+          error: "daily_limit_reached",
+          limit: SUGGEST_DAILY_CAP,
+          // Clamped — the raw counter keeps growing with rejected
+          // attempts, which made the client copy over-report usage.
+          used: Math.min(capCount, SUGGEST_DAILY_CAP),
+        },
+        { status: 429 }
+      );
     }
 
     // Weather: saved location → IP geolocation (Vercel headers) → none.
@@ -1169,6 +1176,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         `[suggest] AI returned unexpected shape after retry; stop=${r.stopReason}`,
         parsed
       );
+      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
       return NextResponse.json({
         suggestions: [],
         ai_error: true,
@@ -3911,6 +3919,11 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     // the UI shows "try again" instead of the wrong "not enough items"
     // empty state.
     const aiError = suggestions.length === 0 && !wardrobe_gap;
+    // The user got nothing — give the attempt back. (A wardrobe_gap
+    // response is a real answer and stays charged.)
+    if (aiError && capCount !== null && capCount !== -1) {
+      refundDailyCap(countKey);
+    }
     logAiCall(supabase, userId, "suggest", {
       succeeded: !aiError,
       metadata: {
@@ -3951,6 +3964,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
   } catch (error) {
     console.error("Suggestion error:", error);
     Sentry.captureException(error);
+    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
     logAiCall(supabase, userId, "suggest", { succeeded: false });
     return NextResponse.json(
       { error: "Failed to generate suggestions" },
