@@ -10,6 +10,7 @@ import { PasswordInput } from "@/components/password-input";
 import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { safeNextPath } from "@/lib/safe-next";
+import { authErrorKey } from "@/lib/auth-error";
 
 function LoginForm() {
   const router = useRouter();
@@ -19,13 +20,12 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // "__oauth__" sentinel: /auth/callback and /auth/confirm redirect
-  // failures here as /login?error=..., which this page never displayed —
-  // a failed Google sign-in looked like the tap did nothing (audit P2).
-  // The raw message stays out of the UI (English-only, often technical);
-  // the sentinel renders a localized generic line instead.
+  // The error state holds a DICTIONARY KEY, never raw provider prose
+  // (English-only and often technical — audit Group D). /auth/callback
+  // and /auth/confirm redirect failures here as /login?error=..., which
+  // this page never displayed before (audit P2).
   const [error, setError] = useState<string | null>(() =>
-    searchParams.get("error") ? "__oauth__" : null
+    searchParams.get("error") ? "auth.oauthFailed" : null
   );
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +41,7 @@ function LoginForm() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(authErrorKey(error.message));
       setLoading(false);
       return;
     }
@@ -92,7 +92,7 @@ function LoginForm() {
 
         {error && (
           <p className="auth-error" role="alert">
-            {error === "__oauth__" ? t("auth.oauthFailed") : error}
+            {t(error)}
           </p>
         )}
 

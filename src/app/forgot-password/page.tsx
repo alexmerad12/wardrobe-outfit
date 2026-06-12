@@ -12,6 +12,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { AuthShell } from "@/components/auth-shell";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { authErrorKey } from "@/lib/auth-error";
 
 export default function ForgotPasswordPage() {
   const { t } = useLocale();
@@ -34,7 +35,8 @@ export default function ForgotPasswordPage() {
     // probe which emails have accounts. Show the same success state
     // regardless of whether the email matched a real user.
     if (resetErr && resetErr.status !== 404) {
-      setError(resetErr.message);
+      // Localized mapping — raw Supabase prose is English-only (audit D).
+      setError(t(authErrorKey(resetErr.message)));
       setLoading(false);
       return;
     }

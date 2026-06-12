@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { authErrorKey } from "@/lib/auth-error";
 
 export function GoogleSignInButton({
   next = "/",
@@ -45,7 +46,8 @@ export function GoogleSignInButton({
     });
 
     if (error) {
-      setError(error.message);
+      // Localized mapping — raw Supabase prose is English-only (audit D).
+      setError(t(authErrorKey(error.message)));
       setLoading(false);
     }
     // On success, Supabase redirects the browser to Google — no local action needed.

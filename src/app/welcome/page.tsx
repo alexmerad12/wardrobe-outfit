@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AuthShell } from "@/components/auth-shell";
 import { PasswordInput } from "@/components/password-input";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { authErrorKey } from "@/lib/auth-error";
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -57,7 +58,8 @@ export default function WelcomePage() {
     const { error: updateErr } = await supabase.auth.updateUser({ password });
 
     if (updateErr) {
-      setError(updateErr.message);
+      // Localized mapping — raw Supabase prose is English-only (audit D).
+      setError(t(authErrorKey(updateErr.message)));
       setLoading(false);
       return;
     }
