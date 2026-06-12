@@ -25,6 +25,10 @@ interface AISuggestion {
   mood_match: Mood;
   weather_temp: number | null;
   weather_condition: string | null;
+  // Server sets this when the outfit shipped through a degraded path
+  // (soft admit / emergency fallback / safety net) — i.e. at least one
+  // styling rule was relaxed to avoid returning nothing.
+  relaxed?: boolean;
   // Snapshot of items as the AI originally suggested them. Set when
   // the suggestion arrives and never mutated. items[] is what the user
   // sees / can edit; originalItems is the diff baseline used to build
@@ -683,6 +687,16 @@ function SuggestContent() {
               })),
             ]}
           />
+
+          {/* Degraded-path disclosure: the server relaxed at least one
+              styling rule to avoid an empty result. Without this line a
+              rule-bending outfit is indistinguishable from a validated
+              one (audit P1). */}
+          {suggestions[0].relaxed && (
+            <p className="text-xs text-muted-foreground text-center px-4">
+              {t("suggest.relaxedNotice")}
+            </p>
+          )}
 
           {/* Single-outfit mode: tap to re-generate. Variety across
               taps is enforced server-side via the recent-suggestions

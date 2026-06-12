@@ -1214,17 +1214,20 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       }[];
       wardrobe_gap?: string | null;
     };
-    async function callAi(): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
+    async function callAi(
+      extraSuffix = ""
+    ): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
       // Gemini 3.5 Flash with SHALLOW thinking (thinkingBudget: 3072) +
       // single-outfit generation. Variety across "Show me another"
       // taps comes from the RECENTLY SHOWN ban list; quality comes
       // from the model's full attention on one composition rather
-      // than splitting across competing candidates.
+      // than splitting across competing candidates. extraSuffix carries
+      // the regenerate-with-feedback block on the second validation pass.
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
             model: "gemini-3.5-flash",
-            contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
+            contents: `${cachedPrefix}\n\n${dynamicSuffix}${extraSuffix}`,
             config: {
               temperature: 1,
               maxOutputTokens: 16384,
@@ -1444,7 +1447,8 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       return candidates[0];
     };
 
-    const mapped = parsedOutfits.map((s) => {
+    type ParsedOutfit = NonNullable<ParsedShape["outfits"]>[number];
+    const buildOutfit = (s: ParsedOutfit) => {
       const rawItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
@@ -2123,7 +2127,8 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         _fixes: fixes,
         _ids: outfitItems.map((i) => i.id),
       };
-    });
+    };
+    let mapped = parsedOutfits.map(buildOutfit);
 
     // Wardrobe-availability flag used by the post-parse filters. If the
     // user's wardrobe has no shoes we can't demand them — best-effort is
@@ -2188,26 +2193,30 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
     };
 
     // Rigid drops (truly broken outfits) vs soft drops (quality issues —
-    // base-layer warmth mismatch). If hard drops leave us with fewer than
-    // 3, we admit soft-dropped outfits back with a styling tip explaining
-    // the gap. Cold-without-outerwear is now handled upstream via auto-
-    // injection in the map phase.
-    const drops: { ids: string[]; reason: string }[] = [];
-    // Each soft-mismatch entry carries the outfit AND the styling tip we
-    // want appended on admit-back, so weather/tag/belt drops each get
-    // the right user-facing message instead of a one-size-fits-all hint.
-    // tip can be omitted when the underlying drop reason is internal
-    // (e.g. season-tag relax) and isn't worth surfacing to the user.
-    const softMismatch: { outfit: typeof mapped[number]; tip?: string }[] = [];
+    // base-layer warmth mismatch). When hard drops empty the pool we
+    // admit soft-dropped outfits back with a styling tip explaining the
+    // gap. Cold-without-outerwear is handled upstream via auto-injection.
+    //
+    // SOFT DROPS ARE DEFERRED: a soft violation no longer short-circuits
+    // the filter. The outfit keeps running through every remaining HARD
+    // rule, and only lands in softMismatch if it is hard-clean. This
+    // closes the audit's admitSoft hole where a denim-on-denim outfit
+    // (soft) skipped the mood/base/cardigan/belt hard rules entirely and
+    // was resurrected violating them.
+    type DropEntry = { ids: string[]; reason: string };
+    type SoftEntry = { outfit: typeof mapped[number]; tip?: string };
 
+    // The whole validation pass is a function so the regenerate-with-
+    // feedback path can score a second model attempt with identical
+    // semantics and fresh drop arrays.
     // (Preset detection + isDarkItem + rain trigger + metal families are
     // hoisted above the map phase so the injectors share them.)
 
-    // Mood-specific color/pattern detectors used by the validators
-    // below. Saturated brights cover the warm + cool sides of the
-    // bright spectrum (no neutrals, no muted earth tones). A "statement
-    // piece" qualifies on saturated color OR non-solid pattern OR an
-    // oversized fit (shape statement).
+    // Mood-specific color/pattern detectors used by the validators and
+    // the fallback gate. Saturated brights cover the warm + cool sides
+    // of the bright spectrum (no neutrals, no muted earth tones). A
+    // "statement piece" qualifies on saturated color OR non-solid
+    // pattern OR an oversized fit (shape statement).
     const SATURATED_BRIGHT_RE =
       /\b(?:red|orange|yellow|fuchsia|magenta|pink|cobalt|royal|kelly|emerald|crimson|scarlet|tangerine|chartreuse|cyan|turquoise|coral|lime|electric|hot[- ]pink|cherry|mustard)\b/i;
     const itemHasBright = (it: ClothingItem) =>
@@ -2232,7 +2241,14 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
     const wardrobeHasBright = activeWardrobe.some(itemHasBright);
     const wardrobeHasStatement = activeWardrobe.some(itemHasStatement);
 
-    const hardValid = mapped.filter((s) => {
+    const runValidation = (candidates: typeof mapped) => {
+      const drops: DropEntry[] = [];
+      const softMismatch: SoftEntry[] = [];
+
+      const valid = candidates.filter((s) => {
+      // First soft violation gets parked here; applied at the end only
+      // if every hard rule passed.
+      let pendingSoft: { tip?: string } | null = null;
       // Shoes required for every occasion except at-home (if wardrobe has shoes).
       if (occasion !== "at-home" && wardrobeHasShoes) {
         const hasShoes = s.items.some((i) => i.category === "shoes");
@@ -2773,12 +2789,11 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           }
         }
         if (echoOffender) {
-          // Soft drop — admit silently when this is the only candidate.
+          // Soft (deferred) — admitted silently only if hard-clean.
           // No user-facing caveat: telling the user to swap a piece
           // contradicts the AI's own pick and reads as broken. The
           // relaxed flag travels for the validator.
-          softMismatch.push({ outfit: s });
-          return false;
+          if (!pendingSoft) pendingSoft = {};
         }
       }
       // R4c — DENIM-ON-DENIM (soft): 2+ items with material containing
@@ -2790,12 +2805,11 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           return mats.some((m) => m === "denim");
         });
         if (denimItems.length >= 2) {
-          // Soft drop — admit silently. Same reasoning as the matchy-
-          // print case: surfacing the warning contradicts the AI's
-          // own pick. Users who want the look opt in via STYLE
-          // DIRECTION ("full denim").
-          softMismatch.push({ outfit: s });
-          return false;
+          // Soft (deferred) — admit silently only if hard-clean. Same
+          // reasoning as the matchy-print case: surfacing the warning
+          // contradicts the AI's own pick. Users who want the look opt
+          // in via STYLE DIRECTION ("full denim").
+          if (!pendingSoft) pendingSoft = {};
         }
       }
       // R4b — LAYERING PROPORTIONS: only a long, drapey coat (or an
@@ -2994,12 +3008,10 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           }
         }
         if (tagOffender) {
-          // No user-facing tip — the season/occasion tag is the user's
-          // own metadata and explaining the relax in-line reads as
-          // internal-debug noise. Admit silently with the relaxed flag
-          // so the validator stays lenient.
-          softMismatch.push({ outfit: s });
-          return false;
+          // Soft (deferred), no user-facing tip — the season/occasion
+          // tag is the user's own metadata and explaining the relax
+          // in-line reads as internal-debug noise.
+          if (!pendingSoft) pendingSoft = {};
         }
       }
       // Mood: Cozy → warm-earth palette only. Saturated cool colors
@@ -3157,8 +3169,7 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             locale === "fr"
               ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
               : "This piece runs light for the weather — pair with thick tights and a warm coat.";
-          softMismatch.push({ outfit: s, tip: weatherTip });
-          return false;
+          if (!pendingSoft) pendingSoft = { tip: weatherTip };
         }
       }
       // R4d — CARDIGAN STANDALONE (HARD drop): a cardigan worn as the
@@ -3213,8 +3224,7 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             locale === "fr"
               ? `Pour ${occasion}, une pièce en soie, satin, dentelle ou velours rehausserait l'ensemble.`
               : `For ${occasion}, a silk, satin, lace or velvet piece would elevate the look.`;
-          softMismatch.push({ outfit: s, tip: dressyTip });
-          return false;
+          if (!pendingSoft) pendingSoft = { tip: dressyTip };
         }
       }
       // R18 — belt completer (soft, LAST CHECK). Belt-suitability is
@@ -3268,11 +3278,13 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           occasion === "outdoor";
         if (beltable && !hasBelt && !beltExempt) {
           // HARD drop when the beltable base is a belt-friendly dress
-          // (a-line / wrap / fit-and-flare) — those silhouettes need
-          // a defined waist or the look is incomplete. The auto-retry
-          // above gives the AI a second chance to include a belt.
-          // Soft drop for the sweater+skirt / blouse+trousers cases —
-          // belt is encouraged but the look isn't broken without one.
+          // (a-line / wrap / fit-and-flare) — those silhouettes need a
+          // defined waist or the look is incomplete. The accessory
+          // injector prefers a belt for exactly this base, and the
+          // regenerate-with-feedback pass below gives the AI a second
+          // chance before any fallback ships beltless.
+          // Soft (deferred) for the sweater+skirt / blouse+trousers
+          // cases — belt is encouraged but the look isn't broken.
           if (beltFriendlyDress) {
             drops.push({
               ids: s._ids,
@@ -3284,12 +3296,65 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             locale === "fr"
               ? "Une ceinture marquerait la taille et donnerait du cachet à l'ensemble."
               : "A belt would define the waist and tie the look together.";
-          softMismatch.push({ outfit: s, tip: beltTip });
-          return false;
+          if (!pendingSoft) pendingSoft = { tip: beltTip };
         }
       }
+      // Deferred soft drop: only reached when every hard rule passed.
+      if (pendingSoft) {
+        softMismatch.push({
+          outfit: s,
+          ...(pendingSoft.tip ? { tip: pendingSoft.tip } : {}),
+        });
+        return false;
+      }
       return true;
-    });
+      });
+      return { valid, drops, softMismatch };
+    };
+
+    let { valid: hardValid, drops, softMismatch } = runValidation(mapped);
+
+    // REGENERATE-WITH-FEEDBACK — one bounded retry before any fallback
+    // rung fires. When the model's single outfit was hard-dropped, tell
+    // it exactly which rules it broke and let it try once more. This is
+    // the retry the old comments claimed existed; +1 model call only on
+    // full rejection (same daily-cap unit as the shape retry).
+    let regenAttempted = false;
+    let regenAdopted = false;
+    let firstAttemptDrops: string[] = [];
+    if (hardValid.length === 0 && softMismatch.length === 0 && mapped.length > 0 && drops.length > 0) {
+      regenAttempted = true;
+      firstAttemptDrops = drops.map((d) => d.reason);
+      const feedback = `\n\nPREVIOUS ATTEMPT REJECTED — the outfit you proposed broke these rules:\n${firstAttemptDrops
+        .slice(0, 6)
+        .map((r, i) => `${i + 1}. ${r}`)
+        .join("\n")}\nCompose a DIFFERENT outfit that satisfies every rule above (and all other rules). Do not repeat the rejected combination.`;
+      try {
+        const r2 = await callAi(feedback);
+        if (
+          r2.parsed &&
+          Array.isArray(r2.parsed.outfits) &&
+          r2.parsed.outfits.length > 0
+        ) {
+          const retryMapped = r2.parsed.outfits.map(buildOutfit);
+          const retryRun = runValidation(retryMapped);
+          if (retryRun.valid.length > 0 || retryRun.softMismatch.length > 0) {
+            // Adopt the retry only when it produced something the normal
+            // or soft-admit path can ship — otherwise keep attempt 1 so
+            // the fallback ladder works on the original candidate.
+            regenAdopted = true;
+            mapped = retryMapped;
+            hardValid = retryRun.valid;
+            drops = retryRun.drops;
+            softMismatch = retryRun.softMismatch;
+          }
+        }
+      } catch (err) {
+        // Regenerate is best-effort — a transport failure here must not
+        // take down the request; the fallback ladder still runs.
+        console.warn("[suggest] regenerate-with-feedback failed:", err);
+      }
+    }
 
     // Track which item-sets are already in final so admit-back paths
     // (admitSoft, EMERGENCY FALLBACK) can't re-add the same outfit.
@@ -3339,18 +3404,11 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       if (final.length > 0) shipPath = "admit_soft";
     }
 
-    // EMERGENCY FALLBACK: if all 4 outfits got hard-dropped for style
-    // reasons (metal mismatch, bag too casual, hat-at-work, etc.) AND
-    // softMismatch was empty, we'd otherwise return zero suggestions.
-    // That's bad UX — better to relax one rule and ship something with
-    // a styling-tip caveat than send the user away empty-handed.
-    // Only admit a structurally-complete outfit (a real base, with shoes
-    // when needed) — never a broken structural pick.
-    if (final.length === 0 && mapped.length > 0) {
-      // No user-facing caveat — the AI's styling tip stays intact so
-      // the user reads real advice. The relaxed flag travels on the
-      // outfit object for the validator and any future badge UI.
-      const isStructurallyComplete = (s: typeof mapped[number]) => {
+    // Structural + occasion-ban gate shared by the EMERGENCY FALLBACK
+    // and the safety net below — neither path may ship an outfit that
+    // fails it. Declared outside the fallback block so the safety net
+    // can reuse it.
+    const isStructurallyComplete = (s: typeof mapped[number]) => {
         const has = (cat: string) => s.items.some((i) => i.category === cat);
         const hasOveralls = s.items.some(
           (i) => i.category === "one-piece" && i.subcategory === "overalls"
@@ -3418,11 +3476,14 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             i.category === "shoes" && i.subcategory === "sneakers" &&
             !(i.occasions ?? []).includes("work")
           )) return false;
-          if (s.items.some((i) =>
+          // Track A only — the men's office prompt explicitly allows
+          // jeans, and the main filter gates this on gender. The mirror
+          // was un-gendered, wrongly rejecting valid men's work outfits.
+          if (gender !== "man" && s.items.some((i) =>
             i.category === "bottom" && i.subcategory === "jeans" &&
             !(i.occasions ?? []).includes("work")
           )) return false;
-          if (s.items.some((i) => i.category === "bottom" && i.subcategory === "skirt" && i.skirt_length === "mini")) return false;
+          if (gender !== "man" && s.items.some((i) => i.category === "bottom" && i.subcategory === "skirt" && i.skirt_length === "mini")) return false;
           if (s.items.some((i) => i.category === "accessory" && i.subcategory === "hat")) return false;
           if (s.items.some((i) => i.category === "top" && i.subcategory === "hoodie")) return false;
           // Mirrors of the open-toe and tank-without-blazer drops above.
@@ -3540,8 +3601,107 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           if (denimItems.length >= 2) return false;
         }
 
+        // ── Mirrors added per the audit: the fallback previously skipped
+        // all of the following, so sweatpants-on-a-date, suede-in-rain
+        // and mixed metals could ship through the emergency path. ──
+
+        // Dress-day / mix-patterns presets (all-black was already
+        // mirrored; these two weren't — a "dress day" user could get a
+        // no-dress outfit through the fallback).
+        if (wantsDressDay && !s.items.some((i) => i.category === "dress")) {
+          return false;
+        }
+        if (wantsMixPatterns) {
+          const nonSolid = s.items.filter((i) => {
+            const ps = Array.isArray(i.pattern) ? i.pattern : [i.pattern];
+            return ps.some((p) => p && p !== "solid");
+          }).length;
+          if (nonSolid < 2) return false;
+        }
+
+        // Casual-wear × dressy occasions (shorts / lounge / hoodie).
+        {
+          const dressy = new Set(["work", "formal", "dinner-out", "date", "party"]);
+          const dressyPlusBrunch = new Set([...dressy, "brunch"]);
+          if (dressy.has(occasion) && s.items.some(
+            (i) => i.category === "bottom" && i.subcategory === "shorts"
+          )) return false;
+          if (dressyPlusBrunch.has(occasion) && s.items.some(
+            (i) => i.category === "bottom" &&
+              (i.subcategory === "sweatpants" || i.subcategory === "leggings")
+          )) return false;
+          if (dressy.has(occasion) && occasion !== "work" && s.items.some(
+            (i) => i.category === "top" && i.subcategory === "hoodie"
+          )) return false; // work-hoodie already mirrored above
+        }
+
+        // Rain rules: outer-facing rain-blocked materials; outdoor/travel
+        // open-toe/high-heel in rain.
+        if (rainTriggered) {
+          if (s.items.some(
+            (i) =>
+              (i.category === "outerwear" || i.category === "shoes" || i.category === "bag") &&
+              rainBlocked(i)
+          )) return false;
+          if ((occasion === "outdoor" || occasion === "travel") && s.items.some(
+            (i) =>
+              i.category === "shoes" &&
+              (i.toe_shape === "open-toe" || i.toe_shape === "peep-toe" || i.heel_type === "high-heel")
+          )) return false;
+        }
+
+        // Metal sync (skip for Playful, bag excluded on men's track —
+        // mirrors the main validator's visibility rules).
+        if (mood !== "playful") {
+          const finishes = s.items
+            .filter((i) =>
+              i.category === "shoes" ||
+              (i.category === "bag" && gender !== "man") ||
+              (i.category === "accessory" && i.subcategory === "belt")
+            )
+            .map(metalFamilyOf)
+            .filter((f): f is "gold" | "silver" | "other" => f !== null);
+          if (finishes.length >= 2 && new Set(finishes).size > 1) return false;
+        }
+
+        // Drop-side mood rules (cheap, prevent visibly-wrong ships). The
+        // require-side moods (confident/energized/bold) stay un-mirrored
+        // on purpose — in a fallback context they'd zero out users whose
+        // compliant items were weather-filtered from the pool.
+        if ((mood === "chill" || mood === "period") && s.items.some(
+          (i) => i.category === "shoes" &&
+            (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
+        )) return false;
+        if (mood === "period" && s.items.some(itemIsStructured)) return false;
+        if (mood === "sad" && s.items.some(
+          (i) => i.category === "shoes" && i.toe_shape === "pointed"
+        )) return false;
+
+        // Bag size: formal/date/party want clutch/small; work bans clutch.
+        {
+          const bag = s.items.find((i) => i.category === "bag");
+          if (bag) {
+            if (
+              (occasion === "formal" || occasion === "date" || occasion === "party") &&
+              !(bag.occasions ?? []).includes(occasion) &&
+              bag.bag_size && !["clutch", "small"].includes(bag.bag_size)
+            ) return false;
+            if (occasion === "work" && bag.bag_size === "clutch") return false;
+          }
+        }
+
         return true;
       };
+
+    // EMERGENCY FALLBACK: when the regenerate pass also failed and
+    // softMismatch is empty, we'd otherwise return zero suggestions.
+    // Better to relax the remaining style rules and ship a structurally-
+    // complete, occasion-safe outfit (per the gate above) than send the
+    // user away empty-handed.
+    if (final.length === 0 && mapped.length > 0) {
+      // No user-facing caveat in the tip — the AI's styling advice stays
+      // intact. The relaxed flag travels on the outfit object for the
+      // validator and the results-card notice.
       const candidate = mapped.find(isStructurallyComplete);
       if (candidate) {
         const key = [...candidate._ids].sort().join("|");
@@ -3696,42 +3856,48 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       });
     }
 
-    // SAFETY NET — never ship empty. Two layers:
-    //   (1) If response-edge validators rejected but sortedFinal had
-    //       a candidate, ship that with the relaxed flag.
-    //   (2) If sortedFinal is also empty (entire pipeline dropped the
-    //       outfit — e.g. hard-rule violation like blazer-over-oversized-
-    //       cardigan, or anchor-exclusion starved the wardrobe so AI
-    //       produced something structurally broken), fall back to the
-    //       AI's raw mapped output. The user gets SOMETHING they can
-    //       swap items in or regenerate from, rather than a blank
-    //       screen.
-    // Quality tradeoff: occasionally ships a structurally-questionable
-    // outfit when everything else failed. The swap/refine flow gives
-    // the user the recovery path — much better UX than empty state.
-    // TODO(quality): add a server-side AI retry with explicit feedback
-    // ("your last outfit had X violating Y") before this safety net
-    // kicks in. Would cost +1 AI call on rejection. Worth it once
-    // we're confident the validators are stable.
+    // SAFETY NET — two layers, both now GATED (the audit found the old
+    // unconditional layers nullified every upstream validator):
+    //   (1) Edge-override: if the response-edge validators (warmth floor,
+    //       pattern echo) rejected the only candidate, ship it relaxed —
+    //       those are aesthetic/quality calls, not structural ones. The
+    //       overalls-without-top check is structural and is NEVER
+    //       overridden.
+    //   (2) Last resort: the AI's raw mapped output, but only when it
+    //       passes the same isStructurallyComplete gate the emergency
+    //       fallback uses. If nothing structurally sound exists, return
+    //       an honest empty with ai_error — the client shows "try
+    //       again", and the regenerate pass above has already given the
+    //       model its second chance.
     if (structurallyValid.length === 0) {
-      if (sortedFinal.length > 0) {
+      const overallsOk = (s: typeof sortedFinal[number]) => {
+        const hasOveralls = s.items.some(
+          (i) => i.category === "one-piece" && i.subcategory === "overalls"
+        );
+        return !hasOveralls || s.items.some((i) => i.category === "top");
+      };
+      if (sortedFinal.length > 0 && overallsOk(sortedFinal[0])) {
         const relaxed = { ...sortedFinal[0], relaxed: true };
         structurallyValid = [relaxed];
         shipPath = "safety_net_edge_override";
         console.log(
           "[suggest] response-edge validators rejected; shipping relaxed fallback from sortedFinal"
         );
-      } else if (mapped.length > 0) {
-        // Deepest fallback — the entire main-filter + emergency-fallback
-        // pipeline rejected. Ship the AI's raw output as-is so the user
-        // never sees blank. Add the relaxed flag for the validator/UI
-        // to know this was a degraded result.
-        const raw = { ...mapped[0], relaxed: true };
-        structurallyValid = [raw];
-        shipPath = "safety_net_raw";
-        console.log(
-          "[suggest] entire pipeline rejected; shipping raw AI output as last-resort fallback"
+      } else {
+        const candidate = mapped.find(
+          (s) => isStructurallyComplete(s) && overallsOk(s)
         );
+        if (candidate) {
+          structurallyValid = [{ ...candidate, relaxed: true }];
+          shipPath = "safety_net_raw";
+          console.log(
+            "[suggest] pipeline rejected; shipping structurally-gated raw candidate as last resort"
+          );
+        } else {
+          console.log(
+            "[suggest] nothing structurally sound to ship — returning honest empty (ai_error)"
+          );
+        }
       }
     }
 
@@ -3845,6 +4011,14 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
               : null,
           drops: drops.slice(0, 15).map((d) => d.reason.slice(0, 140)),
           soft_mismatch: softMismatch.length,
+          regenerate: regenAttempted
+            ? {
+                adopted: regenAdopted,
+                first_attempt_drops: firstAttemptDrops
+                  .slice(0, 10)
+                  .map((r) => r.slice(0, 140)),
+              }
+            : null,
           auto_fixes: shippedFixes,
           anchor_requested: !!anchorItemId,
           anchor_shipped: anchorShipped,
