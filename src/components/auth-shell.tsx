@@ -130,6 +130,13 @@ const AUTH_CSS = `
     border-color: rgba(0,0,0,0.6);
     background: rgba(255,255,255,1);
   }
+  /* Reserve room for the show/hide eye toggle. The component's pr-10
+     utility loses to this unlayered stylesheet (Tailwind v4 emits
+     utilities inside @layer, and unlayered rules always win), so long
+     passwords slid under the icon. */
+  .auth-card input[type="password"] {
+    padding-right: 40px;
+  }
   .auth-card .auth-divider {
     display: flex; align-items: center; gap: 12px;
     margin: 18px 0;

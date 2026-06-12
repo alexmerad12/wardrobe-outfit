@@ -31,6 +31,7 @@
   },
   "auth": {
     "welcomeBack": "Welcome back",
+    "oauthFailed": "Google sign-in didn't complete — please try again.",
     "signInToLinette": "Sign in to {brand}",
     "email": "Email",
     "password": "Password",

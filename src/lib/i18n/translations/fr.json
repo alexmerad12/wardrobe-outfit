@@ -31,6 +31,7 @@
   },
   "auth": {
     "welcomeBack": "Bon retour !",
+    "oauthFailed": "La connexion Google n'a pas abouti — réessaie.",
     "signInToLinette": "Connecte-toi à {brand}",
     "email": "Email",
     "password": "Mot de passe",

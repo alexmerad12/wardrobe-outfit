@@ -19,7 +19,14 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // "__oauth__" sentinel: /auth/callback and /auth/confirm redirect
+  // failures here as /login?error=..., which this page never displayed —
+  // a failed Google sign-in looked like the tap did nothing (audit P2).
+  // The raw message stays out of the UI (English-only, often technical);
+  // the sentinel renders a localized generic line instead.
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("error") ? "__oauth__" : null
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -84,7 +91,9 @@ function LoginForm() {
         </div>
 
         {error && (
-          <p className="auth-error" role="alert">{error}</p>
+          <p className="auth-error" role="alert">
+            {error === "__oauth__" ? t("auth.oauthFailed") : error}
+          </p>
         )}
 
         <button type="submit" disabled={loading} className="auth-primary">

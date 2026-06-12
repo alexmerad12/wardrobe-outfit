@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 
@@ -16,6 +16,18 @@ export function GoogleSignInButton({
   const { t } = useLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // iOS restores this page from bfcache with React state intact when
+  // the user back-swipes from the Google account chooser — the button
+  // stayed disabled on "Redirecting..." forever (audit P2). pageshow
+  // with persisted=true is exactly that restore.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setLoading(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   async function handleClick() {
     setError(null);
