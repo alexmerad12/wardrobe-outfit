@@ -7,6 +7,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // sw.js must stay out of the auth gate: a redirect response makes the
+    // browser refuse to register the service worker (breaks PWA install
+    // for signed-out and mid-onboarding visitors).
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

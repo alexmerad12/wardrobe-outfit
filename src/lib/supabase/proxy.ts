@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
   "/login", "/signup", "/forgot-password", "/auth", "/privacy", "/terms", "/faq",
-  "/logo-lab", "/launch", "/design",
+  "/launch", "/design",
   // PWA / browser-icon endpoints. iOS fetches /apple-icon WITHOUT
   // any auth session when adding to home screen, so the auth-gate
   // redirect was sending iOS the login HTML and iOS was falling back
