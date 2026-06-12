@@ -7,6 +7,7 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
+import { oneSentence, textIsConsistent } from "@/lib/suggest-text-guards";
 
 // Refine endpoint — re-writes reasoning + styling_tip for an outfit
 // the user has edited (swapped items) before they save it. Cheaper
@@ -165,14 +166,32 @@ Respond with ONLY:
       );
     }
 
+    // Same guards as /api/suggest's prose path: one sentence max, no
+    // hallucinated garment references, no garbled French. Refine output
+    // gets PERSISTED on the saved outfit, so a bad string here is worse
+    // than in suggest — null lets the client keep the previous text.
+    const rawReasoning = oneSentence(parsed.reasoning);
+    const rawTip = oneSentence(parsed.styling_tip);
+    const cleanItems = items as ClothingItem[];
+    const reasoning =
+      rawReasoning && textIsConsistent(cleanItems, rawReasoning, locale)
+        ? rawReasoning
+        : null;
+    const styling_tip =
+      rawTip && textIsConsistent(cleanItems, rawTip, locale) ? rawTip : null;
+
     logAiCall(supabase, userId, "suggest", {
-      metadata: { kind: "refine", item_count: items.length },
+      metadata: {
+        kind: "refine",
+        item_count: items.length,
+        text_guard_rejected: {
+          reasoning: !reasoning && !!parsed.reasoning,
+          styling_tip: !styling_tip && !!parsed.styling_tip,
+        },
+      },
     });
 
-    return NextResponse.json({
-      reasoning: parsed.reasoning ?? null,
-      styling_tip: parsed.styling_tip ?? null,
-    });
+    return NextResponse.json({ reasoning, styling_tip });
   } catch (err) {
     console.error("[refine] error:", err);
     logAiCall(supabase, userId, "suggest", { succeeded: false });

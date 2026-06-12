@@ -10,6 +10,11 @@ import { colorFamily } from "@/lib/color-family";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
+import {
+  oneSentence,
+  textIsConsistent,
+  hasFrenchCorruption,
+} from "@/lib/suggest-text-guards";
 
 // Suggest endpoint runs on Gemini 3 Flash with shallow thinking
 // (thinkingBudget: 3072). 2026-05-08 experiment: shifted from
@@ -287,64 +292,8 @@ function buildReasoning(
   return variants[Math.floor(Math.random() * variants.length)];
 }
 
-// Trim AI prose down to a single sentence. Anthropic sometimes returns
-// two or three sentences even when we ask for one; this captures the
-// first clause up through its terminal punctuation.
-function oneSentence(raw: string | null | undefined): string {
-  if (!raw) return "";
-  const text = raw.trim();
-  const match = text.match(/^[\s\S]*?[.!?](?=\s|$)/);
-  return (match ? match[0] : text).trim();
-}
-
-// Every category-signal word that would betray a hallucination. If the AI
-// writes "the moto jacket" when no outerwear is in item_ids, we swap in
-// server-built text instead of showing the mismatch. Unlike the previous
-// round of validation this list is broader — we trust the fallback so we
-// can afford to reject more aggressively without starving the UI.
-const HALLUCINATION_WORDS: Record<string, string[]> = {
-  top: ["t-shirt", "tshirt", "tee", "tank", "blouse", "shirt", "sweater", "hoodie", "cardigan", "pullover"],
-  bottom: ["jeans", "trousers", "pants", "leggings", "sweatpants", "shorts", "skirt", "chinos", "slacks"],
-  dress: ["dress", "gown", "sundress", "maxi dress", "midi dress", "mini dress"],
-  "one-piece": ["jumpsuit", "overalls", "romper"],
-  outerwear: ["jacket", "blazer", "vest", "coat", "windbreaker", "puffer", "bomber", "moto", "trench", "peacoat", "parka", "biker"],
-  shoes: ["boot", "sneaker", "heel", "sandal", "loafer", "mule", "oxford", "pump"],
-  bag: ["handbag", "backpack", "tote", "clutch", "crossbody", "purse"],
-  accessory: ["belt", "scarf", "beanie"],
-};
-
-// Gemini 3 Flash Preview occasionally garbles accented French chars
-// in JSON-schema string outputs — é flips to `)`, ô flips to `"`, etc.
-// The pattern is consistent: a letter, a stray bracket / quote / paren
-// (the chars that would normally be JSON delimiters), then another
-// letter — i.e. punctuation appearing INSIDE a word where it has no
-// business being. Detect that and treat the field as inconsistent so
-// the textIsConsistent gate below falls back to the clean server
-// template instead of shipping garbled prose to the user.
-const FRENCH_CORRUPTION_RX = /[a-zà-ÿ][")(\][}{<>][a-zà-ÿ]/i;
-
-export function hasFrenchCorruption(text: string): boolean {
-  return FRENCH_CORRUPTION_RX.test(text);
-}
-
-function textIsConsistent(items: ClothingItem[], text: string): boolean {
-  if (!text) return false;
-  // Bail before the hallucination check if the string is character-
-  // corrupted — fixing the hallucination would still ship "dor)e" to
-  // the user.
-  if (hasFrenchCorruption(text)) return false;
-  const lower = text.toLowerCase();
-  const present = new Set(items.map((i) => i.category));
-  for (const [cat, words] of Object.entries(HALLUCINATION_WORDS)) {
-    if (present.has(cat as ClothingItem["category"])) continue;
-    for (const w of words) {
-      const escaped = w.replace(/[-.*+?^${}()|[\]\\]/g, "\\$&");
-      const rx = new RegExp(`\\b${escaped}s?\\b`, "i");
-      if (rx.test(lower)) return false;
-    }
-  }
-  return true;
-}
+// Text guards (oneSentence / textIsConsistent / hasFrenchCorruption)
+// live in src/lib/suggest-text-guards.ts — shared with /api/suggest/refine.
 
 function buildStylingTip(items: ClothingItem[], locale: Locale): string | null {
   const outerwear = items.find((i) => i.category === "outerwear");
@@ -1398,6 +1347,52 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         .map((id) => items.find((i) => i.id === id))
         .filter(Boolean) as ClothingItem[];
 
+      const fixes: string[] = [];
+
+      // R12 ANCHOR — the prompt says "MUST include [anchor]" but nothing
+      // enforced it post-parse, so a pinned item could silently vanish.
+      // Re-inject it FIRST in the list (the keep-first dedupes below then
+      // prefer it over a same-slot rival). If the anchor is a base piece
+      // and the model picked a conflicting dress/jumpsuit instead, the
+      // anchor wins — drop the conflicting piece so the dress/top strips
+      // below don't remove the anchor itself.
+      let anchored = rawItems;
+      if (anchorItemId && !rawItems.some((i) => i.id === anchorItemId)) {
+        const anchor = items.find(
+          (i) => i.id === anchorItemId && !i.is_stored
+        );
+        if (anchor) {
+          let rest = rawItems;
+          if (anchor.category === "bottom") {
+            rest = rest.filter(
+              (i) => i.category !== "dress" && i.category !== "one-piece"
+            );
+          } else if (
+            anchor.category === "top" &&
+            !anchor.is_layering_piece &&
+            anchor.subcategory !== "cardigan"
+          ) {
+            // Keep a slip dress only when the anchor top can layer under
+            // it (mirrors isAllowedUnderSlip below) — otherwise the
+            // dress/top strip would re-remove the anchor.
+            const anchorFitsUnderSlip =
+              (anchor.fit === "slim" || anchor.fit === "regular") &&
+              anchor.subcategory !== "hoodie" &&
+              anchor.subcategory !== "sweater";
+            rest = rest.filter(
+              (i) =>
+                !(
+                  i.category === "dress" &&
+                  !(i.dress_silhouette === "slip" && anchorFitsUnderSlip)
+                ) &&
+                !(i.category === "one-piece" && i.subcategory !== "overalls")
+            );
+          }
+          anchored = [anchor, ...rest];
+          fixes.push("re-injected missing anchor item");
+        }
+      }
+
       // Auto-fix fixable structural violations instead of dropping outfits.
       // The AI routinely breaks the "dress + top/bottom" and "max one per
       // subcategory" rules despite the prompt; dropping those outfits was
@@ -1405,14 +1400,13 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       // strip keeps the outfit alive; the hybrid text validator still
       // swaps in template prose when the AI's description references
       // stripped items.
-      const rawHasDress = rawItems.some((i) => i.category === "dress");
-      const rawHasJumpsuit = rawItems.some(
+      const rawHasDress = anchored.some((i) => i.category === "dress");
+      const rawHasJumpsuit = anchored.some(
         (i) => i.category === "one-piece" && i.subcategory !== "overalls"
       );
-      const rawHasOnePiece = rawItems.some((i) => i.category === "one-piece");
-      const fixes: string[] = [];
+      const rawHasOnePiece = anchored.some((i) => i.category === "one-piece");
 
-      let stripped = rawItems;
+      let stripped = anchored;
       // Strip bottoms when a dress or one-piece is present.
       if ((rawHasDress || rawHasOnePiece) && stripped.some((i) => i.category === "bottom")) {
         stripped = stripped.filter((i) => i.category !== "bottom");
@@ -1421,7 +1415,7 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       // Strip non-layering tops when a dress or non-overalls jumpsuit is
       // present. EXCEPTION: a slip-silhouette dress can be styled with a
       // slim/regular fitted top underneath — keep those.
-      const rawSlipDress = rawItems.some(
+      const rawSlipDress = anchored.some(
         (i) => i.category === "dress" && i.dress_silhouette === "slip"
       );
       const isAllowedUnderSlip = (i: ClothingItem) =>
@@ -1939,12 +1933,13 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       // where it's safe, guarantees consistency where it isn't.
       const aiReasoning = oneSentence(s.reasoning);
       const aiTip = oneSentence(s.styling_tip);
+      const guardLocale = locale === "fr" ? "fr" : "en";
       const reasoning =
-        aiReasoning && textIsConsistent(outfitItems, aiReasoning)
+        aiReasoning && textIsConsistent(outfitItems, aiReasoning, guardLocale)
           ? aiReasoning
           : buildReasoning(outfitItems, mood, occasion, weather, locale);
       let styling_tip: string | null =
-        aiTip && textIsConsistent(outfitItems, aiTip)
+        aiTip && textIsConsistent(outfitItems, aiTip, guardLocale)
           ? aiTip
           : buildStylingTip(outfitItems, locale);
 
@@ -2217,16 +2212,18 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           return false;
         }
       }
-      // Men's track: office open-toe / sandals guardrail. (Shorts at
-      // work are now blocked universally above for both tracks.)
-      if (gender === "man" && occasion === "work") {
+      // Office open-toe / sandals guardrail — both tracks. (Was men-only;
+      // the prompt's office template bans open footwear for Track A too
+      // but nothing enforced it.) User-tagged "work" overrides, same as
+      // the jeans/sneakers opt-outs below.
+      if (occasion === "work") {
         const openToe = s.items.find(
           (i) =>
             i.category === "shoes" &&
             (i.toe_shape === "open-toe" || i.toe_shape === "peep-toe" || i.subcategory === "sandals")
         );
-        if (openToe) {
-          drops.push({ ids: s._ids, reason: "men's office: open-toe / sandals not allowed at work" });
+        if (openToe && !(openToe.occasions ?? []).includes("work")) {
+          drops.push({ ids: s._ids, reason: `work: open-toe / sandals ("${openToe.name}") not office-appropriate` });
           return false;
         }
       }
@@ -2353,6 +2350,28 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             drops.push({
               ids: s._ids,
               reason: "work: skort too sporty-casual for office",
+            });
+            return false;
+          }
+        }
+        // Tank top × work — R9 bans tanks at the office, with the
+        // prompt's own carve-out: a polished cami under a blazer is
+        // fine. User-tagged "work" also overrides.
+        if (occasion === "work") {
+          const tank = s.items.find(
+            (i) => i.category === "top" && i.subcategory === "tank-top"
+          );
+          const hasBlazer = s.items.some(
+            (i) => i.subcategory === "blazer"
+          );
+          if (
+            tank &&
+            !hasBlazer &&
+            !(tank.occasions ?? []).includes("work")
+          ) {
+            drops.push({
+              ids: s._ids,
+              reason: `work: tank top "${tank.name}" without a blazer`,
             });
             return false;
           }
@@ -2960,6 +2979,31 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           return false;
         }
       }
+      // Mood: Comfort Day (period) → never heels, never tailored. The
+      // prompt states both in rule 13 but this was the only mood with
+      // no validator at all — heels on a Comfort Day shipped unchecked.
+      if (mood === "period") {
+        const heeled = s.items.find(
+          (i) =>
+            i.category === "shoes" &&
+            (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
+        );
+        if (heeled) {
+          drops.push({
+            ids: s._ids,
+            reason: `comfort-day mood + heeled shoe ("${heeled.name}")`,
+          });
+          return false;
+        }
+        const tailored = s.items.find(itemIsStructured);
+        if (tailored) {
+          drops.push({
+            ids: s._ids,
+            reason: `comfort-day mood + tailored piece ("${tailored.name}")`,
+          });
+          return false;
+        }
+      }
       // Mood: Chill → no heels. Heels fight the relaxed-easy silhouette
       // the prompt calls for. Other Chill rules (neutral palette,
       // minimal accessories) are too aesthetic for a hard validator.
@@ -3185,9 +3229,17 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       }
     };
 
+    // Telemetry: which rung of the ladder shipped the outfit. Persisted
+    // into ai_calls.metadata so rule-rejection rates are measurable
+    // without log archaeology.
+    let shipPath = "normal";
+
     // We now generate 1 outfit per call — admit-back fires when the
     // single hard-valid pick was dropped (final.length === 0).
-    if (final.length < 1) admitSoft(softMismatch);
+    if (final.length < 1) {
+      admitSoft(softMismatch);
+      if (final.length > 0) shipPath = "admit_soft";
+    }
 
     // EMERGENCY FALLBACK: if all 4 outfits got hard-dropped for style
     // reasons (metal mismatch, bag too casual, hat-at-work, etc.) AND
@@ -3276,6 +3328,19 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           if (s.items.some((i) => i.category === "bottom" && i.subcategory === "skirt" && i.skirt_length === "mini")) return false;
           if (s.items.some((i) => i.category === "accessory" && i.subcategory === "hat")) return false;
           if (s.items.some((i) => i.category === "top" && i.subcategory === "hoodie")) return false;
+          // Mirrors of the open-toe and tank-without-blazer drops above.
+          if (s.items.some((i) =>
+            i.category === "shoes" &&
+            (i.toe_shape === "open-toe" || i.toe_shape === "peep-toe" || i.subcategory === "sandals") &&
+            !(i.occasions ?? []).includes("work")
+          )) return false;
+          if (
+            !s.items.some((i) => i.subcategory === "blazer") &&
+            s.items.some((i) =>
+              i.category === "top" && i.subcategory === "tank-top" &&
+              !(i.occasions ?? []).includes("work")
+            )
+          ) return false;
         }
 
         // Formal / date / party bag rules (mirror the hard drops above):
@@ -3389,6 +3454,7 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             ...candidate,
             relaxed: true,
           });
+          shipPath = "emergency";
           drops.push({
             ids: [],
             reason: `EMERGENCY ADMIT: all hard-dropped, admitted 1 structurally-valid candidate`,
@@ -3554,6 +3620,7 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       if (sortedFinal.length > 0) {
         const relaxed = { ...sortedFinal[0], relaxed: true };
         structurallyValid = [relaxed];
+        shipPath = "safety_net_edge_override";
         console.log(
           "[suggest] response-edge validators rejected; shipping relaxed fallback from sortedFinal"
         );
@@ -3564,9 +3631,30 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         // to know this was a degraded result.
         const raw = { ...mapped[0], relaxed: true };
         structurallyValid = [raw];
+        shipPath = "safety_net_raw";
         console.log(
           "[suggest] entire pipeline rejected; shipping raw AI output as last-resort fallback"
         );
+      }
+    }
+
+    // Capture rule telemetry off the shipped outfit BEFORE the audit
+    // fields are stripped from the response.
+    const shipped = structurallyValid[0];
+    const shippedFixes = (shipped?._fixes ?? []).slice(0, 10);
+    const anchorShipped = anchorItemId
+      ? !!shipped?.items.some((i) => i.id === anchorItemId)
+      : null;
+    // Distance to the closest recently-shown/worn set. The prompt demands
+    // "differ by at least 2 items"; 0-1 here = repetition violation.
+    let recentMinDiff: number | null = null;
+    if (shipped && allRecentSets.length > 0) {
+      const shippedIds = shipped.items.map((i) => i.id);
+      for (const set of allRecentSets) {
+        const diff = shippedIds.filter((id) => !set.includes(id)).length;
+        if (recentMinDiff === null || diff < recentMinDiff) {
+          recentMinDiff = diff;
+        }
       }
     }
 
@@ -3646,7 +3734,26 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
     const aiError = suggestions.length === 0 && !wardrobe_gap;
     logAiCall(supabase, userId, "suggest", {
       succeeded: !aiError,
-      metadata: { mood, occasion, outfit_count: suggestions.length },
+      metadata: {
+        mood,
+        occasion,
+        outfit_count: suggestions.length,
+        // Per-request rule telemetry. Without this, a rule rejecting 90%
+        // of candidates is invisible outside Vercel console logs.
+        rules: {
+          ship_path: suggestions.length === 0 ? "none" : shipPath,
+          relaxed:
+            suggestions.length > 0
+              ? (suggestions[0] as { relaxed?: boolean }).relaxed === true
+              : null,
+          drops: drops.slice(0, 15).map((d) => d.reason.slice(0, 140)),
+          soft_mismatch: softMismatch.length,
+          auto_fixes: shippedFixes,
+          anchor_requested: !!anchorItemId,
+          anchor_shipped: anchorShipped,
+          recent_min_diff: recentMinDiff,
+        },
+      },
     });
     return NextResponse.json({
       suggestions,
