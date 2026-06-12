@@ -108,7 +108,7 @@ export default function BulkUploadPage() {
             {t("bulk.description")}
           </p>
           <p className="mb-6 text-xs text-muted-foreground/70 max-w-md mx-auto">
-            Pick however many — items process one at a time and stay safe even if the connection drops.
+            {t("bulk.resilienceHint")}
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button
@@ -128,6 +128,19 @@ export default function BulkUploadPage() {
               <UploadIcon className="h-4 w-4" />
               {t("bulk.chooseFromLibrary")}
             </Button>
+          </div>
+          {/* Same photo-tips block as the single-add page and the +
+              dropdown — bulk batches benefit from the guidance most
+              (one bad habit multiplied by ten photos). */}
+          <div className="mt-6 border-t border-border pt-4 text-left max-w-md mx-auto">
+            <p className="editorial-label mb-2">{t("wardrobe.photoTipsTitle")}</p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              <li>• {t("wardrobe.photoTipOneItem")}</li>
+              <li>• {t("wardrobe.photoTipFlat")}</li>
+              <li>• {t("wardrobe.photoTipHanger")}</li>
+              <li>• {t("wardrobe.photoTipLight")}</li>
+              <li>• {t("wardrobe.photoTipBatch")}</li>
+            </ul>
           </div>
         </div>
       )}

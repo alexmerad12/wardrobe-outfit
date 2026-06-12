@@ -751,7 +751,7 @@ export default function AddItemPage() {
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
               >
                 <Camera className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm font-medium">Take photo</span>
+                <span className="text-sm font-medium">{t("wardrobe.takePhoto")}</span>
               </button>
               <button
                 type="button"
@@ -759,7 +759,7 @@ export default function AddItemPage() {
                 className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-10 transition-colors hover:border-muted-foreground/50 hover:bg-muted/20"
               >
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm font-medium">Choose photo</span>
+                <span className="text-sm font-medium">{t("wardrobe.chooseFromLibrary")}</span>
               </button>
             </div>
             {/* Same tips shown on the uploading page, here too — the
@@ -767,13 +767,13 @@ export default function AddItemPage() {
                 user picks only one photo, so they'd never see the
                 guidance otherwise. */}
             <div className="mt-4 border-t border-b border-border py-3">
-              <p className="editorial-label mb-2">Photo tips</p>
+              <p className="editorial-label mb-2">{t("wardrobe.photoTipsTitle")}</p>
               <ul className="space-y-1 text-xs text-muted-foreground">
-                <li>• One item per photo, fully visible</li>
-                <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
-                <li>• Hanger for coats, blazers, dresses, long skirts</li>
-                <li>• Good light, no strong shadows</li>
-                <li>• Up to 10 photos at a time</li>
+                <li>• {t("wardrobe.photoTipOneItem")}</li>
+                <li>• {t("wardrobe.photoTipFlat")}</li>
+                <li>• {t("wardrobe.photoTipHanger")}</li>
+                <li>• {t("wardrobe.photoTipLight")}</li>
+                <li>• {t("wardrobe.photoTipBatch")}</li>
               </ul>
             </div>
           </>

@@ -118,6 +118,7 @@
     "title": "Bulk upload",
     "subtitle": "Upload a batch at once",
     "description": "Pick as many photos as you want. We'll remove the background, read every detail, and save each one to your wardrobe. Keep using the app while it works — just don't close the tab.",
+    "resilienceHint": "Pick however many — items process one at a time and stay safe even if the connection drops.",
     "takePhoto": "Take photo",
     "chooseFromLibrary": "Choose from library",
     "allProcessed": "All {count} item processed",
@@ -935,6 +936,8 @@
     "photoRequired": "Please add a photo, name, and category"
   },
   "itemDetail": {
+    "reviewingUpload": "Reviewing your upload",
+    "moreToGo": "{count} more to go",
     "outfitWithThis": "Outfit with this",
     "editDetails": "Edit details",
     "removeBackground": "Remove background",

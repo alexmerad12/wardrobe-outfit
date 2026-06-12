@@ -118,6 +118,7 @@
     "title": "Téléchargement groupé",
     "subtitle": "Télécharge un lot d'un coup",
     "description": "Choisis autant de photos que tu veux. On enlèvera l'arrière-plan, on analysera chaque détail, et on enregistrera chaque pièce dans ton dressing. Continue à utiliser l'app pendant ce temps — ne ferme juste pas l'onglet.",
+    "resilienceHint": "Choisis-en autant que tu veux — les pièces sont traitées une par une, et rien n'est perdu si la connexion coupe.",
     "takePhoto": "Prendre une photo",
     "chooseFromLibrary": "Choisir dans la galerie",
     "allProcessed": "{count} item traité",
@@ -940,6 +941,8 @@
     "photoRequired": "Ajoute une photo, un nom et une catégorie"
   },
   "itemDetail": {
+    "reviewingUpload": "Révision de tes nouvelles pièces",
+    "moreToGo": "Plus que {count}",
     "outfitWithThis": "Styler cet item",
     "editDetails": "Modifier les détails",
     "removeBackground": "Retirer le fond",

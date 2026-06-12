@@ -768,7 +768,7 @@ export default function ItemDetailPage() {
           {editing && (
             <Button size="sm" onClick={saveEdit} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              {hasNext ? "Next" : t("itemDetail.save")}
+              {hasNext ? t("common.next") : t("itemDetail.save")}
             </Button>
           )}
         </div>
@@ -777,9 +777,9 @@ export default function ItemDetailPage() {
       {/* Review wizard progress bar */}
       {hasNext && editing && (
         <div className="mb-3 border-t border-b border-border py-2 flex items-center justify-between gap-2">
-          <span className="editorial-label">Reviewing your upload</span>
+          <span className="editorial-label">{t("itemDetail.reviewingUpload")}</span>
           <span className="text-xs text-muted-foreground">
-            {nextIds.length} more to go
+            {t("itemDetail.moreToGo", { count: nextIds.length })}
           </span>
         </div>
       )}
