@@ -259,6 +259,19 @@ Staged so each commit is independently shippable:
 3. `lang` attribute follows locale; date formatting via locale; try-on locale plumb-through; fr fixes (`item(s)`, duplicate `suggest.styling` key, FAQ FR drift).
 
 ### Group E — A11y/polish (~1 day)
+**High-value batch ✅ `5b59354` (2026-06-13): pinch-zoom re-enabled, `aria-current` on bottom nav, localized aria-labels (suggest back, today trash, item prev/next), privacy/terms navigation trap fixed via shared `LegalBackArrow`, packing city dropdown closes on outside tap, splash honors `prefers-reduced-motion`.**
+
+### PLAN CLOSE-OUT — explicitly deferred (small, non-blocking; revisit pre-App-Store)
+- alert()/confirm() → app dialog component (home/wardrobe/bulk) — design-consistency work.
+- Full tap-target sweep on the shared Button default height + remaining icon buttons.
+- 6× `set-state-in-effect` lint errors (benign hydration-cache reads; bulk one ties to the revisit-requeue P3).
+- D crumbs: bulk helper copy + raw category enum line; try-on API errors → code-based localized mapping.
+- C6 P3s: photo-replace old-object cleanup; full AbortController cancellation; bulk-revisit re-queue; normalize-vs-analyze source overwrite.
+- B4 follow-up: fully config-derived validators/prompt; trimming twin-enforced prompt rules (~3k tokens) — A/B with `npm run test:rules` once stable.
+- FAQ jump-links; splash tap-to-skip; terms typography.
+- **DB migrations written but NOT applied (need owner sign-off):** `supabase-migration-ai-call-refine.sql` (then flip `DB_FEATURE.refine`); proposed-not-written: `ai_calls` RLS insert fix, dead-column drops, outfit_log dedupe index.
+- **Parked product decisions: A6** (invite gate enforce-vs-open) and **A7** (photo bucket public-read vs signed URLs) — recommend deciding both before App Store submission.
+- Housekeeping: `e2e-audit-claude@linette.app` is now the permanent harness user (keep); `playwright.audit.config.ts` kept for this machine (port 3001); `.audit/` artifacts remain untracked.
 Tap-target pass (shared Button + icon buttons), aria-labels, `aria-current` on nav, dialog focus/labels, re-enable pinch zoom, contrast tweaks, alert()/confirm() → dialog component, navigation trap on privacy/terms, packing dropdown/delete-confirm, splash reduced-motion + skip.
 
 ### Phase 6 — Rule-compliance harness (after Group B)
