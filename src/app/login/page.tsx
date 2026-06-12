@@ -9,11 +9,12 @@ import { AuthShell } from "@/components/auth-shell";
 import { PasswordInput } from "@/components/password-input";
 import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { safeNextPath } from "@/lib/safe-next";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+  const next = safeNextPath(searchParams.get("next"));
   const { t } = useLocale();
 
   const [email, setEmail] = useState("");
