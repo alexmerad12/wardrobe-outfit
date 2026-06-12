@@ -36,9 +36,22 @@
     "tagline": "Your AI Stylist",
     "subtitle": "for the closet you already own"
   },
+  "review": {
+    "title": "Review your uploads",
+    "subtitle": "{count} item — tweak anything that looks off, then save.",
+    "subtitlePlural": "{count} items — tweak anything that looks off, then save.",
+    "nothingToReview": "Nothing to review. Head back to your wardrobe.",
+    "saveFailedCount": "{count} item failed to save. Press Save again to retry those.",
+    "saveFailedCountPlural": "{count} items failed to save. Press Save again to retry those.",
+    "saveChanges": "Save {count} change",
+    "saveChangesPlural": "Save {count} changes",
+    "editAllDetails": "Edit all details"
+  },
   "auth": {
     "welcomeBack": "Welcome back",
     "oauthFailed": "Google sign-in didn't complete — please try again.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "signInToLinette": "Sign in to {brand}",
     "email": "Email",
     "password": "Password",

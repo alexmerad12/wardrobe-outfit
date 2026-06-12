@@ -36,9 +36,22 @@
     "tagline": "Ta styliste IA",
     "subtitle": "pour la garde-robe que tu as déjà"
   },
+  "review": {
+    "title": "Réviser tes ajouts",
+    "subtitle": "{count} pièce — corrige ce qui cloche, puis enregistre.",
+    "subtitlePlural": "{count} pièces — corrige ce qui cloche, puis enregistre.",
+    "nothingToReview": "Rien à réviser. Retourne à ton dressing.",
+    "saveFailedCount": "{count} pièce n'a pas pu être enregistrée. Appuie de nouveau sur Enregistrer pour réessayer.",
+    "saveFailedCountPlural": "{count} pièces n'ont pas pu être enregistrées. Appuie de nouveau sur Enregistrer pour réessayer.",
+    "saveChanges": "Enregistrer {count} modification",
+    "saveChangesPlural": "Enregistrer {count} modifications",
+    "editAllDetails": "Modifier tous les détails"
+  },
   "auth": {
     "welcomeBack": "Bon retour !",
     "oauthFailed": "La connexion Google n'a pas abouti — réessaie.",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "signInToLinette": "Connecte-toi à {brand}",
     "email": "Email",
     "password": "Mot de passe",

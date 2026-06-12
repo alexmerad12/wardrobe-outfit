@@ -192,7 +192,12 @@ function ReviewBatchPage() {
           return next;
         });
         setError(
-          `${failedIds.length} item${failedIds.length === 1 ? "" : "s"} failed to save. Press Save again to retry those.`
+          t(
+            failedIds.length === 1
+              ? "review.saveFailedCount"
+              : "review.saveFailedCountPlural",
+            { count: failedIds.length }
+          )
         );
         setSaving(false);
         return;
@@ -200,7 +205,7 @@ function ReviewBatchPage() {
       router.push("/wardrobe");
     } catch (err) {
       console.error("[review] saveAll failed", err);
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("common.saveFailed"));
       setSaving(false);
     }
   }
@@ -219,10 +224,10 @@ function ReviewBatchPage() {
     return (
       <div className="mx-auto max-w-xl px-4 pt-6">
         <p className="text-sm text-muted-foreground">
-          Nothing to review. Head back to your wardrobe.
+          {t("review.nothingToReview")}
         </p>
         <Button className="mt-4" onClick={() => router.push("/wardrobe")}>
-          Go to wardrobe
+          {t("bulk.goToWardrobe")}
         </Button>
       </div>
     );
@@ -237,10 +242,11 @@ function ReviewBatchPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-heading text-2xl font-medium tracking-tight">Review your uploads</h1>
+          <h1 className="font-heading text-2xl font-medium tracking-tight">{t("review.title")}</h1>
           <p className="text-xs text-muted-foreground">
-            {items.length} item{items.length === 1 ? "" : "s"} — tweak anything
-            that looks off, then save.
+            {t(items.length === 1 ? "review.subtitle" : "review.subtitlePlural", {
+              count: items.length,
+            })}
           </p>
         </div>
       </div>
@@ -313,7 +319,7 @@ function ReviewBatchPage() {
               </div>
               <div className="flex-1 min-w-0 space-y-2">
                 <div>
-                  <Label className="text-[11px] text-muted-foreground">Name</Label>
+                  <Label className="text-[11px] text-muted-foreground">{t("addItem.name")}</Label>
                   <Input
                     value={effectiveName}
                     onChange={(e) => patchEdit(item.id, { name: e.target.value })}
@@ -323,7 +329,7 @@ function ReviewBatchPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-[11px] text-muted-foreground">
-                      Category
+                      {t("addItem.category")}
                     </Label>
                     <Select
                       value={effectiveCategory}
@@ -352,7 +358,7 @@ function ReviewBatchPage() {
                   </div>
                   <div>
                     <Label className="text-[11px] text-muted-foreground">
-                      Subcategory
+                      {t("addItem.type")}
                     </Label>
                     <Select
                       value={effectiveSub || "__none__"}
@@ -386,7 +392,7 @@ function ReviewBatchPage() {
                 {/* Material quick-picks. Extra selections (silk, lace,
                     etc.) live behind "Edit all details". */}
                 <div>
-                  <Label className="text-[11px] text-muted-foreground">Material</Label>
+                  <Label className="text-[11px] text-muted-foreground">{t("addItem.material")}</Label>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {/* Any AI-chosen materials not in the quick list get
                         rendered up front so the user can see them. */}
@@ -399,7 +405,7 @@ function ReviewBatchPage() {
                           onClick={() => toggleMaterial(m)}
                           className="rounded-full bg-foreground text-white px-2 py-0.5 text-[11px]"
                         >
-                          {m} ×
+                          {labels.MATERIAL[m] ?? m} ×
                         </button>
                       ))}
                     {QUICK_MATERIALS.map((m) => {
@@ -416,7 +422,7 @@ function ReviewBatchPage() {
                               : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-foreground hover:text-foreground"
                           )}
                         >
-                          {m}
+                          {labels.MATERIAL[m] ?? m}
                         </button>
                       );
                     })}
@@ -425,7 +431,7 @@ function ReviewBatchPage() {
 
                 {/* Pattern quick-picks */}
                 <div>
-                  <Label className="text-[11px] text-muted-foreground">Pattern</Label>
+                  <Label className="text-[11px] text-muted-foreground">{t("addItem.pattern")}</Label>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {effectivePatterns
                       .filter((p) => !QUICK_PATTERNS.includes(p))
@@ -436,7 +442,7 @@ function ReviewBatchPage() {
                           onClick={() => togglePattern(p)}
                           className="rounded-full bg-foreground text-white px-2 py-0.5 text-[11px]"
                         >
-                          {p} ×
+                          {labels.PATTERN[p] ?? p} ×
                         </button>
                       ))}
                     {QUICK_PATTERNS.map((p) => {
@@ -453,7 +459,7 @@ function ReviewBatchPage() {
                               : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-foreground hover:text-foreground"
                           )}
                         >
-                          {p}
+                          {labels.PATTERN[p] ?? p}
                         </button>
                       );
                     })}
@@ -477,7 +483,7 @@ function ReviewBatchPage() {
                     className="ml-auto text-[11px] text-foreground hover:underline inline-flex items-center gap-1"
                   >
                     <Pencil className="h-3 w-3" />
-                    Edit all details
+                    {t("review.editAllDetails")}
                   </Link>
                 </div>
               </div>
@@ -502,10 +508,15 @@ function ReviewBatchPage() {
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving…
+              {t("common.saving")}
             </>
           ) : hasEdits ? (
-            `Save ${Object.keys(edits).length} change${Object.keys(edits).length === 1 ? "" : "s"}`
+            t(
+              Object.keys(edits).length === 1
+                ? "review.saveChanges"
+                : "review.saveChangesPlural",
+              { count: Object.keys(edits).length }
+            )
           ) : (
             t("bulk.goToWardrobe")
           )}
