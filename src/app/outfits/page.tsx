@@ -156,7 +156,7 @@ export default function FavoritesPage() {
     <div className="mx-auto max-w-2xl px-4 pt-6">
       {/* Sticky top bar. Select mode mirrors the wardrobe pattern — Cancel
           + count on the left, bulk Remove on the right. */}
-      <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
+      <div className="sticky top-[env(safe-area-inset-top)] z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
         {selectMode ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -217,7 +217,7 @@ export default function FavoritesPage() {
       {!loading && outfits.length > 0 && (
         <div
           className={cn(
-            "sticky top-[92px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+            "sticky top-[calc(92px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
             scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
           )}
         >

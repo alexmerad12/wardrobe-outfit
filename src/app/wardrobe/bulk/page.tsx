@@ -221,7 +221,7 @@ export default function BulkUploadPage() {
 
       {/* Bottom actions when all done */}
       {allDone && (
-        <div className="fixed bottom-20 inset-x-4 sm:static sm:mt-6">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] inset-x-4 sm:static sm:mt-6">
           <Button
             size="lg"
             className="w-full"

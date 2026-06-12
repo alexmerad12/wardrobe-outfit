@@ -88,6 +88,10 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // Required for env(safe-area-inset-*) to be non-zero in the installed
+  // PWA — without it the black-translucent status bar and the iPhone
+  // home indicator overlap the app chrome on every screen.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -123,7 +127,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background font-[family-name:var(--font-sans)]">
         <PendingUploadsProvider>
-          <main className="flex-1 pb-20">{children}</main>
+          <main className="flex-1 pt-[env(safe-area-inset-top)] pb-[calc(5rem+env(safe-area-inset-bottom))]">
+            {children}
+          </main>
           <AddItemFab />
           <BottomNav />
           <LaunchSplash />

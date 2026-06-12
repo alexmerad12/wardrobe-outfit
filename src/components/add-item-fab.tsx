@@ -71,7 +71,7 @@ export function AddItemFab() {
           // room so the FAB clears the safe area on devices with home
           // indicators. z-50 matches the nav so they share the same
           // layer; the FAB renders later in the tree so it lands on top.
-          "fixed bottom-20 right-4 z-50"
+          "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50"
         )}
       >
         <DropdownMenu>

@@ -685,7 +685,7 @@ export default function HomePage() {
       {/* Inline favorite confirmation — heart-only feedback was easy
           to miss, leading users to re-tap and accidentally toggle off. */}
       {favToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
           {favToast === "saved" ? t("home.favoriteSaved") : t("home.favoriteRemoved")}
         </div>
       )}

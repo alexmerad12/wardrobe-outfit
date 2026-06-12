@@ -359,7 +359,7 @@ function WardrobePageInner() {
         // the category/subcategory strips below (top-[92px], top-[136px])
         // stay accurate — without this the strips dock 24px below the
         // shorter select bar with empty page bleeding through the gap.
-        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 flex min-h-[88px] flex-col justify-center border-b bg-background px-4 pb-3 pt-6">
+        <div className="sticky top-[env(safe-area-inset-top)] z-30 -mx-4 -mt-6 mb-4 flex min-h-[88px] flex-col justify-center border-b bg-background px-4 pb-3 pt-6">
           <div className="flex items-center justify-between gap-2">
             {/* Left slot: exit + count + labeled Select-all button.
                 Count uses muted text-color and no bold so it reads as
@@ -450,7 +450,7 @@ function WardrobePageInner() {
           </div>
         </div>
       ) : (
-        <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
+        <div className="sticky top-[env(safe-area-inset-top)] z-30 -mx-4 -mt-6 mb-4 border-b bg-background px-4 pb-3 pt-6">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <h1 className="truncate font-heading text-3xl font-medium tracking-tight">{t("wardrobe.title")}</h1>
@@ -530,7 +530,7 @@ function WardrobePageInner() {
       {items.length > 0 && (
       <div
         className={cn(
-          "sticky top-[92px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+          "sticky top-[calc(92px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
           scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
         )}
       >
@@ -563,7 +563,7 @@ function WardrobePageInner() {
       {availableSubcategories.length >= 2 && (
         <div
           className={cn(
-            "sticky top-[136px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+            "sticky top-[calc(136px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
             // -translate-y-[120px] moves the bar far enough up that
             // its bottom edge clears the header on scroll-down. The
             // category bar gets away with -translate-y-full because

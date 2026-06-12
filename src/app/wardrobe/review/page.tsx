@@ -492,7 +492,7 @@ function ReviewBatchPage() {
         </div>
       )}
 
-      <div className="fixed bottom-20 inset-x-4 max-w-xl sm:static sm:mt-6 sm:inset-auto">
+      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] inset-x-4 max-w-xl sm:static sm:mt-6 sm:inset-auto">
         <Button
           size="lg"
           className="w-full h-12 shadow-lg sm:shadow-none"
