@@ -85,7 +85,7 @@ function EnglishFAQ() {
             Linette is your AI stylist — picture the friend who&apos;d remember
             every piece in your closet and text you a complete outfit when
             you ask what to wear. She has a soft spot for editorial fashion,
-            a strong opinion on belts (always), and a soft spot for the
+            a strong opinion on belts (always), and a weakness for the
             French half of her vocabulary. Most importantly: she refuses to
             suggest pieces you don&apos;t already own. New clothes aren&apos;t her
             thing — she believes most people have everything they need, they
@@ -335,7 +335,7 @@ function FrenchFAQ() {
             de chaque pièce dans ton dressing et qui te texterait une tenue
             complète quand tu lui demandes quoi porter. Elle a un faible
             pour la mode éditoriale, une opinion très claire sur les
-            ceintures (toujours), et un petit faible pour la moitié
+            ceintures (toujours), et un penchant pour la moitié
             française de son vocabulaire. Surtout : elle refuse de suggérer
             des pièces que tu ne possèdes pas déjà. Les achats neufs, ce
             n&apos;est pas son truc — elle pense que la plupart des gens ont
