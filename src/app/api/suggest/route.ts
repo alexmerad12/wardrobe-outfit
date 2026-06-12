@@ -2123,6 +2123,30 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       it.subcategory === "blazer" ||
       it.dress_silhouette === "sheath" ||
       (it.category === "bottom" && it.subcategory === "trousers");
+    // Comfort Day's "NEVER tailored" ban needs a NARROWER predicate than
+    // itemIsStructured: that one counts every `trousers` subcategory as
+    // structured, which is fine for Confident's require-side (false
+    // positives are harmless) but wrong for a ban — elastic-waist
+    // wide-leg pull-on trousers are exactly comfort-day wear, and the
+    // blunt version was hard-dropping them ("Elastic band extra wide
+    // thin jeans" → rejected → honest-empty, found in beta testing).
+    const itemIsTailoredForComfortBan = (it: ClothingItem) => {
+      if (it.subcategory === "blazer") return true;
+      if (it.dress_silhouette === "sheath") return true;
+      if (it.category === "bottom" && it.subcategory === "trousers") {
+        const softWaist =
+          it.waist_style === "elastic" ||
+          it.waist_closure === "elastic" ||
+          it.waist_closure === "drawstring" ||
+          it.waist_closure === "pull-on";
+        const relaxedFit =
+          it.fit === "loose" ||
+          it.fit === "oversized" ||
+          it.bottom_fit === "wide-leg";
+        return !softWaist && !relaxedFit;
+      }
+      return false;
+    };
 
     // Wardrobe-aware capabilities: each mood validator only fires
     // when the wardrobe actually contains a compliant item, so a user
@@ -2996,7 +3020,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           });
           return false;
         }
-        const tailored = s.items.find(itemIsStructured);
+        const tailored = s.items.find(itemIsTailoredForComfortBan);
         if (tailored) {
           drops.push({
             ids: s._ids,
@@ -3563,7 +3587,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           (i) => i.category === "shoes" &&
             (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
         )) return false;
-        if (mood === "period" && s.items.some(itemIsStructured)) return false;
+        if (mood === "period" && s.items.some(itemIsTailoredForComfortBan)) return false;
         if (mood === "sad" && s.items.some(
           (i) => i.category === "shoes" && i.toe_shape === "pointed"
         )) return false;
