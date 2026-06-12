@@ -42,6 +42,11 @@ export default function HomePage() {
   // state. Showing nothing during the load avoids a flash of the
   // "Add your first piece" CTA for users who already have a wardrobe.
   const [wardrobeCount, setWardrobeCount] = useState<number | null>(null);
+  // Distinct from "wardrobe is empty": a failed /api/items fetch used to
+  // set count 0 and show an established user the first-run "add your
+  // first piece" state on flaky cellular (audit P1).
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [recentOutfits, setRecentOutfits] = useState<(TodayOutfit & { items: ClothingItem[] })[]>([]);
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [todayExpanded, setTodayExpanded] = useState(false);
@@ -58,7 +63,11 @@ export default function HomePage() {
           fetch("/api/items"),
         ]);
 
-        const allItems: ClothingItem[] = itemsRes.ok ? await itemsRes.json() : [];
+        if (!itemsRes.ok) {
+          setLoadFailed(true);
+          return;
+        }
+        const allItems: ClothingItem[] = await itemsRes.json();
         setWardrobeCount(allItems.length);
 
         if (todayRes.ok) {
@@ -90,10 +99,11 @@ export default function HomePage() {
         }
       } catch (err) {
         console.error("Failed to load home data:", err);
+        setLoadFailed(true);
       }
     }
     load();
-  }, []);
+  }, [reloadKey]);
 
   async function toggleTodayFavorite() {
     if (!todayOutfit) return;
@@ -249,6 +259,30 @@ export default function HomePage() {
     if (hour < 18) return t("home.goodAfternoon");
     return t("home.goodEvening");
   })();
+
+  // Fetch failure is NOT an empty wardrobe — show an honest error with
+  // a retry instead of the first-run CTA or an eternal skeleton.
+  if (loadFailed) {
+    return (
+      <div className="mx-auto max-w-md px-4 pt-6">
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center mt-12">
+          <p className="text-sm text-muted-foreground mb-4">
+            {t("common.loadFailed")}
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setLoadFailed(false);
+              setWardrobeCount(null);
+              setReloadKey((k) => k + 1);
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Hold the render until we know whether the wardrobe is empty.
   // Without this gate, the populated home flashes for first-time users

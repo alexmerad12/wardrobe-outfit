@@ -7,6 +7,8 @@
     "profile": "Profil"
   },
   "common": {
+    "loadFailed": "Impossible de charger pour le moment — vérifie ta connexion.",
+    "retry": "Réessayer",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "next": "Suivant",

@@ -106,15 +106,25 @@ function WardrobePageInner() {
     onItemSaved,
   } = usePendingUploads();
 
+  // Distinguish "fetch failed" from "wardrobe is empty": a network
+  // failure used to leave items=[] and show an established user the
+  // first-run empty state (audit P1). Only the INITIAL load flips to
+  // the error screen — a failed background refetch (save events) keeps
+  // showing the data we already have.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const hasLoadedRef = useRef(false);
+
   const refetchItems = useCallback(async () => {
     try {
       const res = await fetch("/api/items");
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data);
-      }
+      if (!res.ok) throw new Error(`/api/items ${res.status}`);
+      const data = await res.json();
+      setItems(data);
+      hasLoadedRef.current = true;
+      setLoadFailed(false);
     } catch (err) {
       console.error("Failed to fetch items:", err);
+      if (!hasLoadedRef.current) setLoadFailed(true);
     }
   }, []);
 
@@ -653,6 +663,20 @@ function WardrobePageInner() {
           {Array.from({ length: 6 }).map((_, i) => (
             <ClothingCardSkeleton key={i} />
           ))}
+        </div>
+      ) : loadFailed && items.length === 0 ? (
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
+          <p className="text-sm text-muted-foreground mb-4">{t("common.loadFailed")}</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setLoading(true);
+              setLoadFailed(false);
+              refetchItems().finally(() => setLoading(false));
+            }}
+          >
+            {t("common.retry")}
+          </Button>
         </div>
       ) : filteredItems.length === 0 && pending.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-12 text-center">

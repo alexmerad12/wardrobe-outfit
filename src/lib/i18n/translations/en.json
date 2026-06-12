@@ -7,6 +7,8 @@
     "profile": "Profile"
   },
   "common": {
+    "loadFailed": "Couldn't load right now — check your connection.",
+    "retry": "Retry",
     "save": "Save",
     "cancel": "Cancel",
     "next": "Next",
