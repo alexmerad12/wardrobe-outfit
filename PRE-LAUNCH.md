@@ -48,9 +48,9 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] **Turn email confirmation ON** in Supabase (Authentication → Providers → Email → "Confirm email" toggle). Currently OFF to speed up dev/testing. Must be ON before wider launch to stop fake sign-ups.
 - [ ] **Submit Google OAuth app for verification** to remove the "This app isn't verified" warning screen. Google review takes 1–4 weeks. Needed once we expect non-test-user sign-ins.
 - [ ] **Add production test users** in Google Cloud Console for any friend who wants to use Google sign-in (while app is still in Testing mode, ≤100 users).
-- [ ] Consider rate limiting on `/api/suggest` and `/api/packing` (Anthropic API costs money; one abusive user could rack up a bill).
-- [ ] Account deletion button on Profile page (legally required for App Store; good to have anyway).
-- [ ] Password reset flow (Supabase supports it — need a `/auth/reset-password` page).
+- [x] ~~Rate limiting on AI endpoints~~ — done (June audit, C4): per-user daily caps on all five Gemini endpoints (suggest 3 / refine 10 / try-on 3 / packing 2 / analyze 40), user-local-day reset, refunds on failures, admin bypass, KV-outage alerting.
+- [x] ~~Account deletion button~~ — done: Profile → Settings → Privacy has the full delete-account flow backed by `/api/account/delete` (+ data export beside it).
+- [x] ~~Password reset flow~~ — done: `/forgot-password` → Supabase reset email → `/auth/callback` → `/welcome` set-password.
 
 ### Content / legal
 - [ ] Real app logo (1024×1024 PNG) for consent screens + store listings + favicon + PWA icons.
@@ -80,10 +80,11 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] Delete legacy Vercel Blob images once all items have been re-uploaded to Supabase Storage (if we migrate old images; currently they stay on Vercel Blob indefinitely).
 
 ### Polish
-- [ ] "Welcome / first-run" UX for brand-new empty accounts (currently they see an empty home page — should show an onboarding nudge).
-- [ ] Error toasts for failed uploads / saves (currently silent errors).
-- [ ] Loading skeletons on data-heavy pages.
-- [ ] SEO: og:image, twitter:card, sitemap.xml, robots.txt.
+- [x] ~~First-run UX for empty accounts~~ — done: 4-step onboarding wizard + dedicated empty-wardrobe home state with add-item CTAs.
+- [x] ~~Error feedback for failed uploads / saves~~ — done (June audit, C2/C3): every mutation checks the response; loads distinguish error-from-empty with retry; upload tiles show localized errors.
+- [x] ~~Loading skeletons~~ — done on home / wardrobe / suggest / favorites (profile stats still flash 0 → real; minor, in the audit's deferred list).
+- [x] ~~og:image / twitter:card~~ — done: `opengraph-image.png` + `twitter-image.png` + metadata in `layout.tsx`.
+- [ ] SEO remainder: `sitemap.xml` + `robots.txt` (Next file conventions; ~15 min — only matters for public discoverability, not for the invite beta).
 
 ---
 
