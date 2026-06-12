@@ -10,7 +10,8 @@
     "test:smoke": "playwright test ui-smoke.spec.ts stress-crud.spec.ts",
     "test:stress": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts stress-wear-today.spec.ts",
     "test:stress:fast": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-wear-today.spec.ts",
-    "test:stress:ai": "playwright test stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts"
+    "test:stress:ai": "playwright test stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts",
+    "test:rules": "playwright test rule-compliance.spec.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

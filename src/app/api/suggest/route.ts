@@ -3932,42 +3932,52 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     if (aiError && capCount !== null && capCount !== -1) {
       refundDailyCap(countKey);
     }
+    // Per-request rule telemetry. Without this, a rule rejecting 90%
+    // of candidates is invisible outside Vercel console logs. Persisted
+    // in ai_calls.metadata; also returned inline for admin debug runs
+    // and the Phase 6 rule-compliance harness.
+    const rulesTelemetry = {
+      ship_path: suggestions.length === 0 ? "none" : shipPath,
+      relaxed:
+        suggestions.length > 0
+          ? (suggestions[0] as { relaxed?: boolean }).relaxed === true
+          : null,
+      drops: drops.slice(0, 15).map((d) => d.reason.slice(0, 140)),
+      soft_mismatch: softMismatch.length,
+      regenerate: regenAttempted
+        ? {
+            adopted: regenAdopted,
+            first_attempt_drops: firstAttemptDrops
+              .slice(0, 10)
+              .map((r) => r.slice(0, 140)),
+          }
+        : null,
+      auto_fixes: shippedFixes,
+      anchor_requested: !!anchorItemId,
+      anchor_shipped: anchorShipped,
+      recent_min_diff: recentMinDiff,
+      weather_source: weatherSource,
+    };
     logAiCall(supabase, userId, "suggest", {
       succeeded: !aiError,
       metadata: {
         mood,
         occasion,
         outfit_count: suggestions.length,
-        // Per-request rule telemetry. Without this, a rule rejecting 90%
-        // of candidates is invisible outside Vercel console logs.
-        rules: {
-          ship_path: suggestions.length === 0 ? "none" : shipPath,
-          relaxed:
-            suggestions.length > 0
-              ? (suggestions[0] as { relaxed?: boolean }).relaxed === true
-              : null,
-          drops: drops.slice(0, 15).map((d) => d.reason.slice(0, 140)),
-          soft_mismatch: softMismatch.length,
-          regenerate: regenAttempted
-            ? {
-                adopted: regenAdopted,
-                first_attempt_drops: firstAttemptDrops
-                  .slice(0, 10)
-                  .map((r) => r.slice(0, 140)),
-              }
-            : null,
-          auto_fixes: shippedFixes,
-          anchor_requested: !!anchorItemId,
-          anchor_shipped: anchorShipped,
-          recent_min_diff: recentMinDiff,
-          weather_source: weatherSource,
-        },
+        rules: rulesTelemetry,
       },
     });
+    // DEBUG MODE (?debug=rules) — admin/bypass users only. Returns the
+    // rule-check trail inline so a "why did I get this outfit?" report
+    // is diagnosable in seconds, and the compliance harness can assert
+    // on ship paths instead of reverse-engineering them.
+    const wantsDebug =
+      request.nextUrl.searchParams.get("debug") === "rules" && isAdmin;
     return NextResponse.json({
       suggestions,
       wardrobe_gap,
       ...(aiError && { ai_error: true }),
+      ...(wantsDebug && { _debug_rules: rulesTelemetry }),
     });
   } catch (error) {
     console.error("Suggestion error:", error);
