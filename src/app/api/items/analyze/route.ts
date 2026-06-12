@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(sanitized);
   } catch (err) {
     console.error("[analyze] Item analyze error:", err);
+    Sentry.captureException(err);
     logAiCall(supabase, userId, "analyze_item", { succeeded: false });
     return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
   }

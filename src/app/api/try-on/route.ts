@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { kv } from "@vercel/kv";
 import sharp from "sharp";
@@ -356,6 +357,7 @@ ${wardrobeList}`,
     });
   } catch (err) {
     console.error("Try-on error:", err);
+    Sentry.captureException(err);
     logAiCall(supabase, userId, "try_on", { succeeded: false });
     return NextResponse.json(
       { error: "Failed to analyze the item" },

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { kv } from "@vercel/kv";
@@ -3949,6 +3950,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     });
   } catch (error) {
     console.error("Suggestion error:", error);
+    Sentry.captureException(error);
     logAiCall(supabase, userId, "suggest", { succeeded: false });
     return NextResponse.json(
       { error: "Failed to generate suggestions" },

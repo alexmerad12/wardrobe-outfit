@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI } from "@google/genai";
 import { kv } from "@vercel/kv";
 import type { ClothingItem } from "@/lib/types";
@@ -218,6 +219,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     });
   } catch (error) {
     console.error("Packing list error:", error);
+    Sentry.captureException(error);
     logAiCall(supabase, userId, "packing", { succeeded: false });
     return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
   }

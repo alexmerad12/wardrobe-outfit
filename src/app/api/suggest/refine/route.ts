@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI, Type } from "@google/genai";
 import { kv } from "@vercel/kv";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
@@ -159,7 +160,7 @@ Respond with ONLY:
       // client gets SOMETHING usable rather than an error. Save flow
       // already graceful-degrades on errors but a usable string is
       // better than nothing.
-      logAiCall(supabase, userId, "suggest", { succeeded: false });
+      logAiCall(supabase, userId, "refine", { succeeded: false });
       return NextResponse.json(
         { error: "Failed to parse refine response" },
         { status: 502 }
@@ -180,7 +181,7 @@ Respond with ONLY:
     const styling_tip =
       rawTip && textIsConsistent(cleanItems, rawTip, locale) ? rawTip : null;
 
-    logAiCall(supabase, userId, "suggest", {
+    logAiCall(supabase, userId, "refine", {
       metadata: {
         kind: "refine",
         item_count: items.length,
@@ -194,7 +195,8 @@ Respond with ONLY:
     return NextResponse.json({ reasoning, styling_tip });
   } catch (err) {
     console.error("[refine] error:", err);
-    logAiCall(supabase, userId, "suggest", { succeeded: false });
+    Sentry.captureException(err);
+    logAiCall(supabase, userId, "refine", { succeeded: false });
     return NextResponse.json(
       { error: "Refine failed" },
       { status: 500 }
