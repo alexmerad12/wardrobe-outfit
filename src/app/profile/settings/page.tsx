@@ -72,6 +72,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   // City search
   const [cityQuery, setCityQuery] = useState("");
@@ -169,8 +170,9 @@ export default function SettingsPage() {
 
   async function handleSave() {
     setSaving(true);
+    setSaveFailed(false);
     try {
-      await fetch("/api/preferences", {
+      const res = await fetch("/api/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -186,6 +188,9 @@ export default function SettingsPage() {
           avoided_colors: [],
         }),
       });
+      // A non-2xx used to flash the "Saved" confirmation anyway —
+      // the settings silently never persisted (audit P1).
+      if (!res.ok) throw new Error(`/api/preferences ${res.status}`);
       // Clear cached locale/unit/gender so the change takes effect immediately on next render
       try {
         window.localStorage.removeItem("locale:v1");
@@ -196,6 +201,7 @@ export default function SettingsPage() {
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error("Failed to save preferences:", err);
+      setSaveFailed(true);
     } finally {
       setSaving(false);
     }
@@ -484,6 +490,11 @@ export default function SettingsPage() {
               </Select>
             </div>
 
+            {saveFailed && (
+              <p className="text-sm text-red-600" role="alert">
+                {t("common.saveFailed")}
+              </p>
+            )}
             <Button className="w-full" onClick={handleSave} disabled={saving || saved}>
               {saving ? (
                 <>

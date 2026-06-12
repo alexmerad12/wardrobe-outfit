@@ -45,6 +45,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   // Initial language: detected (en/fr). User can switch in profile.
   // We dropped "auto" as an explicit option — it always resolves to one
@@ -173,8 +174,9 @@ export default function OnboardingPage() {
 
   async function handleFinish() {
     setSaving(true);
+    setSaveFailed(false);
     try {
-      await fetch("/api/preferences", {
+      const res = await fetch("/api/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -185,6 +187,11 @@ export default function OnboardingPage() {
           temperature_sensitivity: tempSensitivity,
         }),
       });
+      // A non-2xx used to be treated as success: the user navigated
+      // home, the proxy's no-prefs gate bounced them straight back to
+      // /onboarding with every answer wiped — a silent loop (audit P1).
+      // Staying on this screen keeps their answers in state.
+      if (!res.ok) throw new Error(`/api/preferences ${res.status}`);
       try {
         window.localStorage.removeItem("locale:v1");
         window.localStorage.removeItem("gender:v1");
@@ -194,6 +201,7 @@ export default function OnboardingPage() {
       router.refresh();
     } catch (err) {
       console.error("Failed to save onboarding:", err);
+      setSaveFailed(true);
       setSaving(false);
     }
   }
@@ -445,6 +453,11 @@ export default function OnboardingPage() {
               </div>
             )}
 
+            {saveFailed && (
+              <p className="text-sm text-red-600 pt-2" role="alert">
+                {t("common.saveFailed")}
+              </p>
+            )}
             <div className="flex gap-2 pt-2">
               {step > 1 && (
                 <Button

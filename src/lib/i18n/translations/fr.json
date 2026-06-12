@@ -8,6 +8,7 @@
   },
   "common": {
     "loadFailed": "Impossible de charger pour le moment — vérifie ta connexion.",
+    "saveFailed": "Impossible d'enregistrer — vérifie ta connexion et réessaie.",
     "retry": "Réessayer",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -154,6 +155,8 @@
     "suggestionCounter": "Suggestion {current} sur {total}",
     "singleOutfitTagline": "Ta tenue stylée",
     "showAnother": "Une autre suggestion",
+    "saveFailed": "Impossible d'enregistrer cette tenue — réessaie.",
+    "wearFailed": "Impossible de définir la tenue du jour — réessaie.",
     "relaxedNotice": "J'ai assoupli une règle ou deux pour celle-ci — ta garde-robe n'avait pas d'option parfaitement dans les règles pour cette demande.",
     "styling": "En préparation...",
     "howAreYouFeelingShort": "Humeur du jour ?",

@@ -333,7 +333,7 @@ function SuggestContent() {
         swapPairs.length > 0
           ? await refineEditedOutfit(suggestion)
           : { reasoning: suggestion.reasoning, styling_tip: suggestion.styling_tip };
-      await fetch("/api/outfits", {
+      const res = await fetch("/api/outfits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -353,9 +353,13 @@ function SuggestContent() {
           swap_pairs: swapPairs,
         }),
       });
+      // Only mark the heart once the server confirmed — the "Saved"
+      // state used to show even when the POST failed (audit P1).
+      if (!res.ok) throw new Error(`/api/outfits ${res.status}`);
       setFavoritedIndices((prev) => new Set(prev).add(currentIndex));
     } catch (err) {
       console.error("Failed to save:", err);
+      alert(t("suggest.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -403,7 +407,7 @@ function SuggestContent() {
       // page's "today" card matches the items actually being worn.
       // Phase 1 missed this — was passing suggestion.reasoning (the
       // pre-edit text), so swapped outfits showed stale descriptions.
-      await fetch("/api/today", {
+      const todayRes = await fetch("/api/today", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -420,10 +424,14 @@ function SuggestContent() {
           date: getLocalDateString(),
         }),
       });
+      // Navigating home on failure showed a homepage with no outfit set
+      // and no explanation (audit P2) — stay here and say so instead.
+      if (!todayRes.ok) throw new Error(`/api/today ${todayRes.status}`);
 
       router.push("/");
     } catch (err) {
       console.error("Failed to set today:", err);
+      alert(t("suggest.wearFailed"));
     } finally {
       setSaving(false);
     }
