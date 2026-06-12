@@ -108,6 +108,7 @@
     "altClothingItem": "Vêtement"
   },
   "home": {
+    "noItemsStrip": "Aucune pièce",
     "welcomeToBrand": "Bienvenue chez {brand}",
     "emptyWardrobeSub": "Ton dressing est vide — ajoute ta première pièce pour que Linette puisse commencer à te styliser.",
     "emptyWardrobeHint": "Prends une photo d'une pièce et Linette s'occupe du reste — fond retiré, détails identifiés, et sauvegarde dans ton dressing.",
@@ -164,7 +165,6 @@
     "optional": "Optionnel - tape celles qui s'appliquent",
     "customWishPlaceholder": "Ou écris ton idée... (ex : « Je veux porter mes bottes rouges »)",
     "whatsOccasionShort": "Quelle occasion ?",
-    "styling": "Composition",
     "packing": "Préparation",
     "linetteStylingPhase1": "Exploration",
     "linetteStylingPhase2": "Couleurs",
@@ -756,8 +756,8 @@
   },
   "wardrobe": {
     "title": "Dressing",
-    "items": "item",
-    "itemsPlural": "items",
+    "items": "pièce",
+    "itemsPlural": "pièces",
     "add": "Ajouter",
     "select": "Sélectionner",
     "outfit": "Tenue",
@@ -967,8 +967,8 @@
     "title": "Essentiels de voyage",
     "delete": "Supprimer le voyage",
     "planTrip": "Organise ton séjour",
-    "itemsToPack": "{count} items à emporter",
-    "items": "items",
+    "itemsToPack": "{count} pièces à emporter",
+    "items": "pièces",
     "destination": "Destination",
     "destinationPlaceholder": "Où vas-tu ?",
     "from": "Du",

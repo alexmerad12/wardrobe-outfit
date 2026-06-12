@@ -15,6 +15,7 @@ import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { convertTemp } from "@/lib/temperature";
 import { getLocalDateString } from "@/lib/local-date";
+import { weatherConditionLabelKey } from "@/lib/weather-condition-label";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { BrandedName } from "@/components/brand/branded-name";
@@ -688,7 +689,7 @@ export default function HomePage() {
                         ))}
                         {outfit.items.length === 0 && (
                           <div className="flex-1 bg-muted/20 flex items-center justify-center">
-                            <p className="text-xs text-muted-foreground">No items</p>
+                            <p className="text-xs text-muted-foreground">{t("home.noItemsStrip")}</p>
                           </div>
                         )}
                       </div>
@@ -713,7 +714,12 @@ export default function HomePage() {
                           <Badge variant="outline" className={cn("gap-0.5", isExpanded ? "text-xs" : "text-[10px]")}>
                             <Thermometer className={isExpanded ? "h-3 w-3" : "h-2.5 w-2.5"} />
                             {convertTemp(outfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}
-                            {isExpanded && outfit.weather_condition ? ` ${outfit.weather_condition}` : ""}
+                            {isExpanded && outfit.weather_condition
+                              ? ` ${(() => {
+                                  const key = weatherConditionLabelKey(outfit.weather_condition);
+                                  return key ? t(key) : outfit.weather_condition;
+                                })()}`
+                              : ""}
                           </Badge>
                         )}
                         {outfit.occasion && (

@@ -108,6 +108,7 @@
     "altClothingItem": "Clothing item"
   },
   "home": {
+    "noItemsStrip": "No items",
     "goodMorning": "Morning from {brand}",
     "goodAfternoon": "Hello from {brand}",
     "goodEvening": "Evening from {brand}",
@@ -164,7 +165,6 @@
     "optional": "Optional - tap any that apply",
     "customWishPlaceholder": "Or type your own... (e.g. 'I want to wear my red boots')",
     "whatsOccasionShort": "What's the occasion?",
-    "styling": "Styling",
     "packing": "Packing",
     "linetteStylingPhase1": "Browsing closet",
     "linetteStylingPhase2": "Mixing colours",

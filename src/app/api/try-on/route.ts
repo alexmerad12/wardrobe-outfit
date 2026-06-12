@@ -8,7 +8,7 @@ import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { colorFamily } from "@/lib/color-family";
-import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
+import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
@@ -88,6 +88,11 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: "Missing image" }, { status: 400 });
     }
+    // Locale plumb-through (audit P2): this endpoint ignored locale
+    // entirely — French users got English item names and outfit reasons.
+    const localeField = formData.get("locale");
+    const locale: "en" | "fr" = localeField === "fr" ? "fr" : "en";
+    const languageName = locale === "fr" ? "French" : "English";
 
     capCount = await consumeDailyCap(countKey);
     if (!isAdmin && capCount > TRY_ON_DAILY_CAP) {
@@ -122,7 +127,9 @@ export async function POST(request: NextRequest) {
             {
               role: "user",
               parts: [
-                { text: ANALYZE_SYSTEM_PROMPT },
+                // Locale-aware variant of the analyze prompt so the
+                // transient item NAME comes back in the user's language.
+                { text: buildAnalyzePrompt(locale) },
                 { inlineData: { mimeType: mediaType, data: base64 } },
                 { text: "Analyze this garment and return the JSON object." },
               ],
@@ -268,7 +275,7 @@ Rules for each outfit:
 - Must form a complete outfit: if the new item is a top/bottom, pair with opposite + shoes. If it's a dress / jumpsuit, add shoes + optional outerwear. If it's outerwear, pair with a full base (top+bottom or dress) + shoes.
 - Never pair a dress or jumpsuit with another top or bottom.
 - Skip the outfit entirely if you can't build a complete look around the new item.
-- "reason": ONE short sentence in English explaining why this pairing works — refer to pieces by broad category only (the dress, the jacket, the shoes).
+- "reason": ONE short sentence in ${languageName} explaining why this pairing works — refer to pieces by broad category only (the dress, the jacket, the shoes).
 
 NEW ITEM (not in wardrobe yet):
 ${phantomLine}

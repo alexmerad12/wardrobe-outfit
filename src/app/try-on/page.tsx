@@ -36,7 +36,7 @@ type TryOnResult = {
 
 export default function TryOnPage() {
   const router = useRouter();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const labels = useLabels();
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +75,9 @@ export default function TryOnPage() {
       const resized = await downscaleImage(file, 1280);
       const body = new FormData();
       body.append("image", resized, "try-on.jpg");
+      // Locale ride-along so item names + outfit reasons come back in
+      // the user's language (audit P2 — this endpoint ignored locale).
+      body.append("locale", locale);
       const res = await fetch("/api/try-on", { method: "POST", body });
       if (res.status === 429) {
         setLimitReached(true);

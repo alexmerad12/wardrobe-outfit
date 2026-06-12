@@ -22,36 +22,10 @@ import {
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { WEATHER_CONDITION_KEYS } from "@/lib/weather-condition-label";
 
-// Maps the English condition strings produced by src/lib/weather.ts to the
-// slug keys under "weatherCondition" in the translation files. Kept in the
-// widget rather than on the server so the WeatherData payload stays simple.
-const CONDITION_KEYS: Record<string, string> = {
-  "Clear sky": "clearSky",
-  "Mainly clear": "mainlyClear",
-  "Partly cloudy": "partlyCloudy",
-  "Overcast": "overcast",
-  "Fog": "fog",
-  "Depositing rime fog": "rimeFog",
-  "Light drizzle": "lightDrizzle",
-  "Moderate drizzle": "moderateDrizzle",
-  "Dense drizzle": "denseDrizzle",
-  "Slight rain": "slightRain",
-  "Moderate rain": "moderateRain",
-  "Heavy rain": "heavyRain",
-  "Slight snow": "slightSnow",
-  "Moderate snow": "moderateSnow",
-  "Heavy snow": "heavySnow",
-  "Snow grains": "snowGrains",
-  "Slight rain showers": "slightRainShowers",
-  "Moderate rain showers": "moderateRainShowers",
-  "Violent rain showers": "violentRainShowers",
-  "Slight snow showers": "slightSnowShowers",
-  "Heavy snow showers": "heavySnowShowers",
-  "Thunderstorm": "thunderstorm",
-  "Thunderstorm with slight hail": "thunderstormSlightHail",
-  "Thunderstorm with heavy hail": "thunderstormHeavyHail",
-};
+// Condition-string → i18n-key mapping lives in
+// src/lib/weather-condition-label.ts (shared with the outfit cards).
 
 const COORDS_KEY = "wx:coords:v1";
 const DATA_KEY_PREFIX = "wx:data:v1:";
@@ -308,7 +282,7 @@ export function WeatherWidget() {
   }
 
   const { Icon, bg } = iconForCondition(weather.condition);
-  const conditionKey = CONDITION_KEYS[weather.condition];
+  const conditionKey = WEATHER_CONDITION_KEYS[weather.condition];
   const conditionLabel = conditionKey
     ? t(`weatherCondition.${conditionKey}`)
     : weather.condition;
