@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { ClothingItem, Category } from "@/lib/types";
@@ -19,6 +20,9 @@ export default function ProfilePage() {
   const [itemCount, setItemCount] = useState(0);
   const [outfitCount, setOutfitCount] = useState(0);
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
+  // Failure used to render "0 articles / 0 tenues" as if true (audit P2).
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     async function loadProfile() {
@@ -29,7 +33,12 @@ export default function ProfilePage() {
           fetch("/api/logs"),
         ]);
 
-        if (itemsRes.ok) {
+        if (!itemsRes.ok) {
+          setLoadFailed(true);
+          return;
+        }
+        setLoadFailed(false);
+        {
           const items = await itemsRes.json();
           setItemCount(items.length);
           setAllItems(items);
@@ -48,10 +57,11 @@ export default function ProfilePage() {
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
+        setLoadFailed(true);
       }
     }
     loadProfile();
-  }, []);
+  }, [reloadKey]);
 
   // ---------- Computed stats ----------
 
@@ -117,7 +127,26 @@ export default function ProfilePage() {
         </Link>
       </div>
 
+      {/* Fetch failed — show an honest error instead of "0 items /
+          0 outfits" pretending to be real stats (audit P2). */}
+      {loadFailed && (
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-6 text-center mb-6">
+          <p className="text-sm text-muted-foreground mb-3">{t("common.loadFailed")}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setLoadFailed(false);
+              setReloadKey((k) => k + 1);
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
+      )}
+
       {/* Stats */}
+      {!loadFailed && (
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card>
           <CardContent className="p-4 text-center">
@@ -132,6 +161,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Wardrobe Insights */}
       {allItems.length > 0 && (

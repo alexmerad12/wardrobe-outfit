@@ -88,15 +88,27 @@ function SuggestContent() {
 
   // Load full wardrobe once for swap-modal alternatives AND the
   // empty-wardrobe CTA below. Same fetch serves both — no second call.
+  // Failure is tracked separately from emptiness: it used to render the
+  // "add your first items" CTA to established users on flaky network
+  // (audit P2).
+  const [wardrobeLoadFailed, setWardrobeLoadFailed] = useState(false);
+  const [wardrobeReloadKey, setWardrobeReloadKey] = useState(0);
   useEffect(() => {
     fetch("/api/items")
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => {
+        if (!r.ok) throw new Error(`/api/items ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setWardrobe(data);
+        setWardrobeLoadFailed(false);
         setWardrobeLoaded(true);
       })
-      .catch(() => setWardrobeLoaded(true));
-  }, []);
+      .catch(() => {
+        setWardrobeLoadFailed(true);
+        setWardrobeLoaded(true);
+      });
+  }, [wardrobeReloadKey]);
 
   // Active wardrobe count (stored items don't count — the suggest API
   // filters them out). Matches the API's `items.length < 3` gate so
@@ -104,7 +116,12 @@ function SuggestContent() {
   // mood/occasion form only to hit the same threshold server-side.
   const activeWardrobeCount = wardrobe.filter((i) => !i.is_stored).length;
   const showEmptyWardrobeCTA =
-    wardrobeLoaded && activeWardrobeCount < 3 && step !== "results";
+    wardrobeLoaded &&
+    !wardrobeLoadFailed &&
+    activeWardrobeCount < 3 &&
+    step !== "results";
+  const showWardrobeLoadError =
+    wardrobeLoaded && wardrobeLoadFailed && step !== "results";
 
   // Replace an item in the current suggestion with the chosen
   // alternative. Local-only — saving as a favorite uses the edited
@@ -510,6 +527,23 @@ function SuggestContent() {
         </div>
       )}
 
+      {/* Wardrobe fetch failed — honest error + retry instead of the
+          misleading "add your first items" CTA (audit P2). */}
+      {showWardrobeLoadError && (
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
+          <p className="text-sm text-muted-foreground mb-4">{t("common.loadFailed")}</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setWardrobeLoaded(false);
+              setWardrobeReloadKey((k) => k + 1);
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
+      )}
+
       {/* Skeleton — covers the brief window between mount and the
           wardrobe fetch resolving, so we don't flash either the form
           (to a wardrobe-less user) or the empty CTA (to an established
@@ -526,7 +560,7 @@ function SuggestContent() {
       )}
 
       {/* Step 1: Mood selection */}
-      {wardrobeLoaded && !showEmptyWardrobeCTA && step === "mood" && (
+      {wardrobeLoaded && !wardrobeLoadFailed && !showEmptyWardrobeCTA && step === "mood" && (
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-3">
@@ -545,7 +579,7 @@ function SuggestContent() {
       )}
 
       {/* Step 2: Style wishes (optional) */}
-      {wardrobeLoaded && !showEmptyWardrobeCTA && step === "style" && (
+      {wardrobeLoaded && !wardrobeLoadFailed && !showEmptyWardrobeCTA && step === "style" && (
         <div className="space-y-6">
           <div>
             <h2 className="text-base font-semibold mb-1">
@@ -588,7 +622,7 @@ function SuggestContent() {
       )}
 
       {/* Step 3: Occasion selection */}
-      {wardrobeLoaded && !showEmptyWardrobeCTA && step === "occasion" && (
+      {wardrobeLoaded && !wardrobeLoadFailed && !showEmptyWardrobeCTA && step === "occasion" && (
         <div className="space-y-4">
           <div className="space-y-3">
             <h2 className="text-base font-semibold mb-2">

@@ -24,6 +24,8 @@ export default function FavoritesPage() {
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [allItems, setAllItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
@@ -54,10 +56,16 @@ export default function FavoritesPage() {
           fetch("/api/items"),
         ]);
 
-        const items = itemRes.ok ? ((await itemRes.json()) as ClothingItem[]) : [];
+        // Failure is not "no favorites" — it used to render the
+        // new-user empty state on network errors (audit P2).
+        if (!outfitRes.ok || !itemRes.ok) {
+          setLoadFailed(true);
+          return;
+        }
+        const items = (await itemRes.json()) as ClothingItem[];
         setAllItems(items);
 
-        const outfitData = outfitRes.ok ? ((await outfitRes.json()) as Outfit[]) : [];
+        const outfitData = (await outfitRes.json()) as Outfit[];
 
         // Only show favorited outfits, resolve items, and apply the
         // canonical head-to-toe display order so favorites read the
@@ -74,14 +82,16 @@ export default function FavoritesPage() {
           }));
 
         setOutfits(resolved);
+        setLoadFailed(false);
       } catch (err) {
         console.error("Failed to fetch favorites:", err);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
     }
     fetchFavorites();
-  }, []);
+  }, [reloadKey]);
 
   async function wearFavoriteToday(outfit: Outfit) {
     // Pass outfit_id so the wear log links back to this favorite —
@@ -273,6 +283,20 @@ export default function FavoritesPage() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-32 animate-pulse rounded-xl bg-muted" />
           ))}
+        </div>
+      ) : loadFailed ? (
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 text-center">
+          <p className="text-sm text-muted-foreground mb-4">{t("common.loadFailed")}</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setLoading(true);
+              setLoadFailed(false);
+              setReloadKey((k) => k + 1);
+            }}
+          >
+            {t("common.retry")}
+          </Button>
         </div>
       ) : outfits.length === 0 ? (
         // Branch on wardrobe count — a first-time user with zero items
