@@ -12,6 +12,32 @@ import * as Sentry from "@sentry/nextjs";
 //    logs and reaches Sentry. Previously `.catch(() => -1)` disabled
 //    every cap in total silence.
 
+// User-local YYYY-MM-DD for cap keys. Caps used to roll over at UTC
+// midnight — 8pm in Québec — giving evening users a double daily
+// budget while the "try again tomorrow" copy was wrong in both
+// directions (audit C5). Vercel's IP-timezone header gives a good-
+// enough local day; UTC remains the fallback (local dev, unknown IPs).
+// The existing 36h TTL on cap keys already covers the wraparound.
+export function localDayKey(request: {
+  headers: { get(name: string): string | null };
+}): string {
+  const tz = request.headers.get("x-vercel-ip-timezone");
+  if (tz) {
+    try {
+      // en-CA formats as YYYY-MM-DD.
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+    } catch {
+      // Unrecognized timezone string — fall through to UTC.
+    }
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
 export async function consumeDailyCap(key: string): Promise<number> {
   let count: number;
   try {

@@ -353,7 +353,15 @@ function buildCreditLine(opts: OutfitImageOptions): string | null {
   if (opts.weatherCondition) parts.push(opts.weatherCondition);
   if (opts.occasion) parts.push(opts.occasion);
   if (opts.date) {
-    const d = opts.date instanceof Date ? opts.date : new Date(opts.date);
+    // Date-only strings ("2026-06-12") parse as UTC midnight, which
+    // formats as YESTERDAY for any user west of UTC (audit P2). Anchor
+    // at local noon instead — same trick as the home page labels.
+    const d =
+      opts.date instanceof Date
+        ? opts.date
+        : /^\d{4}-\d{2}-\d{2}$/.test(opts.date)
+          ? new Date(opts.date + "T12:00:00")
+          : new Date(opts.date);
     if (!Number.isNaN(d.valueOf())) parts.push(formatShareDate(d));
   }
   if (parts.length === 0) return null;

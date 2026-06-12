@@ -6,7 +6,7 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
-import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
+import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 
 // Packing endpoint runs on Gemini 3 Flash Preview via @google/genai
 // with thinking disabled. Same setup as suggest, analyze, and try-on.
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   // (this route and try-on were missing the bypass).
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isAdmin = isCapBypassed(authUser?.email);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey(request);
   const countKey = `packing_count:${userId}:${today}`;
   let capCount: number | null = null;
 
@@ -88,8 +88,14 @@ export async function POST(request: NextRequest) {
     let weatherInfo = "Weather data unavailable.";
     try {
       const start = new Date(startDate);
-      const now = new Date();
-      const daysUntilTrip = Math.round((start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      // Date-only arithmetic: comparing UTC-midnight start against the
+      // current instant made a trip starting TODAY go negative after
+      // 12:00 UTC (8am Montréal) and silently lose the real forecast
+      // for historical averages (audit P2).
+      const todayStr = localDayKey(request);
+      const daysUntilTrip = Math.round(
+        (Date.parse(startDate) - Date.parse(todayStr)) / (1000 * 60 * 60 * 24)
+      );
 
       if (daysUntilTrip <= 10 && daysUntilTrip >= 0) {
         const forecastRes = await fetch(

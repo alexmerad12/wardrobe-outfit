@@ -7,7 +7,7 @@ import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
-import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
+import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 import { oneSentence, textIsConsistent } from "@/lib/suggest-text-guards";
 
 // Refine endpoint — re-writes reasoning + styling_tip for an outfit
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   // free validation exits, refunded when the request delivers nothing.
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isAdmin = isCapBypassed(authUser?.email);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey(request);
   const countKey = `refine_count:${userId}:${today}`;
   let capCount: number | null = null;
 

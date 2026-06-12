@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StylistLoader } from "@/components/stylist-loader";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { getLocalDateString } from "@/lib/local-date";
 import {
   ArrowLeft,
   Loader2,
@@ -241,8 +242,13 @@ export default function PackingPage() {
     return itemIds.map((id) => allItems.find((i) => i.id === id)).filter(Boolean) as ClothingItem[];
   }
 
-  const upcomingTrips = savedTrips.filter((t) => new Date(t.end_date) >= new Date());
-  const pastTrips = savedTrips.filter((t) => new Date(t.end_date) < new Date());
+  // String-compare date-only values against the user's LOCAL day —
+  // parsing end_date as UTC midnight flipped an ongoing trip into
+  // "Past trips" at 8pm the evening before it ended for Montréal
+  // users (audit P3).
+  const localToday = getLocalDateString();
+  const upcomingTrips = savedTrips.filter((t) => t.end_date >= localToday);
+  const pastTrips = savedTrips.filter((t) => t.end_date < localToday);
 
   return (
     <div className="mx-auto max-w-md px-4 pt-4 pb-24">

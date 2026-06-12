@@ -8,7 +8,7 @@ import { withGeminiRetry } from "@/lib/gemini-retry";
 import { ANALYZE_SYSTEM_PROMPT, buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
-import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
+import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 
 // Item analysis runs on Gemini 3 Flash Preview via @google/genai with
 // thinking disabled. The existing sanitizeAutoFill handles enum
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isAdmin = isCapBypassed(authUser?.email);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey(request);
   const countKey = `analyze_count:${userId}:${today}`;
   let capCount: number | null = null;
 

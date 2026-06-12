@@ -11,7 +11,7 @@ import { colorFamily } from "@/lib/color-family";
 import { ANALYZE_SYSTEM_PROMPT } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
-import { consumeDailyCap, refundDailyCap } from "@/lib/daily-cap";
+import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 
 // 2026-05-26 — dropped 10 -> 3 alongside the suggest cap reduction
 // after the gemini-3-flash-preview -> gemini-3.5-flash swap. Try-on
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
   // admin/tester bypass like every other AI route (was missing here).
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isAdmin = isCapBypassed(authUser?.email);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey(request);
   const countKey = `tryon_count:${userId}:${today}`;
   let capCount: number | null = null;
 

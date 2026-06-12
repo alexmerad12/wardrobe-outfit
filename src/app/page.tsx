@@ -54,7 +54,7 @@ export default function HomePage() {
   const [recentActionPending, setRecentActionPending] = useState(false);
   const [favToast, setFavToast] = useState<"saved" | "removed" | null>(null);
   const unit = useTemperatureUnit();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   useEffect(() => {
     async function load() {
@@ -612,11 +612,14 @@ export default function HomePage() {
           <div className="grid gap-3">
             {recentOutfits.slice(0, 10).map((outfit) => {
               const isExpanded = expandedRecent === outfit.outfit_id;
-              const dateLabel = new Date(outfit.date + "T12:00:00").toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              });
+              const dateLabel = new Date(outfit.date + "T12:00:00").toLocaleDateString(
+                locale === "fr" ? "fr-CA" : "en-US",
+                {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                }
+              );
               return (
                 <Card
                   key={outfit.outfit_id}
