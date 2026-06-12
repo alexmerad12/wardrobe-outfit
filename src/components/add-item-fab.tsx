@@ -31,7 +31,7 @@ export function AddItemFab() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useLocale();
-  const { addFiles } = usePendingUploads();
+  const { addFiles, fabSuppressed } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,8 +43,11 @@ export function AddItemFab() {
   //
   // Also hidden on the wardrobe sub-routes (/wardrobe/add, /bulk,
   // /[id]) — those already have their own upload UI and a floating
-  // duplicate would just compete with it.
-  if (pathname !== "/wardrobe") {
+  // duplicate would just compete with it. And hidden while the
+  // wardrobe's true-empty card is up: that card IS the add affordance,
+  // and a second floating "+" next to it confused first-time users
+  // (beta feedback).
+  if (pathname !== "/wardrobe" || fabSuppressed) {
     return null;
   }
 

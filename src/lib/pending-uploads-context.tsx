@@ -84,6 +84,13 @@ type ContextValue = {
   // mounted, so a batch that completes while the user is on a different
   // page is silently missed (no retroactive auto-nav).
   onBatchComplete: (listener: (readyItemIds: string[]) => void) => () => void;
+  // The wardrobe page suppresses the global "+" FAB while its
+  // true-empty card is on screen — two competing add affordances
+  // confused first-time users (beta feedback). Lives here because this
+  // provider is the one shared layer both the page and the FAB already
+  // consume; not upload state per se, but the smallest possible wiring.
+  fabSuppressed: boolean;
+  setFabSuppressed: (hidden: boolean) => void;
 };
 
 const Ctx = createContext<ContextValue | null>(null);
@@ -184,6 +191,7 @@ export function PendingUploadsProvider({
   children: React.ReactNode;
 }) {
   const [items, setItems] = useState<PendingItem[]>([]);
+  const [fabSuppressed, setFabSuppressed] = useState(false);
   const kickedOffRef = useRef<Set<string>>(new Set());
   // Item ids whose run timed out / errored while the underlying pipeline
   // may still be executing — the save step refuses to commit for these
@@ -773,6 +781,8 @@ export function PendingUploadsProvider({
         cancelAll,
         onItemSaved,
         onBatchComplete,
+        fabSuppressed,
+        setFabSuppressed,
       }}
     >
       {children}

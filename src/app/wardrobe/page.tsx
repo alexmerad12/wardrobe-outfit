@@ -105,6 +105,7 @@ function WardrobePageInner() {
     dismissAllFailed,
     clearReady,
     onItemSaved,
+    setFabSuppressed,
   } = usePendingUploads();
 
   // Distinguish "fetch failed" from "wardrobe is empty": a network
@@ -132,6 +133,17 @@ function WardrobePageInner() {
   useEffect(() => {
     refetchItems().finally(() => setLoading(false));
   }, [refetchItems]);
+
+  // Suppress the floating "+" while the true-empty card is on screen —
+  // the card already carries the add CTAs and a second affordance
+  // confused first-time users (beta feedback). Restored on unmount and
+  // the moment the first item lands.
+  const trueEmpty =
+    !loading && !loadFailed && items.length === 0 && pending.length === 0;
+  useEffect(() => {
+    setFabSuppressed(trueEmpty);
+    return () => setFabSuppressed(false);
+  }, [trueEmpty, setFabSuppressed]);
 
   // Read welcome-card dismissal from localStorage on mount. If never
   // dismissed, show the card (auto-hide threshold is handled below by
