@@ -733,6 +733,25 @@ function SuggestContent() {
         </div>
       )}
 
+      {/* Regenerating with no card on screen (e.g. "Try again" after an
+          error/empty result): the error card hides while loading and no
+          outfit card exists yet, so without this block the tap looked
+          like it did nothing for the entire regeneration (audit P1). */}
+      {step === "results" && suggestions.length === 0 && loading && (
+        <div className="rounded-xl border-2 border-dashed border-muted-foreground/20 p-8 flex justify-center">
+          <StylistLoader
+            phases={[
+              t("suggest.linetteStylingPhase1"),
+              t("suggest.linetteStylingPhase2"),
+              t("suggest.linetteStylingPhase3"),
+              t("suggest.linetteStylingPhase4"),
+              t("suggest.linetteStylingPhase5"),
+              t("suggest.linetteStylingPhase6"),
+            ]}
+          />
+        </div>
+      )}
+
       {/* Empty state — three distinct cases:
           1. limitError → daily cap reached, action is "wait until tomorrow"
           2. aiError → backend failure, action is "try again"
