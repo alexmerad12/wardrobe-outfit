@@ -50,6 +50,7 @@
   "auth": {
     "welcomeBack": "Welcome back",
     "oauthFailed": "Google sign-in didn't complete — please try again.",
+    "inviteOnly": "Linette is invite-only for now — ask the person who told you about it for an invite.",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "errInvalidCredentials": "Incorrect email or password.",

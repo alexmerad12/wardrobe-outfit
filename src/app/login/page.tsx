@@ -24,9 +24,13 @@ function LoginForm() {
   // (English-only and often technical — audit Group D). /auth/callback
   // and /auth/confirm redirect failures here as /login?error=..., which
   // this page never displayed before (audit P2).
-  const [error, setError] = useState<string | null>(() =>
-    searchParams.get("error") ? "auth.oauthFailed" : null
-  );
+  const [error, setError] = useState<string | null>(() => {
+    const param = searchParams.get("error");
+    if (!param) return null;
+    // The invite gate sends a specific code; everything else gets the
+    // generic OAuth-failed line.
+    return param === "invite_only" ? "auth.inviteOnly" : "auth.oauthFailed";
+  });
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {

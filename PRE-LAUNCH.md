@@ -43,6 +43,8 @@ Running list of what's done and what remains before full public launch (vs. frie
 ## 🚧 Before public launch
 
 ### Auth / security
+- [ ] **Photo bucket → private + signed URLs** (audit A7; decided 2026-06: keep public during beta, switch before App Store submission — target August given a September launch). `clothing-images` is public-read today: URLs are unguessable UUIDs so practical risk is low, but a shipping consumer app should not serve user photos to anyone holding a URL. ~Half-day: flip the bucket private, mint signed URLs everywhere images render (wardrobe grid, cards, share images) and on server-side AI fetches (analyze/normalize/try-on). Update `/privacy` + FAQ copy afterwards to claim read protection again.
+- [ ] **At public launch: set `INVITE_ONLY=false` in the Vercel env** to open Google signup (the invite gate added 2026-06 enforces invite-only BY DEFAULT in the auth callback — no code change needed to open the doors, and the env flag must also be considered for local dev if testing open signup).
 - [ ] **Turn email confirmation ON** in Supabase (Authentication → Providers → Email → "Confirm email" toggle). Currently OFF to speed up dev/testing. Must be ON before wider launch to stop fake sign-ups.
 - [ ] **Submit Google OAuth app for verification** to remove the "This app isn't verified" warning screen. Google review takes 1–4 weeks. Needed once we expect non-test-user sign-ins.
 - [ ] **Add production test users** in Google Cloud Console for any friend who wants to use Google sign-in (while app is still in Testing mode, ≤100 users).

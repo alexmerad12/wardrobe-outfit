@@ -50,6 +50,7 @@
   "auth": {
     "welcomeBack": "Bon retour !",
     "oauthFailed": "La connexion Google n'a pas abouti — réessaie.",
+    "inviteOnly": "Linette est sur invitation pour l'instant — demande une invitation à la personne qui t'en a parlé.",
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
     "errInvalidCredentials": "Courriel ou mot de passe incorrect.",
