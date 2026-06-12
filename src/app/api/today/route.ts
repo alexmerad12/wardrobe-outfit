@@ -44,22 +44,34 @@ export async function GET(request: NextRequest) {
   // Rotate stale today_outfit → recent_outfits when the stored date
   // doesn't match the user's current local date. The client always
   // sends its LOCAL date so the comparison is timezone-correct.
+  // RACE GUARD: delete FIRST, keyed on the stale date, and only archive
+  // if our delete actually removed the row. Two tabs loading at
+  // midnight used to both run insert-then-delete and write the same
+  // outfit into recent_outfits twice (audit P3) — the single-row
+  // delete is atomic, so exactly one request wins the archive.
   if (todayOutfit && todayOutfit.date !== today) {
-    await supabase.from("recent_outfits").insert({
-      user_id: userId,
-      outfit_id: todayOutfit.outfit_id,
-      item_ids: todayOutfit.item_ids,
-      name: todayOutfit.name,
-      reasoning: todayOutfit.reasoning,
-      styling_tip: todayOutfit.styling_tip,
-      mood: todayOutfit.mood,
-      occasion: todayOutfit.occasion,
-      weather_temp: todayOutfit.weather_temp,
-      weather_condition: todayOutfit.weather_condition,
-      is_favorite: todayOutfit.is_favorite,
-      date: todayOutfit.date,
-    });
-    await supabase.from("today_outfit").delete().eq("user_id", userId);
+    const { data: claimed } = await supabase
+      .from("today_outfit")
+      .delete()
+      .eq("user_id", userId)
+      .eq("date", todayOutfit.date)
+      .select("user_id");
+    if (claimed && claimed.length > 0) {
+      await supabase.from("recent_outfits").insert({
+        user_id: userId,
+        outfit_id: todayOutfit.outfit_id,
+        item_ids: todayOutfit.item_ids,
+        name: todayOutfit.name,
+        reasoning: todayOutfit.reasoning,
+        styling_tip: todayOutfit.styling_tip,
+        mood: todayOutfit.mood,
+        occasion: todayOutfit.occasion,
+        weather_temp: todayOutfit.weather_temp,
+        weather_condition: todayOutfit.weather_condition,
+        is_favorite: todayOutfit.is_favorite,
+        date: todayOutfit.date,
+      });
+    }
 
     // Trim recent to last 14
     const { data: extras } = await supabase
@@ -117,6 +129,42 @@ export async function POST(request: NextRequest) {
     updated_at: new Date().toISOString(),
   };
 
+  // Archive a STALE current outfit before the upsert replaces it.
+  // Setting a new outfit after local midnight used to overwrite
+  // yesterday's row in place — it never reached recent_outfits and
+  // vanished from wear history (audit P2; GET's rotation only covers
+  // users who load the home page first). Same claim-by-delete race
+  // guard as GET.
+  const { data: stale } = await supabase
+    .from("today_outfit")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (stale && stale.date !== today) {
+    const { data: claimed } = await supabase
+      .from("today_outfit")
+      .delete()
+      .eq("user_id", userId)
+      .eq("date", stale.date)
+      .select("user_id");
+    if (claimed && claimed.length > 0) {
+      await supabase.from("recent_outfits").insert({
+        user_id: userId,
+        outfit_id: stale.outfit_id,
+        item_ids: stale.item_ids,
+        name: stale.name,
+        reasoning: stale.reasoning,
+        styling_tip: stale.styling_tip,
+        mood: stale.mood,
+        occasion: stale.occasion,
+        weather_temp: stale.weather_temp,
+        weather_condition: stale.weather_condition,
+        is_favorite: stale.is_favorite,
+        date: stale.date,
+      });
+    }
+  }
+
   const { data, error } = await supabase
     .from("today_outfit")
     .upsert(row, { onConflict: "user_id" })
@@ -128,18 +176,29 @@ export async function POST(request: NextRequest) {
   }
 
   // Log this wear in outfit_log for the durable wear-history metric.
-  // Dedupe by (user, outfit, day) so toggling Wear Today twice in one day
-  // doesn't double-count.
-  const { data: existingLog } = await supabase
+  // outfit_log.outfit_id has an FK to outfits — today_outfit.outfit_id
+  // doesn't. When the wear isn't backed by a real outfits row (ad-hoc
+  // wear, body.outfit_id absent → random UUID above), inserting that id
+  // used to FK-violate and the error was swallowed: wear history lost
+  // the entry while times_worn still incremented (audit P2). Log with
+  // outfit_id null in that case — the column is nullable by design.
+  const logOutfitId = body.outfit_id ?? null;
+  // Dedupe by (user, outfit, day) so toggling Wear Today twice in one
+  // day doesn't double-count. Ad-hoc wears (null outfit_id) dedupe per
+  // user+day instead.
+  let dedupeQuery = supabase
     .from("outfit_log")
     .select("id")
-    .eq("outfit_id", row.outfit_id)
-    .eq("worn_date", today)
-    .maybeSingle();
+    .eq("user_id", userId)
+    .eq("worn_date", today);
+  dedupeQuery = logOutfitId
+    ? dedupeQuery.eq("outfit_id", logOutfitId)
+    : dedupeQuery.is("outfit_id", null);
+  const { data: existingLog } = await dedupeQuery.maybeSingle();
   if (!existingLog) {
-    await supabase.from("outfit_log").insert({
+    let { error: logError } = await supabase.from("outfit_log").insert({
       user_id: userId,
-      outfit_id: row.outfit_id,
+      outfit_id: logOutfitId,
       worn_date: today,
       weather_snapshot:
         row.weather_temp != null
@@ -149,6 +208,29 @@ export async function POST(request: NextRequest) {
       occasion: row.occasion,
       loved_it: false,
     });
+    if (logError && logOutfitId) {
+      // FK violation (outfit deleted between save and wear, or a
+      // foreign id) — retry unlinked rather than losing the wear.
+      console.warn("[today] outfit_log insert failed, retrying unlinked:", logError.message);
+      ({ error: logError } = await supabase.from("outfit_log").insert({
+        user_id: userId,
+        outfit_id: null,
+        worn_date: today,
+        weather_snapshot:
+          row.weather_temp != null
+            ? { temp: row.weather_temp, condition: row.weather_condition }
+            : null,
+        mood: row.mood,
+        occasion: row.occasion,
+        loved_it: false,
+      }));
+    }
+    if (logError) {
+      // Keep metrics consistent: if the wear wasn't logged, don't bump
+      // times_worn either.
+      console.error("[today] outfit_log insert failed:", logError.message);
+      return NextResponse.json(data);
+    }
 
     // Bump times_worn + last_worn_date on each item in the outfit.
     // Without this the wardrobe item pages stay frozen at "Worn 0×"
@@ -219,12 +301,25 @@ export async function DELETE() {
     .maybeSingle();
 
   if (current) {
+    // Claim-by-delete first (same race guard as GET's rotation), then
+    // archive — and keep styling_tip, which this path silently dropped
+    // (audit P3).
+    const { data: claimed } = await supabase
+      .from("today_outfit")
+      .delete()
+      .eq("user_id", userId)
+      .eq("date", current.date)
+      .select("user_id");
+    if (!claimed || claimed.length === 0) {
+      return NextResponse.json({ ok: true });
+    }
     await supabase.from("recent_outfits").insert({
       user_id: userId,
       outfit_id: current.outfit_id,
       item_ids: current.item_ids,
       name: current.name,
       reasoning: current.reasoning,
+      styling_tip: current.styling_tip,
       mood: current.mood,
       occasion: current.occasion,
       weather_temp: current.weather_temp,
@@ -232,7 +327,6 @@ export async function DELETE() {
       is_favorite: current.is_favorite,
       date: current.date,
     });
-    await supabase.from("today_outfit").delete().eq("user_id", userId);
 
     const { data: extras } = await supabase
       .from("recent_outfits")
