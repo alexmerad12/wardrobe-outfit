@@ -69,6 +69,12 @@ export function useLocale() {
         const resolved = resolveLocale(prefs?.language);
         setLocale(resolved);
         writeCached(resolved);
+        // Keep the document language in sync — <html> stayed lang="en"
+        // while the UI rendered French, so screen readers announced
+        // French content with English pronunciation (audit a11y P3).
+        try {
+          document.documentElement.lang = resolved;
+        } catch {}
         const g: Gender =
           prefs?.gender === "woman" || prefs?.gender === "man" ? prefs.gender : "not-specified";
         setGender(g);

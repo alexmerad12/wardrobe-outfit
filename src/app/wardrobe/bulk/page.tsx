@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import {
   MAX_BATCH,
   usePendingUploads,
+  pendingErrorLabel,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
@@ -193,7 +194,7 @@ export default function BulkUploadPage() {
             const result = addFiles(e.target.files);
             if (result.rejected > 0) {
               alert(
-                `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                t("wardrobe.batchCapAlert", { max: MAX_BATCH, count: result.rejected })
               );
             }
           }
@@ -211,7 +212,7 @@ export default function BulkUploadPage() {
             const result = addFiles(e.target.files);
             if (result.rejected > 0) {
               alert(
-                `Only ${MAX_BATCH} items process at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — wait for the current batch to finish, then pick again.`
+                t("wardrobe.batchCapAlert", { max: MAX_BATCH, count: result.rejected })
               );
             }
           }
@@ -269,13 +270,13 @@ function BulkCard({
       {item.stage === "error" && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-red-950/70 px-2 text-center text-white"
-          title={item.error}
+          title={pendingErrorLabel(item.error, t)}
         >
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span className="text-[11px] font-medium">{t("bulk.failedTapToRetry")}</span>
           {item.error && (
             <span className="text-[9px] leading-tight opacity-80 line-clamp-3 break-words">
-              {item.error}
+              {pendingErrorLabel(item.error, t)}
             </span>
           )}
         </div>

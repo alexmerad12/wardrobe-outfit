@@ -30,6 +30,7 @@ import { useScrollDirection } from "@/lib/use-scroll-direction";
 import { cn } from "@/lib/utils";
 import {
   usePendingUploads,
+  pendingErrorLabel,
   type PendingItem,
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
@@ -813,7 +814,10 @@ function PendingStrip({
   const errorCount = inFlight.length - processing;
   const visible = inFlight.slice(0, MAX_INLINE_TILES);
   const overflow = inFlight.length - visible.length;
-  const firstError = inFlight.find((p) => p.stage === "error")?.error;
+  const firstError = pendingErrorLabel(
+    inFlight.find((p) => p.stage === "error")?.error,
+    t
+  );
 
   function copyErrors() {
     const failed = pending.filter((p) => p.stage === "error");
@@ -841,7 +845,12 @@ function PendingStrip({
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="h-4 w-4 shrink-0" />
             <span className="text-sm font-medium truncate">
-              Review your {readyIds.length} upload{readyIds.length === 1 ? "" : "s"}
+              {t(
+                readyIds.length === 1
+                  ? "wardrobe.reviewUploads"
+                  : "wardrobe.reviewUploadsPlural",
+                { count: readyIds.length }
+              )}
             </span>
           </div>
           <span className="text-sm shrink-0">→</span>
@@ -901,7 +910,7 @@ function PendingStrip({
               onClick={onDismissAllFailed}
               className="text-[11px] font-medium text-red-700 hover:text-red-900 underline"
             >
-              Dismiss all {errorCount} failed
+              {t("wardrobe.dismissAllFailed", { count: errorCount })}
             </button>
             <span className="text-red-400">·</span>
             <button
@@ -909,7 +918,7 @@ function PendingStrip({
               onClick={copyErrors}
               className="text-[11px] font-medium text-red-700 hover:text-red-900 underline"
             >
-              Copy error details
+              {t("wardrobe.copyErrorDetails")}
             </button>
           </div>
         </div>
@@ -944,7 +953,7 @@ function PendingTile({
           type="button"
           onClick={onRetry}
           className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-950/60 text-white"
-          title={item.error ? t("wardrobe.tapToRetryWithError", { error: item.error }) : t("wardrobe.tapToRetry")}
+          title={item.error ? t("wardrobe.tapToRetryWithError", { error: pendingErrorLabel(item.error, t) ?? "" }) : t("wardrobe.tapToRetry")}
         >
           <AlertCircle className="h-4 w-4" />
           <span className="text-[10px] font-medium">{t("wardrobe.retry")}</span>

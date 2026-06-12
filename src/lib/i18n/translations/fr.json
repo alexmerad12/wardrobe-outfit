@@ -32,6 +32,10 @@
     "dismiss": "Fermer",
     "orTapPlus": "Ou tape sur le + en bas"
   },
+  "splash": {
+    "tagline": "Ta styliste IA",
+    "subtitle": "pour la garde-robe que tu as déjà"
+  },
   "auth": {
     "welcomeBack": "Bon retour !",
     "oauthFailed": "La connexion Google n'a pas abouti — réessaie.",
@@ -758,6 +762,19 @@
     "title": "Dressing",
     "items": "pièce",
     "itemsPlural": "pièces",
+    "reviewUploads": "Réviser ton {count} ajout",
+    "reviewUploadsPlural": "Réviser tes {count} ajouts",
+    "dismissAllFailed": "Ignorer les {count} échecs",
+    "copyErrorDetails": "Copier les détails d'erreur",
+    "uploadTimedOut": "Téléversement expiré — tape pour réessayer.",
+    "uploadFailedGeneric": "Échec du téléversement",
+    "photoTipsTitle": "Conseils photo",
+    "photoTipOneItem": "Une pièce par photo, entièrement visible",
+    "photoTipFlat": "Surface plane pour hauts, pantalons, mailles — lit, table, sol",
+    "photoTipHanger": "Cintre pour manteaux, blazers, robes, jupes longues",
+    "photoTipLight": "Bonne lumière, pas d'ombres marquées",
+    "photoTipBatch": "Jusqu'à 10 photos à la fois",
+    "batchCapAlert": "Maximum {max} pièces à la fois. {count} photos non ajoutées — termine ce lot, puis recommence.",
     "add": "Ajouter",
     "select": "Sélectionner",
     "outfit": "Tenue",

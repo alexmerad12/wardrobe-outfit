@@ -11,6 +11,18 @@ import {
 import { type AutoFillResult } from "@/lib/analyze-item";
 import { dedupeColors, hexToHSL, isNeutralColor } from "@/lib/color-engine";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
+
+// Error strings born inside this module can't be localized at throw time
+// (no React context here). Known errors are stored as "i18n:<key>"
+// sentinels; render sites pass them through this helper with their t().
+// Unknown/technical errors (server detail strings) pass through raw.
+export function pendingErrorLabel(
+  error: string | undefined,
+  t: (key: string) => string
+): string | undefined {
+  if (!error) return error;
+  return error.startsWith("i18n:") ? t(error.slice(5)) : error;
+}
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
 
@@ -240,9 +252,8 @@ export function PendingUploadsProvider({
           setTimeout(() => URL.revokeObjectURL(oldPreview), 100);
         } catch (err) {
           bgLog("HEIC conversion failed", err);
-          throw new Error(
-            "Couldn't read this photo (HEIC format unsupported). Try saving as JPEG first."
-          );
+          // The dictionary key existed but nothing used it (audit D).
+          throw new Error("i18n:addItem.heicReadFailed");
         }
       }
 
@@ -436,7 +447,9 @@ export function PendingUploadsProvider({
         work,
         new Promise<T>((_resolve, reject) =>
           setTimeout(
-            () => reject(new Error(`${label} timed out`)),
+            // label is kept for the console trail; the user-facing
+            // string is the localized sentinel.
+            () => reject(new Error("i18n:wardrobe.uploadTimedOut")),
             PER_ITEM_TIMEOUT_MS
           )
         ),
@@ -465,7 +478,7 @@ export function PendingUploadsProvider({
         console.error(`[pending ${item.id}] upload failed`, err);
         patchItem(item.id, {
           stage: "error",
-          error: err instanceof Error ? err.message : "Upload failed",
+          error: err instanceof Error ? err.message : "i18n:wardrobe.uploadFailedGeneric",
         });
       }
     },

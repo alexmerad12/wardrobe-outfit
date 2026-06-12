@@ -22,6 +22,7 @@
 import * as React from "react";
 import Lottie, { type LottieRefCurrentProps } from "lottie-react";
 import linetteAnimation from "@/assets/linette-lottie.json";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 // Lottie metadata: 133 frames / 30 fps = 4.433s native. We play it
 // back at 1.4× to keep the splash snappy without losing the hand-
@@ -36,6 +37,7 @@ const SESSION_KEY = "linette_splash_seen";
 type Phase = "entering" | "held" | "exiting" | "done";
 
 export function LaunchSplash() {
+  const { t } = useLocale();
   const [phase, setPhase] = React.useState<Phase>("entering");
   // SSR guard: lottie-react touches `window` on mount. The parent is
   // already "use client" so this only matters for the initial render,
@@ -90,8 +92,8 @@ export function LaunchSplash() {
         <div className="ls-content">
           {/* Top eyebrow — letter-spacing collapse + delayed sub. */}
           <div className="ls-top-tag">
-            <div className="ls-tag">Your AI Stylist</div>
-            <div className="ls-small">for the closet you already own</div>
+            <div className="ls-tag">{t("splash.tagline")}</div>
+            <div className="ls-small">{t("splash.subtitle")}</div>
           </div>
 
           {/* Center wordmark — Lottie handwriting animation. */}

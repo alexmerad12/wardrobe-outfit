@@ -32,6 +32,10 @@
     "dismiss": "Dismiss",
     "orTapPlus": "Or tap the + button below"
   },
+  "splash": {
+    "tagline": "Your AI Stylist",
+    "subtitle": "for the closet you already own"
+  },
   "auth": {
     "welcomeBack": "Welcome back",
     "oauthFailed": "Google sign-in didn't complete — please try again.",
@@ -753,6 +757,19 @@
     "title": "Wardrobe",
     "items": "item",
     "itemsPlural": "items",
+    "reviewUploads": "Review your {count} upload",
+    "reviewUploadsPlural": "Review your {count} uploads",
+    "dismissAllFailed": "Dismiss all {count} failed",
+    "copyErrorDetails": "Copy error details",
+    "uploadTimedOut": "Upload timed out — tap to retry.",
+    "uploadFailedGeneric": "Upload failed",
+    "photoTipsTitle": "Photo tips",
+    "photoTipOneItem": "One item per photo, fully visible",
+    "photoTipFlat": "Flat surface for tops, pants, knits — bed, table, floor",
+    "photoTipHanger": "Hanger for coats, blazers, dresses, long skirts",
+    "photoTipLight": "Good light, no strong shadows",
+    "photoTipBatch": "Up to 10 photos at a time",
+    "batchCapAlert": "Only {max} items at a time. {count} photos not added — finish this batch, then pick another.",
     "add": "Add",
     "select": "Select",
     "outfit": "Outfit",

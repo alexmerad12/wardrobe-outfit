@@ -54,7 +54,7 @@ export function AddItemFab() {
     const result = addFiles(files);
     if (result.rejected > 0) {
       alert(
-        `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
+        t("wardrobe.batchCapAlert", { max: MAX_BATCH, count: result.rejected })
       );
     }
     if (result.accepted > 0 || result.duplicates > 0) {
@@ -104,13 +104,13 @@ export function AddItemFab() {
               {t("wardrobe.chooseFromLibrary")}
             </DropdownMenuItem>
             <div className="border-t mt-1 pt-2 px-2 pb-2 text-[11px] leading-relaxed">
-              <p className="editorial-label mb-1.5">Photo tips</p>
+              <p className="editorial-label mb-1.5">{t("wardrobe.photoTipsTitle")}</p>
               <ul className="space-y-1 text-muted-foreground">
-                <li>• One item per photo, fully visible</li>
-                <li>• Flat surface for tops, pants, knits — bed, table, floor</li>
-                <li>• Hanger for coats, blazers, dresses, long skirts</li>
-                <li>• Good light, no strong shadows</li>
-                <li>• Up to 10 photos at a time</li>
+                <li>• {t("wardrobe.photoTipOneItem")}</li>
+                <li>• {t("wardrobe.photoTipFlat")}</li>
+                <li>• {t("wardrobe.photoTipHanger")}</li>
+                <li>• {t("wardrobe.photoTipLight")}</li>
+                <li>• {t("wardrobe.photoTipBatch")}</li>
               </ul>
             </div>
           </DropdownMenuContent>
