@@ -6,7 +6,6 @@ import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
-import { colorFamily } from "@/lib/color-family";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
@@ -1342,6 +1341,109 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
     };
 
 
+    // ——— Context shared by the map-phase injectors AND the post-parse
+    // validators. Hoisted above `mapped` so injectors can't create
+    // violations the validators then punish (mixed metals, non-dark
+    // items on an all-black request, suede coats in rain).
+
+    // Detect preset wishes from the user's STYLE DIRECTION text. The
+    // model is told these are hard rules but doesn't always honor them —
+    // we enforce post-parse so non-compliant outfits get dropped.
+    const wishText = styleWishes.join(" ").toLowerCase();
+    const wantsAllBlack = /all[ -]?black|tout en noir/i.test(wishText);
+    const wantsDressDay = /dress[ -]?day|journ[ée]e robe/i.test(wishText);
+    const wantsMixPatterns = /mix[ -]?patterns?|mixer les motifs/i.test(wishText);
+    // Denim-on-denim opt-in: lifts the soft restriction in Rule 4c.
+    const wantsDenimOnDenim =
+      /full[ -]?denim|all[ -]?denim|double[ -]?denim|denim[ -]?on[ -]?denim|canadian[ -]?tuxedo|tout en denim|total denim|denim sur denim/i.test(
+        wishText
+      );
+
+    // Hex-based "is this item dark/near-black?" check. Accepts items
+    // whose primary color is named black/jet/onyx/charcoal OR whose
+    // hex sum is below ~90 (avg <30 per channel — true black-to-charcoal
+    // band, excludes navy and dark brown which read as colors).
+    function isDarkItem(item: { colors: { hex: string; name: string }[] }): boolean {
+      const primary = item.colors?.[0];
+      if (!primary) return false;
+      const name = (primary.name ?? "").toLowerCase();
+      if (/black|jet|onyx|noir|ebony|obsidian|raven/.test(name)) return true;
+      const m = /^#?([0-9a-f]{6})$/i.exec((primary.hex ?? "").trim());
+      if (!m) return false;
+      const n = parseInt(m[1], 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return r + g + b < 90;
+    }
+
+    // Rain trigger — outfit-independent, shared by the rain validators
+    // and the outerwear injector (which must not inject a suede coat the
+    // rain rule would then hard-drop).
+    const rainTriggered =
+      weather &&
+      ((typeof weather.precipitation_probability === "number" &&
+        weather.precipitation_probability >= 40) ||
+        (typeof weather.condition === "string" &&
+          /rain|shower/i.test(weather.condition)));
+    const RAIN_BLOCK_MATERIALS = new Set<string>(["suede", "silk", "satin", "canvas"]);
+    const rainBlocked = (i: ClothingItem) => {
+      const mats = Array.isArray(i.material) ? i.material : [i.material];
+      return mats.some((m) => m && RAIN_BLOCK_MATERIALS.has(m));
+    };
+
+    // Metal families — shared by the metal-sync validator and the
+    // injector candidate filter.
+    const GOLD_FAMILY = new Set(["gold", "rose-gold", "matte-gold", "brass", "bronze"]);
+    const SILVER_FAMILY = new Set(["silver", "chrome", "matte-silver", "gunmetal"]);
+    const metalFamilyOf = (i: ClothingItem): "gold" | "silver" | "other" | null => {
+      const finish = i.category === "bag" ? i.bag_metal_finish : i.metal_finish;
+      if (!finish || finish === "none" || finish === "mixed") return null;
+      return GOLD_FAMILY.has(finish) ? "gold" : SILVER_FAMILY.has(finish) ? "silver" : "other";
+    };
+
+    // Candidate picker for the shoe / bag / accessory injectors. Order of
+    // preference: occasion-tagged > preset-compatible > metal-compatible.
+    // For OPTIONAL slots (bag, accessory) a preset conflict returns null —
+    // skipping the injection beats creating a violation that hard-drops
+    // the whole outfit. For REQUIRED slots (shoes) the preference filters
+    // degrade gracefully instead of returning null: a preset-breaking shoe
+    // and a missing shoe both drop the outfit downstream, so we prefer
+    // the more complete-looking result.
+    const pickInjectionCandidate = (
+      pool: ClothingItem[],
+      current: ClothingItem[],
+      required: boolean
+    ): ClothingItem | null => {
+      if (pool.length === 0) return null;
+      const occasionMatches = pool.filter(
+        (c) => Array.isArray(c.occasions) && c.occasions.includes(occasion as Occasion)
+      );
+      let candidates = occasionMatches.length > 0 ? occasionMatches : pool;
+      if (wantsAllBlack) {
+        const dark = candidates.filter(isDarkItem);
+        if (dark.length > 0) candidates = dark;
+        else if (!required) return null;
+      }
+      if (mood !== "playful") {
+        const families = new Set(
+          current
+            .map(metalFamilyOf)
+            .filter((f): f is "gold" | "silver" => f === "gold" || f === "silver")
+        );
+        if (families.size === 1) {
+          const fam = [...families][0];
+          const compatible = candidates.filter((c) => {
+            const f = metalFamilyOf(c);
+            return f === null || f === fam;
+          });
+          if (compatible.length > 0) candidates = compatible;
+          else if (!required) return null;
+        }
+      }
+      return candidates[0];
+    };
+
     const mapped = parsedOutfits.map((s) => {
       const rawItems = s.item_ids
         .map((id) => items.find((i) => i.id === id))
@@ -1727,9 +1829,21 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         !stripped.some((i) => i.category === "outerwear") &&
         !cardiganQualifies
       ) {
-        const available = items.filter(
+        // Pool: pre-filtered fullPool first — it respects the formality /
+        // warmth pre-filters AND the recent-anchor freshness ban
+        // (outerwear is an anchor category, so the raw wardrobe could
+        // re-inject the exact coat just excluded for freshness). Raw
+        // wardrobe only as graceful fallback. Either way never inject a
+        // rain-blocked material when rain is forecast — the rain
+        // validator would hard-drop the outfit this injection "fixed".
+        const fromPool = fullPool.filter((i) => i.category === "outerwear");
+        const fromWardrobe = items.filter(
           (i) => i.category === "outerwear" && !i.is_stored
         );
+        let available = fromPool.length > 0 ? fromPool : fromWardrobe;
+        if (rainTriggered) {
+          available = available.filter((i) => !rainBlocked(i));
+        }
         if (available.length > 0) {
           const targetWarmth =
             weather.temp < 5 ? 4.5 : weather.temp < 10 ? 3.5 : 2.5;
@@ -1801,12 +1915,13 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         const availableShoes = items.filter(
           (i) => i.category === "shoes" && !i.is_stored
         );
-        const pool = filteredShoes.length > 0 ? filteredShoes : availableShoes;
-        if (pool.length > 0) {
-          const occasionMatches = pool.filter((s) =>
-            Array.isArray(s.occasions) && s.occasions.includes(occasion as Occasion)
-          );
-          const best = occasionMatches[0] ?? pool[0];
+        let pool = filteredShoes.length > 0 ? filteredShoes : availableShoes;
+        if (rainTriggered) {
+          const dry = pool.filter((i) => !rainBlocked(i));
+          if (dry.length > 0) pool = dry;
+        }
+        const best = pickInjectionCandidate(pool, stripped, true);
+        if (best) {
           stripped = [...stripped, best];
           fixes.push(`injected shoes: ${best.subcategory ?? "shoes"}`);
         }
@@ -1828,23 +1943,25 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
         const availableBags = items.filter(
           (i) => i.category === "bag" && !i.is_stored
         );
-        const pool = filteredBags.length > 0 ? filteredBags : availableBags;
-        if (pool.length > 0) {
-          const occasionMatches = pool.filter((b) =>
-            Array.isArray(b.occasions) && b.occasions.includes(occasion as Occasion)
-          );
-          const best = occasionMatches[0] ?? pool[0];
+        let pool = filteredBags.length > 0 ? filteredBags : availableBags;
+        if (rainTriggered) {
+          const dry = pool.filter((i) => !rainBlocked(i));
+          if (dry.length > 0) pool = dry;
+        }
+        const best = pickInjectionCandidate(pool, stripped, false);
+        if (best) {
           stripped = [...stripped, best];
           fixes.push(`injected bag: ${best.subcategory ?? "bag"}`);
         }
       }
 
       // Auto-inject one accessory beyond the bag for every occasion
-      // except at-home and outdoor (matches the new ACCESSORY MINIMUM
-      // rule). Skip hat at work (Rule 11 hat × occasion). Pick the
-      // first wardrobe accessory whose occasions array matches; if
-      // nothing matches the occasion, skip silently — the rule
-      // explicitly says "skip if nothing in the wardrobe makes sense".
+      // except at-home and outdoor (matches the ACCESSORY MINIMUM rule).
+      // Skip hat at work (Rule 11 hat × occasion). Prefer accessories
+      // tagged for the occasion, falling back to any eligible accessory
+      // (most users don't tag accessories, so a tag-only rule would
+      // almost never fire). Preset/metal conflicts skip the injection
+      // entirely — see pickInjectionCandidate.
       if (
         occasion !== "at-home" &&
         occasion !== "outdoor" &&
@@ -1907,16 +2024,36 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           if (baseBlocksBelt && i.subcategory === "belt") return false;
           return true;
         });
-        const pool =
+        let pool =
           filteredAccessories.length > 0
             ? filteredAccessories
             : availableAccessories;
-        if (pool.length > 0) {
-          const occasionMatches = pool.filter((a) =>
-            Array.isArray(a.occasions) && a.occasions.includes(occasion as Occasion)
+        // If the base is a belt-friendly dress (a-line / wrap /
+        // fit-and-flare with a free waist), the R18 completer downstream
+        // HARD-requires a belt — prefer injecting one here so the server
+        // doesn't inject a scarf and then drop its own outfit for
+        // missing the belt. Mirrors the completer's predicate and its
+        // mood exemptions (at-home/outdoor never reach this injector).
+        const BELT_FRIENDLY_SILS = new Set(["a-line", "wrap", "fit-and-flare"]);
+        const beltExemptMood =
+          mood === "chill" || mood === "cozy" || mood === "period";
+        const beltDesired =
+          !beltExemptMood &&
+          !baseBlocksBelt &&
+          stripped.some(
+            (i) =>
+              (i.category === "dress" || i.category === "one-piece") &&
+              i.dress_silhouette != null &&
+              BELT_FRIENDLY_SILS.has(i.dress_silhouette) &&
+              i.fit !== "slim" &&
+              i.waist_style !== "belted"
           );
-          const finalPool = occasionMatches.length > 0 ? occasionMatches : pool;
-          const best = finalPool[0];
+        if (beltDesired) {
+          const belts = pool.filter((i) => i.subcategory === "belt");
+          if (belts.length > 0) pool = belts;
+        }
+        const best = pickInjectionCandidate(pool, stripped, false);
+        if (best) {
           stripped = [...stripped, best];
           fixes.push(`injected accessory: ${best.subcategory ?? "accessory"}`);
         }
@@ -1988,11 +2125,10 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       };
     });
 
-    // Wardrobe-availability flags used by the post-parse filters. If the
-    // user's wardrobe doesn't have any outerwear, we can't demand a
-    // jacket for cold weather; same for shoes. Best-effort is better than
-    // no suggestions.
-    const wardrobeHasOuterwear = items.some((i) => i.category === "outerwear");
+    // Wardrobe-availability flag used by the post-parse filters. If the
+    // user's wardrobe has no shoes we can't demand them — best-effort is
+    // better than no suggestions. (Outerwear has no equivalent flag: the
+    // injector checks pool availability itself.)
     const wardrobeHasShoes = items.some((i) => i.category === "shoes");
     // Capability flags used by the post-parse filter to decide whether
     // a "missing dressy material" or "missing belt" should be a hard
@@ -2064,18 +2200,8 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
     // (e.g. season-tag relax) and isn't worth surfacing to the user.
     const softMismatch: { outfit: typeof mapped[number]; tip?: string }[] = [];
 
-    // Detect preset wishes from the user's STYLE DIRECTION text. Claude
-    // is told these are hard rules but doesn't always honor them — we
-    // enforce post-parse so non-compliant outfits get dropped.
-    const wishText = styleWishes.join(" ").toLowerCase();
-    const wantsAllBlack = /all[ -]?black|tout en noir/i.test(wishText);
-    const wantsDressDay = /dress[ -]?day|journ[ée]e robe/i.test(wishText);
-    const wantsMixPatterns = /mix[ -]?patterns?|mixer les motifs/i.test(wishText);
-    // Denim-on-denim opt-in: lifts the soft restriction in Rule 4c.
-    const wantsDenimOnDenim =
-      /full[ -]?denim|all[ -]?denim|double[ -]?denim|denim[ -]?on[ -]?denim|canadian[ -]?tuxedo|tout en denim|total denim|denim sur denim/i.test(
-        wishText
-      );
+    // (Preset detection + isDarkItem + rain trigger + metal families are
+    // hoisted above the map phase so the injectors share them.)
 
     // Mood-specific color/pattern detectors used by the validators
     // below. Saturated brights cover the warm + cool sides of the
@@ -2105,24 +2231,6 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
     const wardrobeHasStructured = activeWardrobe.some(itemIsStructured);
     const wardrobeHasBright = activeWardrobe.some(itemHasBright);
     const wardrobeHasStatement = activeWardrobe.some(itemHasStatement);
-
-    // Hex-based "is this item dark/near-black?" check. Accepts items
-    // whose primary color is named black/jet/onyx/charcoal OR whose
-    // hex sum is below ~90 (avg <30 per channel — true black-to-charcoal
-    // band, excludes navy and dark brown which read as colors).
-    function isDarkItem(item: { colors: { hex: string; name: string }[] }): boolean {
-      const primary = item.colors?.[0];
-      if (!primary) return false;
-      const name = (primary.name ?? "").toLowerCase();
-      if (/black|jet|onyx|noir|ebony|obsidian|raven/.test(name)) return true;
-      const m = /^#?([0-9a-f]{6})$/i.exec((primary.hex ?? "").trim());
-      if (!m) return false;
-      const n = parseInt(m[1], 16);
-      const r = (n >> 16) & 255;
-      const g = (n >> 8) & 255;
-      const b = n & 255;
-      return r + g + b < 90;
-    }
 
     const hardValid = mapped.filter((s) => {
       // Shoes required for every occasion except at-home (if wardrobe has shoes).
@@ -2501,11 +2609,9 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             return false;
           });
         if (metalItems.length >= 2) {
-          const goldFamily = new Set(["gold", "rose-gold", "matte-gold", "brass", "bronze"]);
-          const silverFamily = new Set(["silver", "chrome", "matte-silver", "gunmetal"]);
           const families = new Set(
             metalItems.map(({ finish }) =>
-              goldFamily.has(finish ?? "") ? "gold" : silverFamily.has(finish ?? "") ? "silver" : "other"
+              GOLD_FAMILY.has(finish ?? "") ? "gold" : SILVER_FAMILY.has(finish ?? "") ? "silver" : "other"
             )
           );
           if (families.size > 1) {
@@ -2542,14 +2648,8 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
       // (outerwear, shoes, bag). Base outfit is exempt (handled by the
       // indoor-protection check below). When rain is triggered, drop
       // outfits whose outer-facing items use non-rain-proof materials.
-      const rainTriggered =
-        weather &&
-        ((typeof weather.precipitation_probability === "number" &&
-          weather.precipitation_probability >= 40) ||
-          (typeof weather.condition === "string" &&
-            /rain|shower/i.test(weather.condition)));
+      // (rainTriggered / rainBlocked are hoisted above the map phase.)
       if (rainTriggered) {
-        const RAIN_BLOCK = new Set<string>(["suede", "silk", "satin", "canvas"]);
         const offenderOuter = s.items.find((i) => {
           if (
             i.category !== "outerwear" &&
@@ -2557,8 +2657,7 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
             i.category !== "bag"
           )
             return false;
-          const mats = Array.isArray(i.material) ? i.material : [i.material];
-          return mats.some((m) => m && RAIN_BLOCK.has(m));
+          return rainBlocked(i);
         });
         if (offenderOuter) {
           drops.push({
@@ -2740,7 +2839,6 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           const shoeSub = shoe.subcategory;
           const bottomFit = bottom.bottom_fit;
           const pantsLen = bottom.pants_length;
-          const skirtLen = bottom.skirt_length;
           let badCombo: string | null = null;
 
           // TALL-SHAFT BOOTS — fight with wide/flared/bootcut/tapered hems
@@ -3272,7 +3370,6 @@ wardrobe_gap: One short sentence in ${languageName} about a missing staple, or n
           const sub = shoe.subcategory;
           const fit = bottom.bottom_fit;
           const pl = bottom.pants_length;
-          const sl = bottom.skirt_length;
           const sh = shoe.shoe_height;
           const tallShaft = sub === "knee-boots" || sh === "knee" || sh === "over-knee";
           if (tallShaft) {
