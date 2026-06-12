@@ -35,7 +35,7 @@ Every AI endpoint (`/api/suggest`, `/api/suggest/refine`, `/api/try-on`, `/api/i
 3. **Gemini call**: wrap in `withGeminiRetry(() => ..., { tag })` from `src/lib/gemini-retry.ts`. Two model tiers in use — pick based on quality-sensitivity, not preference:
    - `gemini-3.5-flash` — suggest, suggest/refine, try-on. Quality-sensitive endpoints where prompt drift breaks UX.
    - `gemini-3-flash-preview` — analyze, packing. Cheaper (~3× lower cost) but sanitizer-protected or rare-use.
-4. **Sanitize output**: never trust raw model output. `sanitizeAutoFill` (analyze), enum allowlists, and the deterministic strips in `outfit-engine.ts` exist because models return close-but-invalid values that fail Supabase check constraints.
+4. **Sanitize output**: never trust raw model output. `sanitizeAutoFill` (analyze), enum allowlists, and the deterministic strips inside `suggest/route.ts` exist because models return close-but-invalid values that fail Supabase check constraints.
 5. **Log the call**: `logAiCall(supabase, userId, "<tag>", { metadata, succeeded })` writes to `ai_call_logs`. Always called — both on success and in the catch block.
 
 ### Prompt-cache discipline (suggest endpoint)
@@ -56,11 +56,11 @@ Legacy multipart upload still works on the single-add path. Both branches conver
 
 Hybrid pipeline, not a pure LLM call:
 
-1. **Deterministic pre-filter** (`outfit-engine.ts` + inline `passesWarmth`): temperature bands strip warmth-inappropriate items before the model sees the wardrobe.
+1. **Deterministic pre-filter** (inline `passesWarmth` + tag/formality filters in `suggest/route.ts`): temperature bands strip warmth-inappropriate items before the model sees the wardrobe. (The old `outfit-engine.ts` was dead code — deleted 2026-06; all live rules are in the route.)
 2. **LLM composition**: model picks IDs from the filtered set.
 3. **Post-strips**: BELT STRIP, accessory-injection guards, and other R-prefixed rules clean up the chosen IDs. **Critical**: any "strip + re-inject" loop is a bug magnet — when adding an injector, check it respects all upstream strip predicates (e.g. `baseBlocksBelt`).
 
-Menswear has a `MENSWEAR OVERRIDES` block in the prompt but `outfit-engine.ts` itself is gender-blind today. Audit-pending.
+Menswear has a `MENSWEAR OVERRIDES` block in the prompt; the deterministic validators gender-gate the rules that differ by track (work jeans, open-toe, metal-sync bag visibility).
 
 ### i18n
 
