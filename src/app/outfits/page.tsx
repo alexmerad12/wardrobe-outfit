@@ -26,6 +26,7 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [wearPending, setWearPending] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Occasion | "all" | "custom">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
@@ -94,36 +95,56 @@ export default function FavoritesPage() {
   }, [reloadKey]);
 
   async function wearFavoriteToday(outfit: Outfit) {
-    // Pass outfit_id so the wear log links back to this favorite —
-    // without it the profile's wear count can't match the log entry
-    // to any outfit row.
-    await fetch("/api/today", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        outfit_id: outfit.id,
-        item_ids: outfit.item_ids,
-        name: outfit.name,
-        reasoning: outfit.ai_reasoning,
-        mood: outfit.mood,
-        occasion: outfit.occasions[0] ?? null,
-        weather_temp: outfit.weather_temp,
-        weather_condition: outfit.weather_condition,
-        is_favorite: true,
-        date: getLocalDateString(),
-      }),
-    });
-    router.push("/");
+    if (wearPending) return; // double-tap guard (audit P2)
+    setWearPending(true);
+    try {
+      // Pass outfit_id so the wear log links back to this favorite —
+      // without it the profile's wear count can't match the log entry
+      // to any outfit row.
+      const res = await fetch("/api/today", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outfit_id: outfit.id,
+          item_ids: outfit.item_ids,
+          name: outfit.name,
+          reasoning: outfit.ai_reasoning,
+          mood: outfit.mood,
+          occasion: outfit.occasions[0] ?? null,
+          weather_temp: outfit.weather_temp,
+          weather_condition: outfit.weather_condition,
+          is_favorite: true,
+          date: getLocalDateString(),
+        }),
+      });
+      // Navigating home on failure landed on a homepage with no outfit
+      // set and no explanation (audit P2).
+      if (!res.ok) throw new Error(`/api/today ${res.status}`);
+      router.push("/");
+    } catch (err) {
+      console.error("[wear-favorite] failed:", err);
+      alert(t("suggest.wearFailed"));
+    } finally {
+      setWearPending(false);
+    }
   }
 
   async function removeFavorite(outfitId: string) {
-    // Unfavorite (keeps the outfit but removes from favorites view)
-    await fetch(`/api/outfits/${outfitId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_favorite: false }),
-    });
-    setOutfits((prev) => prev.filter((o) => o.id !== outfitId));
+    // Unfavorite (keeps the outfit but removes from favorites view).
+    // The card used to vanish even when the server rejected — it
+    // resurrected on the next visit (audit P3).
+    try {
+      const res = await fetch(`/api/outfits/${outfitId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_favorite: false }),
+      });
+      if (!res.ok) throw new Error(`/api/outfits ${res.status}`);
+      setOutfits((prev) => prev.filter((o) => o.id !== outfitId));
+    } catch (err) {
+      console.error("[unfavorite] failed:", err);
+      alert(t("common.saveFailed"));
+    }
   }
 
   function toggleSelect(id: string) {
@@ -144,19 +165,27 @@ export default function FavoritesPage() {
     if (selected.size === 0) return;
     setRemoving(true);
     try {
-      await Promise.all(
-        Array.from(selected).map((id) =>
-          fetch(`/api/outfits/${id}`, {
+      const results = await Promise.all(
+        Array.from(selected).map(async (id) => {
+          const res = await fetch(`/api/outfits/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ is_favorite: false }),
-          })
-        )
+          });
+          return { id, ok: res.ok };
+        })
       );
-      setOutfits((prev) => prev.filter((o) => !selected.has(o.id)));
+      // Only drop the cards the server actually unfavorited — HTTP
+      // errors used to count as success (audit P3).
+      const removedIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
+      setOutfits((prev) => prev.filter((o) => !removedIds.has(o.id)));
       exitSelectMode();
+      if (removedIds.size < results.length) {
+        alert(t("common.saveFailed"));
+      }
     } catch (err) {
       console.error("Failed to bulk-remove favorites:", err);
+      alert(t("common.saveFailed"));
     } finally {
       setRemoving(false);
     }

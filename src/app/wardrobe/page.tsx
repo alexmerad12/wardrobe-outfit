@@ -224,15 +224,24 @@ function WardrobePageInner() {
 
     setDeleting(true);
     try {
-      await Promise.all(
-        Array.from(selected).map((id) =>
-          fetch(`/api/items/${id}`, { method: "DELETE" })
-        )
+      const results = await Promise.all(
+        Array.from(selected).map(async (id) => {
+          const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
+          return { id, ok: res.ok };
+        })
       );
-      setItems((prev) => prev.filter((item) => !selected.has(item.id)));
+      // Only remove what the server actually deleted — HTTP failures
+      // used to vanish items from the grid until the next refresh
+      // resurrected them (audit P2).
+      const deletedIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
+      setItems((prev) => prev.filter((item) => !deletedIds.has(item.id)));
       exitSelectMode();
+      if (deletedIds.size < results.length) {
+        alert(t("common.saveFailed"));
+      }
     } catch (err) {
       console.error("Failed to delete items:", err);
+      alert(t("common.saveFailed"));
     } finally {
       setDeleting(false);
     }
@@ -266,13 +275,14 @@ function WardrobePageInner() {
           source: "manual",
         }),
       });
-      if (res.ok) {
-        setNameDialogOpen(false);
-        exitSelectMode();
-        router.push("/outfits");
-      }
+      if (!res.ok) throw new Error(`/api/outfits ${res.status}`);
+      setNameDialogOpen(false);
+      exitSelectMode();
+      router.push("/outfits");
     } catch (err) {
+      // Was completely silent — the dialog just sat there (audit P2).
       console.error("Failed to create outfit:", err);
+      alert(t("common.saveFailed"));
     } finally {
       setCreatingOutfit(false);
     }
@@ -280,23 +290,29 @@ function WardrobePageInner() {
 
   async function handleBulkStore(store: boolean) {
     try {
-      await Promise.all(
-        Array.from(selected).map((id) =>
-          fetch(`/api/items/${id}`, {
+      const results = await Promise.all(
+        Array.from(selected).map(async (id) => {
+          const res = await fetch(`/api/items/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ is_stored: store }),
-          })
-        )
+          });
+          return { id, ok: res.ok };
+        })
       );
+      const updatedIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
       setItems((prev) =>
         prev.map((item) =>
-          selected.has(item.id) ? { ...item, is_stored: store } : item
+          updatedIds.has(item.id) ? { ...item, is_stored: store } : item
         )
       );
       exitSelectMode();
+      if (updatedIds.size < results.length) {
+        alert(t("common.saveFailed"));
+      }
     } catch (err) {
       console.error("Failed to store items:", err);
+      alert(t("common.saveFailed"));
     }
   }
 

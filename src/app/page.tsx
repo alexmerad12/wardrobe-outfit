@@ -51,6 +51,7 @@ export default function HomePage() {
   const [expandedRecent, setExpandedRecent] = useState<string | null>(null);
   const [todayExpanded, setTodayExpanded] = useState(false);
   const [favTogglePending, setFavTogglePending] = useState(false);
+  const [recentActionPending, setRecentActionPending] = useState(false);
   const [favToast, setFavToast] = useState<"saved" | "removed" | null>(null);
   const unit = useTemperatureUnit();
   const { t } = useLocale();
@@ -109,6 +110,10 @@ export default function HomePage() {
     if (!todayOutfit) return;
     if (favTogglePending) return; // dedupe rapid double-taps
     setFavTogglePending(true);
+    // try/finally — a thrown fetch (network drop) used to skip the
+    // pending reset and permanently brick the heart until reload
+    // (audit P2).
+    try {
     const newFav = !todayOutfit.is_favorite;
     // The favorites view reads from the `outfits` table, not
     // `today_outfit`, so the toggle must mirror state into both.
@@ -189,65 +194,101 @@ export default function HomePage() {
     } else {
       alert(t("home.favoriteSaveFailed"));
     }
-    setFavTogglePending(false);
+    } catch (err) {
+      console.error("[favorite] toggle failed:", err);
+      alert(t("home.favoriteSaveFailed"));
+    } finally {
+      setFavTogglePending(false);
+    }
   }
 
   async function wearRecentToday(outfit: TodayOutfit & { items: ClothingItem[] }) {
-    await fetch("/api/today", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        // Link the new wear log entry to the same outfit row this
-        // recent entry came from — otherwise the profile wear count
-        // can't match the log back to any outfit.
-        outfit_id: outfit.outfit_id,
-        item_ids: outfit.item_ids,
-        name: outfit.name,
-        reasoning: outfit.reasoning,
-        mood: outfit.mood,
-        occasion: outfit.occasion,
-        weather_temp: outfit.weather_temp,
-        weather_condition: outfit.weather_condition,
-        is_favorite: outfit.is_favorite ?? false,
+    if (recentActionPending) return;
+    setRecentActionPending(true);
+    try {
+      const res = await fetch("/api/today", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // Link the new wear log entry to the same outfit row this
+          // recent entry came from — otherwise the profile wear count
+          // can't match the log back to any outfit.
+          outfit_id: outfit.outfit_id,
+          item_ids: outfit.item_ids,
+          name: outfit.name,
+          reasoning: outfit.reasoning,
+          mood: outfit.mood,
+          occasion: outfit.occasion,
+          weather_temp: outfit.weather_temp,
+          weather_condition: outfit.weather_condition,
+          is_favorite: outfit.is_favorite ?? false,
+          date: getLocalDateString(),
+        }),
+      });
+      // Updating local state on failure showed an outfit the server
+      // never recorded — gone on next reload (audit P2).
+      if (!res.ok) throw new Error(`/api/today ${res.status}`);
+      setTodayOutfit({
+        ...outfit,
         date: getLocalDateString(),
-      }),
-    });
-    setTodayOutfit({
-      ...outfit,
-      date: getLocalDateString(),
-    });
-    setTodayItems(outfit.items);
-    setExpandedRecent(null);
+      });
+      setTodayItems(outfit.items);
+      setExpandedRecent(null);
+    } catch (err) {
+      console.error("[wear-recent] failed:", err);
+      alert(t("suggest.wearFailed"));
+    } finally {
+      setRecentActionPending(false);
+    }
   }
 
   async function favoriteRecent(outfit: TodayOutfit & { items: ClothingItem[] }) {
-    await fetch("/api/outfits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: "default",
-        name: outfit.name,
-        item_ids: outfit.item_ids,
-        occasions: outfit.occasion ? [outfit.occasion] : [],
-        seasons: [],
-        rating: null,
-        is_favorite: true,
-        mood: outfit.mood,
-        weather_temp: outfit.weather_temp,
-        weather_condition: outfit.weather_condition,
-        ai_reasoning: outfit.reasoning,
-        source: "ai",
-      }),
-    });
-    // Visual feedback - briefly update the outfit
-    setExpandedRecent(null);
+    if (recentActionPending) return;
+    setRecentActionPending(true);
+    try {
+      const res = await fetch("/api/outfits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          name: outfit.name,
+          item_ids: outfit.item_ids,
+          occasions: outfit.occasion ? [outfit.occasion] : [],
+          seasons: [],
+          rating: null,
+          is_favorite: true,
+          mood: outfit.mood,
+          weather_temp: outfit.weather_temp,
+          weather_condition: outfit.weather_condition,
+          ai_reasoning: outfit.reasoning,
+          source: "ai",
+        }),
+      });
+      if (!res.ok) throw new Error(`/api/outfits ${res.status}`);
+      setFavToast("saved");
+      setTimeout(() => setFavToast(null), 1800);
+      setExpandedRecent(null);
+    } catch (err) {
+      console.error("[favorite-recent] failed:", err);
+      alert(t("home.favoriteSaveFailed"));
+    } finally {
+      setRecentActionPending(false);
+    }
   }
 
   async function clearTodayOutfit() {
     if (!confirm(t("home.confirmRemoveTodaysOutfit"))) return;
-    await fetch("/api/today", { method: "DELETE" });
-    setTodayOutfit(null);
-    setTodayItems([]);
+    try {
+      const res = await fetch("/api/today", { method: "DELETE" });
+      // Optimistically clearing on failure made the outfit "reappear"
+      // on the next reload (audit P3).
+      if (!res.ok) throw new Error(`/api/today ${res.status}`);
+      setTodayOutfit(null);
+      setTodayItems([]);
+    } catch (err) {
+      console.error("[clear-today] failed:", err);
+      alert(t("common.saveFailed"));
+    }
   }
 
   // Greeting template carries the `{brand}` placeholder so BrandedName
