@@ -686,7 +686,7 @@ export default function ItemDetailPage() {
       {prevId && (
         <button
           type="button"
-          aria-label="Previous item"
+          aria-label={t("common.previous")}
           onClick={() => goToSibling(prevId)}
           className="fixed left-4 top-1/2 z-40 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition-colors hover:bg-muted md:flex"
         >
@@ -696,7 +696,7 @@ export default function ItemDetailPage() {
       {nextId && (
         <button
           type="button"
-          aria-label="Next item"
+          aria-label={t("common.next")}
           onClick={() => goToSibling(nextId)}
           className="fixed right-4 top-1/2 z-40 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition-colors hover:bg-muted md:flex"
         >

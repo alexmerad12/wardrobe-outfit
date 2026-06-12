@@ -538,7 +538,13 @@ export default function HomePage() {
                       <Heart className={cn("h-4 w-4", todayOutfit.is_favorite && "fill-foreground text-foreground")} />
                       {t("home.favorite")}
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={clearTodayOutfit}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={clearTodayOutfit}
+                      aria-label={t("home.confirmRemoveTodaysOutfit")}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

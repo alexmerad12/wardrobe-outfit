@@ -54,6 +54,16 @@ export function LaunchSplash() {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem(SESSION_KEY) === "1") {
       setPhase("done");
+      return;
+    }
+    // prefers-reduced-motion: a ~4s blocking handwriting animation is
+    // exactly what these users asked not to see (audit a11y P3) — mark
+    // the session seen and skip straight past it.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      try {
+        sessionStorage.setItem(SESSION_KEY, "1");
+      } catch {}
+      setPhase("done");
     }
   }, []);
 

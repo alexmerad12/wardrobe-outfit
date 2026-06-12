@@ -455,7 +455,12 @@ function SuggestContent() {
     <div className="mx-auto max-w-md px-4 pt-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.back()}
+          aria-label={t("common.back")}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>

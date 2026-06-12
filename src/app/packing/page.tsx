@@ -81,6 +81,19 @@ export default function PackingPage() {
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // The ref existed but nothing listened to it — the city dropdown
+  // never closed on an outside tap (audit P2).
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (!dropdownRef.current) return;
+      if (!dropdownRef.current.contains(e.target as Node)) {
+        setShowCityDropdown(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
   // Results
   const [loading, setLoading] = useState(false);
   const [limitReached, setLimitReached] = useState(false);

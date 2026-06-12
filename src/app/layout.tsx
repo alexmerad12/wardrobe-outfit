@@ -86,8 +86,10 @@ export const viewport = {
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Pinch-zoom stays ENABLED (audit a11y P2): maximumScale:1 +
+  // userScalable:false blocked low-vision users from zooming anywhere
+  // in the app. Modern iOS ignores the lock for accessibility anyway;
+  // declaring it only hurt the platforms that honor it.
   // Required for env(safe-area-inset-*) to be non-zero in the installed
   // PWA — without it the black-translucent status bar and the iPhone
   // home indicator overlap the app chrome on every screen.

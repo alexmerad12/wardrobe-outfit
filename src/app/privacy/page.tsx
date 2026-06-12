@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { LegalBackArrow } from "@/components/legal-back-arrow";
 
 const EFFECTIVE_DATE_EN = "June 12, 2026";
 const EFFECTIVE_DATE_FR = "12 juin 2026";
@@ -22,6 +23,7 @@ export default function PrivacyPage() {
 function EnglishPolicy() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
+      <LegalBackArrow />
       <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
         Privacy Policy
       </h1>
@@ -197,6 +199,7 @@ function EnglishPolicy() {
 function FrenchPolicy() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
+      <LegalBackArrow />
       <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
         Politique de confidentialité
       </h1>

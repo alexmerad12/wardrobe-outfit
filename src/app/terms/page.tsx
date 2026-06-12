@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { LegalBackArrow } from "@/components/legal-back-arrow";
 
 const EFFECTIVE_DATE_EN = "April 19, 2026";
 const EFFECTIVE_DATE_FR = "19 avril 2026";
@@ -18,6 +19,7 @@ export default function TermsPage() {
 function EnglishTerms() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
+      <LegalBackArrow />
       <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
         Terms of Service
       </h1>
@@ -182,6 +184,7 @@ function EnglishTerms() {
 function FrenchTerms() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-12 text-sm leading-relaxed">
+      <LegalBackArrow />
       <h1 className="font-[family-name:var(--font-heading)] text-3xl mb-2">
         Conditions d&apos;utilisation
       </h1>
