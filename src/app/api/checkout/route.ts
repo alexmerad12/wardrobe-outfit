@@ -78,20 +78,19 @@ export async function POST(request: NextRequest) {
       // Mapping back to our user. client_reference_id is the primary
       // signal in the checkout.session.completed webhook.
       client_reference_id: userId,
+      // Subscription mode auto-creates a Stripe customer — don't pass
+      // customer_creation (payment-mode only) or customer_update.
+      // Reuse the customer if we already created one in a prior
+      // checkout attempt; otherwise let Stripe create one and seed
+      // the email so the user doesn't retype it.
       ...(customerId
         ? { customer: customerId }
         : email
-        ? { customer_email: email, customer_creation: "always" as const }
-        : { customer_creation: "always" as const }),
-      // Stripe customer metadata — survives across subscription
-      // lifecycle events so we can always recover the userId.
-      customer_update: customerId ? { name: "auto" } : undefined,
+        ? { customer_email: email }
+        : {}),
       allow_promotion_codes: true,
       success_url: `${origin}/paywall/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/paywall`,
-      // Apple's compliance bar — keep these explicit and visible.
-      // Stripe-hosted checkout already shows them, but setting them
-      // again on the session metadata makes the audit trail clear.
       metadata: {
         user_id: userId,
         plan: planKey,
