@@ -30,10 +30,17 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, MessageSquare } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, MessageSquare, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
+
+type Sub = {
+  status: string;
+  plan: "weekly" | "annual" | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+};
 
 interface CityResult {
   name: string;
@@ -47,6 +54,14 @@ export default function SettingsPage() {
   const { t, locale } = useLocale();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+
+  // Subscription state — loaded straight from supabase (RLS allows
+  // user to read own row). Null while loading and for users who
+  // never completed checkout (those should be on /paywall anyway,
+  // unless they're admin-bypassed).
+  const [sub, setSub] = useState<Sub | null>(null);
+  const [subLoaded, setSubLoaded] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
 
   // Send-feedback dialog state. The form POSTs to /api/feedback which
   // forwards the message via Resend to hello@linette.app — no
@@ -84,10 +99,32 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUserEmail(data.user?.email ?? null);
+      if (data.user?.id) {
+        const { data: subRow } = await supabase
+          .from("user_subscriptions")
+          .select("status, plan, current_period_end, cancel_at_period_end")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        setSub((subRow as Sub | null) ?? null);
+      }
+      setSubLoaded(true);
     });
   }, []);
+
+  async function handleManageBilling() {
+    setOpeningPortal(true);
+    try {
+      const res = await fetch("/api/billing-portal", { method: "POST" });
+      if (!res.ok) throw new Error("billing portal");
+      const { url } = (await res.json()) as { url: string };
+      window.location.href = url;
+    } catch (err) {
+      console.error(err);
+      setOpeningPortal(false);
+    }
+  }
 
   useEffect(() => {
     async function loadPrefs() {
@@ -513,6 +550,81 @@ export default function SettingsPage() {
           </CardContent>
         )}
       </Card>
+
+      {/* Subscription card — only renders once we've loaded the row.
+          Hides entirely for admin/bypass users who'll never have a
+          stripe_customer_id; they shouldn't see a "Manage" button
+          that 404s. */}
+      {subLoaded && sub?.status && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              {t("profile.subscriptionTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {t("profile.subPlan")}
+              </span>
+              <span className="text-sm font-medium">
+                {sub.plan === "annual"
+                  ? t("paywall.annualLabel")
+                  : sub.plan === "weekly"
+                  ? t("paywall.weeklyLabel")
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {t("profile.subStatus")}
+              </span>
+              <span className="text-sm font-medium capitalize">
+                {sub.status === "trialing"
+                  ? t("profile.subTrialing")
+                  : sub.status === "active"
+                  ? t("profile.subActive")
+                  : sub.status === "past_due"
+                  ? t("profile.subPastDue")
+                  : sub.status === "canceled"
+                  ? t("profile.subCanceled")
+                  : sub.status}
+              </span>
+            </div>
+            {sub.current_period_end && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {sub.cancel_at_period_end
+                    ? t("profile.subEndsOn")
+                    : t("profile.subRenewsOn")}
+                </span>
+                <span className="text-sm font-medium">
+                  {new Date(sub.current_period_end).toLocaleDateString(
+                    locale === "fr" ? "fr-FR" : "en-US",
+                    { year: "numeric", month: "short", day: "numeric" }
+                  )}
+                </span>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleManageBilling}
+              disabled={openingPortal}
+            >
+              {openingPortal ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("paywall.openingCheckout")}
+                </>
+              ) : (
+                t("profile.manageBilling")
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Sub-page nav rows — sit above the Sign-in card so the
           Sign-out button is the visual terminus of the page (the

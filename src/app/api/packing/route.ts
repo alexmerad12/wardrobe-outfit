@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI } from "@google/genai";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { requireActiveSubscription } from "@/lib/require-subscription";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
@@ -41,7 +42,9 @@ function describeItem(item: ClothingItem): string {
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase, userId } = ctx;
+  const { supabase, userId, userEmail } = ctx;
+  const subBlock = await requireActiveSubscription(ctx);
+  if (subBlock) return subBlock;
 
   // Daily-cap gate. Same pattern as /api/suggest: consumed only after
   // the free validation exits (so a thin wardrobe doesn't silently eat

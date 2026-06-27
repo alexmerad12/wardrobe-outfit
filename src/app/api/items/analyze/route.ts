@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { ANALYZE_SYSTEM_PROMPT, buildAnalyzePrompt } from "@/lib/analyze-prompt";
@@ -30,7 +31,9 @@ const ANALYZE_DAILY_CAP = 40;
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase, userId } = ctx;
+  const { supabase, userId, userEmail } = ctx;
+  const subBlock = await requireActiveSubscription(ctx);
+  if (subBlock) return subBlock;
 
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const isAdmin = isCapBypassed(authUser?.email);

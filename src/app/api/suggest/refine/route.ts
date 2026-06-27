@@ -4,6 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { requireActiveSubscription } from "@/lib/require-subscription";
 import { withGeminiRetry } from "@/lib/gemini-retry";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
@@ -49,6 +50,9 @@ export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
+
+  const subBlock = await requireActiveSubscription(ctx);
+  if (subBlock) return subBlock;
 
   // Daily-cap gate. Same pattern as /api/suggest: consumed after the
   // free validation exits, refunded when the request delivers nothing.

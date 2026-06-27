@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { GoogleGenAI, Type } from "@google/genai";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
+
+  const subBlock = await requireActiveSubscription(ctx);
+  if (subBlock) return subBlock;
 
   // Daily-cap gate. Same pattern as /api/suggest: consumed after the
   // free validation exits, refunded when the request delivers nothing,

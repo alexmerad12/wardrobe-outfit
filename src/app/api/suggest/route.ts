@@ -8,6 +8,7 @@ import { orderOutfitItems } from "@/lib/outfit-order";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { requireActiveSubscription } from "@/lib/require-subscription";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
@@ -540,6 +541,9 @@ export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
+
+  const subBlock = await requireActiveSubscription(ctx);
+  if (subBlock) return subBlock;
 
   // Daily-cap gate. Increment first so attempts (including rejected
   // ones) get logged — useful telemetry on whether the cap is binding.

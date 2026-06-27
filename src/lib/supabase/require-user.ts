@@ -5,6 +5,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type AuthedContext = {
   supabase: SupabaseClient;
   userId: string;
+  // Carrying the email + creation date avoids a second
+  // supabase.auth.getUser() call in route handlers that need to check
+  // the admin-bypass allowlist (cap bypass) or the paywall grandfather
+  // cutoff (beta-user free-access carveout).
+  userEmail: string | null;
+  userCreatedAt: string | null;
 };
 
 /**
@@ -24,7 +30,12 @@ export async function requireUser(): Promise<
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return { supabase, userId: user.id };
+  return {
+    supabase,
+    userId: user.id,
+    userEmail: user.email ?? null,
+    userCreatedAt: user.created_at ?? null,
+  };
 }
 
 export function isNextResponse(x: unknown): x is NextResponse {
