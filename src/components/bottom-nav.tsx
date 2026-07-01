@@ -30,6 +30,7 @@ export function BottomNav() {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/welcome") ||
     pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/paywall") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
     pathname.startsWith("/auth") ||
