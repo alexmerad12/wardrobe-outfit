@@ -98,7 +98,13 @@ async function upsertFromSubscription(
           (subscription as unknown as { current_period_end?: number })
             .current_period_end
       ),
-      cancel_at_period_end: subscription.cancel_at_period_end,
+      // Stripe expresses "won't renew" two ways: cancel_at_period_end
+      // (flag) for active subs cancelled via most paths, and cancel_at
+      // (timestamp) for trialing subs cancelled via the Customer
+      // Portal. Treat either as "ends instead of renews" so the
+      // settings card shows "Ends on" rather than "Renews on".
+      cancel_at_period_end:
+        subscription.cancel_at_period_end || subscription.cancel_at != null,
     },
     { onConflict: "user_id" }
   );
