@@ -74,6 +74,10 @@ Menswear has a `MENSWEAR OVERRIDES` block in the prompt; the deterministic valid
 
 `src/components/launch-splash.tsx` renders once per session (sessionStorage `linette_splash_seen` gate; an inline script in `layout.tsx` adds `.skip-splash` to `<html>` to hide it instantly on return). The wordmark is a Lottie animation (`src/assets/linette-lottie.json`) played via `lottie-react`. **Note**: `lottie-react`'s `<Lottie>` has no `speed` prop — set speed imperatively via `lottieRef.current.setSpeed()` in an `onDOMLoaded` callback.
 
+### Sentry
+
+Init lives in `src/instrumentation.ts` (node + edge) and `src/instrumentation-client.ts` (browser). **They must stay inside `src/`** — this project uses a src folder, so Next.js ignores these convention files at the repo root. They sat at the root for 43 days and Sentry silently captured nothing (captureException still returns an event ID when the SDK never initialized, so nothing looked broken). Browser events tunnel through `/monitoring` (see `tunnelRoute` in next.config.ts), which must stay in the middleware PUBLIC_PATHS.
+
 ### Auth + admin
 
 - `src/lib/supabase/require-user.ts` — the single auth gate. Use everywhere a route needs a logged-in user.
