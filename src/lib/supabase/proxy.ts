@@ -23,6 +23,9 @@ const PUBLIC_PATHS = [
   // Stripe posts webhook events with no session. The handler verifies
   // the request via the Stripe signature header.
   "/api/stripe",
+  // TEMPORARY — Sentry smoke-test route, key-protected. Remove along
+  // with src/app/api/sentry-check/ after the production check passes.
+  "/api/sentry-check",
 ];
 
 // Surfaces a logged-in-but-unsubscribed user is still allowed to see.
