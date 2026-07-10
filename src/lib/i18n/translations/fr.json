@@ -1173,6 +1173,7 @@
     "checkoutError": "Impossible d'ouvrir le paiement. Réessaie.",
     "disclosure": "En continuant, tu acceptes nos Conditions et notre Confidentialité. Ton abonnement se renouvelle automatiquement au tarif ci-dessus jusqu'à ce que tu résilies depuis Réglages au moins 24 h avant la date de renouvellement.",
     "restore": "Restaurer l'achat",
+    "switchAccount": "Pas ton compte ? Déconnexion",
     "terms": "Conditions",
     "privacy": "Confidentialité",
     "successTitle": "C'est fait.",

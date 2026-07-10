@@ -1168,6 +1168,7 @@
     "checkoutError": "Couldn't open checkout. Try again.",
     "disclosure": "By continuing you agree to our Terms and Privacy. Your subscription auto-renews at the price above until you cancel in Settings at least 24 hours before the renewal date.",
     "restore": "Restore purchase",
+    "switchAccount": "Not your account? Sign out",
     "terms": "Terms",
     "privacy": "Privacy",
     "successTitle": "You're in.",

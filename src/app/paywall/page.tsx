@@ -19,6 +19,7 @@ import * as React from "react";
 import Link from "next/link";
 import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { createClient } from "@/lib/supabase/client";
 
 const BRAND_PALETTE: Palette = [
   "#ffffff",
@@ -35,6 +36,19 @@ export default function PaywallPage() {
   const [selected, setSelected] = React.useState<Plan>("annual");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [signingOut, setSigningOut] = React.useState(false);
+
+  // Escape hatch — the paywall is a dead end by design (hard gate),
+  // but "I signed up with the wrong email / I already have an
+  // account" needs a way out. Sign out and land on /login.
+  async function onSignOut() {
+    setSigningOut(true);
+    try {
+      await createClient().auth.signOut();
+    } finally {
+      window.location.href = "/login";
+    }
+  }
 
   async function onContinue() {
     setSubmitting(true);
@@ -145,6 +159,15 @@ export default function PaywallPage() {
                 {t("paywall.privacy")}
               </Link>
             </div>
+
+            <button
+              type="button"
+              className="pw-signout"
+              onClick={onSignOut}
+              disabled={signingOut}
+            >
+              {t("paywall.switchAccount")}
+            </button>
           </main>
         </div>
       </div>
@@ -161,13 +184,18 @@ const PAYWALL_CSS = `
     overflow-y: auto;
     z-index: 50;
   }
+  /* Backdrop layers are FIXED, not absolute — the shell scrolls when
+     the card is taller than the viewport (small phones), and an
+     absolute inset-0 layer only covers the first viewport-height,
+     leaving white below the fold. Fixed pins them to the viewport
+     for the whole scroll. */
   .paywall-wall {
-    position: absolute; inset: 0;
+    position: fixed; inset: 0;
     opacity: 0.36;
     filter: saturate(0.85);
   }
   .paywall-vignette {
-    position: absolute; inset: 0;
+    position: fixed; inset: 0;
     background:
       radial-gradient(ellipse at 50% 28%, rgba(255,255,255,0.75) 0%, transparent 60%),
       radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.28) 100%);
@@ -367,4 +395,20 @@ const PAYWALL_CSS = `
     border-bottom: 0.5px dotted rgba(0,0,0,0.35);
   }
   .pw-foot-link:hover { color: #000000; }
+
+  .pw-signout {
+    display: block;
+    margin: 12px auto 0;
+    appearance: none;
+    background: none; border: none;
+    font: inherit;
+    font-size: 12px;
+    color: rgba(0,0,0,0.5);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 6px 8px;
+  }
+  .pw-signout:hover:not(:disabled) { color: #000000; }
+  .pw-signout:disabled { opacity: 0.5; cursor: default; }
 `;
