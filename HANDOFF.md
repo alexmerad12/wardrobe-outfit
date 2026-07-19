@@ -19,6 +19,14 @@ Nothing mid-flight. Next chapter is stores (below).
 - **Store accounts** (user's task): DUNS `243370174` assigned 2026-07-15. Open Play Console ($25, owner = hello@linette.app) + Apple Developer ($99/yr, same identity). Apple may not find a fresh DUNS for ~2 wks — retry, never re-apply.
 - **User may cancel ImprovMX** account (dead weight).
 
+## RESTRUCTURE IN FLIGHT — read before touching Stripe/stores
+Decision (2026-07-19, pending accountant validation): **Path B** — wife incorporates **"Linette inc."** (she's been the real driver of the product), Linette assets transfer into it PRE-LAUNCH. Consequences:
+- **Hold public marketing/launch** until the new Stripe account (under Linette inc.) is live — avoids migrating subscribers between Stripe accounts. Web app stays up; just don't push traffic.
+- Old Play Console signup under 9537-1076 Québec Inc. will be ABANDONED ($25 sunk). Don't continue its verification.
+- New corp gets its own DUNS (apply day 1 — critical path, 1–4 wks), new Stripe (wife's KYC; recreate the 2 prices + webhook + env vars + branding), new Play Console + Apple enrollment. Everything domain-anchored (Workspace, Vercel, Supabase, Resend, Sentry, DNS) carries over — billing-card/name swaps only.
+- Privacy requirements baked into the new corp: siège social = business address (accountant domiciliation or iPostal1), wife uses PROFESSIONAL address as director (QC 2023 reform), public store phone = business number (Fongo/iPostal1), never home/cell.
+- First action: user's accountant email (Path B validation + incorporation + domiciliation). Nothing else moves until answered.
+
 ## Key paths
 - Subscription gate: `src/lib/subscription.ts` (grandfather cutoff), `src/lib/require-subscription.ts` (API 402 gate), `src/lib/supabase/proxy.ts` (middleware page gate + PUBLIC_PATHS)
 - Stripe: `src/app/api/checkout/route.ts`, `src/app/api/stripe/webhook/route.ts`, `src/app/api/billing-portal/route.ts`, `src/lib/stripe.ts`
