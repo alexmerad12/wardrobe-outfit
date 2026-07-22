@@ -968,8 +968,22 @@ export async function POST(request: NextRequest) {
       "outerwear",
       "one-piece",
     ]);
+    // Shoes get a SHALLOW rotation ban (last 2 shown outfits only,
+    // vs 10 for anchors). Without this, the model picks its favorite
+    // pair on every single tap — the ≥2-items-different rule is
+    // satisfiable while never changing shoes, and with a 3/day cap
+    // "every outfit today had the same shoes" reads as broken.
+    // Depth 2 forces consecutive variety while still letting a great
+    // pair recur within a session — the original "versatile pieces
+    // should recur" intent, minus the every-single-time degenerate
+    // case. Bags/accessories stay free to recur (no complaints, and
+    // a signature bag genuinely is how real styling works).
+    const SHOE_ROTATION_DEPTH = 2;
     const previousOutfitIds = Array.from(
       new Set(kvRecentSuggestions.slice(0, EXCLUSION_DEPTH).flat())
+    );
+    const recentShoeWindowIds = new Set(
+      kvRecentSuggestions.slice(0, SHOE_ROTATION_DEPTH).flat()
     );
     if (previousOutfitIds.length > 0) {
       const wardrobeCategoryCounts = items.reduce<Record<string, number>>(
@@ -985,8 +999,12 @@ export async function POST(request: NextRequest) {
         if (anchorItemId && id === anchorItemId) continue;
         const item = items.find((i) => i.id === id);
         if (!item) continue;
-        // Skip non-anchor categories — accessories are allowed to recur.
-        if (!ANCHOR_CATEGORIES.has(item.category)) continue;
+        // Anchors: banned at full depth. Shoes: banned only within
+        // the shallow rotation window. Everything else recurs freely.
+        const isAnchor = ANCHOR_CATEGORIES.has(item.category);
+        const isRotatingShoe =
+          item.category === "shoes" && recentShoeWindowIds.has(id);
+        if (!isAnchor && !isRotatingShoe) continue;
         if ((wardrobeCategoryCounts[item.category] ?? 0) >= RICH_ENOUGH) {
           banSet.add(id);
         }

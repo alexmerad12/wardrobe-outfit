@@ -761,7 +761,14 @@ function SuggestContent() {
               onClick={handleShowAnother}
               disabled={loading}
             >
-              <Sparkles className="h-4 w-4" />
+              {/* Loading state must be visibly different from idle —
+                  the static Sparkles + text-only swap read as "nothing
+                  happened" while the previous outfit stayed on screen. */}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
               {loading ? t("suggest.styling") : t("suggest.showAnother")}
             </Button>
             <Button
