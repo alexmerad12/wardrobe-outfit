@@ -1,21 +1,14 @@
 import { test, expect } from "@playwright/test";
+import { assertE2EAccount, signIn } from "./auth";
 
 // Read-only smoke test for the CRUD endpoints. Logs in once and hits
 // every primary GET to confirm the basic data plumbing works:
 // auth flow, RLS policies, response shapes, no 500s.
 //
-// We deliberately avoid POST/PATCH/DELETE here — running on a real
-// wardrobe (the user's wife's account), we don't want to modify
-// state. State-modifying flows are covered by the dedicated specs.
+// Read-only on purpose: state-modifying flows are covered by the
+// dedicated specs.
 
-const TEST_EMAIL = process.env.STRESS_TEST_EMAIL!;
-const TEST_PASSWORD = process.env.STRESS_TEST_PASSWORD!;
-
-if (!TEST_EMAIL || !TEST_PASSWORD) {
-  throw new Error(
-    "STRESS_TEST_EMAIL and STRESS_TEST_PASSWORD must be set in .env.local"
-  );
-}
+assertE2EAccount();
 
 const ENDPOINTS: Array<{
   path: string;
@@ -53,13 +46,7 @@ const ENDPOINTS: Array<{
 test("stress-crud: every read endpoint", async ({ page }) => {
   test.setTimeout(2 * 60 * 1000);
 
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, {
-    timeout: 30_000,
-  });
+  await signIn(page);
 
   type Result = { path: string; ok: boolean; detail: string };
   const results: Result[] = [];

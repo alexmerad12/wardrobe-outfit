@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { assertE2EAccount, signIn } from "./auth";
 
 // End-to-end test for the "wear today" flow — covers the husband-bug
 // scenario: set today's outfit, reload, verify it persists. Used to be
@@ -9,12 +10,7 @@ import { test, expect } from "@playwright/test";
 // the test, runs against a temporary one, restores at the end. Won't
 // pollute the wife's real account.
 
-const TEST_EMAIL = process.env.STRESS_TEST_EMAIL!;
-const TEST_PASSWORD = process.env.STRESS_TEST_PASSWORD!;
-
-if (!TEST_EMAIL || !TEST_PASSWORD) {
-  throw new Error("STRESS_TEST_EMAIL/PASSWORD missing");
-}
+assertE2EAccount();
 
 function localDate(): string {
   const d = new Date();
@@ -24,12 +20,7 @@ function localDate(): string {
 test("stress-wear-today: set, persist, delete (husband-bug regression)", async ({ page }) => {
   test.setTimeout(3 * 60 * 1000);
 
-  // Sign in.
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, { timeout: 30_000 });
+  await signIn(page);
 
   const today = localDate();
 

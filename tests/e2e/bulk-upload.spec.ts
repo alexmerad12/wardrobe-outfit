@@ -1,531 +1,248 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Browser, type ConsoleMessage, type Page, type Response } from "@playwright/test";
 import path from "node:path";
 import fs from "node:fs";
+import { assertE2EAccount, signIn } from "./auth";
+
+// BULK UPLOAD, end to end in a real browser, the way people add their
+// closet: pick photos on /wardrobe/bulk (or the + button on /wardrobe) →
+// each photo uploads to Supabase Storage, gets cut out on the server
+// (/api/items/normalize), read by the AI (/api/items/analyze) and saved →
+// the page forwards to the review wizard (/wardrobe/<id>?edit=1).
+//
+// Photos: copy 5-10 .jpg wardrobe photos into tests/fixtures/ (gitignored,
+// never committed). Account: the dedicated test account (HARNESS_EMAIL,
+// auth.ts). Every test wipes that wardrobe first.
+//
+// Cost per photo: one Gemini Flash-Lite call (analyze) and one cutout
+// (~20 s; runs are serialized per server instance).
 
 const FIXTURES_DIR = path.join(__dirname, "..", "fixtures");
-const TEST_EMAIL = "test@gmail.com";
-const TEST_PASSWORD = "Test123456";
 
-// Pick the first 5 .jpg fixtures in alphabetical order.
-function getFixtures(): string[] {
+// Wipes the signed-in wardrobe (clearWardrobe): dedicated account only.
+assertE2EAccount();
+
+const PIXEL_7 = {
+  viewport: { width: 412, height: 915 },
+  isMobile: true,
+  hasTouch: true,
+  deviceScaleFactor: 2.625,
+  userAgent:
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+};
+
+function allFixtures(): string[] {
+  if (!fs.existsSync(FIXTURES_DIR)) return [];
   return fs
     .readdirSync(FIXTURES_DIR)
-    .filter((f) => f.toLowerCase().endsWith(".jpg"))
+    .filter((f) => /\.jpe?g$/i.test(f))
     .sort()
-    .slice(0, 5)
     .map((f) => path.join(FIXTURES_DIR, f));
 }
 
-// Pick the 5 LARGEST fixtures — worst case for upload + bg removal.
-// Simulates someone picking photos straight off their phone camera
-// roll without any compression.
+// The first 5 in alphabetical order.
+function getFixtures(): string[] {
+  return allFixtures().slice(0, 5);
+}
+
+// The 5 LARGEST: worst case for the upload step, like photos straight off
+// a phone camera roll.
 function getLargeFixtures(): string[] {
-  return fs
-    .readdirSync(FIXTURES_DIR)
-    .filter((f) => f.toLowerCase().endsWith(".jpg"))
-    .map((f) => ({
-      file: f,
-      size: fs.statSync(path.join(FIXTURES_DIR, f)).size,
-    }))
+  return allFixtures()
+    .map((file) => ({ file, size: fs.statSync(file).size }))
     .sort((a, b) => b.size - a.size)
     .slice(0, 5)
-    .map((x) => path.join(FIXTURES_DIR, x.file));
+    .map((x) => x.file);
 }
 
-async function signIn(page: import("@playwright/test").Page) {
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  // Tolerate the post-login redirect going to / , /wardrobe, /home,
-  // or /onboarding for a brand-new account.
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, {
-    timeout: 30_000,
-  });
-}
+test.beforeEach(() => {
+  test.skip(allFixtures().length < 5, "copy at least 5 .jpg wardrobe photos into tests/fixtures/");
+});
 
-// Deletes every item in the signed-in user's wardrobe. Tests share one
-// real account, so without this the N-th test in a run is rendering a
-// wardrobe page stuffed with N×5 thumbnails from earlier tests — which
-// starves the single-threaded dev server, slows /api/upload, and
-// eventually stalls the batch processor. Call this right after signIn.
-async function clearWardrobe(page: import("@playwright/test").Page) {
+async function clearWardrobe(page: Page) {
   const res = await page.request.get("/api/items");
   if (!res.ok()) return;
   const items = (await res.json()) as Array<{ id: string }>;
-  await Promise.all(
-    items.map((i) => page.request.delete(`/api/items/${i.id}`))
-  );
+  await Promise.all(items.map((i) => page.request.delete(`/api/items/${i.id}`)));
 }
+
+type Item = { id: string; name: string; category: string; image_url: string; created_at: string };
+
+async function savedItems(page: Page): Promise<Item[]> {
+  const res = await page.request.get("/api/items");
+  expect(res.ok(), "/api/items should load").toBeTruthy();
+  return (await res.json()) as Item[];
+}
+
+const REVIEW_WIZARD = /\/wardrobe\/[0-9a-f-]{36}\?edit=1/;
+
+// Picks the files and waits until every photo settled. The page forwards
+// to the review wizard once nothing is left in flight, even when some
+// photos errored, so callers confirm success through the saved items.
+async function uploadBatch(
+  page: Page,
+  files: string[],
+  label: string,
+  { fromWardrobeButton = false, budgetMs = 5 * 60_000 } = {}
+): Promise<{ ready: number; errored: number; redirected: boolean }> {
+  const logs: string[] = [];
+  const failed: string[] = [];
+  const onConsole = (msg: ConsoleMessage) => {
+    const text = msg.text();
+    if (msg.type() === "error" || /\[(pending|upload|bg)/.test(text)) logs.push(`[${msg.type()}] ${text}`);
+  };
+  const onResponse = (resp: Response) => {
+    if (resp.status() >= 400) failed.push(`${resp.status()} ${resp.url()}`);
+  };
+  page.on("console", onConsole);
+  page.on("response", onResponse);
+  try {
+    if (!fromWardrobeButton) await page.goto("/wardrobe/bulk");
+    const input = page.locator('input[type="file"][accept="image/*"][multiple]');
+    await expect(input).toHaveCount(1, { timeout: 15_000 });
+    await input.setInputFiles(files);
+    // The + button hands the picked files to the bulk page.
+    await page.waitForURL(/\/wardrobe\/bulk/, { timeout: 15_000 });
+
+    const deadline = Date.now() + budgetMs;
+    let ready = 0;
+    let errored = 0;
+    let redirected = false;
+    while (Date.now() < deadline) {
+      if (REVIEW_WIZARD.test(page.url())) {
+        redirected = true;
+        break;
+      }
+      ready = await page.locator('[data-stage="ready"]').count();
+      errored = await page.locator('[data-stage="error"]').count();
+      // All settled with no success at all: the page stays put.
+      if (errored > 0 && ready + errored >= files.length) break;
+      await page.waitForTimeout(1000);
+    }
+    console.log(`[${label}] ready=${ready} errored=${errored} redirected=${redirected} files=${files.length}`);
+    if (!redirected || errored > 0) {
+      for (const f of failed) console.log(`[${label}] failed request: ${f}`);
+      for (const l of logs.slice(-30)) console.log(`[${label}] ${l}`);
+    }
+    return { ready, errored, redirected };
+  } finally {
+    page.off("console", onConsole);
+    page.off("response", onResponse);
+  }
+}
+
+async function mobilePage(browser: Browser): Promise<Page> {
+  const ctx = await browser.newContext(PIXEL_7);
+  return ctx.newPage();
+}
+
+test.describe.configure({ mode: "serial" });
 
 test.describe("bulk upload + review flow", () => {
   test("signs in", async ({ page }) => {
     await signIn(page);
-    // Not asserting on console errors — the initial page load often
-    // fires a 401 before the session cookie is picked up by /api/items
-    // and similar; harmless.
     await page.goto("/wardrobe");
     await expect(page).toHaveURL(/\/wardrobe/);
   });
 
-  test(
-    "upload 5 photos on throttled mobile — every one should still finish",
-    async ({ browser }) => {
-      // Pixel 7 viewport + DevTools "Slow 3G" profile. This is the closest
-      // approximation of the mobile cellular environment where the user
-      // was seeing items hang indefinitely.
-      const ctx = await browser.newContext({
-        viewport: { width: 412, height: 915 },
-        isMobile: true,
-        hasTouch: true,
-        deviceScaleFactor: 2.625,
-        userAgent:
-          "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-      });
-      const page = await ctx.newPage();
-
-      // CDP-level throttling: realistic Fast 3G — 1.6 Mbit down, 750 kbit
-      // up, 150 ms RTT. Close to a typical urban 4G/5G experience with
-      // weak signal, which is the environment where the user was seeing
-      // uploads get stuck.
-      const cdp = await ctx.newCDPSession(page);
-      await cdp.send("Network.emulateNetworkConditions", {
-        offline: false,
-        latency: 150,
-        downloadThroughput: (1600 * 1024) / 8,
-        uploadThroughput: (750 * 1024) / 8,
-      });
-
-      // No artificial drops — just real mobile-equivalent throttling,
-      // since that's what the user's phone is actually experiencing.
-      // If the pipeline passes this, mobile production should pass too.
-
-      const consoleErrors: string[] = [];
-      const pendingLogs: string[] = [];
-      const failedRequests: Array<{ url: string; status: number; body: string }> =
-        [];
-      page.on("console", (msg) => {
-        const text = msg.text();
-        if (msg.type() === "error") consoleErrors.push(text);
-        if (/\[(pending|upload|tus)/.test(text)) pendingLogs.push(text);
-      });
-      page.on("response", async (resp) => {
-        if (resp.status() >= 400) {
-          const body = await resp.text().catch(() => "<no body>");
-          failedRequests.push({
-            url: resp.url(),
-            status: resp.status(),
-            body: body.slice(0, 200),
-          });
-        }
-      });
-
-      await signIn(page);
-      await clearWardrobe(page);
-      await page.goto("/wardrobe");
-      await page.waitForLoadState("networkidle");
-
-      const fixtures = getFixtures();
-      const libraryInput = page.locator(
-        'input[type="file"][accept="image/*"][multiple]'
-      );
-      await libraryInput.setInputFiles(fixtures);
-
-      await page.waitForURL(/\/wardrobe\/uploading/, { timeout: 60_000 });
-
-      const settledBy = Date.now() + 5 * 60 * 1000;
-      let ready = 0;
-      let errored = 0;
-      let redirected = false;
-      while (Date.now() < settledBy) {
-        if (!/\/wardrobe\/uploading/.test(page.url())) {
-          redirected = true;
-          break;
-        }
-        ready = await page.locator('[data-stage="ready"]').count();
-        errored = await page.locator('[data-stage="error"]').count();
-        if (ready + errored >= fixtures.length) break;
-        await page.waitForTimeout(1500);
-      }
-
-      console.log(
-        `[throttled-test] ready=${ready} errored=${errored} redirected=${redirected} total=${fixtures.length}`
-      );
-      if (failedRequests.length > 0) {
-        console.log("[throttled-test] failed requests:");
-        for (const r of failedRequests) {
-          console.log(`  ${r.status} ${r.url}`);
-          if (r.body) console.log(`    body: ${r.body}`);
-        }
-      }
-      if (pendingLogs.length > 0) {
-        console.log("[throttled-test] pipeline logs:");
-        for (const line of pendingLogs) console.log("  " + line);
-      }
-
-      await ctx.close();
-      expect(
-        errored,
-        `${errored} items errored on throttled network`
-      ).toBe(0);
-      expect(
-        ready === fixtures.length || redirected,
-        `neither ready-count (${ready}) nor auto-redirect (${redirected}) confirmed all items settled`
-      ).toBeTruthy();
-    }
-  );
-
-  test("full happy path: upload → save → AI tagged → bg removed", async ({
-    page,
-  }) => {
-    const consoleErrors: string[] = [];
-    const pendingLogs: string[] = [];
-    const failedRequests: Array<{ url: string; status: number; body: string }> =
-      [];
-    page.on("console", (msg) => {
-      const text = msg.text();
-      if (msg.type() === "error") consoleErrors.push(text);
-      if (/\[(pending|upload|tus)/.test(text)) pendingLogs.push(text);
-    });
-    page.on("response", async (resp) => {
-      if (resp.status() >= 400) {
-        const body = await resp.text().catch(() => "<no body>");
-        failedRequests.push({
-          url: resp.url(),
-          status: resp.status(),
-          body: body.slice(0, 200),
-        });
-      }
-    });
-
+  test("full happy path: upload → save → AI tagged → bg removed", async ({ page }) => {
+    test.setTimeout(8 * 60_000);
     await signIn(page);
     await clearWardrobe(page);
-
-    // Navigate to wardrobe. The app might land us on /home or similar
-    // after sign-in, so make sure we're on /wardrobe before we start.
-    await page.goto("/wardrobe");
-    await page.waitForLoadState("networkidle");
-
-    // The library file-input is a sibling of the + dropdown. We don't
-    // need to click the dropdown first — setInputFiles just binds the
-    // files to the hidden input directly.
     const fixtures = getFixtures();
-    console.log("[test] using fixtures:", fixtures.map((f) => path.basename(f)));
+    console.log("[happy] fixtures:", fixtures.map((f) => path.basename(f)));
 
-    const libraryInput = page.locator(
-      'input[type="file"][accept="image/*"][multiple]'
-    );
-    await expect(libraryInput).toHaveCount(1, { timeout: 10_000 });
-    await libraryInput.setInputFiles(fixtures);
+    const run = await uploadBatch(page, fixtures, "happy");
+    expect(run.redirected, "the review wizard never opened").toBe(true);
 
-    // Expect the uploading page to take over
-    await page.waitForURL(/\/wardrobe\/uploading/, { timeout: 15_000 });
-    await expect(page.getByText(/Uploading your closet/i)).toBeVisible();
+    const items = await savedItems(page);
+    expect(items.length, `${fixtures.length - items.length} photos never got saved`).toBe(fixtures.length);
+    const untitled = items.filter((i) => i.name === "Untitled item");
+    expect(untitled.length, `${untitled.length} items saved as "Untitled item": AI didn't run`).toBe(0);
 
-    // Now the slow part: wait for every item to settle. Total wall-clock
-    // budget 4 min. Two exit conditions: every tile settled OR the
-    // page auto-redirected to the wizard (which only happens when all
-    // items were ready — errored batches stay on the uploading page).
-    // Fast batches race the poll and the tile count vanishes after
-    // redirect, so we need both checks.
-    const settledBy = Date.now() + 4 * 60 * 1000;
-    let ready = 0;
-    let errored = 0;
-    let redirected = false;
-    while (Date.now() < settledBy) {
-      if (!/\/wardrobe\/uploading/.test(page.url())) {
-        redirected = true;
-        break;
-      }
-      const readyTiles = await page.locator('[data-stage="ready"]').count();
-      const errorTiles = await page.locator('[data-stage="error"]').count();
-      ready = readyTiles;
-      errored = errorTiles;
-      const settled = ready + errored;
-      if (settled >= fixtures.length) break;
-      await page.waitForTimeout(500);
-    }
-
-    // Dump diagnostics before asserting — if this test fails we want
-    // every last bit of evidence surfaced.
-    console.log(
-      `[test] ready=${ready} errored=${errored} redirected=${redirected} total=${fixtures.length}`
-    );
-    if (failedRequests.length > 0) {
-      console.log("[test] failed network requests:");
-      for (const r of failedRequests) {
-        console.log(`  ${r.status} ${r.url}`);
-        if (r.body) console.log(`    body: ${r.body}`);
-      }
-    }
-    if (pendingLogs.length > 0) {
-      console.log("[test] pipeline logs:");
-      for (const line of pendingLogs) console.log("  " + line);
-    }
-    if (consoleErrors.length > 0) {
-      console.log("[test] console errors:");
-      for (const e of consoleErrors) console.log("  " + e);
-    }
-
-    expect(errored, `${errored} items errored — see pipeline logs`).toBe(0);
-    expect(
-      ready === fixtures.length || redirected,
-      `neither ready-count (${ready}) nor auto-redirect (${redirected}) confirmed all items settled`
-    ).toBeTruthy();
-
-    // After the batch settles we expect to land on the wizard route.
-    await page.waitForURL(/\/wardrobe\/[^/]+\?edit=1/, { timeout: 30_000 });
-
-    // Background removal happens on the server BEFORE save
-    // (/api/items/normalize), so saved items already point at the final
-    // photo. Its signature: a cache-busted URL (?v=) to a 1280x1280 JPEG
-    // (the catalog square). The no-subject / failure fallback keeps the
-    // photo's own aspect ratio, so "square" means the cutout ran.
-    type Item = {
-      id: string;
-      name: string;
-      category: string;
-      image_url: string;
-      created_at: string;
-    };
-    const apiRes = await page.request.get("/api/items");
-    expect(apiRes.ok(), "/api/items should load").toBeTruthy();
-    const items = (await apiRes.json()) as Item[];
-    const recent = [...items]
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, fixtures.length);
-
-    console.log("[test] recent items after the batch:");
-    for (const it of recent) {
-      console.log(`  ${it.name} (${it.category}) — ${it.image_url}`);
-    }
-
-    const untitled = recent.filter((i) => i.name === "Untitled item");
-    expect(
-      untitled.length,
-      `${untitled.length} items saved with "Untitled item" — AI didn't run`
-    ).toBe(0);
-
-    // JPEG dimensions from the first SOF marker.
+    // Background removal runs on the server BEFORE save, so saved items
+    // point at the final photo: a cache-busted URL (?v=) to a 1280x1280
+    // JPEG. The no-subject / failure fallback keeps the photo's own aspect
+    // ratio, so "square" means the cutout ran.
     const jpegSize = (buf: Buffer): { w: number; h: number } | null => {
       let i = 2;
       while (i + 9 < buf.length) {
         if (buf[i] !== 0xff) return null;
         const marker = buf[i + 1];
         const len = buf.readUInt16BE(i + 2);
-        if (marker >= 0xc0 && marker <= 0xc3) {
-          return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
-        }
+        if (marker >= 0xc0 && marker <= 0xc3) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
         i += 2 + len;
       }
       return null;
     };
     let cutouts = 0;
-    for (const it of recent) {
+    for (const it of items) {
       const imgRes = await page.request.get(it.image_url);
       const size = imgRes.ok() ? jpegSize(Buffer.from(await imgRes.body())) : null;
       const ok = it.image_url.includes("?v=") && size?.w === 1280 && size?.h === 1280;
       if (ok) cutouts++;
-      console.log(`  ${it.name}: ${size ? `${size.w}x${size.h}` : "unreadable"} ${ok ? "cutout" : "NOT cut out"}`);
+      console.log(`[happy] ${it.name} (${it.category}): ${size ? `${size.w}x${size.h}` : "unreadable"} ${ok ? "cutout" : "NOT cut out"}`);
     }
-    expect(
-      cutouts,
-      `only ${cutouts}/${recent.length} items have their background removed — 100% required`
-    ).toBe(recent.length);
+    expect(cutouts, `only ${cutouts}/${items.length} items have their background removed`).toBe(items.length);
   });
 
-  test("stress: 5 LARGEST fixtures (3-5MB each), mobile viewport", async ({
-    browser,
-  }) => {
-    const ctx = await browser.newContext({
-      viewport: { width: 412, height: 915 },
-      isMobile: true,
-      hasTouch: true,
-      deviceScaleFactor: 2.625,
-      userAgent:
-        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+  test("throttled mobile (Fast 3G): every photo still finishes", async ({ browser }) => {
+    test.setTimeout(10 * 60_000);
+    const page = await mobilePage(browser);
+    // CDP throttling: 1.6 Mbit down, 750 kbit up, 150 ms RTT, the weak-
+    // signal mobile network where uploads used to hang.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Network.emulateNetworkConditions", {
+      offline: false,
+      latency: 150,
+      downloadThroughput: (1600 * 1024) / 8,
+      uploadThroughput: (750 * 1024) / 8,
     });
-    const page = await ctx.newPage();
-
-    const bgLogs: string[] = [];
-    page.on("console", (msg) => {
-      const text = msg.text();
-      if (/\[bg /.test(text)) bgLogs.push(text);
-    });
-
     await signIn(page);
     await clearWardrobe(page);
-    await page.goto("/wardrobe");
-    await page.waitForLoadState("networkidle");
+    const fixtures = getFixtures();
+    const run = await uploadBatch(page, fixtures, "throttled", { budgetMs: 8 * 60_000 });
+    const items = await savedItems(page);
+    await page.context().close();
+    expect(run.redirected, "the review wizard never opened").toBe(true);
+    expect(items.length, `${fixtures.length - items.length} photos never got saved on a slow network`).toBe(fixtures.length);
+  });
 
+  test("5 LARGEST photos, mobile viewport", async ({ browser }) => {
+    test.setTimeout(8 * 60_000);
+    const page = await mobilePage(browser);
+    await signIn(page);
+    await clearWardrobe(page);
     const fixtures = getLargeFixtures();
-    const totalBytes = fixtures.reduce(
-      (a, f) => a + fs.statSync(f).size,
-      0
-    );
-    console.log(
-      `[stress] ${fixtures.length} large fixtures, ${(totalBytes / 1024 / 1024).toFixed(1)} MB total`
-    );
-
-    const libraryInput = page.locator(
-      'input[type="file"][accept="image/*"][multiple]'
-    );
-    await libraryInput.setInputFiles(fixtures);
-
-    await page.waitForURL(/\/wardrobe\/uploading/, { timeout: 15_000 });
-    const tReady0 = Date.now();
-
-    // Two exit conditions: (a) every tile on the uploading page has
-    // settled, OR (b) the uploading page has auto-redirected to the
-    // review wizard, which only happens when every item finished ready
-    // (we'd still be on /wardrobe/uploading if any were errored). When
-    // uploads are fast, the redirect races our poll and we miss the
-    // "ready" tile count entirely — hence the second condition.
-    const settledBy = Date.now() + 3 * 60 * 1000;
-    let ready = 0;
-    let errored = 0;
-    let redirected = false;
-    while (Date.now() < settledBy) {
-      if (!/\/wardrobe\/uploading/.test(page.url())) {
-        redirected = true;
-        break;
-      }
-      ready = await page.locator('[data-stage="ready"]').count();
-      errored = await page.locator('[data-stage="error"]').count();
-      if (ready + errored >= fixtures.length) break;
-      await page.waitForTimeout(500);
-    }
-    const readyElapsed = Math.round((Date.now() - tReady0) / 1000);
-    console.log(
-      `[stress] ready=${ready} errored=${errored} redirected=${redirected} in ${readyElapsed}s`
-    );
-
-    // Cross-check via the API in case we only observed the redirect:
-    // that confirms 5 new items actually got saved to the DB.
-    const apiRes = await page.request.get("/api/items");
-    const apiItems = apiRes.ok()
-      ? ((await apiRes.json()) as Array<{ id: string; created_at: string }>)
-      : [];
-    console.log(`[stress] /api/items returned ${apiItems.length} items`);
-
-    await ctx.close();
-    expect(errored, `${errored} items errored with large files`).toBe(0);
-    // Pass if tiles counted to 5 OR auto-redirect happened (which only
-    // fires on all-ready). Belt-and-suspenders.
-    expect(
-      ready === fixtures.length || redirected,
-      `neither ready-count (${ready}) nor auto-redirect (${redirected}) confirmed all items settled`
-    ).toBeTruthy();
-    expect(
-      apiItems.length,
-      `expected >= ${fixtures.length} items in DB, got ${apiItems.length}`
-    ).toBeGreaterThanOrEqual(fixtures.length);
-    console.log(`[stress] bg-removal logs: ${bgLogs.length} lines`);
-    for (const line of bgLogs.slice(0, 20)) console.log("  " + line);
+    const mb = fixtures.reduce((a, f) => a + fs.statSync(f).size, 0) / 1024 / 1024;
+    console.log(`[large] ${fixtures.length} photos, ${mb.toFixed(1)} MB total`);
+    const run = await uploadBatch(page, fixtures, "large");
+    const items = await savedItems(page);
+    await page.context().close();
+    expect(run.redirected, "the review wizard never opened").toBe(true);
+    expect(items.length, `${fixtures.length - items.length} large photos never got saved`).toBe(fixtures.length);
   });
 
-  // Reproduces the exact mode the user reports: first batch works,
-  // second batch in the same session has 1-3 items fail with "Upload:
-  // Failed to fetch". The only way to catch regressions in the
-  // upload-session path (CORS preflight cache, signed URL token
-  // reuse, Supabase SDK state) is to actually do two batches in one
-  // authenticated session and assert both succeed.
-  test("TWO consecutive batches, same session — batch 2 must not regress", async ({
-    browser,
-  }) => {
-    const ctx = await browser.newContext({
-      viewport: { width: 412, height: 915 },
-      isMobile: true,
-      hasTouch: true,
-      deviceScaleFactor: 2.625,
-      userAgent:
-        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    });
-    const page = await ctx.newPage();
-
-    const errorLogs: string[] = [];
-    page.on("console", (msg) => {
-      const text = msg.text();
-      if (msg.type() === "error" || /failed|Upload:|Sign /.test(text)) {
-        errorLogs.push(`[${msg.type()}] ${text}`);
-      }
-    });
-
+  // The mode users reported: the first batch works, the second batch in the
+  // same session loses photos. Same page session throughout: batch 1 from
+  // the bulk page, exit the wizard with its X like a person would, batch 2
+  // from the + button on /wardrobe.
+  test("TWO consecutive batches, same session — batch 2 must not regress", async ({ browser }) => {
+    test.setTimeout(12 * 60_000);
+    const all = allFixtures();
+    test.skip(all.length < 10, "needs 10 .jpg photos in tests/fixtures/ (two batches of 5)");
+    const page = await mobilePage(browser);
     await signIn(page);
     await clearWardrobe(page);
 
-    // Split 10 fixtures into two batches of 5 — no overlap, simulating
-    // two separate photo-picker sessions.
-    const all = fs
-      .readdirSync(FIXTURES_DIR)
-      .filter((f) => f.toLowerCase().endsWith(".jpg"))
-      .sort()
-      .map((f) => path.join(FIXTURES_DIR, f));
-    const batch1 = all.slice(0, 5);
-    const batch2 = all.slice(5, 10);
-    expect(batch2.length).toBe(5);
+    const run1 = await uploadBatch(page, all.slice(0, 5), "batch1");
+    expect(run1.redirected, "batch 1: the review wizard never opened").toBe(true);
+    await page.getByRole("button", { name: /^(Close|Fermer)$/ }).click();
+    await page.waitForURL(/\/wardrobe$/, { timeout: 15_000 });
 
-    async function runBatch(fixtures: string[], label: string) {
-      await page.goto("/wardrobe");
-      await page.waitForLoadState("networkidle");
-      const input = page.locator(
-        'input[type="file"][accept="image/*"][multiple]'
-      );
-      await input.setInputFiles(fixtures);
-      await page.waitForURL(/\/wardrobe\/uploading/, { timeout: 15_000 });
-
-      const settleBy = Date.now() + 3 * 60 * 1000;
-      let ready = 0;
-      let errored = 0;
-      let redirected = false;
-      while (Date.now() < settleBy) {
-        if (!/\/wardrobe\/uploading/.test(page.url())) {
-          redirected = true;
-          break;
-        }
-        ready = await page.locator('[data-stage="ready"]').count();
-        errored = await page.locator('[data-stage="error"]').count();
-        if (ready + errored >= fixtures.length) break;
-        await page.waitForTimeout(500);
-      }
-      console.log(
-        `[${label}] ready=${ready} errored=${errored} redirected=${redirected}`
-      );
-
-      // Capture what actually errored so the test failure has signal.
-      if (errored > 0) {
-        const errorItems = await page
-          .locator('[data-stage="error"]')
-          .evaluateAll((els) => els.map((e) => e.getAttribute("data-item-id")));
-        console.log(`[${label}] errored item ids:`, errorItems);
-        console.log(`[${label}] recent console:`);
-        for (const line of errorLogs.slice(-20)) console.log("  " + line);
-      }
-
-      expect(errored, `${label}: ${errored} items errored`).toBe(0);
-      expect(
-        ready === fixtures.length || redirected,
-        `${label}: neither tile count nor redirect confirmed success`
-      ).toBeTruthy();
-    }
-
-    await runBatch(batch1, "batch1");
-
-    // User flow: after batch 1 finishes, the wizard opens. Exiting
-    // the wizard (via the X) drops us back on /wardrobe — same place
-    // from which they'd start batch 2 in real usage. Skipping the
-    // wizard entirely and just navigating to /wardrobe isn't a fair
-    // reproduction because it leaves the pending context in a
-    // different state.
-    if (/\/wardrobe\/[^/]+\?edit=1/.test(page.url())) {
-      // Land on wardrobe to let any "ready" items auto-dismiss or
-      // get cleared by the pending-uploads cleanup.
-      await page.goto("/wardrobe");
-      await page.waitForLoadState("networkidle");
-    }
-
-    await runBatch(batch2, "batch2");
-
-    await ctx.close();
+    const run2 = await uploadBatch(page, all.slice(5, 10), "batch2", { fromWardrobeButton: true });
+    const items = await savedItems(page);
+    await page.context().close();
+    expect(run2.redirected, "batch 2: the review wizard never opened").toBe(true);
+    expect(items.length, `${10 - items.length} of 10 photos missing after two batches`).toBe(10);
   });
 });

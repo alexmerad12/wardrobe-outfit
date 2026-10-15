@@ -1,4 +1,5 @@
 import { test } from "@playwright/test";
+import { assertE2EAccount, signIn } from "./auth";
 
 // COMPREHENSIVE STYLIST RULE VALIDATOR (Phase A of the deploy-readiness
 // loop). Hits /api/suggest with a broad sweep of mood × occasion ×
@@ -14,14 +15,7 @@ import { test } from "@playwright/test";
 
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 
-const TEST_EMAIL = process.env.STRESS_TEST_EMAIL!;
-const TEST_PASSWORD = process.env.STRESS_TEST_PASSWORD!;
-
-if (!TEST_EMAIL || !TEST_PASSWORD) {
-  throw new Error(
-    "STRESS_TEST_EMAIL and STRESS_TEST_PASSWORD must be set in .env.local"
-  );
-}
+assertE2EAccount();
 
 type SuggestSuggestion = {
   items: ClothingItem[];
@@ -599,15 +593,7 @@ function validateOutfit(
 test("stress-suggest comprehensive sweep", async ({ page }) => {
   test.setTimeout(60 * 60 * 1000); // 60 min cap
 
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  // Bump to 90s — Supabase auth can be slow when many login attempts
-  // happen in a short window (rate-limit backoff).
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), {
-    timeout: 90_000,
-  });
+  await signIn(page);
   // Let post-login redirects + Next.js Turbopack route compilation
   // settle. Fresh server starts can return 404 on /api/items if the
   // route hasn't been hit yet.

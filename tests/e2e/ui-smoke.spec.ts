@@ -1,18 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { assertE2EAccount, signIn } from "./auth";
 
 // UI smoke: log in, walk every primary tab + key flow, fail on any
 // console error (red text in DevTools). Catches "the page crashed" /
 // "the API returned 500" / "image failed to load" regressions across
 // the whole nav before they reach a user.
 
-const TEST_EMAIL = process.env.STRESS_TEST_EMAIL!;
-const TEST_PASSWORD = process.env.STRESS_TEST_PASSWORD!;
-
-if (!TEST_EMAIL || !TEST_PASSWORD) {
-  throw new Error(
-    "STRESS_TEST_EMAIL and STRESS_TEST_PASSWORD must be set in .env.local"
-  );
-}
+assertE2EAccount();
 
 // Console messages we tolerate — they're noisy but harmless. Add more
 // here if you find a third-party warning that's not actionable.
@@ -39,14 +33,7 @@ test("ui-smoke: every tab loads without console errors", async ({ page }) => {
     errors.push({ url: page.url(), message: `pageerror: ${err.message}` });
   });
 
-  // Sign in.
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, {
-    timeout: 30_000,
-  });
+  await signIn(page);
 
   const stops: { path: string; expectText?: string | RegExp }[] = [
     { path: "/", expectText: /look|outfit|wardrobe/i },

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { assertE2EAccount, signIn } from "./auth";
 
 // Stress-test the /api/try-on endpoint by fetching an item the user
 // already owns, "trying it on" with its own photo, and asserting the
@@ -6,14 +7,7 @@ import { test, expect } from "@playwright/test";
 // can't identify your own item as similar to itself, the matching
 // logic is broken.
 
-const TEST_EMAIL = process.env.STRESS_TEST_EMAIL!;
-const TEST_PASSWORD = process.env.STRESS_TEST_PASSWORD!;
-
-if (!TEST_EMAIL || !TEST_PASSWORD) {
-  throw new Error(
-    "STRESS_TEST_EMAIL and STRESS_TEST_PASSWORD must be set in .env.local"
-  );
-}
+assertE2EAccount();
 
 type WardrobeItem = {
   id: string;
@@ -40,14 +34,7 @@ type TryOnResponse = {
 test("stress-tryon: self-similarity + outfit shape", async ({ page }) => {
   test.setTimeout(10 * 60 * 1000);
 
-  // Sign in.
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(TEST_EMAIL);
-  await page.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, {
-    timeout: 30_000,
-  });
+  await signIn(page);
 
   // Pick a sample of items to test against. Bias toward categories
   // that have richer attributes (top, dress, bag) — those exercise

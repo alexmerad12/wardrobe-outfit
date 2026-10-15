@@ -692,6 +692,7 @@ export default function ItemDetailPage() {
         <Button
           variant="ghost"
           size="icon"
+          aria-label={editing ? t("common.close") : t("common.back")}
           onClick={() => {
             // In wizard mode, X always exits back to the wardrobe.
             // Without this the user gets stuck on an edit form with

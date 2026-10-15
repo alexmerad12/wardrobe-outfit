@@ -258,7 +258,7 @@ function BulkCard({
 }) {
   const { t } = useLocale();
   const content = (
-    <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
+    <div data-stage={item.stage} className="relative aspect-square overflow-hidden rounded-xl bg-muted">
       <UploadPreviewImage
         src={item.previewUrl}
         alt={item.name ?? t("bulk.altClothingItem")}
