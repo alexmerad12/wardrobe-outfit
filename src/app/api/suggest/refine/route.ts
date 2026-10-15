@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { genAI, QUALITY_MODEL, NO_THINKING } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
@@ -15,20 +16,13 @@ import { oneSentence, textIsConsistent } from "@/lib/suggest-text-guards";
 // the user has edited (swapped items) before they save it. Cheaper
 // than a full /api/suggest call: no thinking budget, no 3-outfit
 // generation, just one editorial sentence + one styling tip for the
-// new combination.
+// new combination. Quality tier model (src/lib/gemini.ts).
 //
 // Used only on save (favorites + wear today) when the user has
-// actually swapped at least one item. Scoped tighter to keep cost
-// trivial — at ~$0.01/call this stays well within the Basic tier
-// economics even if the user swaps every save.
-const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
+// actually swapped at least one item.
 
-// 2026-05-26 — dropped 30 -> 10 alongside the suggest / try-on / pack
-// reductions after the gemini-3.5-flash swap. Refine is cheap per call
-// (~$0.005, thinkingBudget: 0, maxOutputTokens: 512) so even 30/day
-// would have been only ~$4.50/mo worst case — kept aligned at 10/day
-// just so caps read consistently across endpoints. Tier presets to
-// keep in mind:
+// Refine is cheap per call (~$0.005, no thinking, short output) — kept
+// at 10/day so caps read consistently across endpoints. Tier presets:
 //   - Conservative: 5/day
 //   - Balanced:    10/day  ← current beta cap
 //   - Generous:    15/day  ← future Atelier tier
@@ -46,6 +40,15 @@ function describeItemForPrompt(item: ClothingItem): string {
   return parts.join(" | ");
 }
 
+type RefineBody = {
+  item_ids?: unknown;
+  occasion?: unknown;
+  mood?: unknown;
+  weather_temp?: unknown;
+  weather_condition?: unknown;
+  locale?: unknown;
+};
+
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
@@ -54,60 +57,60 @@ export async function POST(request: NextRequest) {
   const subBlock = await requireActiveSubscription(ctx);
   if (subBlock) return subBlock;
 
-  // Daily-cap gate. Same pattern as /api/suggest: consumed after the
-  // free validation exits, refunded when the request delivers nothing.
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const isAdmin = isCapBypassed(authUser?.email);
-  const today = localDayKey(request);
-  const countKey = `refine_count:${userId}:${today}`;
-  let capCount: number | null = null;
+  const body = (await request.json().catch(() => null)) as RefineBody | null;
+  if (!body) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+
+  const item_ids = Array.isArray(body.item_ids)
+    ? body.item_ids.filter((id): id is string => typeof id === "string").slice(0, 12)
+    : [];
+  if (item_ids.length === 0) {
+    return NextResponse.json({ error: "item_ids required" }, { status: 400 });
+  }
+  // Unknown values are dropped rather than written into the prompt as
+  // "undefined" (audit P2).
+  const occasion =
+    typeof body.occasion === "string" && body.occasion in OCCASION_LABELS
+      ? (body.occasion as Occasion)
+      : null;
+  const mood =
+    typeof body.mood === "string" && body.mood in MOOD_CONFIG ? (body.mood as Mood) : null;
+  const weather_temp = typeof body.weather_temp === "number" ? body.weather_temp : null;
+  const weather_condition =
+    typeof body.weather_condition === "string" ? body.weather_condition.slice(0, 60) : null;
+  const locale: "en" | "fr" = body.locale === "fr" ? "fr" : "en";
+  const languageName = locale === "fr" ? "French" : "English";
+
+  // Hydrate items from Supabase. RLS scopes to the current user — if
+  // any item_id isn't owned by them, we just won't find it and it
+  // gets dropped from the prompt.
+  const { data: items, error: itemsErr } = await supabase
+    .from("clothing_items")
+    .select("*")
+    .in("id", item_ids);
+  if (itemsErr || !items || items.length === 0) {
+    return NextResponse.json({ error: "Could not load items" }, { status: 502 });
+  }
+
+  // Daily-cap gate: consumed after the free validation exits, refunded
+  // when the request delivers nothing.
+  const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
+  const countKey = `refine_count:${userId}:${localDayKey(request)}`;
+  const capCount = await consumeDailyCap(countKey);
+  if (!isAdmin && capCount > REFINE_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error: "daily_limit_reached",
+        limit: REFINE_DAILY_CAP,
+        used: Math.min(capCount, REFINE_DAILY_CAP),
+      },
+      { status: 429 }
+    );
+  }
+  const refund = () => {
+    if (capCount !== -1) refundDailyCap(countKey);
+  };
 
   try {
-    const body = (await request.json()) as {
-      item_ids: string[];
-      occasion: Occasion | null;
-      mood: Mood | null;
-      weather_temp: number | null;
-      weather_condition: string | null;
-      locale?: "en" | "fr";
-    };
-
-    const { item_ids, occasion, mood, weather_temp, weather_condition } = body;
-    const locale = body.locale ?? "en";
-    const languageName = locale === "fr" ? "French" : "English";
-
-    if (!Array.isArray(item_ids) || item_ids.length === 0) {
-      return NextResponse.json({ error: "item_ids required" }, { status: 400 });
-    }
-
-    // Hydrate items from Supabase. RLS scopes to the current user — if
-    // any item_id isn't owned by them, we just won't find it and it
-    // gets dropped from the prompt. Failing to find ANY items returns
-    // a graceful error rather than crashing.
-    const { data: items, error: itemsErr } = await supabase
-      .from("clothing_items")
-      .select("*")
-      .in("id", item_ids);
-
-    if (itemsErr || !items || items.length === 0) {
-      return NextResponse.json(
-        { error: "Could not load items" },
-        { status: 502 }
-      );
-    }
-
-    capCount = await consumeDailyCap(countKey);
-    if (!isAdmin && capCount > REFINE_DAILY_CAP) {
-      return NextResponse.json(
-        {
-          error: "daily_limit_reached",
-          limit: REFINE_DAILY_CAP,
-          used: Math.min(capCount, REFINE_DAILY_CAP),
-        },
-        { status: 429 }
-      );
-    }
-
     const moodInfo = mood ? MOOD_CONFIG[mood] : null;
     const occasionLabel = occasion ? OCCASION_LABELS[occasion] : "casual";
     const weatherLine =
@@ -138,11 +141,10 @@ Respond with ONLY:
     const result = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: QUALITY_MODEL,
           contents: prompt,
           config: {
-            temperature: 0.7,
-            maxOutputTokens: 512,
+            maxOutputTokens: 1024,
             responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
@@ -152,27 +154,19 @@ Respond with ONLY:
               },
               required: ["reasoning"],
             },
-            thinkingConfig: { thinkingBudget: 0 },
+            thinkingConfig: NO_THINKING,
           },
         }),
       { tag: "suggest/refine" }
     );
 
-    const text = result.text ?? "";
     let parsed: { reasoning?: string; styling_tip?: string | null };
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(result.text ?? "");
     } catch {
-      // If parse fails, log + return the raw text as reasoning so the
-      // client gets SOMETHING usable rather than an error. Save flow
-      // already graceful-degrades on errors but a usable string is
-      // better than nothing.
-      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
+      refund();
       logAiCall(supabase, userId, "refine", { succeeded: false });
-      return NextResponse.json(
-        { error: "Failed to parse refine response" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Failed to parse refine response" }, { status: 502 });
     }
 
     // Same guards as /api/suggest's prose path: one sentence max, no
@@ -183,15 +177,14 @@ Respond with ONLY:
     const rawTip = oneSentence(parsed.styling_tip);
     const cleanItems = items as ClothingItem[];
     const reasoning =
-      rawReasoning && textIsConsistent(cleanItems, rawReasoning, locale)
-        ? rawReasoning
-        : null;
+      rawReasoning && textIsConsistent(cleanItems, rawReasoning, locale) ? rawReasoning : null;
     const styling_tip =
       rawTip && textIsConsistent(cleanItems, rawTip, locale) ? rawTip : null;
 
     logAiCall(supabase, userId, "refine", {
       metadata: {
         kind: "refine",
+        model: QUALITY_MODEL,
         item_count: items.length,
         text_guard_rejected: {
           reasoning: !reasoning && !!parsed.reasoning,
@@ -204,11 +197,8 @@ Respond with ONLY:
   } catch (err) {
     console.error("[refine] error:", err);
     Sentry.captureException(err);
-    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
+    refund();
     logAiCall(supabase, userId, "refine", { succeeded: false });
-    return NextResponse.json(
-      { error: "Refine failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Refine failed" }, { status: 500 });
   }
 }

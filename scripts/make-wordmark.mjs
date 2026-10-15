@@ -9,7 +9,7 @@
 
 import opentype from "opentype.js";
 import sharp from "sharp";
-import { readFileSync, existsSync, writeFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 

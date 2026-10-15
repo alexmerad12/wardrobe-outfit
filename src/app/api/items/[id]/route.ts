@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { readJsonObject } from "@/lib/read-json";
+import { dbErrorResponse } from "@/lib/db-error";
 
 export async function GET(
   _request: NextRequest,
@@ -17,7 +19,7 @@ export async function GET(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   if (!data) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
@@ -34,7 +36,8 @@ export async function PATCH(
   const { supabase } = ctx;
   const { id } = await params;
 
-  const updates = await request.json();
+  const updates = await readJsonObject(request);
+  if (isNextResponse(updates)) return updates;
   delete updates.id;
   delete updates.user_id;
   delete updates.created_at;
@@ -47,7 +50,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   if (!data) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
@@ -87,7 +90,7 @@ export async function DELETE(
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
 
   // Best-effort storage cleanup — a failure here must not undo the

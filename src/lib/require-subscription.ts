@@ -24,7 +24,7 @@ import { isCapBypassed } from "./admin-bypass";
 export async function requireActiveSubscription(
   ctx: AuthedContext
 ): Promise<NextResponse | null> {
-  if (isCapBypassed(ctx.userEmail)) return null;
+  if (isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed)) return null;
   if (isGrandfathered(ctx.userCreatedAt)) return null;
   const sub = await getSubscription(ctx.supabase, ctx.userId);
   if (hasActiveAccess(sub)) return null;

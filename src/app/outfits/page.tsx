@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import type { Outfit, ClothingItem, Mood, Occasion } from "@/lib/types";
-import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
+import type { Outfit, ClothingItem, Occasion } from "@/lib/types";
+import { OCCASION_LABELS } from "@/lib/types";
 import { MOOD_ICONS } from "@/lib/mood-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { getLocalDateString } from "@/lib/local-date";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { weatherConditionLabelKey } from "@/lib/weather-condition-label";
 import { useScrollDirection } from "@/lib/use-scroll-direction";
+import { useClientValue } from "@/lib/use-client-value";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
 import { cn } from "@/lib/utils";
 
@@ -36,19 +37,20 @@ export default function FavoritesPage() {
   // Soft prompt banner when favorites cross 100. Dismissible per-session
   // via sessionStorage — re-appears next session if still over the limit
   // so the nudge stays gentle but not silent.
-  const [favLimitDismissed, setFavLimitDismissed] = useState(false);
+  // Dismissed earlier this session (sessionStorage) or just now.
+  const favLimitDismissedStored = useClientValue(() => {
+    try {
+      return sessionStorage.getItem("favLimitDismissed:v1") === "1";
+    } catch {
+      return false;
+    }
+  }, false);
+  const [favLimitDismissedNow, setFavLimitDismissed] = useState(false);
+  const favLimitDismissed = favLimitDismissedStored || favLimitDismissedNow;
   const unit = useTemperatureUnit();
   const { t } = useLocale();
   const router = useRouter();
   const scrollDir = useScrollDirection();
-
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem("favLimitDismissed:v1") === "1") {
-        setFavLimitDismissed(true);
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   useEffect(() => {
     async function fetchFavorites() {

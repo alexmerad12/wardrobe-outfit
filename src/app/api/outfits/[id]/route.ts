@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { readJsonObject } from "@/lib/read-json";
+import { dbErrorResponse } from "@/lib/db-error";
 
 export async function PATCH(
   request: NextRequest,
@@ -10,7 +12,8 @@ export async function PATCH(
   const { supabase } = ctx;
   const { id } = await params;
 
-  const updates = await request.json();
+  const updates = await readJsonObject(request);
+  if (isNextResponse(updates)) return updates;
   delete updates.id;
   delete updates.user_id;
   delete updates.created_at;
@@ -23,7 +26,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   if (!data) {
     return NextResponse.json({ error: "Outfit not found" }, { status: 404 });
@@ -43,7 +46,7 @@ export async function DELETE(
   const { error } = await supabase.from("outfits").delete().eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   return NextResponse.json({ ok: true });
 }

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WeatherWidget } from "@/components/weather-widget";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, Shirt, Heart, Trash2, Thermometer, Plane, ChevronDown, X, ShoppingBag } from "lucide-react";
-import type { ClothingItem, Mood, Occasion } from "@/lib/types";
+import type { ClothingItem, Mood } from "@/lib/types";
 import { MOOD_CONFIG } from "@/lib/types";
 import { MOOD_ICONS } from "@/lib/mood-icons";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";

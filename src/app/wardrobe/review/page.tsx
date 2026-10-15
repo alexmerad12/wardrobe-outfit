@@ -102,15 +102,19 @@ function ReviewBatchPage() {
   );
 
   const [items, setItems] = useState<ClothingItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Which ?ids= the loaded items belong to. Loading is derived from it, so
+  // the effect never sets state synchronously (and an empty list is never
+  // "loading").
+  const [loadedIds, setLoadedIds] = useState<string | null>(null);
+  const loading = ids.length > 0 && loadedIds !== rawIds;
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (ids.length === 0) return;
     let cancelled = false;
-    async function loadAll() {
-      setLoading(true);
+    void (async () => {
       try {
         const results = await Promise.all(
           ids.map(async (id) => {
@@ -123,15 +127,13 @@ function ReviewBatchPage() {
           setItems(results.filter((x): x is ClothingItem => Boolean(x)));
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedIds(rawIds);
       }
-    }
-    if (ids.length > 0) loadAll();
-    else setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [ids]);
+  }, [ids, rawIds]);
 
   function patchEdit(id: string, changes: Partial<Edit>) {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...changes } }));

@@ -8,6 +8,16 @@
 //   customer.subscription.deleted  → mark canceled
 //   invoice.payment_failed         → noop (subscription.updated will set past_due)
 //
+// Every handled event re-reads the subscription from Stripe instead of
+// trusting the payload: Stripe can deliver (and retry) events out of
+// order, and writing a stale "trialing" payload after a "deleted" one used
+// to hand a cancelled user free access again.
+//
+// A failed DB write returns 500 so Stripe retries (it used to be logged
+// and acknowledged, leaving a paying user stuck on /paywall). The one
+// exception is an event for an account that no longer exists (deleted via
+// /api/account/delete): acknowledged, nothing to update.
+//
 // Signature verification uses STRIPE_WEBHOOK_SECRET. If that env var
 // is unset or wrong, every request 400s — which is the right failure
 // mode since an unverified webhook should never mutate our DB.
@@ -25,6 +35,9 @@ export const runtime = "nodejs";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+// Postgres foreign_key_violation: the user row is gone (account deleted).
+const FK_VIOLATION = "23503";
+
 function isoOrNull(unixSeconds: number | null | undefined): string | null {
   if (!unixSeconds) return null;
   return new Date(unixSeconds * 1000).toISOString();
@@ -40,60 +53,48 @@ function planFromPriceId(priceId: string | null | undefined): PlanKey | null {
 async function upsertFromSubscription(
   subscription: Stripe.Subscription,
   fallbackUserId?: string
-) {
+): Promise<void> {
   const admin = createAdminClient();
-
-  // Map back to our user. Prefer client_reference_id captured during
-  // checkout (passed in via subscription metadata when we created the
-  // session); fall back to a stripe_customer_id lookup for ongoing
-  // events (renewal, cancel, etc.) where the metadata was set on the
-  // earlier checkout session.
-  let userId =
-    (subscription.metadata?.user_id as string | undefined) ??
-    fallbackUserId ??
-    null;
-
-  if (!userId) {
-    const customerId =
-      typeof subscription.customer === "string"
-        ? subscription.customer
-        : subscription.customer.id;
-    const { data } = await admin
-      .from("user_subscriptions")
-      .select("user_id")
-      .eq("stripe_customer_id", customerId)
-      .maybeSingle();
-    userId = (data?.user_id as string | undefined) ?? null;
-  }
-
-  if (!userId) {
-    console.error(
-      "[stripe-webhook] Could not resolve userId for subscription",
-      subscription.id
-    );
-    return;
-  }
-
-  const priceId = subscription.items.data[0]?.price.id;
-  const plan = planFromPriceId(priceId);
-
   const customerId =
     typeof subscription.customer === "string"
       ? subscription.customer
       : subscription.customer.id;
 
+  // Map back to our user. Prefer the user_id stamped on the subscription
+  // at checkout; fall back to the session's client_reference_id, then to
+  // a stripe_customer_id lookup.
+  let userId =
+    (subscription.metadata?.user_id as string | undefined) ??
+    fallbackUserId ??
+    null;
+  if (!userId) {
+    const { data, error } = await admin
+      .from("user_subscriptions")
+      .select("user_id")
+      .eq("stripe_customer_id", customerId)
+      .maybeSingle();
+    if (error) throw new Error(`customer lookup failed: ${error.message}`);
+    userId = (data?.user_id as string | undefined) ?? null;
+  }
+  if (!userId) {
+    // Nothing we can attach this to (e.g. a subscription made outside the
+    // app). Retrying won't change that, so acknowledge.
+    console.error("[stripe-webhook] no user for subscription", subscription.id);
+    return;
+  }
+
+  const priceId = subscription.items.data[0]?.price.id;
   const { error } = await admin.from("user_subscriptions").upsert(
     {
       user_id: userId,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscription.id,
-      plan,
+      plan: planFromPriceId(priceId),
       status: subscription.status,
       trial_end: isoOrNull(subscription.trial_end),
       current_period_end: isoOrNull(
-        // Stripe API exposes current_period_end on the subscription
-        // item in newer API versions; fall back to top-level for
-        // older payload shapes.
+        // Newer API versions put current_period_end on the subscription
+        // item; fall back to top-level for older payload shapes.
         subscription.items.data[0]?.current_period_end ??
           (subscription as unknown as { current_period_end?: number })
             .current_period_end
@@ -101,16 +102,18 @@ async function upsertFromSubscription(
       // Stripe expresses "won't renew" two ways: cancel_at_period_end
       // (flag) for active subs cancelled via most paths, and cancel_at
       // (timestamp) for trialing subs cancelled via the Customer
-      // Portal. Treat either as "ends instead of renews" so the
-      // settings card shows "Ends on" rather than "Renews on".
+      // Portal. Treat either as "ends instead of renews".
       cancel_at_period_end:
         subscription.cancel_at_period_end || subscription.cancel_at != null,
     },
     { onConflict: "user_id" }
   );
-
   if (error) {
-    console.error("[stripe-webhook] upsert failed:", error.message);
+    if (error.code === FK_VIOLATION) {
+      console.warn("[stripe-webhook] user no longer exists, skipping", userId);
+      return;
+    }
+    throw new Error(`upsert failed: ${error.message}`);
   }
 }
 
@@ -154,9 +157,7 @@ export async function POST(request: NextRequest) {
             ? session.subscription
             : session.subscription?.id;
         if (!subscriptionId) break;
-        const subscription = await stripe.subscriptions.retrieve(
-          subscriptionId
-        );
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         await upsertFromSubscription(
           subscription,
           session.client_reference_id ?? undefined
@@ -166,7 +167,9 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.updated":
       case "customer.subscription.created":
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
+        const fromEvent = event.data.object as Stripe.Subscription;
+        // Current state, not the (possibly stale) state in this event.
+        const subscription = await stripe.subscriptions.retrieve(fromEvent.id);
         await upsertFromSubscription(subscription);
         break;
       }

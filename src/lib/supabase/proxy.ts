@@ -23,6 +23,9 @@ const PUBLIC_PATHS = [
   // Stripe posts webhook events with no session. The handler verifies
   // the request via the Stripe signature header.
   "/api/stripe",
+  // Vercel Cron calls these with no session; each handler checks the
+  // CRON_SECRET bearer token itself.
+  "/api/cron",
 ];
 
 // Surfaces a logged-in-but-unsubscribed user is still allowed to see.
@@ -138,6 +141,13 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  const needsSubscriptionCheck =
+    user && !pathname.startsWith("/api/") && !isSubscriptionExempt(pathname);
+  // Already-paying users who land on the paywall (Back button after
+  // checkout, an old tab) go home: a second checkout would bill twice.
+  // /paywall/success stays reachable while the webhook catches up.
+  const onPaywall = user && pathname === "/paywall";
+
   // Paywall gate. Onboarded user, no active Stripe subscription →
   // push to /paywall. Admin/bypass emails skip entirely so the
   // operator and team don't get gated. Exempt surfaces include the
@@ -149,29 +159,34 @@ export async function updateSession(request: NextRequest) {
   // logic stays close to the cost it protects, and so the middleware
   // doesn't add a DB query to every CRUD call. Page-level gating is
   // enough to keep users out of paid surfaces.
-  if (
-    user &&
-    !pathname.startsWith("/api/") &&
-    !isSubscriptionExempt(pathname)
-  ) {
+  if (user && (needsSubscriptionCheck || onPaywall)) {
     // Bypass for admin/cap-bypass emails AND for beta users created
     // before the paywall went live — they signed up under the free
     // beta and keep unlimited access. See PAYWALL_LIVE_AT_MS in
     // src/lib/subscription.ts.
     const bypass =
-      isCapBypassed(user.email) || isGrandfathered(user.created_at);
+      isCapBypassed(user.email, Boolean(user.email_confirmed_at)) ||
+      isGrandfathered(user.created_at);
+    let hasAccess = bypass;
     if (!bypass) {
       const { data: sub } = await supabase
         .from("user_subscriptions")
         .select("status")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (!hasActiveAccess(sub)) {
-        const paywallUrl = request.nextUrl.clone();
-        paywallUrl.pathname = "/paywall";
-        paywallUrl.search = "";
-        return NextResponse.redirect(paywallUrl);
-      }
+      hasAccess = hasActiveAccess(sub);
+    }
+    if (needsSubscriptionCheck && !hasAccess) {
+      const paywallUrl = request.nextUrl.clone();
+      paywallUrl.pathname = "/paywall";
+      paywallUrl.search = "";
+      return NextResponse.redirect(paywallUrl);
+    }
+    if (onPaywall && hasAccess) {
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = "/";
+      homeUrl.search = "";
+      return NextResponse.redirect(homeUrl);
     }
   }
 

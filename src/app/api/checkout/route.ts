@@ -6,14 +6,16 @@
 // (which is the source of truth for the user_subscriptions row).
 //
 // The 7-day trial is attached to the weekly plan via
-// subscription_data.trial_period_days. payment_method_collection is
-// forced to "always" because the default ("if_required") skips card
-// capture on trials — and the whole point of this structure is that
-// the card is on file so the trial auto-converts.
+// subscription_data.trial_period_days, for a FIRST subscription only:
+// cancelling during the trial and re-subscribing used to restart it,
+// i.e. unlimited free weeks. payment_method_collection is forced to
+// "always" because the default ("if_required") skips card capture on
+// trials — and the whole point of this structure is that the card is on
+// file so the trial auto-converts.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { stripe, priceIdForPlan, type PlanKey } from "@/lib/stripe";
-import { getSubscription } from "@/lib/subscription";
+import { getSubscription, hasActiveAccess } from "@/lib/subscription";
 
 function siteOrigin(req: NextRequest): string {
   // Vercel + local both honor x-forwarded-host; fall back to the
@@ -27,7 +29,7 @@ function siteOrigin(req: NextRequest): string {
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase, userId } = ctx;
+  const { supabase, userId, userEmail } = ctx;
 
   let body: { plan?: string };
   try {
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const plan = body.plan;
+  const plan = body?.plan;
   if (plan !== "weekly" && plan !== "annual") {
     return NextResponse.json(
       { error: "plan must be 'weekly' or 'annual'" },
@@ -45,33 +47,29 @@ export async function POST(request: NextRequest) {
   }
   const planKey: PlanKey = plan;
 
-  // Reuse an existing Stripe customer if one was created in a prior
-  // checkout attempt. Otherwise let Stripe create one from email.
   const existing = await getSubscription(supabase, userId);
+  // Already paying or trialing: a second checkout would create a second
+  // subscription (double billing), and both would write the same row.
+  if (hasActiveAccess(existing)) {
+    return NextResponse.json({ error: "already_subscribed" }, { status: 409 });
+  }
+  // Reuse the Stripe customer from a prior checkout so receipts and the
+  // billing portal stay on one customer.
   const customerId = existing?.stripe_customer_id ?? undefined;
-
-  // Pull the user's email from Supabase auth — Stripe needs it for
-  // customer creation and for receipts.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const email = user?.email ?? undefined;
-
+  const firstSubscription = !existing?.stripe_subscription_id && !existing?.trial_end;
   const origin = siteOrigin(request);
-  const priceId = priceIdForPlan(planKey);
 
   try {
+    const priceId = priceIdForPlan(planKey);
+    const metadata = { user_id: userId, plan: planKey };
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      // 7-day trial only on the weekly plan; annual is no-trial.
+      // 7-day trial only on the weekly plan, and only once per user.
       subscription_data:
-        planKey === "weekly"
-          ? {
-              trial_period_days: 7,
-              metadata: { user_id: userId, plan: planKey },
-            }
-          : { metadata: { user_id: userId, plan: planKey } },
+        planKey === "weekly" && firstSubscription
+          ? { trial_period_days: 7, metadata }
+          : { metadata },
       // Force card capture on trials so the trial auto-converts to
       // paid without the user re-entering payment info.
       payment_method_collection: "always",
@@ -80,21 +78,15 @@ export async function POST(request: NextRequest) {
       client_reference_id: userId,
       // Subscription mode auto-creates a Stripe customer — don't pass
       // customer_creation (payment-mode only) or customer_update.
-      // Reuse the customer if we already created one in a prior
-      // checkout attempt; otherwise let Stripe create one and seed
-      // the email so the user doesn't retype it.
       ...(customerId
         ? { customer: customerId }
-        : email
-        ? { customer_email: email }
+        : userEmail
+        ? { customer_email: userEmail }
         : {}),
       allow_promotion_codes: true,
       success_url: `${origin}/paywall/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/paywall`,
-      metadata: {
-        user_id: userId,
-        plan: planKey,
-      },
+      metadata,
     });
 
     if (!session.url) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -61,15 +61,19 @@ export function OutfitDetailsDialog({
   const [styleNotes, setStyleNotes] = useState("");
 
   // Reset to the latest initial values whenever the dialog opens — keeps
-  // edit mode pre-filled and create mode empty.
-  useEffect(() => {
+  // edit mode pre-filled and create mode empty. Done while rendering on
+  // the closed→open transition (React's documented alternative to a reset
+  // effect, which re-rendered once with the stale values first).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setName(initial?.name ?? "");
       setMood(initial?.mood ?? "");
       setOccasion(initial?.occasion ?? "");
       setStyleNotes(initial?.style_notes ?? "");
     }
-  }, [open, initial]);
+  }
 
   const handleSubmit = () => {
     onSubmit({

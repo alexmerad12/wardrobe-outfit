@@ -6,12 +6,17 @@ export type AiFeature = "suggest" | "refine" | "try_on" | "packing" | "analyze_i
 // Per-call cost estimates in cents. Static lookups, not actual billed
 // cost — close enough for trend lines and tier-pricing decisions. The
 // real numbers live in the Google AI Studio dashboard.
+// Re-estimated 2026-10-15 for the model tiers in src/lib/gemini.ts
+// (gemini-3.6-flash $0.75/$3.75, gemini-3.5-flash-lite $0.30/$2.50 per
+// 1M tokens). analyze_item is measured ($0.0020/photo on 45 real photos);
+// suggest is one row for up to 3 model calls. Both Flash prices double
+// on 2027-01-01.
 const COST_CENTS: Record<AiFeature, number> = {
-  suggest: 2.9,
-  refine: 0.5,
-  try_on: 1.5,
-  packing: 1.0,
-  analyze_item: 0.8,
+  suggest: 4.0,
+  refine: 0.3,
+  try_on: 1.2,
+  packing: 0.6,
+  analyze_item: 0.2,
 };
 
 // supabase-migration-ai-call-refine.sql was applied 2026-06-13, so

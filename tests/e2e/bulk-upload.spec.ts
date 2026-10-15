@@ -276,9 +276,11 @@ test.describe("bulk upload + review flow", () => {
     // After the batch settles we expect to land on the wizard route.
     await page.waitForURL(/\/wardrobe\/[^/]+\?edit=1/, { timeout: 30_000 });
 
-    // Poll /api/items for up to 90s waiting for bg removal to PATCH
-    // the image_url from .jpg (raw upload) to .png (imgly output). Bg
-    // removal is post-save async so it's done when we see PNGs.
+    // Background removal happens on the server BEFORE save
+    // (/api/items/normalize), so saved items already point at the final
+    // photo. Its signature: a cache-busted URL (?v=) to a 1280x1280 JPEG
+    // (the catalog square). The no-subject / failure fallback keeps the
+    // photo's own aspect ratio, so "square" means the cutout ran.
     type Item = {
       id: string;
       name: string;
@@ -286,27 +288,14 @@ test.describe("bulk upload + review flow", () => {
       image_url: string;
       created_at: string;
     };
-    let items: Item[] = [];
-    let recent: Item[] = [];
-    // Bg removal is async after save. imgly's WASM model can be slow
-    // on first load per tab/worker; 3 minutes is a generous ceiling.
-    const bgDeadline = Date.now() + 3 * 60 * 1000;
-    while (Date.now() < bgDeadline) {
-      const apiRes = await page.request.get("/api/items");
-      if (!apiRes.ok()) {
-        await page.waitForTimeout(2000);
-        continue;
-      }
-      items = (await apiRes.json()) as Item[];
-      recent = [...items]
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .slice(0, fixtures.length);
-      const allPng = recent.every((i) => i.image_url.endsWith(".png"));
-      if (allPng) break;
-      await page.waitForTimeout(3000);
-    }
+    const apiRes = await page.request.get("/api/items");
+    expect(apiRes.ok(), "/api/items should load").toBeTruthy();
+    const items = (await apiRes.json()) as Item[];
+    const recent = [...items]
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, fixtures.length);
 
-    console.log("[test] recent items after bg-removal poll:");
+    console.log("[test] recent items after the batch:");
     for (const it of recent) {
       console.log(`  ${it.name} (${it.category}) — ${it.image_url}`);
     }
@@ -317,15 +306,31 @@ test.describe("bulk upload + review flow", () => {
       `${untitled.length} items saved with "Untitled item" — AI didn't run`
     ).toBe(0);
 
-    // bg removal post-save PATCHes image_url. The signal that it worked
-    // is that the URL ends in .png (imgly output) rather than .jpg
-    // (the original downscaled upload). Allow a small tolerance for
-    // bg removal that genuinely timed out — if most succeeded we're
-    // good.
-    const cleaned = recent.filter((i) => i.image_url.endsWith(".png"));
+    // JPEG dimensions from the first SOF marker.
+    const jpegSize = (buf: Buffer): { w: number; h: number } | null => {
+      let i = 2;
+      while (i + 9 < buf.length) {
+        if (buf[i] !== 0xff) return null;
+        const marker = buf[i + 1];
+        const len = buf.readUInt16BE(i + 2);
+        if (marker >= 0xc0 && marker <= 0xc3) {
+          return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+        }
+        i += 2 + len;
+      }
+      return null;
+    };
+    let cutouts = 0;
+    for (const it of recent) {
+      const imgRes = await page.request.get(it.image_url);
+      const size = imgRes.ok() ? jpegSize(Buffer.from(await imgRes.body())) : null;
+      const ok = it.image_url.includes("?v=") && size?.w === 1280 && size?.h === 1280;
+      if (ok) cutouts++;
+      console.log(`  ${it.name}: ${size ? `${size.w}x${size.h}` : "unreadable"} ${ok ? "cutout" : "NOT cut out"}`);
+    }
     expect(
-      cleaned.length,
-      `only ${cleaned.length}/${recent.length} items have bg removed — 100% required`
+      cutouts,
+      `only ${cutouts}/${recent.length} items have their background removed — 100% required`
     ).toBe(recent.length);
   });
 

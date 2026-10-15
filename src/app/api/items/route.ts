@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import { NextRequest, NextResponse, after } from "next/server";
+import { kv } from "@/lib/kv";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { readJsonObject } from "@/lib/read-json";
+import { dbErrorResponse } from "@/lib/db-error";
 
 export async function GET() {
   const ctx = await requireUser();
@@ -13,7 +15,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   return NextResponse.json(data);
 }
@@ -23,7 +25,8 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  const body = await request.json();
+  const body = await readJsonObject(request);
+  if (isNextResponse(body)) return body;
   // Strip client-provided fields that the server owns
   delete body.id;
   delete body.user_id;
@@ -38,13 +41,13 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
 
   // Lifetime upload counter — visibility only, no enforcement. No TTL,
   // so we can read it later to see distribution before locking launch
   // tier limits. Fire-and-forget — telemetry must not block insert.
-  kv.incr(`items_uploaded:${userId}`).catch(() => {});
+  after(() => kv().incr(`items_uploaded:${userId}`).catch(() => {}));
 
   return NextResponse.json(data, { status: 201 });
 }

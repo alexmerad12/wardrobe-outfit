@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,16 +19,12 @@ export function UploadPreviewImage({
   alt?: string;
   className?: string;
 }) {
-  const [errored, setErrored] = useState(false);
+  // Remember WHICH source failed: when the pending pipeline swaps in a
+  // new URL (converted JPEG, then the cut-out photo), the error no longer
+  // applies, with no reset effect needed.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  // Reset the error state if the source URL changes (the pending pipeline
-  // swaps in a downscaled JPEG once that's ready, which often resolves the
-  // initial decode failure).
-  useEffect(() => {
-    setErrored(false);
-  }, [src]);
-
-  if (errored || !src) {
+  if (!src || failedSrc === src) {
     return (
       <div
         className={cn(
@@ -43,13 +39,13 @@ export function UploadPreviewImage({
 
   // Native <img> is intentional here — these are local blob: URLs, not
   // remote URLs that would benefit from next/image optimisation.
-  // eslint-disable-next-line @next/next/no-img-element
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={alt ?? ""}
       className={className}
-      onError={() => setErrored(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }

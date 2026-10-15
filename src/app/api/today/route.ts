@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { readJsonObject } from "@/lib/read-json";
+import { dbErrorResponse } from "@/lib/db-error";
 
 const RECENT_CAP = 14;
 
@@ -11,8 +13,13 @@ export async function GET(request: NextRequest) {
   // Client passes its LOCAL date (YYYY-MM-DD) so rotation fires at the
   // user's midnight, not UTC's. Fallback to UTC when absent (API clients
   // without a browser context).
+  // Validated: any other value used to compare unequal to the stored date
+  // and archive + delete today's outfit (audit P2).
   const clientDate = request.nextUrl.searchParams.get("date");
-  const today = clientDate ?? new Date().toISOString().split("T")[0];
+  const today =
+    clientDate && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)
+      ? clientDate
+      : new Date().toISOString().split("T")[0];
 
   // Fetch today row and the recent list in parallel
   const [todayRes, recentRes] = await Promise.all([
@@ -106,7 +113,8 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  const body = await request.json();
+  const body = await readJsonObject(request);
+  if (isNextResponse(body)) return body;
   // Prefer the client's local date so the stored "date" reflects the
   // user's wearing day, not the server's UTC day.
   const today = (typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date))
@@ -172,7 +180,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
 
   // Log this wear in outfit_log for the durable wear-history metric.
@@ -270,7 +278,8 @@ export async function PATCH(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  const updates = await request.json();
+  const updates = await readJsonObject(request);
+  if (isNextResponse(updates)) return updates;
   delete updates.user_id;
 
   const { data, error } = await supabase
@@ -281,7 +290,7 @@ export async function PATCH(request: NextRequest) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   if (!data) {
     return NextResponse.json({ error: "No today outfit" }, { status: 404 });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { resolveUnit } from "./temperature";
 import type { TemperatureUnit } from "./types";
+import { useClientValue } from "./use-client-value";
 
 const CACHE_KEY = "tempUnit:v1";
 
@@ -31,14 +32,12 @@ function writeCached(unit: "celsius" | "fahrenheit") {
  * /api/preferences resolves with the user's actual choice.
  */
 export function useTemperatureUnit(): "celsius" | "fahrenheit" {
-  // Deterministic initial so SSR and hydration agree. The real value is
-  // applied synchronously from localStorage in the effect below.
-  const [unit, setUnit] = useState<"celsius" | "fahrenheit">("celsius");
+  // SSR and hydration render "celsius"; the cached value applies right
+  // after on the client, then the server's answer once it arrives.
+  const cached = useClientValue(readCached, null);
+  const [fetched, setFetched] = useState<"celsius" | "fahrenheit" | null>(null);
 
   useEffect(() => {
-    const cached = readCached();
-    if (cached) setUnit(cached);
-
     let cancelled = false;
     fetch("/api/preferences")
       .then((r) => (r.ok ? r.json() : null))
@@ -49,8 +48,8 @@ export function useTemperatureUnit(): "celsius" | "fahrenheit" {
         } | null) => {
           if (cancelled) return;
           const resolved = resolveUnit(prefs?.temperature_unit, prefs?.location);
-          setUnit(resolved);
           writeCached(resolved);
+          setFetched(resolved);
         }
       )
       .catch(() => {});
@@ -59,5 +58,5 @@ export function useTemperatureUnit(): "celsius" | "fahrenheit" {
     };
   }, []);
 
-  return unit;
+  return fetched ?? cached ?? "celsius";
 }

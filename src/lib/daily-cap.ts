@@ -1,5 +1,6 @@
-import { kv } from "@vercel/kv";
 import * as Sentry from "@sentry/nextjs";
+import { after } from "next/server";
+import { kv } from "@/lib/kv";
 
 // Shared per-user daily-cap counter for the AI endpoints.
 //
@@ -38,10 +39,22 @@ export function localDayKey(request: {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Run a best-effort write after the response is sent, without the
+// serverless freeze dropping it (same reason as log-ai-call.ts). Outside a
+// request scope (scripts, tests) it just runs.
+function inBackground(task: () => Promise<unknown>): void {
+  const run = () => task().catch(() => {});
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
 export async function consumeDailyCap(key: string): Promise<number> {
   let count: number;
   try {
-    count = await kv.incr(key);
+    count = await kv().incr(key);
   } catch (err) {
     console.error(`[caps] KV unavailable — cap fail-open for ${key}:`, err);
     Sentry.captureMessage("KV unavailable — daily caps fail-open", "warning");
@@ -49,11 +62,11 @@ export async function consumeDailyCap(key: string): Promise<number> {
   }
   if (count === 1) {
     // 36h TTL: covers timezone wraparound on the UTC-dated key.
-    kv.expire(key, 60 * 60 * 36).catch(() => {});
+    inBackground(() => kv().expire(key, 60 * 60 * 36));
   }
   return count;
 }
 
 export function refundDailyCap(key: string): void {
-  kv.decr(key).catch(() => {});
+  inBackground(() => kv().decr(key));
 }

@@ -10,6 +10,9 @@ export type AuthedContext = {
   // the admin-bypass allowlist (cap bypass) or the paywall grandfather
   // cutoff (beta-user free-access carveout).
   userEmail: string | null;
+  // Admin/cap bypass only trusts an email the user has proven they own
+  // (see isCapBypassed). OAuth emails arrive confirmed.
+  userEmailConfirmed: boolean;
   userCreatedAt: string | null;
 };
 
@@ -34,6 +37,7 @@ export async function requireUser(): Promise<
     supabase,
     userId: user.id,
     userEmail: user.email ?? null,
+    userEmailConfirmed: Boolean(user.email_confirmed_at),
     userCreatedAt: user.created_at ?? null,
   };
 }

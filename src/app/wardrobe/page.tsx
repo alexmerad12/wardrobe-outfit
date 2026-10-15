@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useScrollDirection } from "@/lib/use-scroll-direction";
+import { useClientValue } from "@/lib/use-client-value";
 import { cn } from "@/lib/utils";
 import {
   usePendingUploads,
@@ -89,7 +90,17 @@ function WardrobePageInner() {
   // Welcome card visibility — defaults to dismissed so the card doesn't
   // flash for established users between mount and the localStorage read.
   // useEffect below flips it on for first-time users.
-  const [welcomeDismissed, setWelcomeDismissed] = useState(true);
+  // Welcome card: dismissed for good (localStorage) or just now. The
+  // server render treats it as dismissed so it never flashes on reload.
+  const welcomeDismissedStored = useClientValue(() => {
+    try {
+      return localStorage.getItem("wardrobe-welcome-dismissed") === "true";
+    } catch {
+      return true;
+    }
+  }, true);
+  const [welcomeDismissedNow, setWelcomeDismissed] = useState(false);
+  const welcomeDismissed = welcomeDismissedStored || welcomeDismissedNow;
   const router = useRouter();
   const { t } = useLocale();
   // Ref to the active category pill so we can scroll it into view when
@@ -131,7 +142,14 @@ function WardrobePageInner() {
   }, []);
 
   useEffect(() => {
-    refetchItems().finally(() => setLoading(false));
+    let cancelled = false;
+    void (async () => {
+      await refetchItems();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [refetchItems]);
 
   // Suppress the floating "+" while the true-empty card is on screen —
@@ -145,19 +163,12 @@ function WardrobePageInner() {
     return () => setFabSuppressed(false);
   }, [trueEmpty, setFabSuppressed]);
 
-  // Read welcome-card dismissal from localStorage on mount. If never
-  // dismissed, show the card (auto-hide threshold is handled below by
-  // the showWelcomeCard derived flag).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const dismissed = localStorage.getItem("wardrobe-welcome-dismissed") === "true";
-    setWelcomeDismissed(dismissed);
-  }, []);
-
   function dismissWelcome() {
     setWelcomeDismissed(true);
-    if (typeof window !== "undefined") {
+    try {
       localStorage.setItem("wardrobe-welcome-dismissed", "true");
+    } catch {
+      // Storage blocked: the card stays dismissed for this visit.
     }
   }
 

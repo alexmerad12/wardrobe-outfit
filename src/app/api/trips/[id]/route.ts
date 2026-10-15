@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { dbErrorResponse } from "@/lib/db-error";
 
 export async function DELETE(
   _request: NextRequest,
@@ -12,7 +13,7 @@ export async function DELETE(
 
   const { error } = await supabase.from("trips").delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   return NextResponse.json({ ok: true });
 }

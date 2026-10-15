@@ -5,6 +5,7 @@ import { Download, Share2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { useClientValue } from "@/lib/use-client-value";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -32,16 +33,15 @@ function isStandalone(): boolean {
 
 export function InstallPrompt() {
   const { t } = useLocale();
-  const [platform, setPlatform] = useState<Platform>("unknown");
-  const [installed, setInstalled] = useState(true);
+  // Browser-only facts: the server render assumes "installed" (renders
+  // nothing), so the card never flashes for someone in the installed app.
+  const platform = useClientValue(detectPlatform, "unknown");
+  const installed = useClientValue(isStandalone, true);
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [showIosHint, setShowIosHint] = useState(false);
 
   useEffect(() => {
-    setPlatform(detectPlatform());
-    setInstalled(isStandalone());
-
     function handleBeforeInstall(e: Event) {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,14 +23,11 @@ import {
 import { UploadPreviewImage } from "@/components/upload-preview-image";
 import { useLocale } from "@/lib/i18n/use-locale";
 
-// NOTE: deliberately NOT preloading imgly here. Bg-removal moved to
-// the server (Photoroom + sharp in /api/items/normalize) — the bulk
-// pipeline never touches the imgly WASM model. Preloading the ~45 MB
-// model on mount was eating bandwidth, heap, and CPU on slower devices
-// (e.g. mid-range Android), and the resulting memory pressure made the
-// browser reject multipart POSTs with "Failed to fetch" / "no bytes
-// sent" — the exact failure mode users reported. Single-add still uses
-// imgly and preloads it on its own page.
+// Background removal runs entirely on the server (/api/items/normalize,
+// self-hosted model in src/lib/cutout). The on-device model that used to
+// run in the browser (~45 MB of WASM) is gone: its memory pressure made
+// mid-range Android browsers reject uploads with "Failed to fetch" / "no
+// bytes sent", the exact failure users reported.
 
 export default function BulkUploadPage() {
   const router = useRouter();
@@ -38,7 +35,8 @@ export default function BulkUploadPage() {
   const { items, addFiles, retry, dismiss } = usePendingUploads();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
-  const [navigatedToReview, setNavigatedToReview] = useState(false);
+  // A ref, not state: nothing renders it, it only stops a second hand-off.
+  const navigatedToReviewRef = useRef(false);
 
   // Auto-forward to the per-item review wizard once every upload has
   // settled. AI tagging isn't always right — the wizard steps through
@@ -48,7 +46,7 @@ export default function BulkUploadPage() {
   // off, flag the state so we don't bounce the user back into the
   // wizard after they return.
   useEffect(() => {
-    if (navigatedToReview) return;
+    if (navigatedToReviewRef.current) return;
     if (items.length === 0) return;
     const settled = items.every(
       (i) => i.stage === "ready" || i.stage === "error"
@@ -58,12 +56,12 @@ export default function BulkUploadPage() {
       .filter((i) => i.stage === "ready" && i.savedItemId)
       .map((i) => i.savedItemId!);
     if (readyIds.length === 0) return;
-    setNavigatedToReview(true);
+    navigatedToReviewRef.current = true;
     const [firstId, ...rest] = readyIds;
     const qs = new URLSearchParams({ edit: "1" });
     if (rest.length > 0) qs.set("next", rest.join(","));
     router.replace(`/wardrobe/${firstId}?${qs.toString()}`);
-  }, [items, navigatedToReview, router]);
+  }, [items, router]);
 
   const counts = useMemo(() => {
     let ready = 0,

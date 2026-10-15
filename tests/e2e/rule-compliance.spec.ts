@@ -1,4 +1,5 @@
-import { test, expect, type APIResponse, type Page } from "@playwright/test";
+import { test, expect, type APIResponse, type Browser, type Page } from "@playwright/test";
+import { mintSessionCookies } from "./harness-session";
 
 // RULE-COMPLIANCE HARNESS (audit Phase 6).
 //
@@ -13,22 +14,24 @@ import { test, expect, type APIResponse, type Page } from "@playwright/test";
 // Requirements:
 //  - A DEDICATED test user (it wipes + reseeds the wardrobe!). The
 //    email must contain "e2e" or "harness" as a tripwire against
-//    pointing this at a real account.
+//    pointing this at a real account. Set HARNESS_EMAIL in .env.local.
+//    HARNESS_PASSWORD is optional: without it the harness signs in
+//    through the Supabase admin API (harness-session.ts), so no
+//    password has to be stored anywhere.
 //  - That email in the server's CAP_BYPASS_EMAILS so runs don't burn
-//    the daily caps.
-//  - Cost: ~6-10 Gemini calls per run (≈ $0.20-0.40).
+//    the daily caps (and so ?debug=rules answers).
+//  - Cost: ~8-14 Gemini calls per run (≈ $0.30-0.60).
 //
 // Run: npx playwright test rule-compliance.spec.ts
 //      (append --config playwright.audit.config.ts when :3000 is busy)
 
 const EMAIL = process.env.HARNESS_EMAIL || process.env.STRESS_TEST_EMAIL!;
-const PASSWORD =
-  process.env.HARNESS_PASSWORD || process.env.STRESS_TEST_PASSWORD!;
+const PASSWORD = process.env.HARNESS_EMAIL
+  ? process.env.HARNESS_PASSWORD
+  : process.env.HARNESS_PASSWORD || process.env.STRESS_TEST_PASSWORD;
 
-if (!EMAIL || !PASSWORD) {
-  throw new Error(
-    "HARNESS_EMAIL/HARNESS_PASSWORD (or STRESS_TEST_*) must be set in .env.local"
-  );
+if (!EMAIL) {
+  throw new Error("HARNESS_EMAIL (or STRESS_TEST_EMAIL) must be set in .env.local");
 }
 if (!/e2e|harness/i.test(EMAIL)) {
   throw new Error(
@@ -56,15 +59,19 @@ const FIXTURES: Fixture[] = [
   // REGRESSION (beta bug): elastic wide-leg trousers are COMFORT wear —
   // the old blunt predicate hard-dropped them on Comfort Day.
   { name: "Elastic wide-leg trousers", category: "bottom", subcategory: "trousers", bottom_fit: "wide-leg", waist_closure: "elastic", waist_style: "elastic", fit: "loose", warmth_rating: 2, material: ["knit"], formality: "casual", colors: [{ hex: "#374151", name: "charcoal", percentage: 100 }] },
-  // TRAP: athletic sneakers banned at work.
+  // TRAP: athletic sneakers (very-casual) banned at work.
   { name: "Running sneakers", category: "shoes", subcategory: "sneakers", heel_type: "flat", warmth_rating: 2, material: ["nylon"], formality: "very-casual", colors: [{ hex: "#ffffff", name: "white", percentage: 100 }] },
   // TRAP: mid-heels banned on Comfort Day (and casual occasions).
   { name: "Black pumps", category: "shoes", subcategory: "heels", heel_type: "mid-heel", toe_shape: "pointed", warmth_rating: 2, material: ["leather"], formality: "formal", colors: [{ hex: "#111827", name: "black", percentage: 100 }] },
   { name: "Ballet flats", category: "shoes", subcategory: "ballet-flats", heel_type: "flat", toe_shape: "round", warmth_rating: 1.5, material: ["leather"], formality: "smart-casual", colors: [{ hex: "#7c2d12", name: "brown", percentage: 100 }] },
-  // TRAP: open-toe sandals banned at work (both tracks since B1).
+  // TRAP: open-toe sandals banned at work (both tracks since B1) and
+  // below 14°C when a closed shoe exists (Rule 5).
   { name: "Strappy sandals", category: "shoes", subcategory: "sandals", toe_shape: "open-toe", heel_type: "flat", warmth_rating: 1, material: ["leather"], formality: "casual", colors: [{ hex: "#a16207", name: "tan", percentage: 100 }] },
   // Belt-friendly dress: a-line + free waist → R18a hard-requires a belt.
   { name: "Navy a-line dress", category: "dress", dress_silhouette: "a-line", fit: "regular", warmth_rating: 2, material: ["cotton"], formality: "smart-casual", colors: [{ hex: "#1e3a8a", name: "navy", percentage: 100 }] },
+  // A wrap dress's own tie IS its belt (R18a): never a second belt, and
+  // never dropped for lacking one.
+  { name: "Green wrap dress", category: "dress", dress_silhouette: "wrap", closure: "wrap-tie", fit: "regular", warmth_rating: 2, material: ["silk"], formality: "smart-casual", colors: [{ hex: "#166534", name: "green", percentage: 100 }] },
   { name: "Gold-buckle belt", category: "accessory", subcategory: "belt", metal_finish: "gold", warmth_rating: 1, material: ["leather"], formality: "casual", colors: [{ hex: "#7c2d12", name: "brown", percentage: 100 }] },
   { name: "Silk scarf", category: "accessory", subcategory: "scarf", scarf_function: "decorative", warmth_rating: 1, material: ["silk"], formality: "smart-casual", colors: [{ hex: "#b91c1c", name: "red", percentage: 100 }] },
   // TRAP: canvas tote banned at formal/date/party when a formal bag exists.
@@ -86,13 +93,21 @@ type SuggestedItem = {
   occasions: string[] | null;
 };
 type SuggestResponse = {
-  suggestions: { items: SuggestedItem[]; relaxed?: boolean; name: string }[];
+  suggestions: {
+    items: SuggestedItem[];
+    relaxed?: boolean;
+    name: string;
+    styling_tip: string | null;
+    weather_temp: number | null;
+  }[];
   wardrobe_gap: string | null;
   ai_error?: boolean;
   _debug_rules?: {
     ship_path: string;
     relaxed: boolean | null;
     drops: string[];
+    regenerate: { adopted: boolean; first_attempt_drops: string[] } | null;
+    auto_fixes: string[];
     anchor_requested: boolean;
     anchor_shipped: boolean | null;
   };
@@ -113,12 +128,23 @@ function expectCompleteBase(items: SuggestedItem[], label: string) {
   expect(baseOK, `${label}: incomplete base — got [${items.map((i) => i.name).join(", ")}]`).toBe(true);
 }
 
+// Every drop reason the request produced, first attempt included (a
+// regenerate that got adopted replaces `drops`).
+function allDrops(data: SuggestResponse): string[] {
+  return [
+    ...(data._debug_rules?.drops ?? []),
+    ...(data._debug_rules?.regenerate?.first_attempt_drops ?? []),
+  ];
+}
+
 async function suggest(
   page: Page,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {}
 ): Promise<{ res: APIResponse; data: SuggestResponse }> {
   const res = await page.request.post("/api/suggest?debug=rules", {
     data: { locale: "en", styleWishes: [], ...body },
+    headers,
     timeout: 120_000,
   });
   expect(res.ok(), `suggest HTTP ${res.status()}`).toBe(true);
@@ -129,32 +155,56 @@ async function suggest(
   return { res, data };
 }
 
+// A signed-in page in its own browser context: the login form when a
+// password is configured, minted session cookies otherwise. Close it
+// with page.context().close().
+async function signedInPage(browser: Browser): Promise<Page> {
+  if (PASSWORD) {
+    const page = await browser.newPage();
+    await page.goto("/login");
+    await page.locator('input[type="email"]').fill(EMAIL);
+    await page.locator('input[type="password"]').fill(PASSWORD);
+    await page.locator('button[type="submit"]').click();
+    await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, { timeout: 30_000 });
+    return page;
+  }
+  const baseURL = test.info().project.use.baseURL ?? "http://localhost:3000";
+  const context = await browser.newContext();
+  await context.addCookies(await mintSessionCookies(EMAIL, baseURL));
+  return context.newPage();
+}
+
+// Weather comes from the saved location, else the Vercel IP headers.
+// The harness saves no location, so these headers pick the city (local
+// dev only: on Vercel the edge sets them).
+function cityHeaders(lat: number, lng: number): Record<string, string> {
+  return { "x-vercel-ip-latitude": String(lat), "x-vercel-ip-longitude": String(lng) };
+}
+
+async function putPrefs(page: Page, prefs: Record<string, unknown>) {
+  const res = await page.request.put("/api/preferences", { data: prefs });
+  expect(res.ok(), `preferences PUT ${res.status()}`).toBe(true);
+}
+
+// Deterministic prefs: Track A, English, no saved location (in local
+// dev there are no IP-geo headers either, so weather gates skip unless
+// a test sends cityHeaders).
+const BASE_PREFS = {
+  language: "en",
+  gender: "woman",
+  temperature_sensitivity: "normal",
+  location: null,
+  use_device_location: false,
+};
+
 test.describe.configure({ mode: "serial" });
 
 let seededIds: string[] = [];
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(180_000);
-  const page = await browser.newPage();
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, { timeout: 30_000 });
-
-  // Deterministic prefs: Track A, English, no saved location (in local
-  // dev there are no IP-geo headers either, so weather gates skip and
-  // the run doesn't depend on the day's forecast).
-  const prefs = await page.request.put("/api/preferences", {
-    data: {
-      language: "en",
-      gender: "woman",
-      temperature_sensitivity: "normal",
-      location: null,
-      use_device_location: false,
-    },
-  });
-  expect(prefs.ok()).toBe(true);
+  const page = await signedInPage(browser);
+  await putPrefs(page, BASE_PREFS);
 
   // Wipe + reseed the fixture wardrobe.
   const existing = await page.request.get("/api/items");
@@ -174,31 +224,25 @@ test.beforeAll(async ({ browser }) => {
     const saved = (await res.json()) as { id: string };
     seededIds.push(saved.id);
   }
-  await page.close();
+  await page.context().close();
 });
 
 test.afterAll(async ({ browser }) => {
   if (seededIds.length === 0) return;
-  const page = await browser.newPage();
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, { timeout: 30_000 });
+  const page = await signedInPage(browser);
   for (const id of seededIds) {
     await page.request.delete(`/api/items/${id}`);
   }
-  await page.close();
+  await putPrefs(page, BASE_PREFS);
+  await page.context().close();
 });
 
-async function signedInPage(browser: import("@playwright/test").Browser) {
-  const page = await browser.newPage();
-  await page.goto("/login");
-  await page.locator('input[type="email"]').fill(EMAIL);
-  await page.locator('input[type="password"]').fill(PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL(/\/(wardrobe|home|onboarding|)$|\/wardrobe/, { timeout: 30_000 });
-  return page;
+async function fixtureId(page: Page, name: string): Promise<string> {
+  const itemsRes = await page.request.get("/api/items");
+  const items = (await itemsRes.json()) as { id: string; name: string }[];
+  const item = items.find((i) => i.name === name);
+  expect(item, `fixture "${name}" missing`).toBeTruthy();
+  return item!.id;
 }
 
 test("work: athletic sneakers / untagged jeans / open-toe / blazerless tank never ship", async ({ browser }) => {
@@ -213,6 +257,8 @@ test("work: athletic sneakers / untagged jeans / open-toe / blazerless tank neve
   for (const outfit of data.suggestions) {
     expectCompleteBase(outfit.items, "work");
     const names = outfit.items.map((i) => i.name).join(", ");
+    // The only fixture sneaker is very-casual (athletic), so no sneaker
+    // at all may ship here.
     expect(outfit.items.some((i) => i.subcategory === "sneakers"), `sneakers at work: [${names}]`).toBe(false);
     expect(outfit.items.some((i) => i.subcategory === "jeans"), `jeans at work: [${names}]`).toBe(false);
     expect(
@@ -223,7 +269,7 @@ test("work: athletic sneakers / untagged jeans / open-toe / blazerless tank neve
     const hasBlazer = outfit.items.some((i) => i.subcategory === "blazer");
     expect(hasTank && !hasBlazer, `blazerless tank at work: [${names}]`).toBe(false);
   }
-  await page.close();
+  await page.context().close();
 });
 
 test("comfort day: no heels, no tailoring — but elastic wide-legs are welcome", async ({ browser }) => {
@@ -234,7 +280,7 @@ test("comfort day: no heels, no tailoring — but elastic wide-legs are welcome"
   // The beta bug: the blunt predicate called elastic wide-leg trousers
   // "tailored" and the request ended honest-empty. The narrowed
   // predicate must never drop them for that reason again.
-  const comfortDropOnElastic = (data._debug_rules?.drops ?? []).some((d) =>
+  const comfortDropOnElastic = allDrops(data).some((d) =>
     d.includes("comfort-day mood + tailored piece") && d.includes("Elastic wide-leg")
   );
   expect(comfortDropOnElastic, "elastic wide-legs were dropped as 'tailored' — predicate regressed").toBe(false);
@@ -251,21 +297,18 @@ test("comfort day: no heels, no tailoring — but elastic wide-legs are welcome"
       `tailoring on Comfort Day: [${names}]`
     ).toBe(false);
   }
-  await page.close();
+  await page.context().close();
 });
 
 test("anchor: a pinned item is always in the shipped outfit", async ({ browser }) => {
   test.setTimeout(180_000);
   const page = await signedInPage(browser);
-  const itemsRes = await page.request.get("/api/items");
-  const items = (await itemsRes.json()) as { id: string; name: string }[];
-  const anchor = items.find((i) => i.name === "Navy a-line dress");
-  expect(anchor, "fixture dress missing").toBeTruthy();
+  const anchorId = await fixtureId(page, "Navy a-line dress");
 
   const { data } = await suggest(page, {
     mood: "confident",
     occasion: "dinner-out",
-    anchorItemId: anchor!.id,
+    anchorItemId: anchorId,
   });
 
   expect(data._debug_rules?.anchor_requested).toBe(true);
@@ -273,25 +316,23 @@ test("anchor: a pinned item is always in the shipped outfit", async ({ browser }
   for (const outfit of data.suggestions) {
     expectCompleteBase(outfit.items, "anchor");
     expect(
-      outfit.items.some((i) => i.id === anchor!.id),
+      outfit.items.some((i) => i.id === anchorId),
       `anchor missing from [${outfit.items.map((i) => i.name).join(", ")}]`
     ).toBe(true);
   }
   expect(data._debug_rules?.anchor_shipped).toBe(true);
-  await page.close();
+  await page.context().close();
 });
 
 test("belt completer: a belt-friendly dress ships belted (or explicitly relaxed)", async ({ browser }) => {
   test.setTimeout(180_000);
   const page = await signedInPage(browser);
-  const itemsRes = await page.request.get("/api/items");
-  const items = (await itemsRes.json()) as { id: string; name: string }[];
-  const anchor = items.find((i) => i.name === "Navy a-line dress");
+  const anchorId = await fixtureId(page, "Navy a-line dress");
 
   const { data } = await suggest(page, {
     mood: "confident",
     occasion: "date",
-    anchorItemId: anchor!.id,
+    anchorItemId: anchorId,
   });
 
   for (const outfit of data.suggestions) {
@@ -305,5 +346,95 @@ test("belt completer: a belt-friendly dress ships belted (or explicitly relaxed)
       `belt-friendly dress shipped beltless and unflagged: [${outfit.items.map((i) => i.name).join(", ")}]`
     ).toBe(true);
   }
-  await page.close();
+  await page.context().close();
+});
+
+test("wrap dress: its tie is the belt — no second belt, never dropped for lacking one", async ({ browser }) => {
+  test.setTimeout(180_000);
+  const page = await signedInPage(browser);
+  const anchorId = await fixtureId(page, "Green wrap dress");
+
+  const { data } = await suggest(page, {
+    mood: "confident",
+    occasion: "date",
+    anchorItemId: anchorId,
+  });
+
+  const beltDrop = allDrops(data).some((d) => d.includes("wrap dress requires a belt"));
+  expect(beltDrop, "a wrap dress was dropped for lacking a belt").toBe(false);
+  expect(data.suggestions.length, "anchored wrap-dress request returned nothing").toBeGreaterThan(0);
+  for (const outfit of data.suggestions) {
+    if (!outfit.items.some((i) => i.id === anchorId)) continue;
+    expect(
+      outfit.items.some((i) => i.subcategory === "belt"),
+      `second belt over a wrap tie: [${outfit.items.map((i) => i.name).join(", ")}]`
+    ).toBe(false);
+  }
+  await page.context().close();
+});
+
+test("men's track: no injected bag, belt-only accessory injection, no tights advice", async ({ browser }) => {
+  test.setTimeout(240_000);
+  const page = await signedInPage(browser);
+  await putPrefs(page, { ...BASE_PREFS, gender: "man" });
+  try {
+    for (const occasion of ["work", "casual"]) {
+      const { data } = await suggest(page, { mood: "confident", occasion });
+      const fixes = data._debug_rules?.auto_fixes ?? [];
+      expect(fixes.some((f) => f.startsWith("injected bag")), `${occasion}: bag injected on the men's track (${fixes.join("; ")})`).toBe(false);
+      for (const f of fixes.filter((x) => x.startsWith("injected accessory"))) {
+        expect(f, `${occasion}: men's track injected a non-belt accessory`).toBe("injected accessory: belt");
+      }
+      for (const outfit of data.suggestions) {
+        expect(/tights|collants/i.test(outfit.styling_tip ?? ""), `${occasion}: tights advice on the men's track: "${outfit.styling_tip}"`).toBe(false);
+      }
+    }
+  } finally {
+    await putPrefs(page, BASE_PREFS);
+    await page.context().close();
+  }
+});
+
+test("hot weather (≥25°C): no outerwear ships", async ({ browser }) => {
+  test.setTimeout(180_000);
+  const page = await signedInPage(browser);
+  // Dubai: mid-October nights stay near 28°C.
+  const { data } = await suggest(page, { mood: "confident", occasion: "brunch" }, cityHeaders(25.2, 55.27));
+  for (const outfit of data.suggestions) {
+    if (outfit.weather_temp == null || outfit.weather_temp < 25) {
+      test.info().annotations.push({ type: "skipped-check", description: `Dubai read ${outfit.weather_temp}°C, below the 25°C band` });
+      continue;
+    }
+    expectCompleteBase(outfit.items, "hot");
+    expect(
+      outfit.items.some((i) => i.category === "outerwear"),
+      `outerwear at ${outfit.weather_temp}°C: [${outfit.items.map((i) => i.name).join(", ")}]`
+    ).toBe(false);
+  }
+  await page.context().close();
+});
+
+test("cold weather (<14°C): no open shoes when a closed pair exists, no tights advice on trousers", async ({ browser }) => {
+  test.setTimeout(180_000);
+  const page = await signedInPage(browser);
+  // Iqaluit: mid-October hovers around freezing.
+  const { data } = await suggest(page, { mood: "chill", occasion: "casual" }, cityHeaders(63.75, -68.52));
+  for (const outfit of data.suggestions) {
+    if (outfit.weather_temp == null || outfit.weather_temp >= 14) {
+      test.info().annotations.push({ type: "skipped-check", description: `Iqaluit read ${outfit.weather_temp}°C, above the 14°C band` });
+      continue;
+    }
+    const names = outfit.items.map((i) => i.name).join(", ");
+    expect(
+      outfit.items.some((i) => i.category === "shoes" && (i.subcategory === "sandals" || i.toe_shape === "open-toe" || i.toe_shape === "peep-toe")),
+      `open shoes at ${outfit.weather_temp}°C: [${names}]`
+    ).toBe(false);
+    const showsLegs = outfit.items.some(
+      (i) => i.category === "dress" || (i.category === "bottom" && (i.subcategory === "skirt" || i.subcategory === "skort"))
+    );
+    if (!showsLegs) {
+      expect(/tights|collants/i.test(outfit.styling_tip ?? ""), `tights advice on a trouser outfit: "${outfit.styling_tip}"`).toBe(false);
+    }
+  }
+  await page.context().close();
 });

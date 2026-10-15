@@ -1,7 +1,37 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
+// The /config entry point: importing withSentryConfig from the package
+// root is deprecated in @sentry/nextjs 10.x and removed in v11.
+import { withSentryConfig } from "@sentry/nextjs/config";
+
+// onnxruntime-node (self-hosted background removal, src/lib/cutout) ships
+// prebuilt binaries for every OS in one ~300 MB package. Keep it out of the
+// bundler, trace exactly the two Linux x64 files the Vercel function loads
+// (the binding is required through a platform-computed path that file
+// tracing can't follow, and libonnxruntime.so is loaded by the OS linker),
+// and drop every other platform so the function stays under 250 MB.
+const ORT_BIN = "./node_modules/onnxruntime-node/bin/napi-v6";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["onnxruntime-node"],
+  outputFileTracingIncludes: {
+    "/api/items/normalize": [
+      `${ORT_BIN}/linux/x64/onnxruntime_binding.node`,
+      `${ORT_BIN}/linux/x64/libonnxruntime.so.1`,
+    ],
+  },
+  outputFileTracingExcludes: Object.fromEntries(
+    // "/*" per the Next docs for all routes, plus the one route that
+    // actually loads the runtime, explicitly.
+    ["/*", "/api/items/normalize"].map((route) => [
+      route,
+      [
+        `${ORT_BIN}/win32/**/*`,
+        `${ORT_BIN}/darwin/**/*`,
+        `${ORT_BIN}/linux/arm64/**/*`,
+        `${ORT_BIN}/linux/x64/libonnxruntime_providers_*`,
+      ],
+    ])
+  ),
   images: {
     remotePatterns: [
       {

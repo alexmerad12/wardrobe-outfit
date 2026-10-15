@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { GoogleGenAI, Type, type Schema } from "@google/genai";
+import { Type, type Schema } from "@google/genai";
 import { withGeminiRetry } from "@/lib/gemini-retry";
-import { kv } from "@vercel/kv";
+import { genAI, QUALITY_MODEL, SUGGEST_THINKING } from "@/lib/gemini";
+import { kv } from "@/lib/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { getWeather, getSeasonFromMonth } from "@/lib/weather";
@@ -19,19 +20,20 @@ import {
 } from "@/lib/suggest-text-guards";
 import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
 
-// Suggest endpoint runs on Gemini 3 Flash with shallow thinking
-// (thinkingBudget: 3072). 2026-05-08 experiment: shifted from
-// 3-outfit-generation + scoring to single-outfit generation. The
-// scorer was reliably picking outfits with the same star pieces
-// across calls, so users felt repetition even with random
-// subsetting. Single-outfit lets the model spend its full reasoning
-// on one composition; the swap + refine flow handles refinement
-// instead of a server-side picker. Targets ~8-12s per call. Other
-// endpoints (try-on, analyze, packing) still use their existing
-// configs — this is suggest-specific.
+// Suggest runs on the quality-tier model with shallow thinking
+// (QUALITY_MODEL + SUGGEST_THINKING in src/lib/gemini.ts). 2026-05-08
+// experiment: shifted from 3-outfit-generation + scoring to
+// single-outfit generation. The scorer was reliably picking outfits
+// with the same star pieces across calls, so users felt repetition
+// even with random subsetting. Single-outfit lets the model spend its
+// full reasoning on one composition; the swap + refine flow handles
+// refinement instead of a server-side picker. Targets ~8-12s per call.
 // GOOGLE_API_KEY must be set in .env.local locally and in Vercel env
 // settings for deploys.
-const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
+
+// Up to 3 model calls (first try, shape retry, rule regenerate) plus
+// weather; give the slow path room to finish and refund on failure.
+export const maxDuration = 120;
 
 const SUGGEST_RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
@@ -554,8 +556,7 @@ export async function POST(request: NextRequest) {
   // (so the operator and trusted testers can use the app freely
   // without burning their daily limit) but the counter still
   // increments so cost telemetry stays honest.
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const isAdmin = isCapBypassed(authUser?.email);
+  const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
   const today = localDayKey(request);
   const countKey = `suggest_count:${userId}:${today}`;
   // Consumed AFTER the free early-exits (body parse, <3-items) so a
@@ -563,14 +564,28 @@ export async function POST(request: NextRequest) {
   // every exit that delivered nothing. null = not consumed yet.
   let capCount: number | null = null;
 
+  // Parse + validate before anything is charged: a bad body used to land
+  // in the catch below and log a failed AI call for a request that never
+  // reached the model, and an unknown mood threw inside the prompt build.
+  const body = (await request.json().catch(() => null)) as {
+    mood: Mood;
+    occasion: Occasion;
+    styleWishes?: string[];
+    anchorItemId?: string | null;
+    locale?: "en" | "fr";
+  } | null;
+  if (
+    !body ||
+    typeof body.mood !== "string" ||
+    !(body.mood in MOOD_CONFIG) ||
+    typeof body.occasion !== "string" ||
+    !(body.occasion in OCCASION_LABELS)
+  ) {
+    return NextResponse.json({ error: "Valid mood and occasion required" }, { status: 400 });
+  }
+
   try {
-    const { mood, occasion, styleWishes = [], anchorItemId = null, locale = "en" } = (await request.json()) as {
-      mood: Mood;
-      occasion: Occasion;
-      styleWishes?: string[];
-      anchorItemId?: string | null;
-      locale?: "en" | "fr";
-    };
+    const { mood, occasion, styleWishes = [], anchorItemId = null, locale = "en" } = body;
 
     const languageName = locale === "fr" ? "French" : "English";
 
@@ -581,9 +596,10 @@ export async function POST(request: NextRequest) {
     // TTL so the anti-repetition window covers a normal usage cadence
     // (few-times-per-week) without ossifying forever.
     const suggestionsKey = `recent-suggestions:${userId}`;
-    const kvRecentSuggestions = (await kv
-      .get<string[][]>(suggestionsKey)
-      .catch(() => null)) ?? [];
+    const kvRecentSuggestions =
+      (await Promise.resolve()
+        .then(() => kv().get<string[][]>(suggestionsKey))
+        .catch(() => null)) ?? [];
 
     const [itemsRes, prefsRes, outfitsRes, recentRes] = await Promise.all([
       supabase.from("clothing_items").select("*").eq("is_stored", false),
@@ -885,6 +901,22 @@ export async function POST(request: NextRequest) {
       }
       return true;
     }
+    // R9 sneakers at work. Track A bans only ATHLETIC sneakers (Rule 9):
+    // a sneaker tagged smart-casual or dressier is the clean leather kind
+    // and may go to the office. The men's track bans every sneaker at
+    // work (menswear shoe logic). The user's own "work" tag overrides
+    // both at the call sites.
+    const DRESSY_FORMALITIES = new Set<string>([
+      "smart-casual",
+      "business-casual",
+      "formal",
+    ]);
+    const isBannedWorkSneaker = (it: ClothingItem): boolean => {
+      if (it.category !== "shoes" || it.subcategory !== "sneakers") return false;
+      if (isMensTrack) return true;
+      const formalities = Array.isArray(it.formality) ? it.formality : [it.formality];
+      return !formalities.some((f) => f && DRESSY_FORMALITIES.has(f));
+    };
     const RICH_CATEGORY_THRESHOLD = 3;
     const inAllByCategory = new Map<string, number>();
     for (const it of items) {
@@ -902,13 +934,20 @@ export async function POST(request: NextRequest) {
       // R9: no athletic sneakers at work, no denim bottoms at work —
       // UNLESS the user explicitly tagged the item for "work" (their
       // workplace allows it; user judgment overrides the generic rule).
+      // Jeans are Track A only: the men's office prompt allows them and
+      // the post-parse drop was already gated, so hiding them here on
+      // both tracks made the two disagree.
       if (occasion === "work") {
         const userApproved = (it.occasions ?? []).includes("work");
         if (!userApproved) {
-          if (it.category === "shoes" && it.subcategory === "sneakers") return false;
-          if (it.category === "bottom" && it.subcategory === "jeans") return false;
+          if (isBannedWorkSneaker(it)) return false;
+          if (!isMensTrack && it.category === "bottom" && it.subcategory === "jeans") return false;
         }
       }
+      // Hot (≥25°C): never outerwear (Rule 5). The richness gate below
+      // switched this off: at 25°C every coat fails warmth, the category
+      // counts 0 passing items, and the whole outerwear rail was shown.
+      if (temp !== null && temp >= 25 && it.category === "outerwear") return false;
       // At-home: you are INDOORS. Strip categories that don't make
       // sense in your living room from the candidate pool entirely so
       // the AI can't propose them.
@@ -1146,23 +1185,23 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     async function callAi(
       extraSuffix = ""
     ): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
-      // Gemini 3.5 Flash with SHALLOW thinking (thinkingBudget: 3072) +
-      // single-outfit generation. Variety across "Show me another"
-      // taps comes from the RECENTLY SHOWN ban list; quality comes
-      // from the model's full attention on one composition rather
-      // than splitting across competing candidates. extraSuffix carries
-      // the regenerate-with-feedback block on the second validation pass.
+      // Quality-tier model with SHALLOW thinking + single-outfit
+      // generation. Variety across "Show me another" taps comes from the
+      // RECENTLY SHOWN ban list; quality comes from the model's full
+      // attention on one composition rather than splitting across
+      // competing candidates. extraSuffix carries the
+      // regenerate-with-feedback block on the second validation pass.
+      // (No temperature: Gemini 3.x ignores it and it is deprecated.)
       const result = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: QUALITY_MODEL,
             contents: `${cachedPrefix}\n\n${dynamicSuffix}${extraSuffix}`,
             config: {
-              temperature: 1,
               maxOutputTokens: 16384,
               responseMimeType: "application/json",
               responseSchema: SUGGEST_RESPONSE_SCHEMA,
-              thinkingConfig: { thinkingBudget: 3072 },
+              thinkingConfig: SUGGEST_THINKING,
             },
           }),
         { tag: "suggest" }
@@ -1207,6 +1246,12 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         parsed
       );
       if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
+      // Two paid calls produced nothing usable: record it (this exit used
+      // to leave no ai_calls row at all, hiding the cost).
+      logAiCall(supabase, userId, "suggest", {
+        succeeded: false,
+        metadata: { reason: "bad_shape", stop: r.stopReason, model: QUALITY_MODEL },
+      });
       return NextResponse.json({
         suggestions: [],
         ai_error: true,
@@ -1333,6 +1378,220 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       const finish = i.category === "bag" ? i.bag_metal_finish : i.metal_finish;
       if (!finish || finish === "none" || finish === "mixed") return null;
       return GOLD_FAMILY.has(finish) ? "gold" : SILVER_FAMILY.has(finish) ? "silver" : "other";
+    };
+
+    // ——— Belt rules (Rule 18a), ONE predicate shared by the BELT STRIP,
+    // the accessory injector and the belt completer. They used to carry
+    // three copies, and the completer never checked the strip's list: it
+    // demanded the belt the strip had just removed (blouse + slim
+    // trousers) and shipped the outfit relaxed with "a belt would define
+    // the waist".
+    const NO_BELT_DRESS_SILHOUETTES = new Set<string>([
+      "slip",
+      "bodycon",
+      "mermaid",
+      "sheath",
+      "shift",
+    ]);
+    const NO_BELT_BOTTOM_CLOSURES = new Set<string>([
+      "elastic",
+      "drawstring",
+      "pull-on",
+      "side-zip",
+    ]);
+    const beltBlockedBy = (i: ClothingItem): boolean => {
+      // A wrap silhouette or a wrap-tie closure already IS the belt: the
+      // prompt says count the tie, don't add another. Same for a belted
+      // coat ("the outfit already has a belted coat / dress").
+      if (i.dress_silhouette === "wrap" || i.closure === "wrap-tie") return true;
+      if (
+        (i.category === "dress" ||
+          i.category === "one-piece" ||
+          i.category === "bottom" ||
+          i.category === "outerwear") &&
+        i.waist_style === "belted"
+      ) {
+        return true;
+      }
+      // Nowhere for a belt to go (both tracks).
+      if (
+        (i.category === "dress" || i.category === "one-piece" || i.category === "bottom") &&
+        i.waist_style === "elastic"
+      ) {
+        return true;
+      }
+      if (i.category === "bottom") {
+        if (i.subcategory === "leggings" || i.subcategory === "sweatpants") return true;
+        if (i.waist_closure && NO_BELT_BOTTOM_CLOSURES.has(i.waist_closure)) return true;
+      }
+      // Overalls: built-in waist + suspenders, a belt clashes with the straps.
+      if (i.category === "one-piece" && i.subcategory === "overalls") return true;
+      if (
+        (i.category === "dress" || i.category === "one-piece") &&
+        i.dress_silhouette &&
+        NO_BELT_DRESS_SILHOUETTES.has(i.dress_silhouette)
+      ) {
+        return true;
+      }
+      // "Slim = no belt" is a Track A rule. The men's track replaces Rule
+      // 18a: slim trousers with a tucked shirt MUST take a belt.
+      if (
+        !isMensTrack &&
+        (i.category === "dress" || i.category === "one-piece" || i.category === "bottom") &&
+        i.fit === "slim"
+      ) {
+        return true;
+      }
+      return false;
+    };
+    const baseBlocksBelt = (outfit: ClothingItem[]) => outfit.some(beltBlockedBy);
+
+    // Hats × occasion (Rule 11), shared by the validator, the accessory
+    // injector and the fallback gate. Never at work or at home. At formal
+    // only a dressy women's hat (the old code dropped every hat at formal,
+    // so the prompt's own formal hat shapes could never ship). Casual
+    // shapes never at formal / date / dinner-out, and velvet or felt at a
+    // party only as beret, pillbox or headband. Returns why the hat can't
+    // go, or null when it can.
+    const FORMAL_HAT_SHAPES = new Set<string>(["pillbox", "headband", "beret"]);
+    const CASUAL_HAT_SHAPES = new Set<string>(["baseball", "trucker", "bucket"]);
+    const hatProblem = (hat: ClothingItem): string | null => {
+      if (occasion === "work" || occasion === "at-home") {
+        return `hat not allowed at ${occasion}`;
+      }
+      if (occasion === "formal") {
+        if (isMensTrack) return "hat not allowed at formal (men's track)";
+        if (!FORMAL_HAT_SHAPES.has(hat.hat_silhouette ?? "")) {
+          return `formal: hat silhouette "${hat.hat_silhouette ?? "unknown"}" must be pillbox/headband/beret`;
+        }
+        return null;
+      }
+      if (
+        (occasion === "date" || occasion === "dinner-out") &&
+        CASUAL_HAT_SHAPES.has(hat.hat_silhouette ?? "")
+      ) {
+        return `${occasion}: hat silhouette "${hat.hat_silhouette}" too casual`;
+      }
+      if (
+        occasion === "party" &&
+        (hat.hat_texture === "velvet" || hat.hat_texture === "felt") &&
+        hat.hat_silhouette &&
+        !FORMAL_HAT_SHAPES.has(hat.hat_silhouette)
+      ) {
+        return `party: ${hat.hat_texture} hat must be beret/pillbox/headband`;
+      }
+      return null;
+    };
+
+    // Warmth check for injected scarves and hats (the warmth pre-filter
+    // never touches accessories, so a wool scarf could be injected at
+    // 28°C). ≥25°C: only the lightest pieces. 18-25°C: no warm (≥3) or
+    // functional warmth-layer scarves. Belts always pass.
+    const accessoryFitsWeather = (i: ClothingItem): boolean => {
+      if (temp === null) return true;
+      if (i.subcategory !== "scarf" && i.subcategory !== "hat") return true;
+      const w = i.warmth_rating ?? null;
+      if (temp >= 25) return w === null || w <= 1.5;
+      if (temp >= 18) {
+        if (i.subcategory === "scarf" && i.scarf_function === "functional") return false;
+        return w === null || w < 3;
+      }
+      return true;
+    };
+
+    // Bag rules (Rule 11). Hoisted above buildOutfit so the bag injector
+    // can respect them: it used to inject a backpack at formal or a tote
+    // the size rule then dropped. The validator keeps its wardrobe-aware
+    // gates: a rule only fires when the user owns a bag that passes it.
+    const bagIsCasual = (b: ClothingItem) => {
+      const mats = Array.isArray(b.material) ? b.material : [b.material];
+      return (
+        mats.some((m) => m === "canvas" || m === "nylon") ||
+        b.bag_texture === "woven" ||
+        b.bag_texture === "fringed"
+      );
+    };
+    const bagIsSmall = (b: ClothingItem) =>
+      b.bag_size === "clutch" || b.bag_size === "small";
+    const DRESSY_BAG_OCCASIONS = new Set<string>(["formal", "date", "party"]);
+    const NO_BACKPACK_OCCASIONS = new Set<string>(["formal", "party", "date", "dinner-out"]);
+    // True if the user owns at least one bag that would PASS the formal /
+    // date / party material rules (no backpack, no canvas/nylon, no
+    // woven/fringed texture). When false, those rules silently skip — a
+    // user with only casual bags shouldn't get zero outfits at every
+    // dressy occasion.
+    const wardrobeHasFormalBag = items.some(
+      (i) =>
+        !i.is_stored &&
+        i.category === "bag" &&
+        i.subcategory !== "backpack" &&
+        !bagIsCasual(i)
+    );
+    // Same gate for the clutch/small size rule. A user whose dressy bags
+    // are all medium used to get an empty result at date / party /
+    // formal: every candidate failed the size check, fallback included.
+    const wardrobeHasSmallFormalBag = items.some(
+      (i) =>
+        !i.is_stored &&
+        i.category === "bag" &&
+        i.subcategory !== "backpack" &&
+        !bagIsCasual(i) &&
+        bagIsSmall(i)
+    );
+    const bagOkForInjection = (b: ClothingItem): boolean => {
+      if ((b.occasions ?? []).includes(occasion as Occasion)) return true;
+      // No bag beats a backpack at a dressy occasion.
+      if (NO_BACKPACK_OCCASIONS.has(occasion) && b.subcategory === "backpack") return false;
+      if (DRESSY_BAG_OCCASIONS.has(occasion)) {
+        if (wardrobeHasFormalBag && bagIsCasual(b)) return false;
+        if (wardrobeHasSmallFormalBag && b.bag_size && !bagIsSmall(b)) return false;
+      }
+      if (occasion === "work" && b.bag_size === "clutch") return false;
+      return true;
+    };
+
+    // Shoe rules for this request, used to rank shoe injection candidates
+    // so the injector never adds the shoe a validator below hard-drops:
+    // Rule 5 weather (the warmth pre-filter only covers categories with
+    // 3+ passing items, so sandals could be injected at 3°C), office bans,
+    // outdoor practicality, casual heels, Comfort Day / Chill heels and
+    // Need a Hug pointed toes.
+    const isOpenShoe = (i: ClothingItem) =>
+      i.category === "shoes" &&
+      (i.subcategory === "sandals" ||
+        i.toe_shape === "open-toe" ||
+        i.toe_shape === "peep-toe");
+    const isHeeled = (i: ClothingItem) =>
+      i.heel_type === "high-heel" || i.heel_type === "mid-heel";
+    const OUTDOOR_BAD_SHOE_SUBS = new Set<string>([
+      "western-boots",
+      "knee-boots",
+      "ballet-flats",
+      "loafers",
+      "mules",
+      "espadrilles",
+      "heels",
+    ]);
+    const CASUAL_SHOE_OCCASIONS = new Set<string>([
+      "casual",
+      "brunch",
+      "outdoor",
+      "travel",
+      "at-home",
+    ]);
+    const shoeFitsContext = (i: ClothingItem): boolean => {
+      if (!passesWarmth(i)) return false;
+      const tagged = (i.occasions ?? []).includes(occasion as Occasion);
+      if (occasion === "work" && !tagged && (isBannedWorkSneaker(i) || isOpenShoe(i))) {
+        return false;
+      }
+      if (occasion === "outdoor" && i.subcategory && OUTDOOR_BAD_SHOE_SUBS.has(i.subcategory)) {
+        return false;
+      }
+      if (CASUAL_SHOE_OCCASIONS.has(occasion) && isHeeled(i)) return false;
+      if ((mood === "chill" || mood === "period") && isHeeled(i)) return false;
+      if (mood === "sad" && i.toe_shape === "pointed") return false;
+      return true;
     };
 
     // Candidate picker for the shoe / bag / accessory injectors. Order of
@@ -1634,53 +1893,17 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       }
       // R18a BELT STRIP — when the AI added a belt that doesn't fit
       // the base (slip / bodycon / sheath / shift dresses, slim-fit
-      // dresses, elastic-waist or already-belted bottoms, etc.), strip
-      // the belt rather than ship a wrong-belt outfit. Same approach
-      // as the outerwear strip below — preserves the outfit minus the
-      // offending accessory.
-      {
-        const NO_BELT_DRESS_SILHOUETTES = new Set<string>([
-          "slip",
-          "bodycon",
-          "mermaid",
-          "sheath",
-          "shift",
-        ]);
-        const NO_BELT_BOTTOM_CLOSURES = new Set<string>([
-          "elastic",
-          "drawstring",
-          "pull-on",
-          "side-zip",
-        ]);
-        const NO_BELT_BOTTOM_SUBS = new Set<string>([
-          "leggings",
-          "sweatpants",
-        ]);
-        const beltBlocked = stripped.some((i) => {
-          if (i.category === "dress" || i.category === "one-piece") {
-            if (i.dress_silhouette && NO_BELT_DRESS_SILHOUETTES.has(i.dress_silhouette)) return true;
-            if (i.fit === "slim") return true;
-            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
-            // Overalls have built-in waist + suspenders defining the
-            // silhouette; a belt clashes with the overall straps.
-            if (i.category === "one-piece" && i.subcategory === "overalls") return true;
-          }
-          if (i.category === "bottom") {
-            if (i.subcategory && NO_BELT_BOTTOM_SUBS.has(i.subcategory)) return true;
-            if (i.waist_closure && NO_BELT_BOTTOM_CLOSURES.has(i.waist_closure)) return true;
-            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
-            if (i.fit === "slim") return true;
-          }
-          return false;
-        });
-        if (beltBlocked) {
-          const beforeLen = stripped.length;
-          stripped = stripped.filter(
-            (i) => !(i.category === "accessory" && i.subcategory === "belt")
-          );
-          if (stripped.length !== beforeLen) {
-            fixes.push("stripped belt (incompatible base — slip/bodycon/slim/elastic-waist/overalls)");
-          }
+      // dresses, elastic-waist or already-belted bottoms, a wrap tie,
+      // etc.), strip the belt rather than ship a wrong-belt outfit. Same
+      // approach as the outerwear strip below — preserves the outfit
+      // minus the offending accessory. Predicate: beltBlockedBy.
+      if (baseBlocksBelt(stripped)) {
+        const beforeLen = stripped.length;
+        stripped = stripped.filter(
+          (i) => !(i.category === "accessory" && i.subcategory === "belt")
+        );
+        if (stripped.length !== beforeLen) {
+          fixes.push("stripped belt (incompatible base — slip/bodycon/slim/elastic-waist/overalls/wrap tie)");
         }
       }
 
@@ -1751,6 +1974,12 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         weather.temp >= 10 &&
         weather.temp < 18 &&
         INDOOR_LEANING.has(occasion);
+      // The "needs outerwear" line moves with the temperature-sensitivity
+      // setting exactly as the prompt's sensitivity line says (runs hot:
+      // <9°C, runs cold: <15°C). It was a flat <12°C, so a runs-hot user
+      // got the coat the model had just been told to skip.
+      const outerwearNeededBelow =
+        sensitivity === "runs-hot" ? 9 : sensitivity === "runs-cold" ? 15 : 12;
       if (
         // At-home is INDOORS — never auto-inject outerwear regardless
         // of temperature. Mirrors the at-home pre-filter and post-parse
@@ -1759,7 +1988,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         occasion !== "at-home" &&
         weather &&
         typeof weather.temp === "number" &&
-        weather.temp < 12 &&
+        weather.temp < outerwearNeededBelow &&
         !stripped.some((i) => i.category === "outerwear") &&
         !cardiganQualifies
       ) {
@@ -1850,6 +2079,16 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           (i) => i.category === "shoes" && !i.is_stored
         );
         let pool = filteredShoes.length > 0 ? filteredShoes : availableShoes;
+        // Shoes are a REQUIRED slot, so the context rules rank instead of
+        // filter: a shoe that passes every rule, else one that at least
+        // suits the weather, else whatever exists.
+        const fitting = pool.filter(shoeFitsContext);
+        if (fitting.length > 0) {
+          pool = fitting;
+        } else {
+          const weatherOk = pool.filter(passesWarmth);
+          if (weatherOk.length > 0) pool = weatherOk;
+        }
         if (rainTriggered) {
           const dry = pool.filter((i) => !rainBlocked(i));
           if (dry.length > 0) pool = dry;
@@ -1863,10 +2102,12 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
 
       // Auto-inject a bag for every occasion except at-home and outdoor
       // (matches Rule 11). Same pre-filter-first pattern as shoes —
-      // pull from promptItems so an auto-injected bag at a formal /
-      // date occasion isn't a casual canvas tote that the main filter
-      // would later drop.
+      // pull from promptItems — and only bags that pass this occasion's
+      // bag rules (backpack, material, size), so the validator never
+      // drops the bag the injector just added. Track A only: on the
+      // men's track the bag is optional (Rule 11).
       if (
+        !isMensTrack &&
         occasion !== "at-home" &&
         occasion !== "outdoor" &&
         !stripped.some((i) => i.category === "bag")
@@ -1877,7 +2118,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         const availableBags = items.filter(
           (i) => i.category === "bag" && !i.is_stored
         );
-        let pool = filteredBags.length > 0 ? filteredBags : availableBags;
+        let pool = (filteredBags.length > 0 ? filteredBags : availableBags).filter(
+          bagOkForInjection
+        );
         if (rainTriggered) {
           const dry = pool.filter((i) => !rainBlocked(i));
           if (dry.length > 0) pool = dry;
@@ -1891,100 +2134,81 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
 
       // Auto-inject one accessory beyond the bag for every occasion
       // except at-home and outdoor (matches the ACCESSORY MINIMUM rule).
-      // Skip hat at work (Rule 11 hat × occasion). Prefer accessories
-      // tagged for the occasion, falling back to any eligible accessory
-      // (most users don't tag accessories, so a tag-only rule would
-      // almost never fire). Preset/metal conflicts skip the injection
-      // entirely — see pickInjectionCandidate.
+      // Prefer accessories tagged for the occasion, falling back to any
+      // eligible accessory (most users don't tag accessories, so a
+      // tag-only rule would almost never fire). Preset/metal conflicts
+      // skip the injection entirely — see pickInjectionCandidate.
       if (
         occasion !== "at-home" &&
         occasion !== "outdoor" &&
         !stripped.some((i) => i.category === "accessory")
       ) {
         // Pre-filter-first injection — same pattern as shoes / bag.
-        // Pulls from promptItems so the injection respects occasion
-        // bans (e.g. baseball cap at work, casual hat silhouette at
-        // formal). Falls back to the full wardrobe when the
-        // pre-filtered pool is empty.
-        //
-        // CRITICAL: exclude belts from the pool when the base outfit
-        // already blocks belts (belted dress, slim-fit base, elastic
-        // waist, etc.). The BELT STRIP a few blocks above just removed
-        // a belt for exactly this reason; without this guard the
-        // accessory minimum re-injects the same belt right back —
-        // shipping the wrong-belt outfit the strip was meant to
-        // prevent. The check mirrors the R18a beltBlocked predicate.
-        const NO_BELT_DRESS_SILHOUETTES = new Set<string>([
-          "slip",
-          "bodycon",
-          "mermaid",
-          "sheath",
-          "shift",
-        ]);
-        const NO_BELT_BOTTOM_CLOSURES = new Set<string>([
-          "elastic",
-          "drawstring",
-          "pull-on",
-          "side-zip",
-        ]);
-        const NO_BELT_BOTTOM_SUBS = new Set<string>([
-          "leggings",
-          "sweatpants",
-        ]);
-        const baseBlocksBelt = stripped.some((i) => {
-          if (i.category === "dress" || i.category === "one-piece") {
-            if (i.dress_silhouette && NO_BELT_DRESS_SILHOUETTES.has(i.dress_silhouette)) return true;
-            if (i.fit === "slim") return true;
-            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
-            if (i.category === "one-piece" && i.subcategory === "overalls") return true;
-          }
-          if (i.category === "bottom") {
-            if (i.subcategory && NO_BELT_BOTTOM_SUBS.has(i.subcategory)) return true;
-            if (i.waist_closure && NO_BELT_BOTTOM_CLOSURES.has(i.waist_closure)) return true;
-            if (i.waist_style === "belted" || i.waist_style === "elastic") return true;
-            if (i.fit === "slim") return true;
-          }
-          return false;
-        });
-        const filteredAccessories = promptItems.filter((i) => {
-          if (i.category !== "accessory") return false;
-          if (occasion === "work" && i.subcategory === "hat") return false;
-          if (baseBlocksBelt && i.subcategory === "belt") return false;
-          return true;
-        });
-        const availableAccessories = items.filter((i) => {
-          if (i.category !== "accessory" || i.is_stored) return false;
-          if (occasion === "work" && i.subcategory === "hat") return false;
-          if (baseBlocksBelt && i.subcategory === "belt") return false;
-          return true;
-        });
+        // Falls back to the full wardrobe when the pre-filtered pool is
+        // empty. Every candidate must pass:
+        //   - hatProblem (Rule 11 hat × occasion);
+        //   - the belt rules: no belt when the base blocks one. The BELT
+        //     STRIP above just removed a belt for exactly this reason;
+        //     without this guard the accessory minimum re-injected it;
+        //   - accessoryFitsWeather (no wool scarf at 28°C).
+        const blocksBelt = baseBlocksBelt(stripped);
+        const accessoryOk = (i: ClothingItem) => {
+          if (i.subcategory === "hat" && hatProblem(i) !== null) return false;
+          if (i.subcategory === "belt" && blocksBelt) return false;
+          return accessoryFitsWeather(i);
+        };
+        const filteredAccessories = promptItems.filter(
+          (i) => i.category === "accessory" && accessoryOk(i)
+        );
+        const availableAccessories = items.filter(
+          (i) => i.category === "accessory" && !i.is_stored && accessoryOk(i)
+        );
         let pool =
           filteredAccessories.length > 0
             ? filteredAccessories
             : availableAccessories;
-        // If the base is a belt-friendly dress (a-line / wrap /
-        // fit-and-flare with a free waist), the R18 completer downstream
-        // HARD-requires a belt — prefer injecting one here so the server
-        // doesn't inject a scarf and then drop its own outfit for
-        // missing the belt. Mirrors the completer's predicate and its
-        // mood exemptions (at-home/outdoor never reach this injector).
-        const BELT_FRIENDLY_SILS = new Set(["a-line", "wrap", "fit-and-flare"]);
-        const beltExemptMood =
-          mood === "chill" || mood === "cozy" || mood === "period";
-        const beltDesired =
-          !beltExemptMood &&
-          !baseBlocksBelt &&
-          stripped.some(
-            (i) =>
-              (i.category === "dress" || i.category === "one-piece") &&
-              i.dress_silhouette != null &&
-              BELT_FRIENDLY_SILS.has(i.dress_silhouette) &&
-              i.fit !== "slim" &&
-              i.waist_style !== "belted"
-          );
-        if (beltDesired) {
-          const belts = pool.filter((i) => i.subcategory === "belt");
-          if (belts.length > 0) pool = belts;
+        if (isMensTrack) {
+          // Men's track (menswear stylist instinct): no accessory is
+          // required beyond a belt, and the belt goes with a tucked
+          // shirt — fully tucked at work and formal, and the date /
+          // dinner template carries one. Anything else: inject nothing.
+          const MENS_BELT_OCCASIONS = new Set<string>(["work", "formal", "date", "dinner-out"]);
+          const tuckedLook =
+            MENS_BELT_OCCASIONS.has(occasion) &&
+            stripped.some((i) => i.category === "top" && i.subcategory === "shirt") &&
+            stripped.some(
+              (i) =>
+                i.category === "bottom" &&
+                (i.subcategory === "trousers" || i.subcategory === "jeans")
+            );
+          pool = tuckedLook ? pool.filter((i) => i.subcategory === "belt") : [];
+        } else {
+          // If the base is a belt-friendly dress (a-line / fit-and-flare
+          // with a free waist), the R18 completer downstream
+          // HARD-requires a belt — prefer injecting one here so the
+          // server doesn't inject a scarf and then drop its own outfit
+          // for missing the belt. Mirrors the completer's predicate and
+          // its mood exemptions (at-home/outdoor never reach this
+          // injector). A wrap dress is not in the list: its tie is the
+          // belt (beltBlockedBy).
+          const BELT_FRIENDLY_SILS = new Set(["a-line", "fit-and-flare"]);
+          const beltExemptMood =
+            mood === "chill" || mood === "cozy" || mood === "period";
+          const beltDesired =
+            !beltExemptMood &&
+            !blocksBelt &&
+            stripped.some(
+              (i) =>
+                (i.category === "dress" || i.category === "one-piece") &&
+                i.dress_silhouette != null &&
+                BELT_FRIENDLY_SILS.has(i.dress_silhouette) &&
+                i.fit !== "slim" &&
+                i.waist_style !== "belted"
+            );
+          if (beltDesired) {
+            const belts = pool.filter((i) => i.subcategory === "belt");
+            if (belts.length > 0) pool = belts;
+          }
         }
         const best = pickInjectionCandidate(pool, stripped, false);
         if (best) {
@@ -2015,10 +2239,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           : buildStylingTip(outfitItems, locale);
 
       // Tights nudge: when it's cold and the outfit has an exposed-leg
-      // piece (mini/midi dress, skirt, shorts), append a reminder to
+      // piece (mini/midi dress, skirt, skort), append a reminder to
       // layer opaque tights. Skips if the dress is a maxi (legs already
-      // covered) or the outfit is at-home.
+      // covered) or the outfit is at-home. Never shorts (the styling_tip
+      // contract: tights never pair with pants of any kind, shorts
+      // included) and never the men's track (tights rules suppressed).
       if (
+        !isMensTrack &&
         weather &&
         typeof weather.temp === "number" &&
         weather.temp < 12 &&
@@ -2027,7 +2254,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         const hasExposedLegPiece = outfitItems.some((i) => {
           if (i.category === "dress") return i.subcategory !== "maxi-dress";
           if (i.category === "bottom") {
-            return i.subcategory === "skirt" || i.subcategory === "shorts";
+            return i.subcategory === "skirt" || i.subcategory === "skort";
           }
           return false;
         });
@@ -2084,19 +2311,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     const wardrobeHasBelt = items.some(
       (i) => i.category === "accessory" && i.subcategory === "belt"
     );
-    // True if the user owns at least one bag that would PASS the formal /
-    // date / party bag rules (no backpack, no canvas/nylon material, no
-    // woven/fringed texture). When false, those rules silently skip — a
-    // user with only casual bags shouldn't get zero outfits at every
-    // dressy occasion. Same wardrobe-gap pattern as wardrobeHasDressyMaterial.
-    const wardrobeHasFormalBag = items.some((i) => {
-      if (i.is_stored || i.category !== "bag") return false;
-      if (i.subcategory === "backpack") return false;
-      const mats = Array.isArray(i.material) ? i.material : [i.material];
-      const casualMat = mats.some((m) => m === "canvas" || m === "nylon");
-      const casualTex = i.bag_texture === "woven" || i.bag_texture === "fringed";
-      return !casualMat && !casualTex;
-    });
+    // (wardrobeHasFormalBag / wardrobeHasSmallFormalBag are hoisted above
+    // buildOutfit with the other bag rules.)
+    // Rule 5 open shoes below 14°C only drop an outfit when the user owns
+    // a closed shoe to wear instead.
+    const wardrobeHasClosedShoe = items.some(
+      (i) => !i.is_stored && i.category === "shoes" && !isOpenShoe(i)
+    );
 
     // Compute the "base layer" warmth — the warmth of what sits directly
     // against the skin. For cold weather this matters more than the
@@ -2243,50 +2464,18 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         }
       }
-      // Hat formality block — no hats at work or formal events.
-      if (occasion === "work" || occasion === "formal") {
+      // Hats × occasion (Rule 11): no hat at work or at home, only a
+      // dressy women's hat at formal, no casual cap at formal / date /
+      // dinner-out, velvet or felt at a party only as beret / pillbox /
+      // headband. One predicate (hatProblem) shared with the injector and
+      // the fallback gate.
+      {
         const hat = s.items.find(
           (i) => i.category === "accessory" && i.subcategory === "hat"
         );
-        if (hat) {
-          drops.push({ ids: s._ids, reason: `hat not allowed at ${occasion}` });
-          return false;
-        }
-      }
-      // Hat silhouette × occasion — for formal/date/dinner-out, block
-      // baseball/trucker/bucket caps. For velvet/felt at formal/party,
-      // restrict to beret/pillbox/headband only.
-      if (occasion === "formal" || occasion === "date" || occasion === "dinner-out") {
-        const casualHat = s.items.find(
-          (i) =>
-            i.category === "accessory" &&
-            i.subcategory === "hat" &&
-            (i.hat_silhouette === "baseball" ||
-              i.hat_silhouette === "trucker" ||
-              i.hat_silhouette === "bucket")
-        );
-        if (casualHat) {
-          drops.push({
-            ids: s._ids,
-            reason: `${occasion}: hat silhouette "${casualHat.hat_silhouette}" too casual`,
-          });
-          return false;
-        }
-      }
-      if (occasion === "formal" || occasion === "party") {
-        const dressyTextureWrongShape = s.items.find((i) => {
-          if (i.category !== "accessory" || i.subcategory !== "hat") return false;
-          if (i.hat_texture !== "velvet" && i.hat_texture !== "felt") return false;
-          if (i.hat_silhouette === "beret" || i.hat_silhouette === "pillbox" || i.hat_silhouette === "headband") return false;
-          // Velvet/felt with no silhouette set is acceptable; only block when both are known and silhouette is wrong.
-          if (!i.hat_silhouette) return false;
-          return true;
-        });
-        if (dressyTextureWrongShape) {
-          drops.push({
-            ids: s._ids,
-            reason: `${occasion}: ${dressyTextureWrongShape.hat_texture} hat must be beret/pillbox/headband`,
-          });
+        const problem = hat ? hatProblem(hat) : null;
+        if (problem) {
+          drops.push({ ids: s._ids, reason: problem });
           return false;
         }
       }
@@ -2302,6 +2491,21 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         );
         if (openToe && !(openToe.occasions ?? []).includes("work")) {
           drops.push({ ids: s._ids, reason: `work: open-toe / sandals ("${openToe.name}") not office-appropriate` });
+          return false;
+        }
+      }
+      // Rule 5: no sandals or open toes below 14°C (mild-cool and colder).
+      // The warmth pre-filter only applies to categories with 3+ passing
+      // items and nothing re-checked after the model answered, so sandals
+      // could ship at 3°C. Wardrobe-aware: only when the user owns a
+      // closed shoe to wear instead.
+      if (temp !== null && temp < 14 && occasion !== "at-home" && wardrobeHasClosedShoe) {
+        const openShoe = s.items.find(isOpenShoe);
+        if (openShoe) {
+          drops.push({
+            ids: s._ids,
+            reason: `weather: open shoes ("${openShoe.name}") at ${temp}°C`,
+          });
           return false;
         }
       }
@@ -2335,17 +2539,15 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         }
       }
-      // R9 — no athletic sneakers at the office (universal, both tracks).
-      // Athletic sneakers don't belong at any office regardless of
-      // gender. The men's prompt allows clean leather sneakers as
-      // "smart casual," but those are subcategory "loafers" or have
-      // toe_shape="round" + non-athletic upper — distinct from
-      // subcategory="sneakers" which is the athletic class. UNLESS the
-      // user explicitly tagged these sneakers for "work".
+      // R9 — no athletic sneakers at the office. Track A: a sneaker
+      // tagged smart-casual or dressier is the clean leather kind and
+      // passes (Rule 9 bans ATHLETIC sneakers only). Men's track: no
+      // sneakers at work at all (menswear shoe logic). The enum has one
+      // "sneakers" subcategory, so formality is the only signal (see
+      // isBannedWorkSneaker). UNLESS the user explicitly tagged these
+      // sneakers for "work".
       if (occasion === "work") {
-        const athleticSneakers = s.items.find(
-          (i) => i.category === "shoes" && i.subcategory === "sneakers"
-        );
+        const athleticSneakers = s.items.find(isBannedWorkSneaker);
         if (athleticSneakers && !(athleticSneakers.occasions ?? []).includes("work")) {
           drops.push({
             ids: s._ids,
@@ -2538,8 +2740,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           }
           // Bag size — formal/party/date should be clutch or small. AI
           // names this in the prompt but doesn't always honor it, so
-          // enforce post-parse.
-          if (bag.bag_size && !["clutch", "small"].includes(bag.bag_size)) {
+          // enforce post-parse. Only when the user owns a dressy small
+          // bag: otherwise every candidate failed here and the request
+          // came back empty.
+          if (wardrobeHasSmallFormalBag && bag.bag_size && !bagIsSmall(bag)) {
             drops.push({
               ids: s._ids,
               reason: `${occasion}: bag size "${bag.bag_size}" should be clutch/small`,
@@ -2877,20 +3081,11 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // boots, ballet flats, loafers, mules, espadrilles, heels)
       // doesn't belong on a hike/park/picnic/gym. Only practical shoes pass.
       if (occasion === "outdoor") {
-        const OUTDOOR_BAD_SHOES = new Set<string>([
-          "western-boots",
-          "knee-boots",
-          "ballet-flats",
-          "loafers",
-          "mules",
-          "espadrilles",
-          "heels",
-        ]);
         const wrongShoe = s.items.find(
           (i) =>
             i.category === "shoes" &&
             i.subcategory &&
-            OUTDOOR_BAD_SHOES.has(i.subcategory)
+            OUTDOOR_BAD_SHOE_SUBS.has(i.subcategory)
         );
         if (wrongShoe) {
           drops.push({
@@ -2903,18 +3098,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // CASUAL HEEL BLOCK — casual / brunch / outdoor / travel / at-home
       // outfits should be flat. Heeled boots in jeans and a tee read
       // overdressed; user has casual shoes for a reason.
-      const CASUAL_OCCASIONS = new Set<string>([
-        "casual",
-        "brunch",
-        "outdoor",
-        "travel",
-        "at-home",
-      ]);
-      if (CASUAL_OCCASIONS.has(occasion)) {
+      if (CASUAL_SHOE_OCCASIONS.has(occasion)) {
         const heeledShoe = s.items.find(
-          (i) =>
-            i.category === "shoes" &&
-            (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
+          (i) => i.category === "shoes" && isHeeled(i)
         );
         if (heeledShoe) {
           drops.push({
@@ -3113,16 +3299,32 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // 1-1.5) under a winter coat is still wrong — the coat comes off,
       // the dress doesn't handle 5°C. Require base warmth >= 2 for temp
       // <10°C and >= 2.5 for temp <5°C. Soft-admit back if we'd end under 3.
-      if (weather && typeof weather.temp === "number") {
+      // Not at home: the user is indoors, and the styling_tip contract
+      // bans weather-protection advice there.
+      if (weather && typeof weather.temp === "number" && occasion !== "at-home") {
         const baseW = baseWarmth(s.items);
         if (
           (weather.temp < 5 && baseW < 2.5) ||
           (weather.temp < 10 && baseW < 2)
         ) {
+          // Tights only under a skirt or dress, never on the men's track
+          // (the tip used to tell people in trousers to add tights).
+          const showsLegs =
+            !isMensTrack &&
+            s.items.some(
+              (i) =>
+                (i.category === "dress" && i.subcategory !== "maxi-dress") ||
+                (i.category === "bottom" &&
+                  (i.subcategory === "skirt" || i.subcategory === "skort"))
+            );
           const weatherTip =
             locale === "fr"
-              ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
-              : "This piece runs light for the weather — pair with thick tights and a warm coat.";
+              ? showsLegs
+                ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
+                : "Cette pièce est légère pour le temps — ajoute une couche chaude et un manteau."
+              : showsLegs
+                ? "This piece runs light for the weather — pair with thick tights and a warm coat."
+                : "This piece runs light for the weather — add a warm layer and a coat.";
           if (!pendingSoft) pendingSoft = { tip: weatherTip };
         }
       }
@@ -3184,8 +3386,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // R18 — belt completer (soft, LAST CHECK). Belt-suitability is
       // now derived from item attributes (silhouette / fit / waist) —
       // no manual flag. Lives at the end of the filter so it only
-      // catches outfits that pass every hard drop above.
-      if (wardrobeHasBelt) {
+      // catches outfits that pass every hard drop above. Track A only:
+      // the men's track replaces Rule 18a (its belt is injected with a
+      // tucked shirt).
+      if (wardrobeHasBelt && !isMensTrack) {
         const top = s.items.find(
           (i) =>
             i.category === "top" &&
@@ -3204,10 +3408,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // Belt-friendly dress = silhouette suggests a defined waist
         // moment AND no auto-blockers (slim fit, already-belted waist).
         // Excludes slip / bodycon / mermaid / sheath / shift — those
-        // silhouettes fight a belt.
+        // silhouettes fight a belt — and wrap, whose tie IS the belt.
         const beltFriendlySilhouettes = new Set<string>([
           "a-line",
-          "wrap",
           "fit-and-flare",
         ]);
         const beltFriendlyDress = s.items.find(
@@ -3218,9 +3421,12 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
             i.fit !== "slim" &&
             i.waist_style !== "belted"
         );
+        // Never ask for a belt the base blocks: same predicate as the
+        // BELT STRIP and the injector (beltBlockedBy).
         const beltable =
-          beltFriendlyDress ||
-          (top && (skirt || (top.subcategory === "blouse" && tailoredBottom)));
+          !baseBlocksBelt(s.items) &&
+          (beltFriendlyDress ||
+            (top && (skirt || (top.subcategory === "blouse" && tailoredBottom))));
         const hasBelt = s.items.some(
           (i) => i.category === "accessory" && i.subcategory === "belt"
         );
@@ -3427,7 +3633,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // hard regardless of tags.
         if (occasion === "work") {
           if (s.items.some((i) =>
-            i.category === "shoes" && i.subcategory === "sneakers" &&
+            isBannedWorkSneaker(i) &&
             !(i.occasions ?? []).includes("work")
           )) return false;
           // Track A only — the men's office prompt explicitly allows
@@ -3438,7 +3644,6 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
             !(i.occasions ?? []).includes("work")
           )) return false;
           if (gender !== "man" && s.items.some((i) => i.category === "bottom" && i.subcategory === "skirt" && i.skirt_length === "mini")) return false;
-          if (s.items.some((i) => i.category === "accessory" && i.subcategory === "hat")) return false;
           if (s.items.some((i) => i.category === "top" && i.subcategory === "hoodie")) return false;
           // Mirrors of the open-toe and tank-without-blazer drops above.
           if (s.items.some((i) =>
@@ -3474,15 +3679,17 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           }
         }
 
-        // Evening occasions: no casual hat silhouettes (baseball, trucker,
-        // bucket). Mirrors the hat-silhouette × occasion drops.
-        if (occasion === "formal" || occasion === "date" || occasion === "dinner-out") {
-          const hat = s.items.find((i) => i.category === "accessory" && i.subcategory === "hat");
-          if (hat) {
-            const sil = hat.hat_silhouette ?? "";
-            if (["baseball", "trucker", "bucket"].includes(sil)) return false;
-          }
-        }
+        // Hats × occasion — same predicate as the main filter (work, home,
+        // formal shapes, casual caps in the evening, party velvet/felt).
+        if (s.items.some(
+          (i) => i.category === "accessory" && i.subcategory === "hat" && hatProblem(i) !== null
+        )) return false;
+
+        // Rule 5 open shoes below 14°C (wardrobe-aware, as above).
+        if (
+          temp !== null && temp < 14 && occasion !== "at-home" &&
+          wardrobeHasClosedShoe && s.items.some(isOpenShoe)
+        ) return false;
 
         // wantsAllBlack preset: every item in the outfit must be dark.
         if (wantsAllBlack) {
@@ -3631,14 +3838,17 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           (i) => i.category === "shoes" && i.toe_shape === "pointed"
         )) return false;
 
-        // Bag size: formal/date/party want clutch/small; work bans clutch.
+        // Bag size: formal/date/party want clutch/small (only when the
+        // user owns a dressy small bag — same gate as the main filter);
+        // work bans clutch.
         {
           const bag = s.items.find((i) => i.category === "bag");
           if (bag) {
             if (
+              wardrobeHasSmallFormalBag &&
               (occasion === "formal" || occasion === "date" || occasion === "party") &&
               !(bag.occasions ?? []).includes(occasion) &&
-              bag.bag_size && !["clutch", "small"].includes(bag.bag_size)
+              bag.bag_size && !bagIsSmall(bag)
             ) return false;
             if (occasion === "work" && bag.bag_size === "clutch") return false;
           }
@@ -3940,7 +4150,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // 7-day TTL: short enough that stale bans don't ossify the
       // rotation, long enough that someone suggesting a few times a
       // week keeps a continuous anti-repetition memory.
-      kv.set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {});
+      // after(): a plain fire-and-forget write could be dropped by the
+      // serverless freeze, losing the "recently shown" memory.
+      after(() => kv().set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {}));
     }
 
     // If we've got nothing to ship AND the wardrobe ISN'T thin (the

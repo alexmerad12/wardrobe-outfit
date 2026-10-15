@@ -114,15 +114,29 @@ export function usePendingUploads(): ContextValue {
 // radio + the platform's cold-start behavior can actually deliver.
 // A 5-item batch goes from ~15-20s to ~25-35s — slower-but-completes
 // is the right tradeoff for a feature that's worse than useless when
-// it fails. Bg-removal and AI-analyze still run in parallel on-device
-// per item; this just gates the network handoff.
-const CONCURRENCY = 1;
+// it fails.
+//
+// 2026-10: background removal moved to our own server (~15 s per photo
+// instead of Photoroom's ~1 s), so items now overlap: up to 3 are in
+// flight, but the network-heavy UPLOAD step still runs strictly one at a
+// time through uploadOneAtATime() below, which is the property the
+// history above was protecting. Only the server-side steps overlap.
+const CONCURRENCY = 3;
+
+// Serializes raw uploads across concurrently-processing items.
+let uploadChain: Promise<unknown> = Promise.resolve();
+function uploadOneAtATime(file: File): Promise<string> {
+  const run = () => uploadToSupabase(file);
+  const result = uploadChain.then(run, run);
+  uploadChain = result.catch(() => undefined);
+  return result;
+}
 
 // Hard ceiling per item. Upload's own retry budget is now up to
 // 5 × 90 s + ~37 s of backoff ≈ 8 min on a genuinely broken
-// connection. Add imgly (up to 3 min) and save retries (up to ~1.5
-// min) and the theoretical worst case is ~12 min, but real items
-// finish in 10-25 s. We set the outer ceiling to 10 min so the
+// connection. Add server processing (cutout + analyze, ~10-40 s) and
+// save retries (up to ~1.5 min) and the theoretical worst case is
+// ~10 min, but real items finish in 15-40 s. We set the outer ceiling to 10 min so the
 // upload-retry ladder can fully play out before we give up — cutting
 // it off sooner was turning retryable failures (attempt 4 would
 // have worked) into permanent red tiles.
@@ -273,7 +287,7 @@ export function PendingUploadsProvider({
       //    50 MB so any phone photo fits.
       bgLog("uploading raw to Supabase");
       const rawUploadT0 = performance.now();
-      const rawUrl = await uploadToSupabase(sourceFile);
+      const rawUrl = await uploadOneAtATime(sourceFile);
       bgLog(`raw upload done in ${Math.round(performance.now() - rawUploadT0)}ms`);
 
       const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
@@ -283,20 +297,21 @@ export function PendingUploadsProvider({
       const sourcePath = pathMatch[1];
 
       // 2. Server-side processing in parallel:
-      //      - normalize: Photoroom bg-removal + sharp resize + flatten
-      //                   onto white, overwrites same Supabase path
+      //      - normalize: background removal (self-hosted model, see
+      //                   src/lib/cutout) + catalog framing on white,
+      //                   overwrites the same Supabase path
       //      - analyze:   Gemini classifies the original photo (more
-      //                   context than the bg-removed version)
-      //    Both take just the URL, so neither hits Vercel's 4.5 MB
-      //    body cap. Server has libvips and gigs of memory — none of
-      //    the canvas / Mali GPU / Chrome heap limits that bite mobile.
+      //                   context than the cut-out version)
+      //    Both take just the storage path, so neither hits Vercel's
+      //    4.5 MB body cap, and the server reads only the user's own
+      //    folder. None of the canvas / GPU / heap limits that bite mobile.
       bgLog("starting parallel server normalize + analyze");
       const serverT0 = performance.now();
       const [normalizeResult, attrsRaw] = await Promise.all([
         fetch("/api/items/normalize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceUrl: rawUrl, sourcePath }),
+          body: JSON.stringify({ sourcePath }),
         }).then(async (res) => {
           if (!res.ok) {
             const errBody = (await res.json().catch(() => ({}))) as {
@@ -310,7 +325,7 @@ export function PendingUploadsProvider({
           return res.json() as Promise<{ url: string; bytes: number }>;
         }).catch((err): null => {
           // RAW FALLBACK (audit P2): the original photo is already
-          // safely uploaded — a transient Photoroom/sharp failure used
+          // safely uploaded — a transient cutout/sharp failure used
           // to turn the whole tile permanently red. Save the item with
           // the raw photo instead; bg-removal can be redone later.
           bgLog("normalize failed — saving with the raw photo", err);
@@ -324,7 +339,7 @@ export function PendingUploadsProvider({
           // language. Defaults to "en" if missing or unreadable —
           // matches the analyze endpoint's own default.
           body: JSON.stringify({
-            sourceUrl: rawUrl,
+            sourcePath,
             locale:
               typeof window !== "undefined" &&
               window.localStorage.getItem("locale:v1") === "fr"
@@ -450,7 +465,7 @@ export function PendingUploadsProvider({
   // block later items (with concurrency=3 that means the whole queue
   // can stall on three bad apples).
   const withTimeout = useCallback(
-    <T,>(work: Promise<T>, label: string): Promise<T> => {
+    <T,>(work: Promise<T>, _label: string): Promise<T> => {
       return Promise.race([
         work,
         new Promise<T>((_resolve, reject) =>

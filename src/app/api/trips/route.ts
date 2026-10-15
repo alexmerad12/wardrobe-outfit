@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { readJsonObject } from "@/lib/read-json";
+import { dbErrorResponse } from "@/lib/db-error";
 
 export async function GET() {
   const ctx = await requireUser();
@@ -12,7 +14,7 @@ export async function GET() {
     .order("start_date", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   return NextResponse.json(data);
 }
@@ -22,7 +24,8 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  const body = await request.json();
+  const body = await readJsonObject(request);
+  if (isNextResponse(body)) return body;
   delete body.id;
   delete body.user_id;
   delete body.created_at;
@@ -34,7 +37,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   return NextResponse.json(data, { status: 201 });
 }

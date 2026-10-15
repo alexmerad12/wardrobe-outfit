@@ -42,10 +42,15 @@ export async function GET(request: NextRequest) {
       { ...data, source },
       {
         headers: {
-          // Tighter caching to keep weather closer to live (was 15m/30m/1h).
-          // Open-Meteo's `current` updates ~hourly so 5min/10min is plenty
-          // and avoids showing stale morning temps in the afternoon.
-          "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1800",
+          // Open-Meteo's `current` updates ~hourly, so 5-10 min of caching
+          // is plenty. Only GPS answers may sit on the shared CDN: their
+          // coordinates are in the URL. IP-located (or fallback) answers
+          // share the bare /api/weather URL, so a CDN copy would show the
+          // first visitor's city to everyone for up to 40 min (audit P2).
+          "Cache-Control":
+            source === "gps"
+              ? "public, max-age=300, s-maxage=600, stale-while-revalidate=1800"
+              : "private, max-age=300",
         },
       }
     );

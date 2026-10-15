@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { Language, Gender, Mood } from "@/lib/types";
 import { resolveLocale, translate, type Locale } from "./index";
+import { useClientValue } from "@/lib/use-client-value";
 
 const CACHE_KEY = "locale:v1";
 const GENDER_CACHE_KEY = "gender:v1";
@@ -53,21 +54,21 @@ function writeCachedGender(gender: Gender) {
  * for everyone else.
  */
 export function useLocale() {
-  const [locale, setLocale] = useState<Locale>("en");
-  const [gender, setGender] = useState<Gender>("not-specified");
+  // Last-resolved values from localStorage first (no flash of the wrong
+  // language), then the server's answer once /api/preferences returns.
+  const cachedLocale = useClientValue(readCached, null);
+  const cachedGender = useClientValue(readCachedGender, "not-specified" as Gender);
+  const [fetched, setFetched] = useState<{ locale: Locale; gender: Gender } | null>(null);
+  const locale: Locale = fetched?.locale ?? cachedLocale ?? "en";
+  const gender: Gender = fetched?.gender ?? cachedGender;
 
   useEffect(() => {
-    const cached = readCached();
-    if (cached) setLocale(cached);
-    setGender(readCachedGender());
-
     let cancelled = false;
     fetch("/api/preferences")
       .then((r) => (r.ok ? r.json() : null))
       .then((prefs: { language?: Language; gender?: Gender } | null) => {
         if (cancelled) return;
         const resolved = resolveLocale(prefs?.language);
-        setLocale(resolved);
         writeCached(resolved);
         // Keep the document language in sync — <html> stayed lang="en"
         // while the UI rendered French, so screen readers announced
@@ -77,8 +78,8 @@ export function useLocale() {
         } catch {}
         const g: Gender =
           prefs?.gender === "woman" || prefs?.gender === "man" ? prefs.gender : "not-specified";
-        setGender(g);
         writeCachedGender(g);
+        setFetched({ locale: resolved, gender: g });
       })
       .catch(() => {});
     return () => {

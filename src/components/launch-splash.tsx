@@ -23,6 +23,7 @@ import * as React from "react";
 import Lottie, { type LottieRefCurrentProps } from "lottie-react";
 import linetteAnimation from "@/assets/linette-lottie.json";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { useClientValue } from "@/lib/use-client-value";
 
 // Lottie metadata: 133 frames / 30 fps = 4.433s native. We play it
 // back at 1.4× to keep the splash snappy without losing the hand-
@@ -36,38 +37,40 @@ const SESSION_KEY = "linette_splash_seen";
 
 type Phase = "entering" | "held" | "exiting" | "done";
 
+function readSkip(): boolean {
+  try {
+    if (sessionStorage.getItem(SESSION_KEY) === "1") return true;
+  } catch {
+    // sessionStorage can throw in private/incognito.
+  }
+  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+}
+
 export function LaunchSplash() {
   const { t } = useLocale();
   const [phase, setPhase] = React.useState<Phase>("entering");
-  // SSR guard: lottie-react touches `window` on mount. The parent is
-  // already "use client" so this only matters for the initial render,
-  // but we still skip rendering <Lottie> until we know we're in the
-  // browser to avoid the hydration mismatch warning.
-  const [mounted, setMounted] = React.useState(false);
+  // SSR guard: lottie-react touches `window` on mount, so <Lottie> only
+  // renders once we know we're in the browser (no hydration mismatch).
+  const mounted = useClientValue(() => true, false);
+  // Skip when this session already saw it, or when the user prefers
+  // reduced motion: a ~4s blocking handwriting animation is exactly what
+  // those users asked not to see (audit a11y P3).
+  const skip = useClientValue(readSkip, false);
   // lottie-react has no `speed` prop — it's set imperatively via the
   // ref after the animation initialises. The DOMLoaded event is what
   // tells us the lottie player has bound to its container.
   const lottieRef = React.useRef<LottieRefCurrentProps>(null);
 
+  // Reduced-motion skips also count as "seen" for the rest of the session.
   React.useEffect(() => {
-    setMounted(true);
-    if (typeof window === "undefined") return;
-    if (sessionStorage.getItem(SESSION_KEY) === "1") {
-      setPhase("done");
-      return;
-    }
-    // prefers-reduced-motion: a ~4s blocking handwriting animation is
-    // exactly what these users asked not to see (audit a11y P3) — mark
-    // the session seen and skip straight past it.
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      try {
-        sessionStorage.setItem(SESSION_KEY, "1");
-      } catch {}
-      setPhase("done");
-    }
-  }, []);
+    if (!skip) return;
+    try {
+      sessionStorage.setItem(SESSION_KEY, "1");
+    } catch {}
+  }, [skip]);
 
   React.useEffect(() => {
+    if (skip) return;
     if (phase === "entering") {
       const t = setTimeout(() => setPhase("held"), LOTTIE_DURATION_MS);
       return () => clearTimeout(t);
@@ -87,9 +90,9 @@ export function LaunchSplash() {
       }, EXIT_MS);
       return () => clearTimeout(t);
     }
-  }, [phase]);
+  }, [phase, skip]);
 
-  if (phase === "done") return null;
+  if (skip || phase === "done") return null;
 
   return (
     <>

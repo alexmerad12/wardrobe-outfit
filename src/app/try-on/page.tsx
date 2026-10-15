@@ -52,11 +52,9 @@ export default function TryOnPage() {
 
   // Cycle through three status messages while analyzing so the 15-20s
   // wait doesn't feel frozen on a single "Analyzing..." label.
+  // (The step resets to 0 in handleFile, where analysis starts.)
   useEffect(() => {
-    if (!analyzing) {
-      setAnalyzingStep(0);
-      return;
-    }
+    if (!analyzing) return;
     const interval = setInterval(() => {
       setAnalyzingStep((s) => (s + 1) % 3);
     }, 3000);
@@ -68,10 +66,11 @@ export default function TryOnPage() {
     setLimitReached(false);
     setResult(null);
     setPreviewUrl(URL.createObjectURL(file));
+    setAnalyzingStep(0);
     setAnalyzing(true);
     try {
-      // Downscale before upload — saves bandwidth + is fast enough for a
-      // 1280px version to still give Claude a clear read.
+      // Downscale before upload — saves bandwidth, and a 1280px version
+      // still gives the AI a clear read.
       const resized = await downscaleImage(file, 1280);
       const body = new FormData();
       body.append("image", resized, "try-on.jpg");

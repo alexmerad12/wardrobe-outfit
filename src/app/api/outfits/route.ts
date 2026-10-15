@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
+import { readJsonObject } from "@/lib/read-json";
+import { dbErrorResponse } from "@/lib/db-error";
 
 export async function GET() {
   const ctx = await requireUser();
@@ -12,7 +14,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
   return NextResponse.json(data);
 }
@@ -33,7 +35,8 @@ export async function POST(request: NextRequest) {
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId } = ctx;
 
-  const body = await request.json();
+  const body = await readJsonObject(request);
+  if (isNextResponse(body)) return body;
   delete body.id;
   delete body.user_id;
   delete body.created_at;
@@ -42,7 +45,9 @@ export async function POST(request: NextRequest) {
   // made to the AI's suggestion before saving. Strip from the outfit
   // body before insert — this field doesn't belong on the outfits row,
   // it gets logged separately to outfit_edits as feedback signal.
-  const swapPairs: SwapPair[] = Array.isArray(body.swap_pairs) ? body.swap_pairs : [];
+  const swapPairs: SwapPair[] = Array.isArray(body.swap_pairs)
+    ? (body.swap_pairs as SwapPair[])
+    : [];
   delete body.swap_pairs;
 
   const { data, error } = await supabase
@@ -52,16 +57,17 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse(error);
   }
 
-  // Fire-and-forget swap logging — outfit save MUST NOT fail if the
-  // edits log insert errors. RLS on outfit_edits requires user_id
-  // matches auth.uid(), so we explicitly set it from the auth context.
+  // Background swap logging — outfit save MUST NOT fail if the edits log
+  // insert errors. after() keeps the function alive until the insert
+  // settles (plain fire-and-forget could be dropped by the serverless
+  // freeze). RLS on outfit_edits requires user_id matches auth.uid(), so
+  // we explicitly set it from the auth context.
   if (swapPairs.length > 0) {
-    supabase
-      .from("outfit_edits")
-      .insert(
+    after(async () => {
+      const { error: editsErr } = await supabase.from("outfit_edits").insert(
         swapPairs.map((p) => ({
           user_id: userId,
           outfit_id: data.id,
@@ -74,12 +80,11 @@ export async function POST(request: NextRequest) {
           season: p.season ?? null,
           saved_via: p.saved_via,
         }))
-      )
-      .then(({ error: editsErr }) => {
-        if (editsErr) {
-          console.warn("[outfit_edits] insert failed:", editsErr.message);
-        }
-      });
+      );
+      if (editsErr) {
+        console.warn("[outfit_edits] insert failed:", editsErr.message);
+      }
+    });
   }
 
   return NextResponse.json(data, { status: 201 });

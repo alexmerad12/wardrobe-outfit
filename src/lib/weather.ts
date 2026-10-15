@@ -37,7 +37,12 @@ export async function getWeather(lat: number, lng: number): Promise<WeatherData>
   // so shorter is technically wasted, BUT Next's edge cache can lag
   // and keeping it tight catches the hourly rollover sooner. Free
   // tier handles this load easily.
-  const response = await fetch(url, { next: { revalidate: 300 } });
+  // 8 s ceiling: a stalled upstream used to hold the caller (the weather
+  // route, or suggest mid-request) until the platform timeout.
+  const response = await fetch(url, {
+    next: { revalidate: 300 },
+    signal: AbortSignal.timeout(8_000),
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch weather data");
   }

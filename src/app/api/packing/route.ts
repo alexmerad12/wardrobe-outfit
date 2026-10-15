@@ -1,28 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { GoogleGenAI } from "@google/genai";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { genAI, FAST_MODEL, FAST_THINKING } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 
-// Packing endpoint runs on Gemini 3 Flash Preview via @google/genai
-// with thinking disabled. Same setup as suggest, analyze, and try-on.
-// GOOGLE_API_KEY must be set in env.
-const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
+// Packing list: one text call on the fast tier (src/lib/gemini.ts).
+// Weather comes from Open-Meteo (forecast within 10 days, climate
+// averages beyond).
+export const maxDuration = 60;
 
 // Packing is rare-use (one trip per several weeks for most users) and
-// per-call cost is low (~$0.012 on gemini-3.5-flash). 2/day worst case
-// is ~$0.72/mo per user. Tier presets to keep in mind:
+// per-call cost is low (about a cent). Tier presets to keep in mind:
 //   - Conservative: 1/day
 //   - Balanced:     2/day  ← current beta cap
 //   - Generous:     3/day  ← future Atelier tier
 // Most users won't trigger this once per week, let alone twice per
 // day, so the cap mostly guards against runaway client retries.
 const PACKING_DAILY_CAP = 2;
+const MAX_TRIP_DAYS = 60;
+const WEATHER_TIMEOUT_MS = 8_000;
 
 function describeItem(item: ClothingItem): string {
   const parts: string[] = [`[${item.id}]`, item.name];
@@ -39,101 +40,128 @@ function describeItem(item: ClothingItem): string {
   return parts.join(" | ");
 }
 
+const isIsoDate = (v: unknown): v is string =>
+  typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v));
+const isCoord = (v: unknown, limit: number): v is number =>
+  typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
+const asText = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+
+async function tripWeather(
+  request: NextRequest,
+  lat: number,
+  lng: number,
+  startDate: string,
+  endDate: string
+): Promise<string> {
+  try {
+    const start = new Date(startDate);
+    // Date-only arithmetic: comparing UTC-midnight start against the
+    // current instant made a trip starting TODAY go negative after
+    // 12:00 UTC (8am Montréal) and silently lose the real forecast
+    // for historical averages (audit P2).
+    const daysUntilTrip = Math.round(
+      (Date.parse(startDate) - Date.parse(localDayKey(request))) / (1000 * 60 * 60 * 24)
+    );
+    if (daysUntilTrip <= 10 && daysUntilTrip >= 0) {
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&start_date=${startDate}&end_date=${endDate}&timezone=auto`,
+        { signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS) }
+      );
+      if (res.ok) {
+        const days = (await res.json()).daily;
+        const temps = days.temperature_2m_max
+          .map((max: number, i: number) => `${days.time[i]}: ${days.temperature_2m_min[i]}°-${max}°C, rain ${days.precipitation_probability_max[i]}%`)
+          .join("; ");
+        return `Forecast: ${temps}`;
+      }
+    } else {
+      const month = String(start.getMonth() + 1).padStart(2, "0");
+      const year = start.getFullYear() - 1;
+      const res = await fetch(
+        `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lng}&start_date=${year}-${month}-01&end_date=${year}-${month}-28&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&models=EC_Earth3P_HR`,
+        { signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS) }
+      );
+      if (res.ok) {
+        const hist = await res.json();
+        const maxTemps: number[] = hist.daily?.temperature_2m_max ?? [];
+        const minTemps: number[] = hist.daily?.temperature_2m_min ?? [];
+        if (maxTemps.length > 0) {
+          const avgHigh = Math.round(maxTemps.reduce((a, b) => a + b, 0) / maxTemps.length);
+          const avgLow = Math.round(minTemps.reduce((a, b) => a + b, 0) / minTemps.length);
+          return `Historical averages for this period: ${avgLow}°-${avgHigh}°C`;
+        }
+      }
+    }
+  } catch {
+    // Weather is a nice-to-have: proceed without it.
+  }
+  return "Weather data unavailable.";
+}
+
 export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase, userId, userEmail } = ctx;
+  const { supabase, userId } = ctx;
   const subBlock = await requireActiveSubscription(ctx);
   if (subBlock) return subBlock;
 
-  // Daily-cap gate. Same pattern as /api/suggest: consumed only after
-  // the free validation exits (so a thin wardrobe doesn't silently eat
-  // the 2/day budget — audit C4), refunded when the request fails, and
-  // admin/tester emails bypass enforcement like every other AI route
-  // (this route and try-on were missing the bypass).
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const isAdmin = isCapBypassed(authUser?.email);
-  const today = localDayKey(request);
-  const countKey = `packing_count:${userId}:${today}`;
-  let capCount: number | null = null;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  const { lat, lng, startDate, endDate } = body;
+  // Validate BEFORE consuming the cap: a missing date used to send a
+  // "NaN days" prompt and still bill the user (audit P2).
+  if (!isIsoDate(startDate) || !isIsoDate(endDate) || Date.parse(endDate) < Date.parse(startDate)) {
+    return NextResponse.json({ error: "Valid startDate and endDate required" }, { status: 400 });
+  }
+  // Coordinates are optional: a typed destination without a picked
+  // suggestion has none, and the list is still useful without weather.
+  const coords = isCoord(lat, 90) && isCoord(lng, 180) ? { lat, lng } : null;
+  const tripDays =
+    Math.round((Date.parse(endDate) - Date.parse(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+  if (tripDays > MAX_TRIP_DAYS) {
+    return NextResponse.json({ error: `Trips are limited to ${MAX_TRIP_DAYS} days` }, { status: 400 });
+  }
+  const destination = asText(body.destination, 120) || "the destination";
+  const occasions = asText(body.occasions, 300);
+  const notes = asText(body.notes, 500);
+  const languageName = body.locale === "fr" ? "French" : "English";
+
+  const { data: allItems, error } = await supabase
+    .from("clothing_items")
+    .select("*")
+    .eq("is_stored", false);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  const items = (allItems ?? []) as ClothingItem[];
+  if (items.length < 3) {
+    return NextResponse.json({ error: "Add more items to your wardrobe first" }, { status: 400 });
+  }
+
+  // Daily-cap gate: consumed only after the free validation exits (so a
+  // thin wardrobe doesn't silently eat the 2/day budget — audit C4),
+  // refunded when the request fails; admin/tester emails bypass.
+  const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
+  const countKey = `packing_count:${userId}:${localDayKey(request)}`;
+  const capCount = await consumeDailyCap(countKey);
+  if (!isAdmin && capCount > PACKING_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error: "daily_limit_reached",
+        limit: PACKING_DAILY_CAP,
+        used: Math.min(capCount, PACKING_DAILY_CAP),
+      },
+      { status: 429 }
+    );
+  }
+  const refund = () => {
+    if (capCount !== -1) refundDailyCap(countKey);
+  };
 
   try {
-    const { destination, lat, lng, startDate, endDate, occasions, notes, locale = "en" } = await request.json();
-    const languageName = locale === "fr" ? "French" : "English";
-
-    const { data: allItems, error } = await supabase
-      .from("clothing_items")
-      .select("*")
-      .eq("is_stored", false);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const items = (allItems ?? []) as ClothingItem[];
-
-    if (items.length < 3) {
-      return NextResponse.json({ error: "Add more items to your wardrobe first" }, { status: 400 });
-    }
-
-    capCount = await consumeDailyCap(countKey);
-    if (!isAdmin && capCount > PACKING_DAILY_CAP) {
-      return NextResponse.json(
-        {
-          error: "daily_limit_reached",
-          limit: PACKING_DAILY_CAP,
-          used: Math.min(capCount, PACKING_DAILY_CAP),
-        },
-        { status: 429 }
-      );
-    }
-
-    let weatherInfo = "Weather data unavailable.";
-    try {
-      const start = new Date(startDate);
-      // Date-only arithmetic: comparing UTC-midnight start against the
-      // current instant made a trip starting TODAY go negative after
-      // 12:00 UTC (8am Montréal) and silently lose the real forecast
-      // for historical averages (audit P2).
-      const todayStr = localDayKey(request);
-      const daysUntilTrip = Math.round(
-        (Date.parse(startDate) - Date.parse(todayStr)) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysUntilTrip <= 10 && daysUntilTrip >= 0) {
-        const forecastRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&start_date=${startDate}&end_date=${endDate}&timezone=auto`
-        );
-        if (forecastRes.ok) {
-          const forecast = await forecastRes.json();
-          const days = forecast.daily;
-          const temps = days.temperature_2m_max.map((max: number, i: number) =>
-            `${days.time[i]}: ${days.temperature_2m_min[i]}°-${max}°C, rain ${days.precipitation_probability_max[i]}%`
-          ).join("; ");
-          weatherInfo = `Forecast: ${temps}`;
-        }
-      } else {
-        const month = start.getMonth() + 1;
-        const historicalRes = await fetch(
-          `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lng}&start_date=${start.getFullYear() - 1}-${String(month).padStart(2, "0")}-01&end_date=${start.getFullYear() - 1}-${String(month).padStart(2, "0")}-28&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&models=EC_Earth3P_HR`
-        );
-        if (historicalRes.ok) {
-          const hist = await historicalRes.json();
-          const maxTemps = hist.daily?.temperature_2m_max ?? [];
-          const minTemps = hist.daily?.temperature_2m_min ?? [];
-          if (maxTemps.length > 0) {
-            const avgHigh = Math.round(maxTemps.reduce((a: number, b: number) => a + b, 0) / maxTemps.length);
-            const avgLow = Math.round(minTemps.reduce((a: number, b: number) => a + b, 0) / minTemps.length);
-            weatherInfo = `Historical averages for this period: ${avgLow}°-${avgHigh}°C`;
-          }
-        }
-      }
-    } catch {
-      // proceed without weather
-    }
-
-    const tripDays = Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
+    const weatherInfo = coords
+      ? await tripWeather(request, coords.lat, coords.lng, startDate, endDate)
+      : "Weather data unavailable.";
     const wardrobeList = items.map(describeItem).join("\n");
 
     const cachedPrefix = `You are Linette, an expert personal stylist and travel packing advisor. Create a smart packing list from the user's wardrobe for their trip.
@@ -186,13 +214,12 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     const result = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: FAST_MODEL,
           contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
           config: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 4096,
             responseMimeType: "application/json",
-            thinkingConfig: { thinkingBudget: 0 },
+            thinkingConfig: FAST_THINKING,
           },
         }),
       { tag: "packing" }
@@ -200,22 +227,33 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
 
     const text = result.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
+    let parsed: {
+      packing_list?: { item_id: string; reason: string }[];
+      outfit_suggestions?: { day: string; item_ids: string[]; note: string }[];
+      weather_summary?: string;
+      packing_tips?: string;
+    } | null = null;
+    try {
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    } catch {
+      parsed = null;
+    }
+    if (!parsed) {
+      // Nothing usable came back: give the use back and record it.
       console.error("[packing] Failed to parse Gemini response:", text.slice(0, 200));
-      return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
+      refund();
+      logAiCall(supabase, userId, "packing", { succeeded: false });
+      return NextResponse.json({ error: "Failed to generate packing list" }, { status: 502 });
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
-
-    const packingList = (parsed.packing_list ?? []).map((p: { item_id: string; reason: string }) => ({
-      item: items.find((i) => i.id === p.item_id),
-      reason: p.reason,
-    })).filter((p: { item: ClothingItem | undefined }) => p.item);
-
-    const outfitSuggestions = (parsed.outfit_suggestions ?? []).map((o: { day: string; item_ids: string[]; note: string }) => ({
+    const packingList = (parsed.packing_list ?? [])
+      .map((p) => ({ item: items.find((i) => i.id === p.item_id), reason: p.reason }))
+      .filter((p) => p.item);
+    const outfitSuggestions = (parsed.outfit_suggestions ?? []).map((o) => ({
       day: o.day,
-      items: o.item_ids.map((id) => items.find((i) => i.id === id)).filter(Boolean),
+      items: (Array.isArray(o.item_ids) ? o.item_ids : [])
+        .map((id) => items.find((i) => i.id === id))
+        .filter(Boolean),
       note: o.note,
     }));
 
@@ -224,6 +262,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
         destination,
         days: tripDays,
         item_count: packingList.length,
+        model: FAST_MODEL,
       },
     });
     return NextResponse.json({
@@ -235,7 +274,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
   } catch (error) {
     console.error("Packing list error:", error);
     Sentry.captureException(error);
-    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
+    refund();
     logAiCall(supabase, userId, "packing", { succeeded: false });
     return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
   }

@@ -153,6 +153,9 @@ export default function AccountSecurityPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || "Delete failed");
       }
+      // Full reload on purpose: the account no longer exists, drop all
+      // client state with it.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/launch";
     } catch {
       setDeleting(false);

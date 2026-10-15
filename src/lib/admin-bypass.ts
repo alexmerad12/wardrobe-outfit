@@ -18,7 +18,15 @@ function getBypassEmails(): Set<string> {
   return out;
 }
 
-export function isCapBypassed(email: string | null | undefined): boolean {
-  if (!email) return false;
+// The email must be confirmed: otherwise anyone could sign up with an
+// allowlisted address nobody has registered yet and skip the paywall and
+// every cap. (Today every allowlisted address is registered, checked
+// 2026-10-15, and confirmation is still off, so this is defense in depth
+// that becomes load-bearing once "Confirm email" is turned on.)
+export function isCapBypassed(
+  email: string | null | undefined,
+  emailConfirmed: boolean
+): boolean {
+  if (!email || !emailConfirmed) return false;
   return getBypassEmails().has(email.toLowerCase());
 }

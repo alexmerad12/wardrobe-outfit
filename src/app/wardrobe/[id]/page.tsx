@@ -41,7 +41,6 @@ import type {
 import { useLocale } from "@/lib/i18n/use-locale";
 import { formatLastWorn } from "@/lib/relative-time";
 import { useLabels } from "@/lib/i18n/use-labels";
-import { getColorName } from "@/lib/color-engine";
 import { FASHION_COLORS } from "@/lib/fashion-colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,7 +61,6 @@ import {
   ChevronRight,
   Heart,
   Trash2,
-  Droplets,
   Thermometer,
   Pencil,
   Loader2,
@@ -71,9 +69,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { removeBg } from "@/lib/bg-removal";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
-import { flattenOntoWhite } from "@/lib/image-utils";
 import { toColorKey } from "@/lib/color-label";
 
 export default function ItemDetailPage() {
@@ -99,9 +95,12 @@ export default function ItemDetailPage() {
   const [saving, setSaving] = useState(false);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
   const [bgError, setBgError] = useState<string | null>(null);
+  // In-flight upload + cutout for a newly picked photo (see
+  // startImageProcessing); bumped per photo so stale results are ignored.
+  const imagePromiseRef = useRef<Promise<string> | null>(null);
+  const imageGenerationRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
@@ -145,7 +144,6 @@ export default function ItemDetailPage() {
   const [editStored, setEditStored] = useState(false);
   const [editBrand, setEditBrand] = useState("");
   const [editColors, setEditColors] = useState<{ hex: string; name: string; percentage: number }[]>([]);
-  const [colorPickerValue, setColorPickerValue] = useState("#ffffff");
   const [showColorPalette, setShowColorPalette] = useState(false);
 
   // User gender preference — used to gate feminine fields on the men's track.
@@ -269,10 +267,6 @@ export default function ItemDetailPage() {
     if (dx < 0) goToSibling(nextId); // swipe left → next
     else goToSibling(prevId); // swipe right → prev
   };
-
-  // (The eager ~45MB imgly model preload that used to run on every
-  // mount is gone — audit P2. removeBg lazy-loads on first use, which
-  // only the manual remove-background path can trigger.)
 
   // When arriving from a freshly-processed upload (`?edit=1`), drop straight
   // into edit mode so users can correct any AI guesses in one tap.
@@ -412,54 +406,17 @@ export default function ItemDetailPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      // Upload new image if changed — via the same Supabase-tus path that
-      // the pending bulk queue uses. (Was using the deleted /api/upload
-      // Vercel-Blob endpoint, which is why Save Changes was silently
-      // failing.)
-      //
-      // After the raw upload, run the same /api/items/normalize step
-      // that the bulk-add pipeline uses, so an edited photo gets the
-      // Photoroom bg-removal + flatten-onto-white treatment that the
-      // rest of the wardrobe items have. Without this, a re-uploaded
-      // photo would keep its original background while the others sit
-      // on white, breaking the visual consistency of the wardrobe grid.
+      // New photo: the upload + server cutout started when it was picked
+      // (startImageProcessing), so this usually resolves immediately. Same
+      // white-background catalog treatment as every other item; if only
+      // the cutout failed, the raw photo is saved. Rejects only when the
+      // upload itself failed, so retry that once inline.
       let imageUrl = item.image_url;
       if (newImageFile) {
-        setUploadingImage(true);
         try {
-          const rawUrl = await uploadToSupabase(newImageFile);
-          const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
-          if (pathMatch) {
-            try {
-              const normalizeRes = await fetch("/api/items/normalize", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sourceUrl: rawUrl, sourcePath: pathMatch[1] }),
-              });
-              if (normalizeRes.ok) {
-                const normalized = (await normalizeRes.json()) as { url?: string };
-                imageUrl = normalized.url ?? rawUrl;
-              } else {
-                // Photoroom outage / sharp failure / quota — fall back
-                // to the raw upload so the user still gets their new
-                // photo, just without the white-bg treatment.
-                console.warn(
-                  `[item-edit] normalize ${normalizeRes.status} — falling back to raw upload`
-                );
-                imageUrl = rawUrl;
-              }
-            } catch (err) {
-              console.warn("[item-edit] normalize threw — falling back to raw upload:", err);
-              imageUrl = rawUrl;
-            }
-          } else {
-            // URL didn't match the expected /clothing-images/ pattern
-            // (e.g. Supabase-side change in storage URL format) — skip
-            // normalize and use raw.
-            imageUrl = rawUrl;
-          }
-        } finally {
-          setUploadingImage(false);
+          imageUrl = await (imagePromiseRef.current ?? startImageProcessing(newImageFile));
+        } catch {
+          imageUrl = await startImageProcessing(newImageFile);
         }
       }
 
@@ -598,27 +555,46 @@ export default function ItemDetailPage() {
     }
   }
 
-  async function runBgRemoval(source: Blob) {
+  // New photo while editing: upload it and cut out the background on the
+  // server right away (/api/items/normalize), so the clean version shows
+  // before Save. Resolves to the URL to save: the cutout, or the raw upload
+  // if the cutout failed (rejects only if the upload itself failed).
+  function startImageProcessing(file: File): Promise<string> {
+    const generation = ++imageGenerationRef.current;
+    const isCurrent = () => generation === imageGenerationRef.current;
     setRemovingBg(true);
     setBgError(null);
-    try {
-      const transparent = await removeBg(source);
-      // Auto-crop to the subject's bounding box and re-center on a square
-      // ivory canvas with padding. Without this step the bg-removed image
-      // keeps the subject wherever it was originally framed (often a small
-      // patch in a sea of transparency), so object-contain renders it tiny.
-      const flattened = await flattenOntoWhite(transparent, 1280, 0.88);
-      const file = new File([flattened], "bg-removed.jpg", { type: "image/jpeg" });
-      setNewImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error("Background removal failed:", err);
-      setBgError(t("addItem.bgRemovalFailed"));
-    } finally {
-      setRemovingBg(false);
-    }
+    const promise = (async () => {
+      const rawUrl = await uploadToSupabase(file);
+      const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
+      if (!pathMatch) return rawUrl;
+      try {
+        const res = await fetch("/api/items/normalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourcePath: pathMatch[1] }),
+        });
+        if (!res.ok) throw new Error(`normalize ${res.status}`);
+        const normalized = (await res.json()) as { url?: string; bgRemoved?: boolean };
+        const url = normalized.url ?? rawUrl;
+        if (isCurrent()) {
+          if (normalized.bgRemoved === false) setBgError(t("addItem.bgRemovalFailed"));
+          setNewImagePreview(url);
+        }
+        return url;
+      } catch (err) {
+        console.warn("[item-edit] background removal failed, keeping the original photo:", err);
+        if (isCurrent()) setBgError(t("addItem.bgRemovalFailed"));
+        return rawUrl;
+      }
+    })();
+    promise
+      .catch((err) => console.error("[item-edit] photo upload failed:", err))
+      .finally(() => {
+        if (isCurrent()) setRemovingBg(false);
+      });
+    imagePromiseRef.current = promise;
+    return promise;
   }
 
   if (loading) {
@@ -833,16 +809,9 @@ export default function ItemDetailPage() {
             const reader = new FileReader();
             reader.onload = (ev) => setNewImagePreview(ev.target?.result as string);
             reader.readAsDataURL(usable);
-            // No client-side imgly auto-trigger here: the save flow
-            // already runs the server-side /api/items/normalize on
-            // the new image (Photoroom + sharp), which is fast on
-            // every device and doesn't pin the page open while a
-            // multi-minute WASM job grinds away on a slow Android.
-            // The optimistic preview above is the raw photo; the
-            // final clean version comes back from the server during
-            // save. Users can still trigger imgly explicitly via the
-            // manual "Remove background" button if they want a
-            // preview before committing.
+            // Optimistic raw preview above; the clean cutout replaces
+            // it as soon as the server has it (spinner overlay meanwhile).
+            void startImageProcessing(usable).catch(() => {});
           }}
         />
       </div>

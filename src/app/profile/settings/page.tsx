@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, MessageSquare, CreditCard } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
@@ -316,6 +316,8 @@ export default function SettingsPage() {
     setSigningOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
+    // Full reload on purpose: drops every bit of signed-in client state.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/login";
   }
 

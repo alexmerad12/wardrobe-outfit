@@ -46,6 +46,8 @@ export default function PaywallPage() {
     try {
       await createClient().auth.signOut();
     } finally {
+      // Full reload on purpose: drops every bit of signed-in client state.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/login";
     }
   }
@@ -59,6 +61,14 @@ export default function PaywallPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ plan: selected }),
       });
+      // Already subscribed (e.g. came Back to the paywall after paying):
+      // the server refuses a second subscription, so just go home.
+      if (res.status === 409) {
+        // Full navigation so the middleware re-checks access on the way.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/";
+        return;
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error ?? "Checkout failed");

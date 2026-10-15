@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
@@ -8,16 +8,15 @@ import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
 import { withGeminiRetry } from "@/lib/gemini-retry";
+import { genAI, FAST_MODEL, FAST_THINKING, QUALITY_MODEL, NO_THINKING } from "@/lib/gemini";
 import { colorFamily } from "@/lib/color-family";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 
-// 2026-05-26 — dropped 10 -> 3 alongside the suggest cap reduction
-// after the gemini-3-flash-preview -> gemini-3.5-flash swap. Try-on
-// is two Gemini calls per session at ~$0.024/use total, so 3/day caps
-// worst-case at ~$2.16/mo per user. Tier presets to keep in mind:
+// Two Gemini calls per use (about 2-3 cents), so 3/day caps worst case
+// at roughly $2/mo per user. Tier presets to keep in mind:
 //   - Conservative: 2/day
 //   - Balanced:     3/day  ← current beta cap
 //   - Generous:     5/day  ← future Atelier tier
@@ -27,12 +26,9 @@ import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 // constraint reads as the real launch experience.
 const TRY_ON_DAILY_CAP = 3;
 
-// Try-on / fitting-room endpoint runs on Gemini 3 Flash Preview via
-// @google/genai with thinking disabled. Two AI calls: (1) analyze the
-// candidate item photo, (2) propose 3 outfits pairing it with the
-// existing wardrobe. Same model + setup as the analyze and suggest
-// endpoints. GOOGLE_API_KEY must be set in env.
-const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
+// Vision read + wardrobe query + outfit call; well past the default on a
+// slow upstream.
+export const maxDuration = 60;
 
 // Shop-with-me / "fitting room" endpoint.
 // User uploads a photo of an item they're considering buying; we analyze
@@ -42,6 +38,8 @@ const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" });
 //   - 3 hypothetical outfits built from their wardrobe + this item
 //     (versatility check)
 // Everything runs in one request so the UX can show results in one screen.
+// Models (src/lib/gemini.ts): the photo read is classification (fast
+// tier), the outfit simulation is composition (quality tier).
 
 function describeItemForPrompt(item: ClothingItem, idLabel: string): string {
   const parts: string[] = [`[${idLabel}]`, item.name];
@@ -77,56 +75,55 @@ export async function POST(request: NextRequest) {
   const subBlock = await requireActiveSubscription(ctx);
   if (subBlock) return subBlock;
 
+  const formData = await request.formData().catch(() => null);
+  const file = formData?.get("image");
+  if (!(file instanceof Blob)) {
+    return NextResponse.json({ error: "Missing image" }, { status: 400 });
+  }
+  // Locale plumb-through (audit P2): this endpoint ignored locale
+  // entirely — French users got English item names and outfit reasons.
+  const locale: "en" | "fr" = formData?.get("locale") === "fr" ? "fr" : "en";
+  const languageName = locale === "fr" ? "French" : "English";
+
   // Daily-cap gate. Same pattern as /api/suggest: consumed after the
   // free validation exits, refunded when the request delivers nothing,
-  // admin/tester bypass like every other AI route (was missing here).
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const isAdmin = isCapBypassed(authUser?.email);
-  const today = localDayKey(request);
-  const countKey = `tryon_count:${userId}:${today}`;
-  let capCount: number | null = null;
+  // admin/tester bypass like every other AI route.
+  const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
+  const countKey = `tryon_count:${userId}:${localDayKey(request)}`;
+  const capCount = await consumeDailyCap(countKey);
+  if (!isAdmin && capCount > TRY_ON_DAILY_CAP) {
+    return NextResponse.json(
+      {
+        error: "daily_limit_reached",
+        limit: TRY_ON_DAILY_CAP,
+        used: Math.min(capCount, TRY_ON_DAILY_CAP),
+      },
+      { status: 429 }
+    );
+  }
+  // The user got nothing: give the use back and record the failure (three
+  // unreadable photos used to lock the feature for the whole day).
+  const fail = (message: string, status: number) => {
+    if (capCount !== -1) refundDailyCap(countKey);
+    logAiCall(supabase, userId, "try_on", { succeeded: false });
+    return NextResponse.json({ error: message }, { status });
+  };
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("image");
-    if (!(file instanceof Blob)) {
-      return NextResponse.json({ error: "Missing image" }, { status: 400 });
-    }
-    // Locale plumb-through (audit P2): this endpoint ignored locale
-    // entirely — French users got English item names and outfit reasons.
-    const localeField = formData.get("locale");
-    const locale: "en" | "fr" = localeField === "fr" ? "fr" : "en";
-    const languageName = locale === "fr" ? "French" : "English";
-
-    capCount = await consumeDailyCap(countKey);
-    if (!isAdmin && capCount > TRY_ON_DAILY_CAP) {
-      return NextResponse.json(
-        {
-          error: "daily_limit_reached",
-          limit: TRY_ON_DAILY_CAP,
-          used: Math.min(capCount, TRY_ON_DAILY_CAP),
-        },
-        { status: 429 }
-      );
-    }
-
-    const rawBuffer = Buffer.from(await file.arrayBuffer());
     // Same downscale as the analyze endpoint — phone photos at 6MB
     // dominate vision-call latency. 1024px is plenty for clothing
     // classification.
-    const buffer = await sharp(rawBuffer)
+    const buffer = await sharp(Buffer.from(await file.arrayBuffer()), { failOn: "none" })
       .rotate()
       .resize({ width: 1024, withoutEnlargement: true })
       .jpeg({ quality: 80 })
       .toBuffer();
-    const base64 = buffer.toString("base64");
-    const mediaType = "image/jpeg" as const;
 
     // 1. Analyze the photo — transient, not saved to DB.
     const analyzeRes = await withGeminiRetry(
       () =>
         genAI.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: FAST_MODEL,
           contents: [
             {
               role: "user",
@@ -134,41 +131,25 @@ export async function POST(request: NextRequest) {
                 // Locale-aware variant of the analyze prompt so the
                 // transient item NAME comes back in the user's language.
                 { text: buildAnalyzePrompt(locale) },
-                { inlineData: { mimeType: mediaType, data: base64 } },
+                { inlineData: { mimeType: "image/jpeg", data: buffer.toString("base64") } },
                 { text: "Analyze this garment and return the JSON object." },
               ],
             },
           ],
           config: {
-            temperature: 0.5,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 2048,
             responseMimeType: "application/json",
-            thinkingConfig: { thinkingBudget: 0 },
+            thinkingConfig: FAST_THINKING,
           },
         }),
       { tag: "try-on/analyze" }
     );
 
-    const analyzeText = analyzeRes.text ?? "";
-    const match = analyzeText.match(/\{[\s\S]*\}/);
-    if (!match) {
-      // The user got nothing — three unreadable photos used to lock the
-      // feature for the whole day.
-      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
-      return NextResponse.json(
-        { error: "Couldn't read the photo — try a cleaner shot of the item." },
-        { status: 502 }
-      );
-    }
-    const rawAttrs = JSON.parse(match[0]);
-    const attrs = sanitizeAutoFill(rawAttrs);
-
+    const match = (analyzeRes.text ?? "").match(/\{[\s\S]*\}/);
+    if (!match) return fail("Couldn't read the photo — try a cleaner shot of the item.", 502);
+    const attrs = sanitizeAutoFill(JSON.parse(match[0]));
     if (!attrs.category) {
-      if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
-      return NextResponse.json(
-        { error: "Couldn't identify the item category — try a clearer photo." },
-        { status: 502 }
-      );
+      return fail("Couldn't identify the item category — try a clearer photo.", 502);
     }
 
     // 2. Fetch wardrobe (only active items).
@@ -189,20 +170,9 @@ export async function POST(request: NextRequest) {
     // matching is loose (name OR hex closeness) so the same physical
     // item photographed twice doesn't get missed because the AI named
     // its color differently.
-    const phantomColors = (attrs.colors ?? []).map((c) => ({
-      hex: c.hex,
-      name: c.name,
-    }));
-    const phantomPatterns = Array.isArray(attrs.pattern)
-      ? attrs.pattern
-      : attrs.pattern
-      ? [attrs.pattern]
-      : [];
-    const phantomMaterials = Array.isArray(attrs.material)
-      ? attrs.material
-      : attrs.material
-      ? [attrs.material]
-      : [];
+    const phantomColors = (attrs.colors ?? []).map((c) => ({ hex: c.hex, name: c.name }));
+    const phantomPatterns = Array.isArray(attrs.pattern) ? attrs.pattern : attrs.pattern ? [attrs.pattern] : [];
+    const phantomMaterials = Array.isArray(attrs.material) ? attrs.material : attrs.material ? [attrs.material] : [];
     const phantomNeckline = attrs.neckline ?? null;
     const phantomSleeve = attrs.sleeve_length ?? null;
     const patternsOverlap = (a: string[], b: string[]): boolean => {
@@ -210,7 +180,8 @@ export async function POST(request: NextRequest) {
       const setA = new Set(a);
       return b.some((p) => setA.has(p));
     };
-    const hasShapeAttrs = attrs.category === "top" ||
+    const hasShapeAttrs =
+      attrs.category === "top" ||
       attrs.category === "dress" ||
       attrs.category === "outerwear" ||
       attrs.category === "one-piece";
@@ -222,56 +193,34 @@ export async function POST(request: NextRequest) {
           item.subcategory === attrs.subcategory
       )
       .map((item) => {
-        const itemPatterns = Array.isArray(item.pattern)
-          ? item.pattern
-          : [item.pattern];
-        const itemMaterials = Array.isArray(item.material)
-          ? item.material
-          : item.material
-          ? [item.material]
-          : [];
+        const itemPatterns = Array.isArray(item.pattern) ? item.pattern : [item.pattern];
+        const itemMaterials = Array.isArray(item.material) ? item.material : item.material ? [item.material] : [];
         const patternMatch = patternsOverlap(phantomPatterns, itemPatterns) ? 1 : 0;
         const colorMatch = colorsOverlap(phantomColors, item.colors) ? 1 : 0;
         const materialMatch = patternsOverlap(phantomMaterials, itemMaterials) ? 1 : 0;
-        const necklineMatch =
-          phantomNeckline && item.neckline && phantomNeckline === item.neckline
-            ? 1
-            : 0;
-        const sleeveMatch =
-          phantomSleeve && item.sleeve_length && phantomSleeve === item.sleeve_length
-            ? 1
-            : 0;
-        const otherMatches =
-          patternMatch + materialMatch + necklineMatch + sleeveMatch;
-        return {
-          item,
-          colorMatch,
-          score: colorMatch + otherMatches,
-        };
+        const necklineMatch = phantomNeckline && item.neckline && phantomNeckline === item.neckline ? 1 : 0;
+        const sleeveMatch = phantomSleeve && item.sleeve_length && phantomSleeve === item.sleeve_length ? 1 : 0;
+        const otherMatches = patternMatch + materialMatch + necklineMatch + sleeveMatch;
+        return { item, colorMatch, score: colorMatch + otherMatches };
       })
-      .filter((x) =>
-        hasShapeAttrs
-          ? x.colorMatch === 1 && x.score >= 3
-          : x.colorMatch === 1
-      )
+      .filter((x) => (hasShapeAttrs ? x.colorMatch === 1 && x.score >= 3 : x.colorMatch === 1))
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
       .map((x) => x.item);
 
-    // 4. Outfit simulation — ask Claude for 3 outfits using the phantom item.
+    // 4. Outfit simulation — up to 3 outfits anchored on the new item.
     // Only attempt when the wardrobe is complete enough to form outfits.
     let outfits: { item_ids: string[]; reason: string }[] = [];
     const phantomId = "phantom-item";
     if (wardrobe.length >= 3) {
       const phantomLine = `[${phantomId}] ${attrs.name ?? "new item"} (${attrs.category}${attrs.subcategory ? "/" + attrs.subcategory : ""}) | Colors: ${phantomColors.map((c) => c.name).join(", ")}${attrs.material ? " | Material: " + attrs.material.join(", ") : ""}${attrs.warmth_rating ? ` | Warmth: ${attrs.warmth_rating}/5` : ""}`;
-
       const wardrobeList = wardrobe.map((i) => describeItemForPrompt(i, i.id)).join("\n");
 
       const simRes = await withGeminiRetry(
         () =>
           genAI.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
+            model: QUALITY_MODEL,
+            contents: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
 
 Rules for each outfit:
 - Include the NEW item (id "${phantomId}") in every outfit.
@@ -286,30 +235,29 @@ ${phantomLine}
 
 EXISTING WARDROBE:
 ${wardrobeList}`,
-        config: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              outfits: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    item_ids: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    reason: { type: Type.STRING },
+            config: {
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  outfits: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        item_ids: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        reason: { type: Type.STRING },
+                      },
+                      required: ["item_ids", "reason"],
+                    },
                   },
-                  required: ["item_ids", "reason"],
                 },
+                required: ["outfits"],
               },
+              thinkingConfig: NO_THINKING,
             },
-            required: ["outfits"],
-          },
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
+          }),
         { tag: "try-on/sim" }
       );
 
@@ -332,26 +280,16 @@ ${wardrobeList}`,
       category: attrs.category,
       subcategory: attrs.subcategory ?? null,
       name: attrs.name ?? "new item",
-      colors: phantomColors.map((c, i) => ({
-        hex: c.hex,
-        name: c.name,
-        percentage: i === 0 ? 80 : 20,
-      })),
+      colors: phantomColors.map((c, i) => ({ hex: c.hex, name: c.name, percentage: i === 0 ? 80 : 20 })),
       // Minimal required fields so orderOutfitItems works. We won't render
       // the phantom as a real card — the client has its own handling.
     } as unknown as ClothingItem;
 
     const resolvedOutfits = outfits.map((o) => {
       const items = o.item_ids
-        .map((id) => {
-          if (id === phantomId) return phantomPlaceholder;
-          return wardrobe.find((w) => w.id === id);
-        })
+        .map((id) => (id === phantomId ? phantomPlaceholder : wardrobe.find((w) => w.id === id)))
         .filter(Boolean) as ClothingItem[];
-      return {
-        items: orderOutfitItems(items),
-        reason: o.reason,
-      };
+      return { items: orderOutfitItems(items), reason: o.reason };
     });
 
     logAiCall(supabase, userId, "try_on", {
@@ -359,6 +297,7 @@ ${wardrobeList}`,
         category: attrs.category,
         similar_count: similarItems.length,
         outfit_count: resolvedOutfits.length,
+        models: [FAST_MODEL, QUALITY_MODEL],
       },
     });
     return NextResponse.json({
@@ -377,11 +316,6 @@ ${wardrobeList}`,
   } catch (err) {
     console.error("Try-on error:", err);
     Sentry.captureException(err);
-    if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
-    logAiCall(supabase, userId, "try_on", { succeeded: false });
-    return NextResponse.json(
-      { error: "Failed to analyze the item" },
-      { status: 500 }
-    );
+    return fail("Failed to analyze the item", 500);
   }
 }

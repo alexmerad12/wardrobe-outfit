@@ -55,8 +55,8 @@ export function buildStaticRulesBlock({
     BAG SIZE × OCCASION (Track A): formal / party / date → MUST be "clutch" or "small"; work → "medium" or "large" (no clutch); casual / travel / brunch / outdoor → "tote" or "large" is fine; dinner-out → "small" or "medium".
     BAG TEXTURE × OCCASION: for formal / date / party, BLOCK Material in [canvas, nylon] AND BLOCK Bag texture in [woven, fringed] — these read too casual for dressed-up occasions.
     BAG SUBCATEGORY × OCCASION: BLOCK subcategory="backpack" at formal / party / date / dinner-out — backpacks read student / gym / commute, not dressed up. Allow at work (laptop bag), travel, casual, brunch, outdoor.
-    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / outdoor / travel / dinner-out / date / party — but NEVER for at-home, work, or formal events.
-    HAT SILHOUETTE × OCCASION (when Hat silhouette field is set): formal / date / dinner-out → BLOCK silhouette in [baseball, trucker, bucket] (too casual). Allow [fedora, beret, pillbox, headband]. For Velvet or Felt hat texture at formal / party, restrict to silhouette in [beret, pillbox, headband] only — no velvet trucker caps.
+    HAT × OCCASION: a hat (accessory/hat) is welcome for casual / brunch / outdoor / travel / dinner-out / date / party — but NEVER for at-home or work.${isMensTrack ? " Never at formal events either." : " At formal events, only a dressy hat: Hat silhouette in [pillbox, headband, beret], nothing else."}
+    HAT SILHOUETTE × OCCASION (when Hat silhouette field is set): date / dinner-out→ BLOCK silhouette in [baseball, trucker, bucket] (too casual). Allow [fedora, beret, pillbox, headband]. For Velvet or Felt hat texture at party, restrict to silhouette in [beret, pillbox, headband] only — no velvet trucker caps.
     ACCESSORY MINIMUM: for every occasion EXCEPT at-home and outdoor (and waived on the men's track when no fitting accessory exists), include AT LEAST ONE accessory beyond the bag (belt, scarf, hat). Pick something that fits the outfit (no warm scarf on a 25°C day).
     SCARF FUNCTION (when Scarf function field is set): a scarf with function="functional" is a warmth layer (Slot 3) and does NOT count toward the head/neck proximity rule (Rule 15). A scarf with function="decorative" DOES count and competes with a hat for the same focal slot.${isMensTrack ? "\n    MEN'S OFFICE GUARDRAIL: at occasion=work, BLOCK shorts and open-toe shoes (sandals). Strongly prefer Subcategory in [trousers, jeans] paired with a Shirt (collared) and proper closed-toe shoes (loafers, oxfords, derbies). NEVER suggest a tank-top or sweatpants for work." : ""}
     ${isMensTrack ? "MEN'S METAL SYNC FOCUS: prioritize matching Metal finish on the belt buckle and shoe hardware/eyelets — those are the visible hardware points on a men's look. Bag hardware is secondary on this track." : ""}
@@ -90,7 +90,7 @@ export function buildStaticRulesBlock({
 18. STYLIST INSTINCT — completers a real stylist adds without being asked. These are PROACTIVE additions, not constraints. A wardrobe item that "completes" the look is BETTER than skipping the slot.
    a) BELT THE WAIST — derived from item attributes (no manual flag).
       MANDATORY belt (outfit will be rejected if missing) when:
-      - DRESS with Silhouette in [a-line, wrap, fit-and-flare] AND fit ≠ "slim" AND waist_style ≠ "belted". A belt defines the waist on these silhouettes; without one the look is incomplete. (Wrap dresses already come with a tie — count that as the belt; don't add another.)
+      - DRESS with Silhouette in [a-line, fit-and-flare] AND fit ≠ "slim" AND waist_style ≠ "belted". A belt defines the waist on these silhouettes; without one the look is incomplete. (Wrap dresses already come with a tie — that tie IS the belt; never add another.)
       ALSO ADD a belt when:
       - SWEATER or BLOUSE with a SKIRT.
       - BLOUSE with tailored trousers (the tucked look).
@@ -102,7 +102,7 @@ export function buildStaticRulesBlock({
       - BOTTOM with waist_closure in [elastic, drawstring, pull-on, side-zip] — no belt loops or no front fastening that would carry a belt.
       - BOTTOM with subcategory in [leggings, sweatpants] — never belted.
       - One-piece OVERALLS — already have built-in waist + suspenders defining the silhouette; a belt is redundant and clashes with the overall straps.
-      - The outfit already has a belted coat / dress.
+      - The outfit already has a belted coat / dress, or any piece with Silhouette "wrap" or Closure "wrap-tie" (wrap dress, wrap blouse, wrap coat) — its tie is the belt.
       - The wardrobe has zero belts.
       Otherwise (jeans + tucked top, structured trousers + blouse, etc.), the belt is what separates a stylist look from a thrown-together one — add it.
    b) ADD A SCARF: when the outfit is a coat or trench over a plain top + bottom AND the temperature is mild-to-cool (8-18°C), a silk scarf at the neck or knotted on the bag handle elevates the whole look. (Skip if there's a hat — Rule 15 proximity.)
@@ -128,7 +128,7 @@ SUPPRESSED RULES (do not apply to this user — their wardrobe doesn't have thes
 - Heel type / height rules (high-heel / mid-heel / kitten / stiletto / pump) — these subcategories belong to women's footwear.
 
 MENSWEAR OCCASION TEMPLATES (use these instead of the women's templates):
-- WORK / OFFICE: (a) tailored trousers + dress shirt (collared) + dress shoes (oxford / derby / loafer) + leather belt; or (b) matching suit jacket + trousers + dress shirt + dress shoes. Tie optional. A fine-gauge knit / sweater layered over a dress shirt is the smart-casual variant. BLOCK: t-shirts, hoodies, sweatpants, shorts, sandals, athletic sneakers.
+- WORK / OFFICE: (a) tailored trousers + dress shirt (collared) + dress shoes (oxford / derby / loafer) + leather belt; or (b) matching suit jacket + trousers + dress shirt + dress shoes. Tie optional. A fine-gauge knit / sweater layered over a dress shirt is the smart-casual variant. BLOCK: t-shirts, hoodies, sweatpants, shorts, sandals, sneakers of any kind.
 - FORMAL: dark suit (charcoal / navy / black) + crisp dress shirt + tie + leather dress shoes (oxford / derby in black or oxblood) + matching leather belt. Pocket square if the wardrobe has one.
 - DATE / DINNER OUT: dress shirt or polished button-up (tucked or partial-tuck) + dark jeans / chinos / wool trousers + loafers / derbies / Chelsea boots / clean leather sneakers + leather belt. Blazer over a fitted tee with dark jeans is the dressed-down variant. Full suits only when STYLE DIRECTION asks.
 - BRUNCH / CASUAL: button-up (untucked, sleeves rolled) OR henley OR fitted tee + chinos / dark jeans + clean leather sneakers / loafers / desert boots. Optional light jacket (denim / bomber / overshirt) when cool.

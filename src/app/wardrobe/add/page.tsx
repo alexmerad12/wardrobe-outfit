@@ -53,8 +53,6 @@ import {
 import { Camera, Upload, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toColorKey } from "@/lib/color-label";
-import { removeBg } from "@/lib/bg-removal";
-import { flattenOntoWhite } from "@/lib/image-utils";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
@@ -73,7 +71,6 @@ export default function AddItemPage() {
   // the full-context image (the bg-removed PNG strips the surroundings
   // and Gemini Vision misclassifies sparse silhouettes — the bulk pipeline
   // already does this; single-add was sending the cleaned image instead).
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [removingBg, setRemovingBg] = useState(false);
   const [bgError, setBgError] = useState<string | null>(null);
@@ -139,10 +136,14 @@ export default function AddItemPage() {
   const [autoFillApplied, setAutoFillApplied] = useState(false);
   const autoFillAppliedForRef = useRef<File | null>(null);
 
-  // Background upload — starts uploading to Supabase as soon as the image is
-  // settled (post-bg-removal), so by the time the user hits Save the image
-  // is usually already there and the click feels instant.
-  const uploadPromiseRef = useRef<Promise<string> | null>(null);
+  // Image pipeline, started the moment a photo is picked: upload the
+  // original, then cut out the background on the server (/api/items/
+  // normalize, self-hosted model). Resolves to the URL the item is saved
+  // with: the clean cutout, or the raw upload if the cutout failed. By the
+  // time the user has checked the form, Save usually has nothing to wait on.
+  const imagePromiseRef = useRef<Promise<string> | null>(null);
+  // Bumped per photo so a slow result for a replaced photo is ignored.
+  const imageGenerationRef = useRef(0);
 
   // Pull the user's gender preference once on mount. Used to gate
   // feminine-specific fields (skirt_length, dress_silhouette) when the
@@ -157,10 +158,6 @@ export default function AddItemPage() {
       })
       .catch(() => {});
   }, []);
-
-  // (No eager imgly preload — it pulled ~45MB on every mount for a
-  // manual path most users never trigger; removeBg lazy-loads on
-  // first use instead. Audit P2.)
 
   async function uploadImage(file: File): Promise<string> {
     const supabase = createClient();
@@ -179,42 +176,53 @@ export default function AddItemPage() {
     return supabase.storage.from("clothing-images").getPublicUrl(path).data.publicUrl;
   }
 
-  // Start uploading the final image in the background. When bg removal
-  // completes, imageFile updates to the cleaned version and this refires —
-  // we just replace the promise; the earlier upload continues to Supabase
-  // but its URL is ignored.
-  useEffect(() => {
-    if (!imageFile || removingBg) return;
-    uploadPromiseRef.current = uploadImage(imageFile).catch((err) => {
-      console.error("Background image upload failed:", err);
-      throw err;
-    });
-  }, [imageFile, removingBg]);
-
-  // AI auto-fill: once per ORIGINAL image, send the pre-bg-removal photo
-  // to Gemini and pre-fill the form. Runs immediately when the user
-  // picks a photo — no waiting on bg-removal, and the bg-removed PNG
-  // (sparse / transparent / less context) never gets sent to the AI.
-  useEffect(() => {
-    if (!originalFile) return;
-    if (autoFillAppliedForRef.current === originalFile) return;
-    const target = originalFile;
-    setAutoFilling(true);
-    analyzeItem(target, locale)
-      .then((result) => {
-        if (originalFile !== target) return; // user swapped photos
-        autoFillAppliedForRef.current = target;
-        applyAutoFill(result);
-        setAutoFillApplied(true);
-      })
-      .catch((err) => {
-        console.error("Auto-fill failed:", err);
-      })
+  function startImageProcessing(file: File): Promise<string> {
+    const generation = ++imageGenerationRef.current;
+    const isCurrent = () => generation === imageGenerationRef.current;
+    setRemovingBg(true);
+    setBgError(null);
+    const promise = (async () => {
+      const rawUrl = await uploadImage(file);
+      const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
+      if (!pathMatch) return rawUrl;
+      try {
+        const res = await fetch("/api/items/normalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourcePath: pathMatch[1] }),
+        });
+        if (!res.ok) throw new Error(`normalize ${res.status}`);
+        const normalized = (await res.json()) as { url?: string; bgRemoved?: boolean };
+        const url = normalized.url ?? rawUrl;
+        if (isCurrent()) {
+          if (normalized.bgRemoved === false) setBgError(t("addItem.bgRemovalFailed"));
+          // Swap the preview to the clean photo and read colours from it:
+          // with the background gone there's nothing to filter out.
+          const blob = await fetch(url).then((r) => r.blob());
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            if (!isCurrent()) return;
+            const dataUrl = ev.target?.result as string;
+            setImagePreview(dataUrl);
+            extractColorsFromImage(dataUrl);
+          };
+          reader.readAsDataURL(blob);
+        }
+        return url;
+      } catch (err) {
+        console.warn("[add-item] background removal failed, keeping the original photo:", err);
+        if (isCurrent()) setBgError(t("addItem.bgRemovalFailed"));
+        return rawUrl;
+      }
+    })();
+    promise
+      .catch((err) => console.error("[add-item] photo upload failed:", err))
       .finally(() => {
-        if (originalFile === target) setAutoFilling(false);
+        if (isCurrent()) setRemovingBg(false);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originalFile]);
+    imagePromiseRef.current = promise;
+    return promise;
+  }
 
   function applyAutoFill(r: AutoFillResult) {
     // Never overwrite a name the user has already typed.
@@ -268,6 +276,32 @@ export default function AddItemPage() {
       }));
       setDetectedColors(dedupeColors(aiColors).slice(0, 3));
     }
+  }
+
+  // AI auto-fill: once per ORIGINAL photo, send the full photo (more
+  // context than the cut-out) to Gemini and pre-fill the form. Started from
+  // the photo-pick handler, in parallel with background removal. A result
+  // for a photo the user already replaced is ignored (the old effect's
+  // "swapped photos" check compared two values from the same closure, so
+  // it never fired).
+  const autoFillGenerationRef = useRef(0);
+  function startAutoFill(file: File) {
+    if (autoFillAppliedForRef.current === file) return;
+    const generation = ++autoFillGenerationRef.current;
+    setAutoFilling(true);
+    analyzeItem(file, locale)
+      .then((result) => {
+        if (generation !== autoFillGenerationRef.current) return;
+        autoFillAppliedForRef.current = file;
+        applyAutoFill(result);
+        setAutoFillApplied(true);
+      })
+      .catch((err) => {
+        console.error("Auto-fill failed:", err);
+      })
+      .finally(() => {
+        if (generation === autoFillGenerationRef.current) setAutoFilling(false);
+      });
   }
 
   // Helpers for category-specific logic
@@ -447,40 +481,11 @@ export default function AddItemPage() {
     img.src = dataUrl;
   }
 
-  async function runBgRemoval(source: File) {
-    setRemovingBg(true);
-    setBgError(null);
-    try {
-      const transparent = await removeBg(source);
-      // Auto-crop to the subject's bounding box and re-center on a square
-      // ivory canvas with padding. Without this step the bg-removed image
-      // keeps the subject wherever it was originally framed (often a small
-      // patch in a sea of transparency), so object-contain renders it tiny.
-      const flattened = await flattenOntoWhite(transparent, 1280, 0.88);
-      const cleaned = new File(
-        [flattened],
-        source.name.replace(/\.[^.]+$/, "") + ".jpg",
-        { type: "image/jpeg" }
-      );
-      setImageFile(cleaned);
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        setImagePreview(dataUrl);
-        extractColorsFromImage(dataUrl);
-      };
-      reader.readAsDataURL(cleaned);
-    } catch (err) {
-      console.error("Background removal failed:", err);
-      setBgError(t("addItem.bgRemovalFailed"));
-    } finally {
-      setRemovingBg(false);
-    }
-  }
-
+  // Retry button (only shown after a failed cutout): run the whole image
+  // pipeline again for the current photo.
   function handleRemoveBackground() {
     if (!imageFile) return;
-    void runBgRemoval(imageFile);
+    void startImageProcessing(imageFile).catch(() => {});
   }
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -525,7 +530,6 @@ export default function AddItemPage() {
     setAutoFillApplied(false);
 
     setImageFile(file);
-    setOriginalFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const dataUrl = ev.target?.result as string;
@@ -534,13 +538,11 @@ export default function AddItemPage() {
     };
     reader.readAsDataURL(file);
 
-    // No client-side imgly auto-trigger: save now runs server-side
-    // /api/items/normalize (Photoroom + sharp) which is faster and
-    // doesn't grind down mid-range Android phones. The optimistic
-    // preview above shows the raw photo; the clean white-bg version
-    // comes back from the server during save. The "Remove background"
-    // button is still available for users who want a preview before
-    // committing.
+    // Background removal starts now, on the server: the optimistic
+    // preview above is the raw photo and swaps to the clean cutout as
+    // soon as it's ready, while the AI pre-fill runs in parallel.
+    void startImageProcessing(file).catch(() => {});
+    startAutoFill(file);
   }
 
   function togglePattern(p: Pattern) {
@@ -588,42 +590,14 @@ export default function AddItemPage() {
     setError(null);
 
     try {
-      // Hot path: image already uploaded in background while the user was
-      // filling out the form — just await the existing promise (usually
-      // resolves immediately). If nothing was in flight, or the background
-      // upload failed, upload inline as a fallback.
+      // Usually already settled: the upload + cutout started when the photo
+      // was picked. The promise only rejects if the UPLOAD itself failed
+      // (cutout failures resolve to the raw photo), so retry once inline.
       let imageUrl: string;
       try {
-        imageUrl = await (uploadPromiseRef.current ?? uploadImage(imageFile));
+        imageUrl = await (imagePromiseRef.current ?? startImageProcessing(imageFile));
       } catch {
-        imageUrl = await uploadImage(imageFile);
-      }
-
-      // Server-side normalize — Photoroom + sharp. Faster than the
-      // client-side imgly path on weaker phones, and importantly it
-      // doesn't depend on the page staying mounted while a WASM model
-      // grinds. Falls back to the raw upload if the endpoint fails so
-      // the user always gets SOME image saved, just without the
-      // white-bg treatment in the worst case.
-      const pathMatch = imageUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
-      if (pathMatch) {
-        try {
-          const normalizeRes = await fetch("/api/items/normalize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sourceUrl: imageUrl, sourcePath: pathMatch[1] }),
-          });
-          if (normalizeRes.ok) {
-            const normalized = (await normalizeRes.json()) as { url?: string };
-            if (normalized.url) imageUrl = normalized.url;
-          } else {
-            console.warn(
-              `[add-item] normalize ${normalizeRes.status} — falling back to raw upload`
-            );
-          }
-        } catch (err) {
-          console.warn("[add-item] normalize threw — falling back to raw upload:", err);
-        }
+        imageUrl = await startImageProcessing(imageFile);
       }
 
       const allColors = [...manualColors, ...detectedColors];

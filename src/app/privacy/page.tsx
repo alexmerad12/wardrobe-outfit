@@ -10,8 +10,8 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LegalBackArrow } from "@/components/legal-back-arrow";
 
-const EFFECTIVE_DATE_EN = "June 12, 2026";
-const EFFECTIVE_DATE_FR = "12 juin 2026";
+const EFFECTIVE_DATE_EN = "October 15, 2026";
+const EFFECTIVE_DATE_FR = "15 octobre 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
@@ -92,9 +92,10 @@ function EnglishPolicy() {
         photos) to a large language model operated by Google LLC (Gemini).
         When you add an item with automatic tagging or use the try-on
         feature, the photo you submit is also sent to the AI so it can
-        identify the garment. Photos you upload are additionally processed
-        by Photoroom (background removal). These providers act as
-        sub-processors bound by contractual data-protection obligations.
+        identify the garment. Background removal runs on our own servers
+        (hosted by Vercel): your photos are not sent to any other company
+        for it. These providers act as sub-processors bound by
+        contractual data-protection obligations.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">4. Where your data lives</h2>
@@ -118,8 +119,8 @@ function EnglishPolicy() {
       <p className="mb-6">
         We do not sell your personal information. We share data only with
         service providers acting as sub-processors strictly to operate the
-        service: Supabase (database, storage), Vercel (hosting), Google
-        (AI), Photoroom (image processing), Sentry (error monitoring), and
+        service: Supabase (database, storage), Vercel (hosting and
+        background removal), Google (AI), Sentry (error monitoring), and
         Resend (transactional email). We may disclose information if
         required by law or to protect the rights, property, or safety of
         users or the public.
@@ -275,9 +276,10 @@ function FrenchPolicy() {
         de langage exploité par Google LLC (Gemini). Lorsque tu ajoutes une
         pièce avec l&apos;étiquetage automatique ou que tu utilises
         l&apos;essayage, la photo que tu soumets est aussi envoyée à
-        l&apos;IA afin d&apos;identifier le vêtement. Les photos téléversées
-        sont également traitées par Photoroom (retrait de l&apos;arrière-plan).
-        Ces fournisseurs agissent comme sous-traitants liés par des
+        l&apos;IA afin d&apos;identifier le vêtement. Le retrait de
+        l&apos;arrière-plan s&apos;effectue sur nos propres serveurs
+        (hébergés par Vercel) : tes photos ne sont transmises à aucune
+        autre entreprise pour cela. Ces fournisseurs agissent comme sous-traitants liés par des
         obligations contractuelles de protection des données.
       </p>
 
@@ -304,9 +306,9 @@ function FrenchPolicy() {
         Nous ne vendons pas tes renseignements personnels. Nous partageons
         des données uniquement avec des prestataires agissant en qualité de
         sous-traitants, strictement pour faire fonctionner le service :
-        Supabase (base de données, stockage), Vercel (hébergement), Google
-        (IA), Photoroom (traitement d&apos;images), Sentry (surveillance des
-        erreurs) et Resend (courriels transactionnels). Nous pouvons
+        Supabase (base de données, stockage), Vercel (hébergement et
+        retrait de l&apos;arrière-plan), Google (IA), Sentry (surveillance
+        des erreurs) et Resend (courriels transactionnels). Nous pouvons
         divulguer des renseignements si la loi l&apos;exige ou pour protéger
         les droits, la propriété ou la sécurité des utilisateurs ou du
         public.

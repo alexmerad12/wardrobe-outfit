@@ -14,9 +14,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Tables to dump. `subscriptions` is intentionally omitted —
-// payment-provider records belong to RevenueCat / Stripe and shouldn't
-// be re-distributed as part of a user-data export.
+// Tables to dump. `user_subscriptions` is intentionally omitted —
+// payment-provider records belong to Stripe and shouldn't be
+// re-distributed as part of a user-data export. outfit_edits (your swaps
+// on AI suggestions) and ai_calls (when you used each AI feature) are
+// personal data too, so they're included.
 const TABLES = [
   "user_preferences",
   "clothing_items",
@@ -25,6 +27,8 @@ const TABLES = [
   "today_outfit",
   "recent_outfits",
   "trips",
+  "outfit_edits",
+  "ai_calls",
 ] as const;
 
 export async function GET() {

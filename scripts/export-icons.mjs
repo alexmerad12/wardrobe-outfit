@@ -3,7 +3,7 @@
 //
 // Run: node scripts/export-icons.mjs
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import sharp from "sharp";
