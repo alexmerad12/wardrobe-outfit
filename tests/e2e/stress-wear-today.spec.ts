@@ -6,9 +6,9 @@ import { assertE2EAccount, signIn } from "./auth";
 // silently rotated by the 2am-cutoff staleness check; now relies only
 // on the local-date-string comparison.
 //
-// State management: snapshots the user's existing today_outfit before
-// the test, runs against a temporary one, restores at the end. Won't
-// pollute the wife's real account.
+// State management: runs on the dedicated test account (auth.ts). Seeds 3
+// plain items when the wardrobe has fewer, sets a temporary
+// today_outfit, and clears both at the end.
 
 assertE2EAccount();
 
@@ -30,11 +30,33 @@ test("stress-wear-today: set, persist, delete (husband-bug regression)", async (
   const initial = (await initialRes.json()) as { today: Record<string, unknown> | null };
   const original = initial.today;
 
-  // Pick a few real wardrobe item ids to use in the synthetic outfit.
+  // Pick a few wardrobe item ids for the synthetic outfit, seeding plain
+  // ones when the (often empty) test wardrobe has fewer than 3.
   const itemsRes = await page.request.get("/api/items");
   expect(itemsRes.ok()).toBeTruthy();
   const items = (await itemsRes.json()) as { id: string; is_stored: boolean }[];
   const sampleIds = items.filter((i) => !i.is_stored).slice(0, 3).map((i) => i.id);
+  const seeded: string[] = [];
+  for (const [category, subcategory] of [["top", "t-shirt"], ["bottom", "jeans"], ["shoes", "sneakers"]]) {
+    if (sampleIds.length >= 3) break;
+    const res = await page.request.post("/api/items", {
+      data: {
+        image_url: "https://example.com/e2e-fixture.png",
+        name: `__stress_test_${subcategory}`,
+        category,
+        subcategory,
+        colors: [{ hex: "#888888", name: "grey", percentage: 100 }],
+        seasons: [],
+        occasions: [],
+        is_favorite: false,
+        is_stored: false,
+      },
+    });
+    expect(res.status(), `seeding a ${subcategory}`).toBe(201);
+    const id = ((await res.json()) as { id: string }).id;
+    seeded.push(id);
+    sampleIds.push(id);
+  }
   expect(sampleIds.length, "wardrobe needs ≥3 items for this test").toBeGreaterThanOrEqual(3);
 
   const TEST_NAME = `__stress_test_outfit_${Date.now()}`;
@@ -100,6 +122,9 @@ test("stress-wear-today: set, persist, delete (husband-bug regression)", async (
     // original because we don't know the user's exact original outfit_id;
     // simpler to just clear and let the user re-pick if they had one.)
     await page.request.delete("/api/today").catch(() => {});
+    for (const id of seeded) {
+      await page.request.delete(`/api/items/${id}`).catch(() => {});
+    }
 
     // If they had an original, log a hint so the user knows.
     if (original) {
