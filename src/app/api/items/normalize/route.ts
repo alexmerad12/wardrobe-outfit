@@ -19,9 +19,12 @@ import { PHOTO_BUCKET, downloadOwnedPhoto, ownedPhotoPath } from "@/lib/owned-ph
 // no subject, the photo is still normalized to a plain 1280 px JPEG, so an
 // upload never fails just because the cutout did.
 
-// Cold start downloads the model (~115 MB) and builds the session before
-// the ~10-25 s inference; 120 s leaves room for both.
-export const maxDuration = 120;
+// Cold start downloads the model (183 MB) and builds the session before the
+// inference (~20 s on 2 local cores, longer on one Vercel vCPU). Runs are
+// serialized per instance, and Fluid compute can send a bulk upload's 3
+// concurrent photos to the same instance, so the last one waits for the
+// other two: 300 s covers a cold start plus a full queue.
+export const maxDuration = 300;
 
 const BUCKET = PHOTO_BUCKET;
 // Counts every processed photo, retries included. Bulk upload is 10 per
