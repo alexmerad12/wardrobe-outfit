@@ -116,8 +116,8 @@ export function usePendingUploads(): ContextValue {
 // is the right tradeoff for a feature that's worse than useless when
 // it fails.
 //
-// 2026-10: background removal moved to our own server (~15 s per photo
-// instead of Photoroom's ~1 s), so items now overlap: up to 3 are in
+// 2026-10: background removal moved to our own server (~21 s per photo on
+// Vercel instead of Photoroom's ~1 s), so items now overlap: up to 3 are in
 // flight, but the network-heavy UPLOAD step still runs strictly one at a
 // time through uploadOneAtATime() below, which is the property the
 // history above was protecting. Only the server-side steps overlap.

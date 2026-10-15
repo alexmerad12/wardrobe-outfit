@@ -29,6 +29,10 @@ import * as ort from "onnxruntime-node";
 
 export const MODEL_INPUT_SIZE = 1024;
 
+// Errors only: the runtime otherwise logs a warning on every cold start
+// because it can't persist a telemetry id on Vercel's read-only home dir.
+ort.env.logLevel = "error";
+
 const MODEL_SHA256 = "810d6c62e02551dd96ecb0b9c708fd7fbe2015daf12d73302be44eaf0d608319";
 const DEFAULT_MODEL_URL =
   "https://cdxzxqtan3kdtalq.public.blob.vercel-storage.com/models/birefnet-lite-lean-810d6c62e025.onnx";
