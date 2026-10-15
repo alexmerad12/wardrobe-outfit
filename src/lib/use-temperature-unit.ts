@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { resolveUnit } from "./temperature";
-import type { TemperatureUnit } from "./types";
 import { useClientValue } from "./use-client-value";
+import { getPreferences } from "./preferences-client";
 
 const CACHE_KEY = "tempUnit:v1";
 
@@ -39,19 +39,14 @@ export function useTemperatureUnit(): "celsius" | "fahrenheit" {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/preferences")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (prefs: {
-          temperature_unit?: TemperatureUnit;
-          location?: { city?: string | null } | null;
-        } | null) => {
-          if (cancelled) return;
-          const resolved = resolveUnit(prefs?.temperature_unit, prefs?.location);
-          writeCached(resolved);
-          setFetched(resolved);
-        }
-      )
+    // Shared with every other preferences caller on the page.
+    getPreferences()
+      .then((prefs) => {
+        if (cancelled) return;
+        const resolved = resolveUnit(prefs?.temperature_unit, prefs?.location);
+        writeCached(resolved);
+        setFetched(resolved);
+      })
       .catch(() => {});
     return () => {
       cancelled = true;

@@ -20,6 +20,7 @@ import Link from "next/link";
 import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { createClient } from "@/lib/supabase/client";
+import { invalidatePreferences } from "@/lib/preferences-client";
 
 const BRAND_PALETTE: Palette = [
   "#ffffff",
@@ -45,6 +46,7 @@ export default function PaywallPage() {
     setSigningOut(true);
     try {
       await createClient().auth.signOut();
+      invalidatePreferences();
     } finally {
       // Full reload on purpose: drops every bit of signed-in client state.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination

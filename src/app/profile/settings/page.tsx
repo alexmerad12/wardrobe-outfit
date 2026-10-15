@@ -34,6 +34,7 @@ import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
+import { invalidatePreferences } from "@/lib/preferences-client";
 
 type Sub = {
   status: string;
@@ -228,6 +229,7 @@ export default function SettingsPage() {
       // A non-2xx used to flash the "Saved" confirmation anyway —
       // the settings silently never persisted (audit P1).
       if (!res.ok) throw new Error(`/api/preferences ${res.status}`);
+      invalidatePreferences();
       // Clear cached locale/unit/gender so the change takes effect immediately on next render
       try {
         window.localStorage.removeItem("locale:v1");
@@ -316,6 +318,7 @@ export default function SettingsPage() {
     setSigningOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
+    invalidatePreferences();
     // Full reload on purpose: drops every bit of signed-in client state.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/login";

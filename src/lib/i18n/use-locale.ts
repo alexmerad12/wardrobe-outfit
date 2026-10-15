@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { Language, Gender, Mood } from "@/lib/types";
+import type { Gender, Mood } from "@/lib/types";
 import { resolveLocale, translate, type Locale } from "./index";
 import { useClientValue } from "@/lib/use-client-value";
+import { getPreferences } from "@/lib/preferences-client";
 
 const CACHE_KEY = "locale:v1";
 const GENDER_CACHE_KEY = "gender:v1";
@@ -64,9 +65,10 @@ export function useLocale() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/preferences")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((prefs: { language?: Language; gender?: Gender } | null) => {
+    // Shared with every other hook instance on the page (one request, not
+    // one per component).
+    getPreferences()
+      .then((prefs) => {
         if (cancelled) return;
         const resolved = resolveLocale(prefs?.language);
         writeCached(resolved);

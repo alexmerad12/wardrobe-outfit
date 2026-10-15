@@ -23,6 +23,7 @@ import { useTemperatureUnit } from "@/lib/use-temperature-unit";
 import { convertTemp } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { WEATHER_CONDITION_KEYS } from "@/lib/weather-condition-label";
+import { getPreferences } from "@/lib/preferences-client";
 
 // Condition-string → i18n-key mapping lives in
 // src/lib/weather-condition-label.ts (shared with the outfit cards).
@@ -184,26 +185,23 @@ export function WeatherWidget() {
       let useDeviceLocation = true;
       let savedCoords: Coords | null = null;
       try {
-        const res = await fetch("/api/preferences");
-        if (res.ok) {
-          const prefs = await res.json();
-          if (prefs) {
-            // Fall back to true so users on rows from before the column
-            // existed keep their legacy behavior.
-            useDeviceLocation = prefs.use_device_location ?? true;
-            const loc = prefs.location as
-              | { lat?: number; lng?: number }
-              | null
-              | undefined;
-            if (
-              loc &&
-              typeof loc.lat === "number" &&
-              typeof loc.lng === "number" &&
-              loc.lat !== 0 &&
-              loc.lng !== 0
-            ) {
-              savedCoords = { lat: loc.lat, lng: loc.lng };
-            }
+        const prefs = await getPreferences();
+        if (prefs) {
+          // Fall back to true so users on rows from before the column
+          // existed keep their legacy behavior.
+          useDeviceLocation = prefs.use_device_location ?? true;
+          const loc = prefs.location as
+            | { lat?: number; lng?: number }
+            | null
+            | undefined;
+          if (
+            loc &&
+            typeof loc.lat === "number" &&
+            typeof loc.lng === "number" &&
+            loc.lat !== 0 &&
+            loc.lng !== 0
+          ) {
+            savedCoords = { lat: loc.lat, lng: loc.lng };
           }
         }
       } catch {

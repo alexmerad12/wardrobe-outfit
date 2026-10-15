@@ -71,6 +71,7 @@ import {
 import { cn } from "@/lib/utils";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { toColorKey } from "@/lib/color-label";
+import { getPreferences } from "@/lib/preferences-client";
 
 export default function ItemDetailPage() {
   const { t, locale } = useLocale();
@@ -148,8 +149,7 @@ export default function ItemDetailPage() {
 
   // User gender preference — used to gate feminine fields on the men's track.
   useEffect(() => {
-    fetch("/api/preferences")
-      .then((r) => (r.ok ? r.json() : null))
+    getPreferences()
       .then((p) => {
         if (p?.gender === "man" || p?.gender === "woman" || p?.gender === "not-specified") {
           setUserGender(p.gender);

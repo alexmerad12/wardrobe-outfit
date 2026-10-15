@@ -20,6 +20,7 @@ import { BrandedName } from "@/components/brand/branded-name";
 import type { Language, Gender, TemperatureSensitivity } from "@/lib/types";
 import { detectLocale, translate, type Locale } from "@/lib/i18n";
 import { reverseGeocode } from "@/lib/reverse-geocode";
+import { invalidatePreferences } from "@/lib/preferences-client";
 
 interface CityResult {
   name: string;
@@ -197,6 +198,7 @@ export default function OnboardingPage() {
         window.localStorage.removeItem("gender:v1");
         window.localStorage.removeItem("tempUnit:v1");
       } catch {}
+      invalidatePreferences();
       router.push("/");
       router.refresh();
     } catch (err) {

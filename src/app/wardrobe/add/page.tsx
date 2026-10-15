@@ -56,6 +56,7 @@ import { toColorKey } from "@/lib/color-label";
 import { analyzeItem, type AutoFillResult } from "@/lib/analyze-item";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { MAX_BATCH, usePendingUploads } from "@/lib/pending-uploads-context";
+import { getPreferences } from "@/lib/preferences-client";
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -149,8 +150,7 @@ export default function AddItemPage() {
   // feminine-specific fields (skirt_length, dress_silhouette) when the
   // user is on Track B (men's logic).
   useEffect(() => {
-    fetch("/api/preferences")
-      .then((r) => (r.ok ? r.json() : null))
+    getPreferences()
       .then((p) => {
         if (p?.gender === "man" || p?.gender === "woman" || p?.gender === "not-specified") {
           setUserGender(p.gender);
