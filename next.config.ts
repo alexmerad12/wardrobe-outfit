@@ -12,6 +12,11 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 const ORT_BIN = "./node_modules/onnxruntime-node/bin/napi-v6";
 
 const nextConfig: NextConfig = {
+  // React Compiler (stable in Next 16, babel-plugin-react-compiler 1.0):
+  // memoizes components automatically, fewer re-renders on low-end
+  // phones. The code passes eslint-config-next's compiler-backed
+  // react-hooks rules, which flag the patterns it can't compile.
+  reactCompiler: true,
   serverExternalPackages: ["onnxruntime-node"],
   outputFileTracingIncludes: {
     "/api/items/normalize": [

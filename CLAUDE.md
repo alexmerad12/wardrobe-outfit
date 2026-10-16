@@ -27,7 +27,7 @@ There's no `tsc` script; `next build` runs TypeScript as part of the build. Run 
 
 ## High-level architecture
 
-**Linette** is a Next.js 16 PWA (App Router, React 19, Turbopack) for AI-assisted wardrobe styling. Auth + persistence on Supabase, rate-limit counters on Upstash Redis (the Vercel KV store, through `kv()` in `src/lib/kv.ts`), AI via Google Gemini, background removal self-hosted, hosted on Vercel (region `pdx1`, next to Supabase us-west-2).
+**Linette** is a Next.js 16 PWA (App Router, React 19, Turbopack, React Compiler on via `reactCompiler: true` + `babel-plugin-react-compiler`) for AI-assisted wardrobe styling. Auth + persistence on Supabase, rate-limit counters on Upstash Redis (the Vercel KV store, through `kv()` in `src/lib/kv.ts`), AI via Google Gemini, background removal self-hosted, hosted on Vercel (region `pdx1`, next to Supabase us-west-2).
 
 ### Request lifecycle for AI endpoints
 
@@ -113,3 +113,4 @@ Line endings: `core.autocrlf=true` checks files out as CRLF. Edit tools that mat
 - **Daily caps are tier-bands**, not free-floating numbers. The framework is Conservative / Balanced / Generous — current beta runs Balanced. Pricing tier changes follow the same bands.
 - **Brand**: the damask texture is scoped to "lobby + share" surfaces (auth, onboarding, launch, generated outfit-share images). Don't add it to daily-use views — it competes with item photos.
 - **AI cost matters more than you'd think.** At current pricing, a max-cap Linette-tier user can cost more in AI than they pay in subscription. Don't add new AI endpoints without a daily cap and a cost estimate.
+- **Dependencies**: `npm audit --omit=dev` was clean on 2026-10-16 (what remains is dev tooling: the lint plugin and the shadcn CLI, through a glob library with no fixed release). `sharp` stays exact-pinned: it decodes every uploaded photo, so its libvips security releases come first, and after any bump check that the cutouts still match (production's output was byte-identical across 0.34.5 → 0.35.5). `shadcn` is a devDependency (a CLI; `globals.css` imports its CSS at build time). Let new releases sit about a week before adopting them; `eslint-config-next` moves in lockstep with `next`. Held on purpose: Stripe 23 (API version), Sentry 11 (privacy defaults), TypeScript 7, react-day-picker 10 / lottie-react 3 (UI majors), `@types/node` stays on the runtime's major (24).

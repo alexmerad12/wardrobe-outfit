@@ -3,7 +3,14 @@
 ## Project
 Linette — AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini). Owner's own product (9537-1076 Québec Inc.), not a client project. Production: https://linette.app.
 
-## STATUS 2026-10-16 evening — outfit failure fixed, suggest 2-4x faster, read first
+## STATUS 2026-10-16 late evening — modernization round 2 + fresh background-removal proof, read first
+- **React Compiler on** (`reactCompiler: true`, `babel-plugin-react-compiler` 1.0, stable in Next 16): 36 of 58 client chunks carry its memo caches; build compile ~3 s → ~20 s, as documented.
+- **Security:** `sharp` 0.34.5 → 0.35.5 (libvips CVEs; sharp decodes every uploaded photo), `npm audit fix` for the Gemini SDK's bundled MCP-server packages (hono, express/proxy-addr critical, ws, protobufjs), `shadcn` moved to devDependencies. `npm audit --omit=dev`: 21 findings (1 critical) → 0.
+- **Held on purpose:** releases from Oct 15-16 (next 16.4.2, eslint 10.13, lucide-react 1.58, shadcn 4.22) wait their week; the majors listed in CLAUDE.md "Dependencies".
+- **Verified locally on that build:** sweep 61/61 (keepalive with a throwaway local secret), UI smoke 9/9 with 0 console errors, CRUD flow, rules harness 8/8, low-end Android bulk upload 5/5 (18 MB peak JS heap). Cutouts on sharp 0.35.5 byte-identical to production's 0.34.5 output (12/12).
+- **Background removal, fresh proof on production (before this round):** 12 reference photos through linette.app's normalize: output byte-identical to the local pipeline; the deployed code's masks vs Photoroom's own alpha in original coordinates: 98.0% mean IoU (min 95.1%, a studded belt). A Pixel 7-emulated batch on linette.app (CPU 6x slower, weak network, 12 MP photos): 5/5 saved with 1280×1280 cutouts in 159 s, 20 MB peak JS heap, 0 console errors. The plain-pixel score of the two FRAMED outputs (~91%) only measures the different margins (see known-root-causes, Debunked).
+
+## STATUS 2026-10-16 evening — outfit failure fixed, suggest 2-4x faster
 The owner got "Couldn't put together a look" (Confident + Outdoor, men's track, Montreal rain) and found suggest slow. Root causes in `known-root-causes.md`, all reproduced on a copy of the owner's 61-item wardrobe in the e2e account (copies deleted afterwards):
 - **The failure was two rule bugs, not the model.** Confident demanded tailoring outdoors (counting drawstring trousers as "structured" from the whole wardrobe), and the fallback gate called a logo sweatpant + sneaker logo a "pattern echo". Fixed with `moodPool` and the shared `patternEchoOffender`.
 - **Speed:** Gemini 3 Flash ignores `thinkingBudget`; suggest now sends thinking level LOW (`GEMINI_SUGGEST_THINKING_LEVEL`). Benchmarked 3.6 vs 3.8 at LOW and MEDIUM on the wardrobe: 3.6 LOW wins (6-9 s, still reasons; 3.8 LOW thinks nothing, 3.8 MEDIUM 15-81 s). Model stays `gemini-3.6-flash`.
