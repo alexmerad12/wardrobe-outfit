@@ -42,6 +42,10 @@ Verification (local dev server, dedicated test account `e2e-audit-claude@linette
 - **Verified on 3.6 (2026-10-16):** suggest and try-on (Vercel preview, 00:02 UTC), refine (200 in 4.2 s, French, 13:32 UTC, right after Google's midnight-Pacific quota reset).
 - **Not yet on 3.6: the rules harness.** Its 3.6 run lost test 1 to 503 "high demand" for 2.5 minutes. With the quality-tier fallback it passed 8/8 the same hour, but `ai_calls` shows all 10 outfits answered by Flash-Lite (3.6 overloaded, then out of free quota). That is the third 8/8 on Flash-Lite. To finish, with billing on or right after 07:00 UTC, run against a server with the test account in `CAP_BYPASS_EMAILS`: `HARNESS_EMAIL=e2e-audit-claude@linette.app npx playwright test rule-compliance.spec.ts`, then check that the run's `ai_calls.metadata.model` says gemini-3.6-flash.
 - The old `gemini-3.5-flash` name that production still calls is counted against the same gemini-3.6-flash quota (a request to it is refused naming gemini-3.6-flash).
+- **Vercel previews, 2026-10-16 afternoon (Montreal rain through the request's IP, 3.6 out of free quota, Flash-Lite overloaded):**
+  - **18a77ac:** 53/58. Two real problems: suggest answered 0 outfits because the wardrobe's only shoes were suede and the rain rule refused them (fixed, `rainRefuses`), and 3 photo taggings hit analyze's 60 s limit (now 120 s).
+  - **88ac46b** (rain fix, 120 s limits, fast-tier fallback): 57/59. Suggest 200 with an outfit in the same rain, French refine 200, background removal 6/6 (30-47 s each), try-on and packing 200. The 2 misses were photo taggings where Google refused both models (Flash-Lite 503, then 3.6 429), which only billing fixes.
+  - Both previews were removed afterwards. Production was not touched.
 
 Root causes and ruled-out theories from this session: `known-root-causes.md`.
 
