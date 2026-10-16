@@ -5,7 +5,7 @@ import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
-import { withModelFallback } from "@/lib/gemini-retry";
+import { withModelFallback, withParseRetry } from "@/lib/gemini-retry";
 import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
@@ -138,33 +138,38 @@ Respond with ONLY:
 - reasoning: ONE editorial sentence citing one specific styling principle at play (color harmony, silhouette balance, texture play, or occasion fit). Refer to pieces by broad category only (the dress, the bottoms, the jacket).
 - styling_tip: ONE short sentence with a concrete styling action applied to items in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, knot hem). Or null if nothing useful fits.`;
 
-    const { result, model } = await withModelFallback(
-      QUALITY_MODELS,
-      (m) =>
-        genAI.models.generateContent({
-          model: m,
-          contents: prompt,
-          config: {
-            maxOutputTokens: 1024,
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                reasoning: { type: Type.STRING },
-                styling_tip: { type: Type.STRING, nullable: true },
+    // An unparseable answer is asked again once (withParseRetry).
+    const {
+      answer: { model },
+      parsed,
+    } = await withParseRetry(
+      () =>
+        withModelFallback(
+          QUALITY_MODELS,
+          (m) =>
+            genAI.models.generateContent({
+              model: m,
+              contents: prompt,
+              config: {
+                maxOutputTokens: 1024,
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                    reasoning: { type: Type.STRING },
+                    styling_tip: { type: Type.STRING, nullable: true },
+                  },
+                  required: ["reasoning"],
+                },
+                thinkingConfig: thinkingFor(m, "none"),
               },
-              required: ["reasoning"],
-            },
-            thinkingConfig: thinkingFor(m, "none"),
-          },
-        }),
+            }),
+          { tag: "suggest/refine" }
+        ),
+      ({ result }) => JSON.parse(result.text ?? "") as { reasoning?: string; styling_tip?: string | null },
       { tag: "suggest/refine" }
     );
-
-    let parsed: { reasoning?: string; styling_tip?: string | null };
-    try {
-      parsed = JSON.parse(result.text ?? "");
-    } catch {
+    if (!parsed) {
       refund();
       logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model } });
       return NextResponse.json({ error: "Failed to parse refine response" }, { status: 502 });

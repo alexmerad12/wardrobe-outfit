@@ -39,7 +39,7 @@ Every AI endpoint (`/api/suggest`, `/api/suggest/refine`, `/api/try-on`, `/api/i
    - `QUALITY_MODEL` (`gemini-3.6-flash`) — suggest, suggest/refine, try-on outfit simulation. `QUALITY_MODELS` = it, then `gemini-3.5-flash-lite` (verified as the outfit model: harness 8/8, sweep 61/61; it skips some soft stylist instructions 3.6 follows). `GEMINI_QUALITY_MODEL` overrides the first model without a deploy.
    - `FAST_MODEL` (`gemini-3.5-flash-lite`) — analyze, try-on item read, packing. Sanitizer-protected. `FAST_MODELS` = it, then the quality model (tags photos as well, ~2x the cost, only on fallback).
    - Flash takes `thinkingBudget`, Flash-Lite `thinkingLevel` (MEDIUM for suggest, MINIMAL otherwise); the wrong one is an HTTP 400, which is why every call goes through `thinkingFor`.
-4. **Sanitize output**: never trust raw model output. `sanitizeAutoFill` (analyze), enum allowlists, and the deterministic strips inside `suggest/route.ts` exist because models return close-but-invalid values that fail Supabase check constraints.
+4. **Parse, then sanitize output**: wrap the call in `withParseRetry(() => withModelFallback(...), parse)` (same file; `parseJsonObject` pulls the first `{...}` block) so an answer that can't be parsed is asked again once instead of failing the request. Never trust raw model output: `sanitizeAutoFill` (analyze), enum allowlists, and the deterministic strips inside `suggest/route.ts` exist because models return close-but-invalid values that fail Supabase check constraints.
 5. **Log the call**: `logAiCall(supabase, userId, "<tag>", { metadata, succeeded })` writes to the `ai_calls` table. Always called — both on success and in the catch block.
 
 ### Prompt-cache discipline (suggest endpoint)

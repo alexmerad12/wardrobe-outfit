@@ -65,6 +65,43 @@ export async function withGeminiRetry<T>(
 }
 
 /**
+ * Run `call` and `parse` its answer; when the answer can't be parsed, ask
+ * once more. Now and then an answer stops being JSON partway (packing on
+ * 2026-10-16: 1 of ~6 production answers, while 40 replays of the prompt all
+ * parsed), and one retry hides it, as suggest's bad-shape retry does.
+ * `parse` returns null or throws for an unusable answer. Returns the last
+ * answer with its parse (null after two unusable answers).
+ */
+export async function withParseRetry<A, T>(
+  call: () => Promise<A>,
+  parse: (answer: A) => T | null,
+  opts: { tag?: string } = {}
+): Promise<{ answer: A; parsed: T | null }> {
+  const { tag = "gemini" } = opts;
+  const tryParse = (answer: A): T | null => {
+    try {
+      return parse(answer);
+    } catch {
+      return null;
+    }
+  };
+  let answer = await call();
+  let parsed = tryParse(answer);
+  if (parsed === null) {
+    console.warn(`[${tag}] unparseable answer, asking once more`);
+    answer = await call();
+    parsed = tryParse(answer);
+  }
+  return { answer, parsed };
+}
+
+// The first {...} block of a model answer as an object, or null.
+export function parseJsonObject<T>(text: string | undefined): T | null {
+  const match = (text ?? "").match(/\{[\s\S]*\}/);
+  return match ? (JSON.parse(match[0]) as T) : null;
+}
+
+/**
  * Run `call` on each model in order until one answers, each through
  * withGeminiRetry. A model with a fallback behind it gets one retry instead
  * of three, so a 503 spell costs the user ~2 s before the next model takes

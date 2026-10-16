@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
-import { withModelFallback } from "@/lib/gemini-retry";
+import { withModelFallback, withParseRetry, parseJsonObject } from "@/lib/gemini-retry";
 import { genAI, FAST_MODELS, thinkingFor } from "@/lib/gemini";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
@@ -101,35 +101,42 @@ export async function POST(request: NextRequest) {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    const { result, model } = await withModelFallback(
-      FAST_MODELS,
-      (m) =>
-        genAI.models.generateContent({
-          model: m,
-          contents: [
-            {
-              role: "user",
-              parts: [
-                { text: buildAnalyzePrompt(locale) },
-                { inlineData: { mimeType: "image/jpeg", data: buffer.toString("base64") } },
-                { text: "Analyze this garment and return the JSON object." },
+    // An unparseable answer is asked again once (withParseRetry). Before, a
+    // half-valid one reached an unguarded JSON.parse and became a 500.
+    const {
+      answer: { result, model },
+      parsed,
+    } = await withParseRetry(
+      () =>
+        withModelFallback(
+          FAST_MODELS,
+          (m) =>
+            genAI.models.generateContent({
+              model: m,
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    { text: buildAnalyzePrompt(locale) },
+                    { inlineData: { mimeType: "image/jpeg", data: buffer.toString("base64") } },
+                    { text: "Analyze this garment and return the JSON object." },
+                  ],
+                },
               ],
-            },
-          ],
-          config: {
-            // Headroom: any thinking tokens count against this cap.
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-            thinkingConfig: thinkingFor(m, "none"),
-          },
-        }),
+              config: {
+                // Headroom: any thinking tokens count against this cap.
+                maxOutputTokens: 2048,
+                responseMimeType: "application/json",
+                thinkingConfig: thinkingFor(m, "none"),
+              },
+            }),
+          { tag: "analyze" }
+        ),
+      ({ result }) => parseJsonObject<Record<string, unknown>>(result.text),
       { tag: "analyze" }
     );
-
-    const text = result.text ?? "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) {
-      console.error("[analyze] Failed to parse Gemini response:", text.slice(0, 200));
+    if (!parsed) {
+      console.error("[analyze] unparseable answer twice:", (result.text ?? "").slice(-200));
       refund();
       logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { model } });
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 502 });
@@ -139,7 +146,7 @@ export async function POST(request: NextRequest) {
     // returns close-but-invalid values ("t_shirt" for "t-shirt", "blue"
     // in the material field) — keeping those would make the Supabase
     // insert fail with a check-constraint violation.
-    const sanitized = sanitizeAutoFill(JSON.parse(match[0]));
+    const sanitized = sanitizeAutoFill(parsed);
     logAiCall(supabase, userId, "analyze_item", {
       metadata: { category: sanitized.category ?? null, model },
     });

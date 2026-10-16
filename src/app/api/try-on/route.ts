@@ -7,7 +7,7 @@ import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
-import { withModelFallback } from "@/lib/gemini-retry";
+import { withModelFallback, withParseRetry, parseJsonObject } from "@/lib/gemini-retry";
 import { genAI, FAST_MODELS, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { colorFamily } from "@/lib/color-family";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
@@ -121,36 +121,44 @@ export async function POST(request: NextRequest) {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    // 1. Analyze the photo — transient, not saved to DB.
-    const { result: analyzeRes, model: analyzeModel } = await withModelFallback(
-      FAST_MODELS,
-      (m) =>
-        genAI.models.generateContent({
-          model: m,
-          contents: [
-            {
-              role: "user",
-              parts: [
-                // Locale-aware variant of the analyze prompt so the
-                // transient item NAME comes back in the user's language.
-                { text: buildAnalyzePrompt(locale) },
-                { inlineData: { mimeType: "image/jpeg", data: buffer.toString("base64") } },
-                { text: "Analyze this garment and return the JSON object." },
+    // 1. Analyze the photo — transient, not saved to DB. An unparseable
+    // answer is asked again once (withParseRetry): a model glitch used to
+    // tell the user to retake a photo that was fine.
+    const {
+      answer: { model: analyzeModel },
+      parsed: rawAttrs,
+    } = await withParseRetry(
+      () =>
+        withModelFallback(
+          FAST_MODELS,
+          (m) =>
+            genAI.models.generateContent({
+              model: m,
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    // Locale-aware variant of the analyze prompt so the
+                    // transient item NAME comes back in the user's language.
+                    { text: buildAnalyzePrompt(locale) },
+                    { inlineData: { mimeType: "image/jpeg", data: buffer.toString("base64") } },
+                    { text: "Analyze this garment and return the JSON object." },
+                  ],
+                },
               ],
-            },
-          ],
-          config: {
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-            thinkingConfig: thinkingFor(m, "none"),
-          },
-        }),
+              config: {
+                maxOutputTokens: 2048,
+                responseMimeType: "application/json",
+                thinkingConfig: thinkingFor(m, "none"),
+              },
+            }),
+          { tag: "try-on/analyze" }
+        ),
+      ({ result }) => parseJsonObject<Record<string, unknown>>(result.text),
       { tag: "try-on/analyze" }
     );
-
-    const match = (analyzeRes.text ?? "").match(/\{[\s\S]*\}/);
-    if (!match) return fail("Couldn't read the photo — try a cleaner shot of the item.", 502);
-    const attrs = sanitizeAutoFill(JSON.parse(match[0]));
+    if (!rawAttrs) return fail("Couldn't read the photo — try a cleaner shot of the item.", 502);
+    const attrs = sanitizeAutoFill(rawAttrs);
     if (!attrs.category) {
       return fail("Couldn't identify the item category — try a clearer photo.", 502);
     }

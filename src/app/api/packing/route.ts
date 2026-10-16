@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
-import { withModelFallback } from "@/lib/gemini-retry";
+import { withModelFallback, withParseRetry, parseJsonObject } from "@/lib/gemini-retry";
 import { genAI, FAST_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
@@ -214,39 +214,42 @@ Respond with ONLY valid JSON:
 
 Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardrobe.`;
 
-    const { result, model } = await withModelFallback(
-      FAST_MODELS,
-      (m) =>
-        genAI.models.generateContent({
-          model: m,
-          contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
-          config: {
-            maxOutputTokens: 4096,
-            responseMimeType: "application/json",
-            thinkingConfig: thinkingFor(m, "none"),
-          },
-        }),
-      { tag: "packing" }
-    );
-
-    const text = result.text ?? "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    let parsed: {
+    type PackingShape = {
       packing_list?: { item_id: string; reason: string }[];
       outfit_suggestions?: { day: string; item_ids: string[]; note: string }[];
       weather_summary?: string;
       packing_tips?: string;
-    } | null = null;
-    try {
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-    } catch {
-      parsed = null;
-    }
+    };
+    // An unparseable answer is asked again once (withParseRetry): 1 of ~6
+    // production packing answers on 2026-10-16 stopped being JSON partway.
+    const {
+      answer: { result, model },
+      parsed,
+    } = await withParseRetry(
+      () =>
+        withModelFallback(
+          FAST_MODELS,
+          (m) =>
+            genAI.models.generateContent({
+              model: m,
+              contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
+              config: {
+                maxOutputTokens: 4096,
+                responseMimeType: "application/json",
+                thinkingConfig: thinkingFor(m, "none"),
+              },
+            }),
+          { tag: "packing" }
+        ),
+      ({ result }) => parseJsonObject<PackingShape>(result.text),
+      { tag: "packing" }
+    );
     if (!parsed) {
-      // Nothing usable came back: give the use back and record it.
-      console.error("[packing] Failed to parse Gemini response:", text.slice(0, 200));
+      // Two answers, nothing usable: give the use back and record it.
+      const finish = result.candidates?.[0]?.finishReason ?? null;
+      console.error(`[packing] unparseable answer twice (${model}, finish=${finish}):`, (result.text ?? "").slice(-200));
       refund();
-      logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model } });
+      logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model, finish } });
       return NextResponse.json({ error: "Failed to generate packing list" }, { status: 502 });
     }
 
