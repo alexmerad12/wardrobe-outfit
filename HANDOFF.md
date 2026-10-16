@@ -31,7 +31,11 @@ Verification (local dev server, dedicated test account `e2e-audit-claude@linette
 - `npm run test:rules`: 8/8 on the new code, run through `GEMINI_QUALITY_MODEL` (6 on gemini-2.5-flash, 2 on gemini-2.5-flash-lite) because 3.6's free quota was spent. Includes new tests: wrap dress, men's track, hot weather (Dubai 31°C), cold weather (Iqaluit 0°C).
 - Vercel preview (Linux, Standard 2 GB, from a clean `git archive` of the commit): onnxruntime loads, normalize 8/8 as the test account, keepalive refuses without the secret. Preview deployments get Supabase/KV vars passed per deployment (Preview env has none).
 
-Still to verify after billing is back: `npm run test:rules` on 3.6, the AI stress specs, suggest/refine/try-on in the live sweep.
+- Vercel preview with the Gemini key (final code, run 2026-10-16 00:02 UTC): **suggest 200 on gemini-3.6-flash** (dinner-out outfit, 0 rule drops, 0 server fixes) and **try-on 200 on 3.6** (2 outfits); full sweep 59/61, the 2 misses were the 3.6 free cap. Refine's route passed end to end on a stand-in model (French answer), and it sends 3.6 the same request shape as try-on's outfit call (JSON schema, thinking off), which passed on 3.6.
+- Browser e2e as the test account (`--config playwright.audit.config.ts`, port 3001): UI smoke 9/9 tabs with 0 console errors, CRUD smoke 4/4, bulk upload 5/5 (happy path with AI names and 1280px cutouts, throttled 3G mobile, 5 largest photos, two batches in one session 10/10), wear-today pass.
+- Found and fixed while testing: every page load fired 5-8 identical `/api/preferences` requests (now 1, `src/lib/preferences-client.ts`); a hardcoded test login in the old bulk-upload spec (account `test@gmail.com` banned); the bulk-upload spec targeted a removed flow (rewritten).
+
+Still to verify once billing is back: `npm run test:rules` on 3.6 (8/8 so far on 2.5 models) and refine's answer on 3.6.
 
 ## Earlier status (2026-10-09 audit, still true)
 - **Apple developer-name trap:** the name under the app title can be "Linette" only if Linette is a registered trade name of 9537-1076 (Quebec "déclaration de mise à jour courante", free), and it can ONLY be set when the first app record is created, never changed after. Otherwise it shows "9537-1076 Québec inc." forever. Decide before creating the app in App Store Connect. Seller always shows the legal name. Google Play publicly shows legal name + address + developer email + phone.
@@ -51,7 +55,7 @@ Still to verify after billing is back: `npm run test:rules` on 3.6, the AI stres
 - **Next.js ignores `instrumentation.ts` at repo root when `src/` exists** → Sentry silently captured nothing for 43 days. Files must live in `src/`.
 - **Env vars that exist locally but not on Vercel fail silently in prod.** Preview has no Supabase, Google or KV vars: a CLI preview deploy needs them passed with `--env` / `--build-env`.
 - **A CLI deploy uploads gitignored files** except a short default list (`.env.local` is excluded, `src/app/logo-lab/` and `.claude/` are not). Deploy previews from a clean `git archive` of a commit.
-- **Gemini free tier is 20 requests per model per day, per project, shared with production.** Testing on the production key spends production's quota.
+- **Gemini free tier is 20 requests per model per day, per project, shared with production.** Testing on the production key spends production's quota. The counter resets around 00:00 UTC, but on 2026-10-16 the 3.6 bucket read as full again within 3 minutes of the reset: free tier is not a usable test (or production) setup, billing is.
 - **Flash-Lite rejects `thinkingBudget`** (400): it takes `thinkingLevel`.
 - **Model memory, not size, is the Vercel limit.** Measure peak RSS (`process.resourceUsage().maxRSS`, a 10 ms sampler misses the spike) before shipping any ONNX model: the stock BiRefNet export peaked at 6 GB, BEN2 at 3.5 GB, ours at 1.3 GB. ISNet fits (0.8 GB) but scored 84.7% IoU and lost one garment entirely.
 - **`vercel curl` created a deployment-protection bypass token** on the project (Settings → Deployment Protection) to reach SSO-protected previews. Revoke it there if unwanted.
