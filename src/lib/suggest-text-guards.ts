@@ -61,6 +61,110 @@ function wordRx(word: string): RegExp {
   return new RegExp(`(?<![a-zà-ÿ])${escaped}s?(?![a-zà-ÿ])`, "i");
 }
 
+// Garment words per slot, grouped by what they name, EN with the FR
+// equivalents. A group "describes" an item when one of its EN words
+// matches the item's name or subcategory.
+const SLOT_CONCEPTS: Record<string, { en: string[]; fr: string[] }[]> = {
+  shoes: [
+    { en: ["boot"], fr: ["botte", "bottine", "boots"] },
+    { en: ["sneaker", "trainer"], fr: ["basket", "sneaker", "tennis"] },
+    { en: ["loafer"], fr: ["mocassin", "loafer"] },
+    { en: ["heel", "pump"], fr: ["talon", "escarpin"] },
+    { en: ["sandal"], fr: ["sandale", "nu-pied"] },
+    { en: ["mule"], fr: ["mule"] },
+    { en: ["espadrille"], fr: ["espadrille"] },
+    { en: ["ballet flat", "ballet-flat"], fr: ["ballerine"] },
+    { en: ["oxford", "derby", "brogue"], fr: ["richelieu", "derby"] },
+  ],
+  outerwear: [
+    { en: ["coat", "peacoat", "overcoat"], fr: ["manteau", "caban", "pardessus"] },
+    { en: ["puffer", "parka"], fr: ["doudoune", "parka"] },
+    { en: ["trench", "raincoat"], fr: ["trench", "imperméable", "imper"] },
+    { en: ["blazer"], fr: ["blazer"] },
+    { en: ["bomber"], fr: ["bomber", "blouson"] },
+    { en: ["windbreaker"], fr: ["coupe-vent"] },
+    { en: ["vest", "gilet"], fr: ["gilet"] },
+    { en: ["jacket"], fr: ["veste", "blouson"] },
+    { en: ["hoodie"], fr: ["capuche", "hoodie"] },
+  ],
+};
+
+// Material enum values as French prose names them.
+const FR_MATERIAL_WORDS: Record<string, string[]> = {
+  leather: ["cuir"],
+  "faux-leather": ["simili", "cuir"],
+  "patent-leather": ["vernis", "cuir"],
+  suede: ["daim", "suède"],
+  canvas: ["toile"],
+  wool: ["laine"],
+  cotton: ["coton"],
+  silk: ["soie"],
+  satin: ["satin"],
+  linen: ["lin"],
+  corduroy: ["velours"],
+  velvet: ["velours"],
+  fleece: ["polaire"],
+  knit: ["maille", "tricot"],
+  cashmere: ["cachemire"],
+  rubber: ["caoutchouc"],
+  denim: ["denim"],
+};
+
+const NAME_STOPWORDS = new Set([
+  "and", "the", "with", "for", "from", "dark", "light", "deep", "pale",
+  "de", "du", "des", "et", "en", "le", "la", "les", "un", "une", "avec", "pour",
+]);
+
+// Identifying words of an item: its name, subcategory and materials
+// (plus the French material words for French prose), lowercased, 3+
+// letters, plural "s" dropped so "boots" also matches "boot".
+function itemWords(i: ClothingItem, locale: "en" | "fr", withColors = false): Set<string> {
+  const mats = (Array.isArray(i.material) ? i.material : [i.material]).filter(
+    (m): m is NonNullable<typeof m> => !!m
+  );
+  const parts: string[] = [i.name ?? "", i.subcategory ?? "", ...mats];
+  if (locale === "fr") for (const m of mats) parts.push(...(FR_MATERIAL_WORDS[m] ?? []));
+  if (withColors) for (const c of i.colors ?? []) parts.push(c?.name ?? "");
+  const out = new Set<string>();
+  for (const w of parts.join(" ").toLowerCase().split(/[^a-zà-ÿ0-9]+/)) {
+    if (w.length < 3 || NAME_STOPWORDS.has(w)) continue;
+    out.add(w.length > 4 && w.endsWith("s") ? w.slice(0, -1) : w);
+  }
+  return out;
+}
+
+// After the server swaps a piece (a shoe that breaks a rule, a coat the
+// rain refuses), the AI's sentence can still describe the piece it
+// picked: "the black leather boots anchor the look" over sneakers.
+// textIsConsistent can't see that (the outfit still has shoes). True when
+// the text names the swapped-out piece: a word of its name, subcategory
+// or material that no piece of the final outfit shares, or a slot word
+// ("boots", "bottines") that fits it and not its replacement.
+export function textMentionsSwappedOut(
+  text: string,
+  removed: ClothingItem,
+  outfit: ClothingItem[],
+  locale: "en" | "fr" = "en"
+): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const kept = new Set(outfit.flatMap((i) => [...itemWords(i, locale, true)]));
+  for (const w of itemWords(removed, locale)) {
+    if (!kept.has(w) && wordRx(w).test(lower)) return true;
+  }
+  const describes = (i: ClothingItem, words: string[]) => {
+    const label = `${i.name ?? ""} ${(i.subcategory ?? "").replace(/-/g, " ")}`.toLowerCase();
+    return words.some((w) => wordRx(w).test(label));
+  };
+  const replacements = outfit.filter((i) => i.category === removed.category);
+  for (const concept of SLOT_CONCEPTS[removed.category] ?? []) {
+    if (!describes(removed, concept.en) || replacements.some((r) => describes(r, concept.en))) continue;
+    const words = locale === "fr" ? [...concept.en, ...concept.fr] : concept.en;
+    if (words.some((w) => wordRx(w).test(lower))) return true;
+  }
+  return false;
+}
+
 export function textIsConsistent(
   items: ClothingItem[],
   text: string,

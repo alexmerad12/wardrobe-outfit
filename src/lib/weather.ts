@@ -33,23 +33,46 @@ export async function getWeather(lat: number, lng: number): Promise<WeatherData>
   const roundedLng = Math.round(lng * 100) / 100;
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${roundedLat}&longitude=${roundedLng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=precipitation_probability_max,uv_index_max&timezone=auto`;
 
+  // One retry. Suggest styles without weather when this throws (no rain
+  // or temperature rule runs), and a short Open-Meteo blip did that to 4
+  // requests in a row on 2026-10-16: canvas boots for a rainy work day.
+  // Both failures are logged, the caller only saw "no weather" before.
+  try {
+    return await fetchWeather(url, 5_000);
+  } catch (first) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      return await fetchWeather(url, 4_000);
+    } catch (second) {
+      const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+      console.warn(`[weather] Open-Meteo failed twice: ${msg(first)} / ${msg(second)}`);
+      throw second;
+    }
+  }
+}
+
+async function fetchWeather(url: string, timeoutMs: number): Promise<WeatherData> {
   // Revalidate every 5 min — Open-Meteo's `current` updates hourly,
   // so shorter is technically wasted, BUT Next's edge cache can lag
   // and keeping it tight catches the hourly rollover sooner. Free
   // tier handles this load easily.
-  // 8 s ceiling: a stalled upstream used to hold the caller (the weather
-  // route, or suggest mid-request) until the platform timeout.
+  // Timeout per attempt (5 s, then 4 s): a stalled upstream used to hold
+  // the caller (the weather route, or suggest mid-request) until the
+  // platform timeout.
   const response = await fetch(url, {
     next: { revalidate: 300 },
-    signal: AbortSignal.timeout(8_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
-    throw new Error("Failed to fetch weather data");
+    throw new Error(`Failed to fetch weather data (HTTP ${response.status})`);
   }
 
   const data = await response.json();
-  const current = data.current;
-  const daily = data.daily;
+  const current = data?.current;
+  const daily = data?.daily;
+  if (!current || typeof current.temperature_2m !== "number") {
+    throw new Error("Weather answer without current conditions");
+  }
 
   const weatherCode = current.weather_code as number;
   const weatherInfo = WEATHER_CODES[weatherCode] ?? { condition: "Unknown", icon: "🌡️" };
@@ -61,8 +84,8 @@ export async function getWeather(lat: number, lng: number): Promise<WeatherData>
     icon: weatherInfo.icon,
     humidity: current.relative_humidity_2m,
     wind_speed: Math.round(current.wind_speed_10m),
-    precipitation_probability: daily.precipitation_probability_max?.[0] ?? 0,
-    uv_index: daily.uv_index_max?.[0] ?? 0,
+    precipitation_probability: daily?.precipitation_probability_max?.[0] ?? 0,
+    uv_index: daily?.uv_index_max?.[0] ?? 0,
     location: "",
   };
 }

@@ -42,6 +42,39 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** free-tier Gemini latency (the same photos took 27-31 s locally that hour, 3-8 s on earlier days) against the route's 60 s `maxDuration`. A function killed at the limit also skips the daily-cap refund.
 - **Fix:** analyze, try-on and packing allow 120 s, like suggest. The same afternoon, locally, Flash-Lite answered 503 to all four tries on 3 of 6 photos (500 "Analysis failed"), so the fast tier now falls back too: `FAST_MODELS` = Flash-Lite, then the quality model.
 
+### "Couldn't put together a look" on a men's Confident + Outdoor request in the rain (2026-10-16, production)
+- **Symptom:** suggest answers 200 with 0 outfits and `ai_error`; the app shows "The stylist hit a hiccup". `ai_calls.metadata.rules`: `ship_path: none`, drop "confident mood + no structured/tailored piece" on the first answer and on the regenerate.
+- **Cause:** two rule bugs, not the model (both answers were sensible outfits). (1) Confident fired whenever the whole wardrobe owned anything "structured", drawstring and chino trousers included, and on Outdoor too, so a sweatshirt + sweatpants + puffer + sneakers look was dropped twice. (2) The fallback gate's pattern-echo rule counted a logo sweatpant (`[solid, graphic]`) plus a sneaker's logo graphic as a repeated statement print, so even the emergency path shipped nothing. A striped tee + a sneaker side stripe failed the same way.
+- **Fix:** the mood checks read `moodPool` (the pool the model saw, filtered by `wearableHere`); Confident counts genuinely tailored pieces only and never fires Outdoors (the prompt says Confident outdoors is a clean, fitted technical layer). `patternEchoOffender` is one predicate for the validator, the fallback gate and the response edge: shoe logos and stripes don't count, striped/plaid pass as a top + bottom pair. Reproduced on a copy of the wardrobe in the e2e account: 0 outfits before, 8/8 after.
+
+### Suggest took ~28 s: one wrong shoe cost a second Gemini call (2026-10-16)
+- **Symptom:** median 28.4 s on the same wardrobe; 6 of 8 requests made two Gemini calls.
+- **Cause:** one rule-breaking shoe (canvas in the rain, a loafer outdoors) hard-dropped the whole outfit, and the regenerate call cost another 10-20 s. A zip hoodie tagged outerwear with no top under it did the same ("incomplete base").
+- **Fix:** in `buildOutfit`, SHOE REPAIR swaps the shoe for one that passes `shoeFitsContext`, `rainRefuses` and the open-toe rule; COAT REPAIR swaps a coat the rain refuses; BASE COMPLETER adds the one missing top or bottom. When a repair swaps a piece, `textMentionsSwappedOut` (`src/lib/suggest-text-guards.ts`) sends an AI sentence that still names the old piece ("the leather boots" over sneakers) to the template; the category-level `textIsConsistent` can't see that.
+
+### 0 outfits on a rainy day when the dry pair was in a recent outfit (2026-10-16, benchmark)
+- **Symptom:** `ship_path: none`, "rain-triggered: <canvas shoe> uses non-rain-proof material" on both answers.
+- **Cause:** the shoe rotation (last 2 outfits) and the anchor freshness ban (10 outfits) hide pieces from the model, but `rainHasAlternative` counts `promptItems`, which still holds them. The canvas pair was refused because of a leather pair nobody could pick.
+- **Fix:** the shoe and coat repairs and the outerwear injector fall back to `promptItems` (a repeated piece beats an empty result); a hidden pair tagged for the occasion beats a visible untagged one.
+
+### Suggest latency was thinking time: Gemini 3 Flash ignores thinkingBudget (2026-10-16)
+- **Symptom:** 12-15 s per suggest call on gemini-3.6-flash, ~2,700 thinking tokens a call at `thinkingBudget` 1024 and at 3072 alike. gemini-3.8-flash thought 0 tokens at any budget.
+- **Cause:** Gemini 3 Flash is steered by `thinkingLevel`. `thinkingBudget` is accepted but not honoured as a cap (3.8 rejects level MINIMAL with a 400).
+- **Fix:** suggest sends a thinking level, `GEMINI_SUGGEST_THINKING_LEVEL`, default LOW (`src/lib/gemini.ts`). Benchmark on the same wardrobe (Montreal rain, Outdoor / Work / Date, 9 requests per config): 3.6 LOW 6-9 s median with ~700-1,300 thinking tokens; 3.6 MEDIUM 16-27 s; 3.8 LOW 4-5 s with zero thinking; 3.8 MEDIUM 15-81 s. Rules harness 8/8 on 3.6 LOW. With every fix in: medians 3.6 s Outdoor, 8.4 s Work, 10.2 s Date, 9/9 shipped, no regenerate.
+
+### Every men's date look shipped "relaxed" ("I stretched a rule or two") (2026-10-16)
+- **Cause:** two soft rules read the whole wardrobe. R8 (date wants silk / satin / lace / velvet) fired on the men's track because of one cotton-silk summer shirt; the men's date template asks for no such fabric. The user-tag rule counted a summer pair of date-tagged shorts, hard-banned on dates, as the "in-tag alternative".
+- **Fix:** R8 is Track A only and counts `moodPool`; the tag rule counts only `moodPool` pieces that pass both tags, the weather and `casualWearBan`. Shorts / sweatpants / leggings / hoodies at dressy occasions are now hidden from the prompt whenever the slot has an allowed piece (`casualWearBan`, one predicate for the pre-filter, the validator and the fallback gate), which also removes their regenerate call (a 9°C date got summer shorts).
+
+### Outfits styled with no weather after an Open-Meteo blip (2026-10-16)
+- **Symptom:** `weather_source: none` on 4 requests in a row in a local run; a canvas pair shipped for a rainy work day because no rain rule ran. Open-Meteo answered 200 a minute later.
+- **Cause:** `getWeather` made one attempt and suggest swallowed the error silently.
+- **Fix:** one retry (5 s, then 4 s) in `src/lib/weather.ts`; a double failure logs `[weather] Open-Meteo failed twice`.
+
+### Layering bugs in the new injectors (2026-10-16 benchmark)
+- **Cause:** the BASE COMPLETER re-added the subcategory the dedupe had just removed (a zip hoodie under a zip hoodie), and the outerwear injector cancelled its injection when its closest-warmth coat duplicated a subcategory, so a 9°C rain outfit shipped coatless.
+- **Fix:** both skip duplicate subcategories before picking.
+
 ### 500 on unknown fields in CRUD routes (2026-10-15)
 - **Symptom:** POST /api/outfits or /api/trips returns 500 "Could not find the 'x' column".
 - **Cause:** routes pass the body straight to Supabase, so an unknown column (here a test payload's `occasion` instead of `occasions`) surfaced as a server error. The app's own pages send the right names.
@@ -83,4 +116,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **"Flash-Lite is as good as Flash for outfits"** (2026-10-16): not quite. gemini-3.5-flash-lite passed every hard rule (harness 8/8, sweep 61/61) but skipped the soft "statement piece" instruction that gemini-3.6-flash followed on the same request. Hard rules hold on either model because the code enforces them; taste instructions don't.
 - **"gemini-3.8-flash can stand in for 3.6 while 3.6 is capped"** (2026-10-16): no. gemini-3.6-flash and gemini-3.8-flash each served one request around 00:00 UTC on 2026-10-16, then hit the free-tier cap (gemini-3.7-flash untested). The Flash-Lite models kept answering.
 - **"Gemini's free-tier counter resets at 00:00 UTC"** (2026-10-16): no. Requests-per-day quotas reset at midnight Pacific (07:00 UTC while daylight time runs, 08:00 UTC in winter), per Google's rate-limits page. The 00:00 UTC probe that found the 3.6 bucket still full (1 request served, 36 refine refusals by 00:45) was not a reset test. After the real reset, refine passed on gemini-3.6-flash on the free tier at the first attempt (13:32 UTC).
+- **"The 'hiccup' outfit failure was the wrong Gemini model"** (2026-10-16): no. Both answers were sensible outfits that the rules then dropped; the fixes were in the code (Confident + pattern echo, above).
+- **"A lower thinkingBudget makes gemini-3.6-flash faster"** (2026-10-16): no. Budget 1024 and 3072 both thought ~2,700 tokens a call on the real suggest prompt. Use `thinkingLevel`.
+- **"The newest Flash (gemini-3.8-flash) is the better outfit model"** (2026-10-16): not for this app. At LOW it does not reason at all (0 thinking tokens), at MEDIUM it was 2-4x slower than 3.6 and erratic (one call 81 s, 11,456 thinking tokens), and it picked the same outfits. Same price as 3.6.
 - **"Syncthing reverted CLAUDE.md and the memory index"** (2026-10-16): no. A post-compaction reminder showed old copies, but disk and git held the new text, and there were no conflict files. The memory tool's "file reverted" warnings were frontmatter rewrites, not reverts.

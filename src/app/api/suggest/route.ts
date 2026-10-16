@@ -16,6 +16,7 @@ import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 import {
   oneSentence,
   textIsConsistent,
+  textMentionsSwappedOut,
   hasFrenchCorruption,
 } from "@/lib/suggest-text-guards";
 import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
@@ -125,15 +126,16 @@ function pieceLabel(item: ClothingItem, locale: Locale): string {
 // Read the outfit's pieces in a natural order (base → layers → feet →
 // extras) so the resulting sentence flows the way a person would read
 // the outfit top-to-bottom.
-function moodTone(mood: Mood, locale: Locale): string {
+function moodTone(mood: Mood, locale: Locale, gender: "m" | "f" = "m"): string {
   if (locale === "fr") {
+    // Feminine forms for feminine nouns ("une composition soignée").
     const map: Record<Mood, string> = {
-      energized: "plein d'énergie",
-      confident: "soigné",
+      energized: gender === "f" ? "pleine d'énergie" : "plein d'énergie",
+      confident: gender === "f" ? "soignée" : "soigné",
       playful: "ludique",
-      cozy: "douillet",
-      chill: "décontracté",
-      bold: "affirmé",
+      cozy: gender === "f" ? "douillette" : "douillet",
+      chill: gender === "f" ? "décontractée" : "décontracté",
+      bold: gender === "f" ? "affirmée" : "affirmé",
       period: "tout en confort",
       sad: "tout en douceur",
     };
@@ -155,7 +157,7 @@ function moodTone(mood: Mood, locale: Locale): string {
 function occasionLabelLocalized(occasion: Occasion, locale: Locale): string {
   if (locale === "fr") {
     const map: Record<Occasion, string> = {
-      "at-home": "à la maison",
+      "at-home": "une journée à la maison",
       casual: "un look casual",
       brunch: "un brunch",
       outdoor: "une sortie en plein air",
@@ -168,9 +170,22 @@ function occasionLabelLocalized(occasion: Occasion, locale: Locale): string {
     };
     return map[occasion];
   }
-  // Existing OCCASION_LABELS gives Title-Case nouns; lowercase them so
-  // they read naturally mid-sentence ("polished for dinner out").
-  return OCCASION_LABELS[occasion].toLowerCase();
+  // Noun phrases that read mid-sentence after "for" / "to" ("polished
+  // for the outdoors", "an answer to a date"). The lowercased UI labels
+  // gave "tuned for outdoor" and "an answer to date".
+  const map: Record<Occasion, string> = {
+    "at-home": "a day in",
+    casual: "a casual day",
+    brunch: "brunch",
+    outdoor: "the outdoors",
+    travel: "travel",
+    "dinner-out": "dinner out",
+    work: "the office",
+    date: "a date",
+    party: "a party",
+    formal: "a formal event",
+  };
+  return map[occasion];
 }
 
 function buildReasoning(
@@ -186,19 +201,22 @@ function buildReasoning(
   // outfit"), avoid checklist syntax (listing every piece), and lean
   // on cadence — em-dashes, parallel clauses, sensory adjectives.
   const tone = moodTone(mood, locale);
+  const toneF = moodTone(mood, locale, "f");
   const occ = occasionLabelLocalized(occasion, locale);
   const temp = weather?.temp;
+  // Follows "for <occasion>", so it can't start with "for" again ("for
+  // the outdoors for the chill").
   const tempPhrase = (() => {
     if (typeof temp !== "number") return "";
     if (locale === "fr") {
-      if (temp <= 5) return ` pour le froid`;
-      if (temp <= 12) return ` pour la fraîcheur`;
-      if (temp >= 25) return ` pour la chaleur`;
+      if (temp <= 5) return `, par temps froid`;
+      if (temp <= 12) return `, par temps frais`;
+      if (temp >= 25) return `, par temps chaud`;
       return "";
     }
-    if (temp <= 5) return ` for the cold`;
-    if (temp <= 12) return ` for the chill`;
-    if (temp >= 25) return ` for the warmth`;
+    if (temp <= 5) return `, ready for the cold`;
+    if (temp <= 12) return `, ready for the chill`;
+    if (temp >= 25) return `, ready for the heat`;
     return "";
   })();
 
@@ -221,13 +239,13 @@ function buildReasoning(
     locale === "fr"
       ? [
           // Universal editorial openings
-          `Une composition ${tone}, pensée pour ${occ}${tempPhrase}.`,
-          `Silhouette ${tone}, posée — taillée pour ${occ}.`,
+          `Une composition ${toneF}, pensée pour ${occ}${tempPhrase}.`,
+          `Silhouette ${toneF}, posée — taillée pour ${occ}.`,
           `Un parti pris ${tone} : moins de bruit, plus d'intention.`,
           `Lignes nettes, ton retenu — ${tone} pour ${occ}.`,
-          `Discret, mesuré — la version ${tone} de ${occ}.`,
+          `Discret, mesuré — la version ${toneF} pour ${occ}.`,
           `Tout est dans la cadence : ${tone}, jamais forcé.`,
-          `Une réponse ${tone} à ${occ}, sans surcharge.`,
+          `Une réponse ${toneF} pour ${occ}, sans surcharge.`,
           // Material-conditional flourishes
           ...(hasKnit
             ? [
@@ -262,7 +280,7 @@ function buildReasoning(
           `Easy proportions, deliberate restraint — ${tone} energy throughout.`,
           `Editorial restraint, ${tone} register — built for ${occ}.`,
           `All the right textures, none of the noise.`,
-          `Lived-in but considered — exactly the kind of look that holds up at ${occ}${tempPhrase}.`,
+          `Lived-in but considered — exactly the kind of look that holds up for ${occ}${tempPhrase}.`,
           `The mood lands first; the styling closes the deal.`,
           `Soft edges on a structured foundation — ${tone} for ${occ}.`,
           // Material-conditional flourishes
@@ -918,6 +936,25 @@ export async function POST(request: NextRequest) {
       const formalities = Array.isArray(it.formality) ? it.formality : [it.formality];
       return !formalities.some((f) => f && DRESSY_FORMALITIES.has(f));
     };
+    // CASUAL-WEAR × DRESSY OCCASIONS (universal, both tracks): shorts at
+    // work / formal / dinner-out / date / party, sweatpants and leggings
+    // there and at brunch, hoodie tops at the dressy five. ONE predicate
+    // for the prompt pre-filter, the validator and the fallback gate
+    // (each kept its own copy before).
+    const DRESSY_OCC_NO_SHORTS = new Set<string>(["work", "formal", "dinner-out", "date", "party"]);
+    const DRESSY_OCC_NO_LOUNGE = new Set<string>([...DRESSY_OCC_NO_SHORTS, "brunch"]);
+    const casualWearBan = (it: ClothingItem): "shorts" | "sweatpants" | "leggings" | "hoodie" | null => {
+      if (it.category === "bottom") {
+        if (it.subcategory === "shorts" && DRESSY_OCC_NO_SHORTS.has(occasion)) return "shorts";
+        if ((it.subcategory === "sweatpants" || it.subcategory === "leggings") && DRESSY_OCC_NO_LOUNGE.has(occasion)) {
+          return it.subcategory;
+        }
+      }
+      if (it.category === "top" && it.subcategory === "hoodie" && DRESSY_OCC_NO_SHORTS.has(occasion)) return "hoodie";
+      return null;
+    };
+    const casualWearHasAlternative = (category: string): boolean =>
+      items.some((w) => !w.is_stored && w.category === category && !casualWearBan(w));
     const RICH_CATEGORY_THRESHOLD = 3;
     const inAllByCategory = new Map<string, number>();
     for (const it of items) {
@@ -945,6 +982,11 @@ export async function POST(request: NextRequest) {
           if (!isMensTrack && it.category === "bottom" && it.subcategory === "jeans") return false;
         }
       }
+      // Casual-wear bans (shorts on a date, sweatpants at work, a hoodie
+      // at dinner): hidden like the R9 pieces above whenever the slot has
+      // an allowed piece. Shown, the model picked them and each pick cost
+      // the regenerate call (2026-10-16: summer shorts for a 9°C date).
+      if (casualWearBan(it) && casualWearHasAlternative(it.category)) return false;
       // Hot (≥25°C): never outerwear (Rule 5). The richness gate below
       // switched this off: at 25°C every coat fails warmth, the category
       // counts 0 passing items, and the whole outerwear rail was shown.
@@ -1186,9 +1228,15 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     // The model that answered the latest callAi: QUALITY_MODELS[0], or the
     // Flash-Lite fallback when it was overloaded or out of quota.
     let answeredModel = QUALITY_MODELS[0];
+    // Per-call cost of this request, for ai_calls.metadata and ?debug=rules:
+    // wall time and token counts of every Gemini call (first answer, the
+    // bad-shape retry, the regenerate). Latency is thinking-bound, so the
+    // thinking-token count is the number to watch.
+    const aiCallStats: { model: string; ms: number; prompt?: number; cached?: number; thoughts?: number; out?: number }[] = [];
     async function callAi(
       extraSuffix = ""
     ): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
+      const callStart = Date.now();
       // Quality-tier model with SHALLOW thinking + single-outfit
       // generation. Variety across "Show me another" taps comes from the
       // RECENTLY SHOWN ban list; quality comes from the model's full
@@ -1213,6 +1261,15 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         { tag: "suggest" }
       );
       answeredModel = model;
+      const usage = result.usageMetadata;
+      aiCallStats.push({
+        model,
+        ms: Date.now() - callStart,
+        prompt: usage?.promptTokenCount,
+        cached: usage?.cachedContentTokenCount,
+        thoughts: usage?.thoughtsTokenCount,
+        out: usage?.candidatesTokenCount,
+      });
       const stopReason = result.candidates?.[0]?.finishReason ?? null;
       const text = result.text;
       if (!text) {
@@ -1691,6 +1748,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         .filter(Boolean) as ClothingItem[];
 
       const fixes: string[] = [];
+      // Pieces the repairs below swapped out: the AI's text may still
+      // describe them (checked at the hybrid-text step).
+      const swappedOut: ClothingItem[] = [];
 
       // R12 ANCHOR — the prompt says "MUST include [anchor]" but nothing
       // enforced it post-parse, so a pinned item could silently vanish.
@@ -1990,6 +2050,82 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         }
       }
 
+      // BASE COMPLETER: the model sometimes returns a zip hoodie or jacket
+      // (outerwear) + bottoms + shoes with no top under it, or a top with
+      // no bottom. The base check then drops the outfit and the regenerate
+      // burns a second call; on 2026-10-16 a men's Outdoor request failed
+      // twice that way and shipped nothing. Fill the one missing slot from
+      // the prompt's pool instead (same pool as the injectors below): for a
+      // top, a plain under-layer first (tee, shirt, blouse, tank). Runs
+      // before the outerwear logic, which reads the base top's fit.
+      // Never a subcategory the outfit already holds: the dedupe above
+      // removes the second hoodie, and the completer used to put it right
+      // back (a zip hoodie under a zip hoodie, 2026-10-16 benchmark). When
+      // the freshness ban hid every other fit, take one from promptItems.
+      {
+        const hasOnePieceBase = stripped.some((i) => i.category === "dress" || i.category === "one-piece");
+        const hasTopNow = stripped.some((i) => i.category === "top");
+        const hasBottomNow = stripped.some((i) => i.category === "bottom");
+        if (!hasOnePieceBase && hasTopNow !== hasBottomNow) {
+          const missing = hasTopNow ? "bottom" : "top";
+          const UNDER_LAYER_TOPS = new Set<string>(["t-shirt", "shirt", "blouse", "tank-top"]);
+          const fits = (list: ClothingItem[]) =>
+            list.filter(
+              (i) =>
+                i.category === missing &&
+                !stripped.some((x) => x.id === i.id || (!!x.subcategory && x.subcategory === i.subcategory))
+            );
+          const seenFits = fits(fullPool);
+          const candidates = seenFits.length > 0 ? seenFits : fits(promptItems);
+          let pool = candidates.filter(passesWarmth);
+          if (pool.length === 0) pool = candidates;
+          if (missing === "top") {
+            const underLayers = pool.filter(
+              (i) => UNDER_LAYER_TOPS.has(i.subcategory ?? "") && !i.is_layering_piece
+            );
+            if (underLayers.length > 0) pool = underLayers;
+          }
+          const best = pickInjectionCandidate(pool, stripped, true);
+          if (best) {
+            stripped = [...stripped, best];
+            fixes.push(`injected ${missing}: ${best.subcategory ?? missing}`);
+          }
+        }
+      }
+
+      // COAT REPAIR (rain): a coat the rain rule refuses (canvas, suede,
+      // silk, satin while a dry coat exists) used to drop the whole
+      // outfit. Swap in the dry coat closest in warmth instead, taken from
+      // the pool the model saw, else from promptItems: the freshness ban
+      // hides a coat for 10 outfits, but rainHasAlternative counts it, so
+      // the model could only pick refused coats and the request shipped
+      // nothing. Same gap as the SHOE REPAIR below.
+      if (rainTriggered) {
+        const coat = stripped.find((i) => i.category === "outerwear" && rainRefuses(i));
+        if (coat && coat.id !== anchorItemId) {
+          const rest = stripped.filter((i) => i.id !== coat.id);
+          const passing = (list: ClothingItem[]) =>
+            list.filter(
+              (i) =>
+                i.category === "outerwear" &&
+                !rainRefuses(i) &&
+                passesWarmth(i) &&
+                !rest.some((r) => r.id === i.id || (!!r.subcategory && r.subcategory === i.subcategory))
+            );
+          const seen = passing(fullPool);
+          const pool = seen.length > 0 ? seen : passing(promptItems);
+          if (pool.length > 0) {
+            const target = coat.warmth_rating ?? 3;
+            const best = pool.reduce((a, b) =>
+              Math.abs((b.warmth_rating ?? 3) - target) < Math.abs((a.warmth_rating ?? 3) - target) ? b : a
+            );
+            stripped = [...rest, best];
+            swappedOut.push(coat);
+            fixes.push(`swapped outerwear for the rain: ${coat.subcategory ?? "coat"} -> ${best.subcategory ?? "coat"}`);
+          }
+        }
+      }
+
       // Auto-inject an outerwear piece when the outfit is cold but missing
       // one. Pick closest-warmth-match; bias the fit so we don't layer a
       // slim jacket over an oversized sweater (the proportion is off and
@@ -2055,6 +2191,12 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         let available = fromPool.length > 0 ? fromPool : fromWardrobe;
         if (rainTriggered) {
           available = available.filter((i) => !rainRefuses(i));
+          // Every coat left is refused: the dry one is hidden by the
+          // freshness ban (see COAT REPAIR above). Wearing it again beats
+          // going out coatless in the cold rain.
+          if (available.length === 0) {
+            available = promptItems.filter((i) => i.category === "outerwear" && !rainRefuses(i));
+          }
         }
         if (available.length > 0) {
           const targetWarmth =
@@ -2089,23 +2231,74 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
             if (baseIsLoose) return o.fit !== "slim";
             return true;
           };
-          const preferred = available.filter(fitCompatible);
-          const pool = preferred.length > 0 ? preferred : available;
-          let best = pool[0];
-          let bestDist = Math.abs((best.warmth_rating ?? 3) - targetWarmth);
-          for (const o of pool.slice(1)) {
-            const d = Math.abs((o.warmth_rating ?? 3) - targetWarmth);
-            if (d < bestDist) {
-              best = o;
-              bestDist = d;
-            }
-          }
-          const alreadySub = stripped.some(
-            (i) => i.subcategory && i.subcategory === best.subcategory
+          // A coat whose subcategory the outfit already holds (a zip
+          // hoodie over a hoodie) is skipped BEFORE the pick: the closest
+          // warmth match used to be a duplicate hoodie, the injection was
+          // then cancelled, and a 9°C rain outfit shipped with no coat
+          // (2026-10-16 benchmark).
+          const distinct = available.filter(
+            (o) => !stripped.some((i) => !!i.subcategory && i.subcategory === o.subcategory)
           );
-          if (!alreadySub) {
+          if (distinct.length > 0) {
+            const preferred = distinct.filter(fitCompatible);
+            const pool = preferred.length > 0 ? preferred : distinct;
+            let best = pool[0];
+            let bestDist = Math.abs((best.warmth_rating ?? 3) - targetWarmth);
+            for (const o of pool.slice(1)) {
+              const d = Math.abs((o.warmth_rating ?? 3) - targetWarmth);
+              if (d < bestDist) {
+                best = o;
+                bestDist = d;
+              }
+            }
             stripped = [...stripped, best];
             fixes.push(`injected outerwear: ${best.subcategory ?? "jacket"}`);
+          }
+        }
+      }
+
+      // SHOE REPAIR: one wrong shoe used to drop the whole outfit and burn
+      // the regenerate call, doubling the wait (2026-10-16, a men's Outdoor
+      // request in the rain: 6 of 8 needed a second ~12 s call, for canvas
+      // boots in the rain or a loafer outdoors). When the model's shoe
+      // fails a shoe rule (shoeFitsContext: weather, office bans, outdoor
+      // practicality, casual / mood heels; the rain rule; open toes under
+      // 14°C) and the pool holds one that passes, swap it in and keep the
+      // rest of the composition. A pinned anchor shoe is never swapped.
+      // When no shoe the model saw passes, take one the shoe rotation hid
+      // (promptItems still holds it): the rain rule counts those as the
+      // dry alternative (rainHasAlternative reads promptItems), so without
+      // them a rainy work request whose only leather pair was in the last
+      // 2 outfits refused the canvas pair and shipped NOTHING (2026-10-16,
+      // the owner's wardrobe). A repeated shoe beats an empty result, and
+      // a hidden pair tagged for this occasion beats a visible untagged
+      // one (a rainy date got workout sneakers while the date-tagged
+      // pair sat in the rotation).
+      {
+        const shoe = stripped.find((i) => i.category === "shoes");
+        const shoeOk = (i: ClothingItem) =>
+          shoeFitsContext(i) &&
+          !rainRefuses(i) &&
+          !(temp !== null && temp < 14 && occasion !== "at-home" && isOpenShoe(i));
+        if (shoe && shoe.id !== anchorItemId && !shoeOk(shoe)) {
+          const rest = stripped.filter((i) => i.id !== shoe.id);
+          const passing = (list: ClothingItem[]) =>
+            list.filter((i) => i.category === "shoes" && i.id !== shoe.id && shoeOk(i));
+          const taggedHere = (i: ClothingItem) => (i.occasions ?? []).includes(occasion as Occasion);
+          const seen = passing(fullPool);
+          const hidden = passing(promptItems).filter((i) => !seen.some((s) => s.id === i.id));
+          const pool = seen.some(taggedHere)
+            ? seen
+            : hidden.some(taggedHere)
+              ? hidden.filter(taggedHere)
+              : seen.length > 0
+                ? seen
+                : hidden;
+          const best = pickInjectionCandidate(pool, rest, true);
+          if (best) {
+            stripped = [...rest, best];
+            swappedOut.push(shoe);
+            fixes.push(`swapped shoes: ${shoe.subcategory ?? "shoes"} -> ${best.subcategory ?? "shoes"}`);
           }
         }
       }
@@ -2278,12 +2471,17 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       const aiReasoning = oneSentence(s.reasoning);
       const aiTip = oneSentence(s.styling_tip);
       const guardLocale = locale === "fr" ? "fr" : "en";
+      // A sentence that still describes a piece the repairs swapped out
+      // ("the leather boots" over sneakers) gets the template too.
+      const textHolds = (text: string) =>
+        textIsConsistent(outfitItems, text, guardLocale) &&
+        !swappedOut.some((r) => textMentionsSwappedOut(text, r, outfitItems, guardLocale));
       const reasoning =
-        aiReasoning && textIsConsistent(outfitItems, aiReasoning, guardLocale)
+        aiReasoning && textHolds(aiReasoning)
           ? aiReasoning
           : buildReasoning(outfitItems, mood, occasion, weather, locale);
       let styling_tip: string | null =
-        aiTip && textIsConsistent(outfitItems, aiTip, guardLocale)
+        aiTip && textHolds(aiTip)
           ? aiTip
           : buildStylingTip(outfitItems, locale);
 
@@ -2353,10 +2551,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       "velvet",
       "patent-leather",
     ]);
-    const wardrobeHasDressyMaterial = items.some((i) => {
+    const isDressyMaterial = (i: ClothingItem): boolean => {
       const mats = Array.isArray(i.material) ? i.material : [i.material];
       return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
-    });
+    };
     const wardrobeHasBelt = items.some(
       (i) => i.category === "accessory" && i.subcategory === "belt"
     );
@@ -2491,9 +2689,71 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       if (anchorForMoods.category === "top") return !isBaseCategory(i.category);
       return true;
     };
-    const wardrobeHasStructured = activeWardrobe.some((i) => wearableHere(i) && itemIsStructured(i));
-    const wardrobeHasBright = activeWardrobe.some((i) => wearableHere(i) && itemHasBright(i));
-    const wardrobeHasStatement = activeWardrobe.some((i) => wearableHere(i) && itemHasStatement(i));
+    // "Could include" also means the model was SHOWN such a piece: fullPool
+    // is the pre-filtered, freshness-trimmed list the prompt carries.
+    // Confident counts only genuinely tailored pieces (a drawstring or
+    // pull-on trouser is not "structured"), and never demands tailoring
+    // for an outdoor occasion, where it reads wrong. Before 2026-10-16 the
+    // check read the whole wardrobe with the blunt itemIsStructured: a
+    // men's Confident + Outdoor request in the rain (sweatshirt, sweatpants,
+    // Hokas, puffer) was dropped twice for lacking "tailoring" that only
+    // existed as casual drawstring trousers, and the user got nothing.
+    const moodPool = fullPool.filter(wearableHere);
+    const wardrobeHasStructured =
+      occasion !== "outdoor" && moodPool.some(itemIsTailoredForComfortBan);
+    const wardrobeHasBright = moodPool.some(itemHasBright);
+    const wardrobeHasStatement = moodPool.some(itemHasStatement);
+    // R8 evening dressy material counts the same way, and only on Track A:
+    // the menswear date / dinner template (dress shirt, chinos, loafers)
+    // asks for no silk or velvet. It read the whole wardrobe, stored
+    // pieces included, so one cotton-silk summer shirt marked every men's
+    // date look "relaxed" with "a silk, satin, lace or velvet piece would
+    // elevate the look" (2026-10-16, the owner's wardrobe).
+    const wardrobeHasDressyMaterial = !isMensTrack && moodPool.some(isDressyMaterial);
+
+    // R18e PATTERN ECHO, ONE predicate for the validator (soft drop) and
+    // the emergency fallback gate (hard). A statement print should appear
+    // once per outfit; striped/plaid pass as a top + bottom suit pair. On
+    // shoes only true prints count: a sneaker's logo graphic or side
+    // stripe is a brand detail, not a print. Before 2026-10-16 a Roots-logo
+    // sweatpant + a Hoka graphic, or a striped tee + Vans, were "echoes",
+    // so the fallback refused them and shipped nothing.
+    const ECHO_STATEMENT_PATTERNS = new Set<string>([
+      "animal-print",
+      "floral",
+      "polka-dot",
+      "graphic",
+      "embellished",
+      "abstract",
+      "camo",
+    ]);
+    const ECHO_SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
+    const SHOE_PRINT_PATTERNS = new Set<string>(["animal-print", "floral", "polka-dot", "camo"]);
+    const patternEchoOffender = (
+      outfitItems: ClothingItem[]
+    ): { pattern: string; items: ClothingItem[] } | null => {
+      const patternCount = new Map<string, ClothingItem[]>();
+      for (const it of outfitItems) {
+        const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
+        for (const p of ps) {
+          if (!p || p === "solid") continue;
+          if (it.category === "shoes" && !SHOE_PRINT_PATTERNS.has(p)) continue;
+          const list = patternCount.get(p) ?? [];
+          list.push(it);
+          patternCount.set(p, list);
+        }
+      }
+      for (const [p, list] of patternCount) {
+        if (list.length < 2) continue;
+        if (ECHO_STATEMENT_PATTERNS.has(p)) return { pattern: p, items: list };
+        if (ECHO_SUIT_PATTERNS.has(p)) {
+          const cats = new Set(list.map((i) => i.category));
+          const isSuitPair = list.length === 2 && cats.has("top") && cats.has("bottom");
+          if (!isSuitPair) return { pattern: p, items: list };
+        }
+      }
+      return null;
+    };
 
     const runValidation = (candidates: typeof mapped) => {
       const drops: DropEntry[] = [];
@@ -2635,70 +2895,18 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         }
       }
-      // CASUAL-WEAR × DRESSY OCCASIONS — universal blocks (both tracks).
-      // Shorts / sweatpants / leggings / hoodies don't belong at dressed-
-      // up occasions. Skorts read sporty-casual at work but work
-      // elsewhere.
+      // CASUAL-WEAR × DRESSY OCCASIONS — universal blocks (both tracks),
+      // casualWearBan (hoisted above promptItems). Skorts read
+      // sporty-casual at work but work elsewhere.
       {
-        const DRESSY_OCC_NO_SHORTS = new Set<string>([
-          "work",
-          "formal",
-          "dinner-out",
-          "date",
-          "party",
-        ]);
-        const DRESSY_OCC_NO_LOUNGE = new Set<string>([
-          "work",
-          "formal",
-          "dinner-out",
-          "date",
-          "party",
-          "brunch",
-        ]);
-        const DRESSY_OCC_NO_HOODIE = new Set<string>([
-          "work",
-          "formal",
-          "dinner-out",
-          "date",
-          "party",
-        ]);
-        if (DRESSY_OCC_NO_SHORTS.has(occasion)) {
-          const shorts = s.items.find(
-            (i) => i.category === "bottom" && i.subcategory === "shorts"
-          );
-          if (shorts) {
-            drops.push({
-              ids: s._ids,
-              reason: `${occasion}: shorts not appropriate`,
-            });
-            return false;
-          }
-        }
-        if (DRESSY_OCC_NO_LOUNGE.has(occasion)) {
-          const lounge = s.items.find(
-            (i) =>
-              i.category === "bottom" &&
-              (i.subcategory === "sweatpants" || i.subcategory === "leggings")
-          );
-          if (lounge) {
-            drops.push({
-              ids: s._ids,
-              reason: `${occasion}: ${lounge.subcategory} too casual`,
-            });
-            return false;
-          }
-        }
-        if (DRESSY_OCC_NO_HOODIE.has(occasion)) {
-          const hoodie = s.items.find(
-            (i) => i.category === "top" && i.subcategory === "hoodie"
-          );
-          if (hoodie) {
-            drops.push({
-              ids: s._ids,
-              reason: `${occasion}: hoodie too casual`,
-            });
-            return false;
-          }
+        const casualPiece = s.items.find((i) => casualWearBan(i));
+        if (casualPiece) {
+          const what = casualWearBan(casualPiece);
+          drops.push({
+            ids: s._ids,
+            reason: what === "shorts" ? `${occasion}: shorts not appropriate` : `${occasion}: ${what} too casual`,
+          });
+          return false;
         }
         // Skort × work — sporty-casual, not office-appropriate (both tracks).
         if (occasion === "work") {
@@ -2961,49 +3169,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       }
       // R18e — PATTERN ECHO CAP (anti-matchy-matchy): a statement print
       // should appear ONCE per outfit. Three leopard pieces together
-      // reads costume-y, not stylist. Block when 2+ items share the
-      // same statement pattern. Striped/plaid get a pass when they're
-      // a top+bottom suit pairing (intentional matched-set look).
+      // reads costume-y, not stylist. Shared predicate with the fallback
+      // gate (patternEchoOffender, hoisted above).
       {
-        const STATEMENT_PATTERNS = new Set<string>([
-          "animal-print",
-          "floral",
-          "polka-dot",
-          "graphic",
-          "embellished",
-          "abstract",
-          "camo",
-        ]);
-        const SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
-        const patternCount = new Map<string, ClothingItem[]>();
-        for (const it of s.items) {
-          const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
-          for (const p of ps) {
-            if (!p || p === "solid") continue;
-            const list = patternCount.get(p) ?? [];
-            list.push(it);
-            patternCount.set(p, list);
-          }
-        }
-        let echoOffender: { pattern: string; items: ClothingItem[] } | null =
-          null;
-        for (const [p, list] of patternCount) {
-          if (list.length < 2) continue;
-          if (STATEMENT_PATTERNS.has(p)) {
-            echoOffender = { pattern: p, items: list };
-            break;
-          }
-          if (SUIT_PATTERNS.has(p)) {
-            // Allowed only if exactly 2 items AND they're top + bottom.
-            const cats = new Set(list.map((i) => i.category));
-            const isSuitPair =
-              list.length === 2 && cats.has("top") && cats.has("bottom");
-            if (!isSuitPair) {
-              echoOffender = { pattern: p, items: list };
-              break;
-            }
-          }
-        }
+        const echoOffender = patternEchoOffender(s.items);
         if (echoOffender) {
           // Soft (deferred) — admitted silently only if hard-clean.
           // No user-facing caveat: telling the user to swap a piece
@@ -3173,19 +3342,24 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // so they're admitted back if the hard-valid pool is too small
       // (otherwise a wardrobe full of seasonally-tagged items would
       // produce zero suggestions). Computed once per category.
+      // An alternative counts only when the model was shown it and it
+      // fits today on every count (both tags, the weather, the
+      // casual-wear bans). It read the whole wardrobe: a summer pair of
+      // shorts tagged "date" (hard-banned on dates) marked every men's
+      // date look relaxed, "I stretched a rule or two" (2026-10-16).
       {
         const wardrobeHasInTag = (
           category: string,
           subcategory: string | null,
           checkOccasion: boolean
         ): boolean => {
-          return items.some((w) => {
-            if (w.is_stored) return false;
+          return moodPool.some((w) => {
             if (w.category !== category) return false;
             if (subcategory && w.subcategory && w.subcategory !== subcategory) return false;
             const tags: string[] = checkOccasion ? w.occasions : w.seasons;
             if (!tags || tags.length === 0) return false;
-            return tags.includes(checkOccasion ? occasion : currentSeason);
+            if (!tags.includes(checkOccasion ? occasion : currentSeason)) return false;
+            return passesTags(w) && passesWarmth(w) && !casualWearBan(w);
           });
         };
         let tagOffender:
@@ -3430,10 +3604,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           occasion === "party" ||
           occasion === "formal")
       ) {
-        const hasDressy = s.items.some((i) => {
-          const mats = Array.isArray(i.material) ? i.material : [i.material];
-          return mats.some((m) => m && DRESSY_MATERIALS.has(m as string));
-        });
+        const hasDressy = s.items.some(isDressyMaterial);
         if (!hasDressy) {
           const dressyTip =
             locale === "fr"
@@ -3774,40 +3945,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // Pattern-echo cap (R18e). The main filter SOFT-drops these,
         // which means the fallback used to admit them anyway → leopard
         // top + leopard shoes + leopard belt slipped through. Hard-
-        // reject 2+ items sharing a statement pattern. Striped/plaid
-        // get a pass when they're a deliberate top+bottom suit pairing.
-        {
-          const STATEMENT_PATTERNS = new Set<string>([
-            "animal-print",
-            "floral",
-            "polka-dot",
-            "graphic",
-            "embellished",
-            "abstract",
-            "camo",
-          ]);
-          const SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
-          const patternCount = new Map<string, ClothingItem[]>();
-          for (const it of s.items) {
-            const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
-            for (const p of ps) {
-              if (!p || p === "solid") continue;
-              const list = patternCount.get(p) ?? [];
-              list.push(it);
-              patternCount.set(p, list);
-            }
-          }
-          for (const [p, list] of patternCount) {
-            if (list.length < 2) continue;
-            if (STATEMENT_PATTERNS.has(p)) return false;
-            if (SUIT_PATTERNS.has(p)) {
-              const cats = new Set(list.map((i) => i.category));
-              const isSuitPair =
-                list.length === 2 && cats.has("top") && cats.has("bottom");
-              if (!isSuitPair) return false;
-            }
-          }
-        }
+        // reject here, with the validator's predicate (patternEchoOffender:
+        // shoe logos and side stripes are not prints).
+        if (patternEchoOffender(s.items)) return false;
 
         // Denim-on-denim (R4c). Soft-dropped in main filter, used to
         // sneak through here. 2+ items with denim material is the
@@ -3840,20 +3980,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         }
 
         // Casual-wear × dressy occasions (shorts / lounge / hoodie).
-        {
-          const dressy = new Set(["work", "formal", "dinner-out", "date", "party"]);
-          const dressyPlusBrunch = new Set([...dressy, "brunch"]);
-          if (dressy.has(occasion) && s.items.some(
-            (i) => i.category === "bottom" && i.subcategory === "shorts"
-          )) return false;
-          if (dressyPlusBrunch.has(occasion) && s.items.some(
-            (i) => i.category === "bottom" &&
-              (i.subcategory === "sweatpants" || i.subcategory === "leggings")
-          )) return false;
-          if (dressy.has(occasion) && occasion !== "work" && s.items.some(
-            (i) => i.category === "top" && i.subcategory === "hoodie"
-          )) return false; // work-hoodie already mirrored above
-        }
+        if (s.items.some((i) => casualWearBan(i))) return false;
 
         // Rain rules: outer-facing rain-blocked materials; outdoor/travel
         // open-toe/high-heel in rain. Same wardrobe-aware predicate as the
@@ -4026,48 +4153,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       }
     }
 
-    // Pattern-echo cap — Rule 18e. The main filter (line ~2349) does
-    // a soft-drop on this, which means with single-outfit generation
-    // the EMERGENCY FALLBACK admits the violator anyway. Hard-drop at
-    // the response edge: 2+ items sharing a statement pattern
-    // (animal-print, floral, polka-dot, graphic, embellished,
-    // abstract, camo) is matchy-matchy, not stylist. Striped/plaid
-    // get a pass when they're a deliberate top+bottom suit pairing.
-    {
-      const STATEMENT_PATTERNS = new Set<string>([
-        "animal-print",
-        "floral",
-        "polka-dot",
-        "graphic",
-        "embellished",
-        "abstract",
-        "camo",
-      ]);
-      const SUIT_PATTERNS = new Set<string>(["striped", "plaid"]);
-      structurallyValid = structurallyValid.filter((s) => {
-        const patternCount = new Map<string, ClothingItem[]>();
-        for (const it of s.items) {
-          const ps = Array.isArray(it.pattern) ? it.pattern : [it.pattern];
-          for (const p of ps) {
-            if (!p || p === "solid") continue;
-            const list = patternCount.get(p) ?? [];
-            list.push(it);
-            patternCount.set(p, list);
-          }
-        }
-        for (const [p, list] of patternCount) {
-          if (list.length < 2) continue;
-          if (STATEMENT_PATTERNS.has(p)) return false;
-          if (SUIT_PATTERNS.has(p)) {
-            const cats = new Set(list.map((i) => i.category));
-            const isSuitPair =
-              list.length === 2 && cats.has("top") && cats.has("bottom");
-            if (!isSuitPair) return false;
-          }
-        }
-        return true;
-      });
-    }
+    // Pattern-echo cap — Rule 18e. The main filter does a soft-drop on
+    // this, which means with single-outfit generation the EMERGENCY
+    // FALLBACK admits the violator anyway. Hard-drop at the response edge
+    // with the shared predicate (patternEchoOffender: statement prints
+    // once per outfit, striped/plaid as a top + bottom suit pair, shoe
+    // logos and side stripes not counted).
+    structurallyValid = structurallyValid.filter((s) => !patternEchoOffender(s.items));
 
     // SAFETY NET — two layers, both now GATED (the audit found the old
     // unconditional layers nullified every upstream validator):
@@ -4251,6 +4343,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // the Flash-Lite fallback can take over a call, so every row
         // records which one actually answered (the last call's).
         model: answeredModel,
+        calls: aiCallStats,
         rules: rulesTelemetry,
       },
     });
@@ -4264,7 +4357,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       suggestions,
       wardrobe_gap,
       ...(aiError && { ai_error: true }),
-      ...(wantsDebug && { _debug_rules: { ...rulesTelemetry, model: answeredModel } }),
+      ...(wantsDebug && { _debug_rules: { ...rulesTelemetry, model: answeredModel, calls: aiCallStats } }),
     });
   } catch (error) {
     console.error("Suggestion error:", error);

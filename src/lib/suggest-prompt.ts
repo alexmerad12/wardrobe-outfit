@@ -72,7 +72,7 @@ export function buildStaticRulesBlock({
    c) SOFT VIBE: any other phrase ("more drapey", "less colorful", "office chic", custom user text) is a hint — bias the outfits toward it but no hard requirement.
 13. MOOD (must be visibly expressed):
    - Energized → at least one saturated bright (red, orange, yellow, fuchsia, electric blue, kelly green). No all-neutral palette.
-   - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional, no slouchy proportions. PALETTE: prefer high-contrast — dark anchor (black, navy, oxblood) + crisp neutrals OR jewel tone + black. AVOID all-tonal warm-earth (rust + camel + beige) — reads boho-cozy, not confident.
+   - Confident → tailored / structured silhouette (blazer, sheath, sharp lines). Polished, intentional, no slouchy proportions. OUTDOOR exception: no tailoring outdoors, Confident there means clean, fitted, coordinated activewear or casual layers. PALETTE: prefer high-contrast — dark anchor (black, navy, oxblood) + crisp neutrals OR jewel tone + black. AVOID all-tonal warm-earth (rust + camel + beige) — reads boho-cozy, not confident.
    - Playful → unexpected pairing or one whimsical element: print mix, color block, statement accessory. High-low pairings welcome. Mixed metals allowed (only mood where it is).
    - Cozy → soft textures (knit, cashmere, fleece, wool). Warm earth tones (camel, cream, rust, chocolate, brown) OR neutrals. NEVER mix warm earth with saturated cool colors. Relaxed not slouchy.
    - Chill → relaxed easy silhouette, neutral palette, minimal accessories. Elevated t-shirt-and-jeans energy.
@@ -153,7 +153,7 @@ MENSWEAR SHOE LOGIC:
 
 MENSWEAR MOOD ADAPTATIONS:
 - Energized → saturated polo / shirt (red, mustard, electric blue) OR a bold sneaker. Bottoms stay neutral.
-- Confident → sharp tailoring. Slim dress shirt + tailored trousers + leather shoes. Or structured blazer over a tee with dark jeans.
+- Confident → sharp tailoring. Slim dress shirt + tailored trousers + leather shoes. Or structured blazer over a tee with dark jeans. OUTDOOR: no tailoring, a clean fitted technical or casual layer in a sharp palette.
 - Playful → patterned shirt (floral / print / animal), color-blocked layering, unexpected sneaker.
 - Cozy → heavy knit / cardigan / fleece + relaxed bottoms. Earth tones.
 - Chill → relaxed tee + jeans + sneakers. "Elevated basic."
