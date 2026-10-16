@@ -3,8 +3,10 @@
 ## Project
 Linette — AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini). Owner's own product (9537-1076 Québec Inc.), not a client project. Production: https://linette.app.
 
-## STATUS 2026-10-15 — modernization pass, read first
-Committed locally, NOT pushed (pushing to `main` deploys production; the owner approves the push).
+## STATUS 2026-10-16 — modernization pass LIVE on linette.app, read first
+Pushed on the owner's "push everything" and deployed to production: ab0b865 at 12:36 PM EDT (dpl_D2aWf39EZ39r9YB5TeyNcXzYW3Ku), then 911699f at 12:57 PM (dpl_42zRSNJWMU9m8mcMF5vfaCqxqPLx, the signed-out preferences fix found by the production smoke). Functions in pdx1, keepalive cron registered ("17 9 * * *").
+
+**Production verification, 2026-10-16 (e2e test account):** endpoint sweep 59/61 against https://linette.app (background removal 6/6 at 23-37 s, outfit, French refine, try-on, CRUD, auth gates); the 2 misses were packing hit by Google's 429 on both models (a re-run passed: 200, 5 items, French) and the keepalive "with secret" check, which can't run from outside because `CRON_SECRET` is a sensitive Vercel variable (the route refuses without it, 401 verified; first scheduled run 09:17 UTC Oct 17). Browser: UI smoke 9/9 tabs with 0 console errors; signed-out /login makes no /api/preferences call and logs 0 errors; a real 5-photo upload through /wardrobe/bulk saved 5 items with 1280×1280 cutouts on pure white, 2 named "Untitled item" because Google refused both models (429). Production error log since the deploy: only those Gemini 429s. Fast-tier fallback seen rescuing live calls (analyze answered by 3.6 after Flash-Lite failed).
 
 **Blocker, owner action: Gemini billing is inactive.** The AI Studio project behind `GOOGLE_API_KEY` is on the free tier: 20 requests per model per day, reset at midnight Pacific. Production shares that key. Free-tier traffic is also served last when Google is busy (2026-10-16: 3.6 answered 503 "high demand" for minutes at a time, Flash-Lite twice), and the free tier's terms let Google use what the app sends to improve its products, with human reviewers, while the privacy page calls Google a bound sub-processor. Reactivate billing in Google Cloud billing before launch. Since the quality-tier fallback (below) the outfit features keep answering on Flash-Lite meanwhile.
 
@@ -78,7 +80,7 @@ Root causes and ruled-out theories from this session: `known-root-causes.md`.
 
 ## Next steps (ordered)
 0. Owner: reactivate Gemini billing (capacity, priority and data terms, see STATUS). Then re-run `npm run test:rules` (HARNESS_EMAIL + CAP_BYPASS_EMAILS, see CLAUDE.md) and check `ai_calls.metadata.model` shows gemini-3.6-flash answering, not the fallback.
-1. Owner approves the push → deploy → verify on production: normalize (already proven on a preview), keepalive cron firing, suggest end to end. `CRON_SECRET` must be in Vercel production before the cron's first run.
+1. Deployed and verified 2026-10-16 (see STATUS). Left: confirm the first keepalive run in the production logs after 09:17 UTC Oct 17 (`npx vercel logs --environment production --no-branch --since 2h --json`, path /api/cron/keepalive, expect 200), and the owner's own upload of a 5-photo batch from a 4 GB Android phone.
 2. Owner decisions on the styling-rule taste calls (belt on shift dresses and slim bottoms, mini skirt → boots, mandatory statement piece, metal-sync strictness, Cozy palette neutrals, casual heels, bodycon at work, sandals with wide-leg trousers).
 3. Optional cleanup: unused Vercel env vars (`PHOTOROOM_API_KEY`, `ANTHROPIC_API_KEY`, `KV_URL`, `KV_REST_API_READ_ONLY_TOKEN`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; keep `BLOB_READ_WRITE_TOKEN`, it uploads the model). The Blob store `wardrobe-images` still holds 47 wardrobe photos from April 2026 (317 MB, public URLs) from before the Supabase migration. Do NOT delete them yet: 10 real `clothing_items` rows still point at those Blob URLs (checked 2026-10-16). Migrate those 10 photos into Supabase storage first, then delete. Keep `models/` (the background-removal model).
 4. Store accounts (owner): resume Play Console, enroll Apple, both under 9537-1076 / DUNS 243370174.
