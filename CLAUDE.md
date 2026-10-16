@@ -21,7 +21,7 @@ npm run test:rules       # rule-compliance harness: HARD-fails on any rule-break
 # Single spec: npx playwright test tests/e2e/<file>.spec.ts
 ```
 
-`test:rules` wipes and reseeds the wardrobe of a DEDICATED account: set `HARNESS_EMAIL` (must contain "e2e" or "harness") and put that email in `CAP_BYPASS_EMAILS` for the dev server. No password needed: without `HARNESS_PASSWORD` the harness signs in through the Supabase admin API (`tests/e2e/harness-session.ts`). Never point any e2e run at a real person's account.
+`test:rules` wipes and reseeds the wardrobe of a DEDICATED account: set `HARNESS_EMAIL` (must contain "e2e" or "harness") and put that email in `CAP_BYPASS_EMAILS` for the dev server. No password needed: without `HARNESS_PASSWORD` the harness signs in through the Supabase admin API (`tests/e2e/harness-session.ts`). Never point any e2e run at a real person's account: every spec signs in through `tests/e2e/auth.ts`, which refuses an email without "e2e" or "harness". `HARNESS_SUGGEST_RETRY_MINUTES=N` makes the rules harness retry suggest's 5xx (Gemini overload, free-tier cap) once a minute. Next 16 allows one `next dev` per folder: when one already runs, test against a production build (`next start -p <port>`).
 
 There's no `tsc` script; `next build` runs TypeScript as part of the build. Run `npx tsc --noEmit` for a standalone check — **and re-run it after touching any third-party component prop** (the dev compile is more lenient than the production build).
 

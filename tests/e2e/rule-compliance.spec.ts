@@ -21,6 +21,8 @@ import { mintSessionCookies } from "./harness-session";
 //  - That email in the server's CAP_BYPASS_EMAILS so runs don't burn
 //    the daily caps (and so ?debug=rules answers).
 //  - Cost: ~8-14 Gemini calls per run (≈ $0.30-0.60).
+//  - HARNESS_SUGGEST_RETRY_MINUTES=N rides out Gemini overload or a
+//    free-tier day cap (suggest's 5xx retried once a minute, N minutes).
 //
 // Run: npx playwright test rule-compliance.spec.ts
 //      (append --config playwright.audit.config.ts when :3000 is busy)
@@ -137,16 +139,29 @@ function allDrops(data: SuggestResponse): string[] {
   ];
 }
 
+// Optional patience for Gemini overload (503) or a free-tier day cap
+// (429 upstream, a 500 here): retry a 5xx from suggest once a minute for up
+// to this many minutes. A rule violation is never a 5xx, so retrying can't
+// hide one. Default 0: one attempt.
+const RETRY_MINUTES = Number(process.env.HARNESS_SUGGEST_RETRY_MINUTES ?? 0);
+const RETRY_MS = RETRY_MINUTES * 60_000;
+
 async function suggest(
   page: Page,
   body: Record<string, unknown>,
   headers: Record<string, string> = {}
 ): Promise<{ res: APIResponse; data: SuggestResponse }> {
-  const res = await page.request.post("/api/suggest?debug=rules", {
-    data: { locale: "en", styleWishes: [], ...body },
-    headers,
-    timeout: 120_000,
-  });
+  const post = () =>
+    page.request.post("/api/suggest?debug=rules", {
+      data: { locale: "en", styleWishes: [], ...body },
+      headers,
+      timeout: 120_000,
+    });
+  let res = await post();
+  for (let minute = 0; res.status() >= 500 && minute < RETRY_MINUTES; minute++) {
+    await new Promise((r) => setTimeout(r, 60_000));
+    res = await post();
+  }
   expect(res.ok(), `suggest HTTP ${res.status()}`).toBe(true);
   const data = (await res.json()) as SuggestResponse;
   // Debug telemetry must be present — proves the bypass user is wired
@@ -202,7 +217,7 @@ test.describe.configure({ mode: "serial" });
 let seededIds: string[] = [];
 
 test.beforeAll(async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   await putPrefs(page, BASE_PREFS);
 
@@ -246,7 +261,7 @@ async function fixtureId(page: Page, name: string): Promise<string> {
 }
 
 test("work: athletic sneakers / untagged jeans / open-toe / blazerless tank never ship", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   const { data } = await suggest(page, { mood: "confident", occasion: "work" });
 
@@ -273,7 +288,7 @@ test("work: athletic sneakers / untagged jeans / open-toe / blazerless tank neve
 });
 
 test("comfort day: no heels, no tailoring — but elastic wide-legs are welcome", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   const { data } = await suggest(page, { mood: "period", occasion: "casual" });
 
@@ -301,7 +316,7 @@ test("comfort day: no heels, no tailoring — but elastic wide-legs are welcome"
 });
 
 test("anchor: a pinned item is always in the shipped outfit", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   const anchorId = await fixtureId(page, "Navy a-line dress");
 
@@ -325,7 +340,7 @@ test("anchor: a pinned item is always in the shipped outfit", async ({ browser }
 });
 
 test("belt completer: a belt-friendly dress ships belted (or explicitly relaxed)", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   const anchorId = await fixtureId(page, "Navy a-line dress");
 
@@ -350,7 +365,7 @@ test("belt completer: a belt-friendly dress ships belted (or explicitly relaxed)
 });
 
 test("wrap dress: its tie is the belt — no second belt, never dropped for lacking one", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   const anchorId = await fixtureId(page, "Green wrap dress");
 
@@ -374,7 +389,7 @@ test("wrap dress: its tie is the belt — no second belt, never dropped for lack
 });
 
 test("men's track: no injected bag, belt-only accessory injection, no tights advice", async ({ browser }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(240_000 + 2 * RETRY_MS);
   const page = await signedInPage(browser);
   await putPrefs(page, { ...BASE_PREFS, gender: "man" });
   try {
@@ -396,7 +411,7 @@ test("men's track: no injected bag, belt-only accessory injection, no tights adv
 });
 
 test("hot weather (≥25°C): no outerwear ships", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   // Dubai: mid-October nights stay near 28°C.
   const { data } = await suggest(page, { mood: "confident", occasion: "brunch" }, cityHeaders(25.2, 55.27));
@@ -415,7 +430,7 @@ test("hot weather (≥25°C): no outerwear ships", async ({ browser }) => {
 });
 
 test("cold weather (<14°C): no open shoes when a closed pair exists, no tights advice on trousers", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   // Iqaluit: mid-October hovers around freezing.
   const { data } = await suggest(page, { mood: "chill", occasion: "casual" }, cityHeaders(63.75, -68.52));
