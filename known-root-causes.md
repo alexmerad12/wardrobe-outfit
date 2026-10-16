@@ -19,7 +19,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 ### AI endpoints fail with Gemini 429 "FreeTier" (2026-10-15)
 - **Symptom:** suggest / refine / try-on 500; logs show `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, limit 20.
 - **Cause:** billing on the AI Studio project behind `GOOGLE_API_KEY` is inactive. Every model is capped at 20 requests a day per project, shared with production.
-- **Fix:** owner reactivates billing. For local tests, `GEMINI_QUALITY_MODEL` swaps the quality model (e.g. gemini-2.5-flash).
+- **Fix (2026-10-16):** the Google Cloud billing account behind the key was CLOSED (its primary card declined), which AI Studio shows as "Account inactive · Free tier" even with prepaid credit left on it. Another card already on file was made primary and the account reopened (Cloud console > Billing > Account management > Reopen billing account): Tier 1 within a minute, gemini-3.6-flash answered at once. For local tests, `GEMINI_QUALITY_MODEL` swaps the quality model (e.g. gemini-2.5-flash).
 - **Also confirmed (2026-10-16):** the old `gemini-3.5-flash` name, still used by production before this deploy, is counted against the gemini-3.6-flash quota. A request to it is refused naming gemini-3.6-flash. The alias is no separate bucket, and live linette.app shares the cap.
 
 ### Outfit requests fail while gemini-3.6-flash is overloaded (2026-10-16)
