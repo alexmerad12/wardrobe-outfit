@@ -10,7 +10,7 @@ import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
-import { oneSentence, textIsConsistent } from "@/lib/suggest-text-guards";
+import { hasStrippedAccents, hasVousForm, oneSentence, textGuardReason } from "@/lib/suggest-text-guards";
 
 // Refine endpoint — re-writes reasoning + styling_tip for an outfit
 // the user has edited (swapped items) before they save it. Cheaper
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are Linette, a sharp personal stylist with a strong point of view. The user has edited an outfit (swapped one or more items from your earlier suggestion). Re-write the reasoning and styling tip for THIS specific combination.
 
-VOICE: speak DIRECTLY to the wearer in second person — "you" in English, "tu" in French. NEVER write "the user", "the wearer", "she", "he", "they", or any third-person reference.
+VOICE: speak DIRECTLY to the wearer in second person — "you" in English, "tu" in French. NEVER write "the user", "the wearer", "she", "he", "they", or any third-person reference. CRITICAL for French: use ONLY the informal "tu" form — "tu", "ton", "ta", "tes", and imperative verbs in tu form ("rentre", "ajoute", "porte"). NEVER use "vous", "votre", "vos", or vous-form imperatives ("rentrez", "ajoutez", "portez").
 
 OUTFIT (final, after user's edits):
 ${itemsList}
@@ -139,36 +139,64 @@ Respond with ONLY:
 - styling_tip: ONE short sentence with a concrete styling action applied to items in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, knot hem). Or null if nothing useful fits.`;
 
     // An unparseable answer is asked again once (withParseRetry).
-    const {
-      answer: { model },
-      parsed,
-    } = await withParseRetry(
-      () =>
-        withModelFallback(
-          QUALITY_MODELS,
-          (m) =>
-            genAI.models.generateContent({
-              model: m,
-              contents: prompt,
-              config: {
-                maxOutputTokens: 1024,
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: Type.OBJECT,
-                  properties: {
-                    reasoning: { type: Type.STRING },
-                    styling_tip: { type: Type.STRING, nullable: true },
+    type RefineAnswer = { reasoning?: string; styling_tip?: string | null };
+    const ask = (contents: string) =>
+      withParseRetry(
+        () =>
+          withModelFallback(
+            QUALITY_MODELS,
+            (m) =>
+              genAI.models.generateContent({
+                model: m,
+                contents,
+                config: {
+                  maxOutputTokens: 1024,
+                  responseMimeType: "application/json",
+                  responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                      reasoning: { type: Type.STRING },
+                      styling_tip: { type: Type.STRING, nullable: true },
+                    },
+                    required: ["reasoning"],
                   },
-                  required: ["reasoning"],
+                  thinkingConfig: thinkingFor(m, "none"),
                 },
-                thinkingConfig: thinkingFor(m, "none"),
-              },
-            }),
-          { tag: "suggest/refine" }
-        ),
-      ({ result }) => JSON.parse(result.text ?? "") as { reasoning?: string; styling_tip?: string | null },
-      { tag: "suggest/refine" }
-    );
+              }),
+            { tag: "suggest/refine" }
+          ),
+        ({ result }) => JSON.parse(result.text ?? "") as RefineAnswer,
+        { tag: "suggest/refine" }
+      );
+    const first = await ask(prompt);
+    const model = first.answer.model;
+    let parsed = first.parsed;
+    // French that slipped into "vous" ("L'association de votre
+    // cardigan...", production 2026-10-16) or lost its accents is asked
+    // once more with the slipped sentence quoted; each field keeps
+    // whichever answer passes. A refine call has no thinking, so the
+    // re-ask costs ~2 s, and only then.
+    const frenchSlip = (t: string | null | undefined) => {
+      const s = oneSentence(t);
+      return !!s && (hasVousForm(s) || hasStrippedAccents(s));
+    };
+    let frenchRetry = false;
+    if (locale === "fr" && parsed && (frenchSlip(parsed.reasoning) || frenchSlip(parsed.styling_tip))) {
+      frenchRetry = true;
+      const slipped = [parsed.reasoning, parsed.styling_tip].filter(frenchSlip).map((t) => oneSentence(t));
+      const again = await ask(
+        `${prompt}\n\nIMPORTANT: a draft of this answer used the formal "vous" or dropped French accents: ${slipped
+          .map((t) => `"${t}"`)
+          .join(" / ")}. Keep the same ideas and write both fields with "tu" only ("tu", "ton", "ta", "tes", tu-form imperatives) and every French accent (é, è, ê, à, ç).`
+      );
+      if (again.parsed) {
+        const keep = (a: string | null | undefined, b: string | null | undefined) => (b && !frenchSlip(b) ? b : a);
+        parsed = {
+          reasoning: keep(parsed.reasoning, again.parsed.reasoning) ?? undefined,
+          styling_tip: keep(parsed.styling_tip, again.parsed.styling_tip),
+        };
+      }
+    }
     if (!parsed) {
       refund();
       logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model } });
@@ -182,10 +210,10 @@ Respond with ONLY:
     const rawReasoning = oneSentence(parsed.reasoning);
     const rawTip = oneSentence(parsed.styling_tip);
     const cleanItems = items as ClothingItem[];
-    const reasoning =
-      rawReasoning && textIsConsistent(cleanItems, rawReasoning, locale) ? rawReasoning : null;
-    const styling_tip =
-      rawTip && textIsConsistent(cleanItems, rawTip, locale) ? rawTip : null;
+    const reasoningGuard = rawReasoning ? textGuardReason(cleanItems, rawReasoning, locale) : "empty";
+    const tipGuard = rawTip ? textGuardReason(cleanItems, rawTip, locale) : "empty";
+    const reasoning = rawReasoning && !reasoningGuard ? rawReasoning : null;
+    const styling_tip = rawTip && !tipGuard ? rawTip : null;
 
     logAiCall(supabase, userId, "refine", {
       metadata: {
@@ -196,6 +224,16 @@ Respond with ONLY:
           reasoning: !reasoning && !!parsed.reasoning,
           styling_tip: !styling_tip && !!parsed.styling_tip,
         },
+        french_retry: frenchRetry,
+        // Which guard fired ("vous", "corruption", "garment:<cat>:<word>").
+        text_guard_reason: {
+          reasoning: parsed.reasoning ? reasoningGuard : null,
+          styling_tip: parsed.styling_tip ? tipGuard : null,
+        },
+        // The rejected sentence itself (the AI's text, truncated), so a
+        // rejection is readable without reproducing it.
+        ...(rawReasoning && reasoningGuard ? { rejected_reasoning: rawReasoning.slice(0, 200) } : {}),
+        ...(rawTip && tipGuard ? { rejected_tip: rawTip.slice(0, 200) } : {}),
       },
     });
 

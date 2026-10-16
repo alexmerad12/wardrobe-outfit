@@ -50,6 +50,31 @@ const HALLUCINATION_WORDS_FR: Record<string, string[]> = {
 // letter — punctuation INSIDE a word where it has no business being.
 const FRENCH_CORRUPTION_RX = /[a-zà-ÿ][")(\][}{<>][a-zà-ÿ]/i;
 
+// Linette speaks French in the informal "tu" (both prompts say so). The
+// model still slips into "vous" now and then, mostly in refine, where the
+// text is saved on the outfit ("L'association de votre cardigan...",
+// production, 2026-10-16). The words "vous" / "votre" / "vos" and the
+// vous-form imperatives of the styling verbs the tips use.
+const VOUS_FORM_RX =
+  /(?<![a-zà-ÿ])(vous|votre|vos|rentrez|ajoutez|portez|essayez|optez|misez|associez|retroussez|superposez|nouez|ceinturez|roulez|choisissez|glissez|osez|privilégiez|complétez|adoptez|gardez|laissez|mettez|prenez|remontez|boutonnez|ouvrez|enfilez|accessoirisez|jouez|marquez|resserrez|équilibrez|cintrez|twistez)(?![a-zà-ÿ])/i;
+
+export function hasVousForm(text: string): boolean {
+  // "rendez-vous" is the noun for a date (the occasion), not the formal
+  // "you": blank it first, like "garde-robe" below.
+  return VOUS_FORM_RX.test(text.replace(/rendez-vous/gi, ""));
+}
+
+// French with its accents stripped ("cree un contraste ... pour
+// l'exterieur", suggest on gemini-3.6-flash, 2026-10-16): common style
+// words that are never correct without their accent. Ambiguous ones
+// ("structure", "a") are left out.
+const STRIPPED_ACCENT_RX =
+  /(?<![a-zà-ÿ])(cree|creent|creer|equilibre|equilibree|equilibrent|elegance|elegant|elegante|legere|leger|epaule|epaules|evase|evasee|ete|matiere|matieres|exterieur|interieur|decontracte|decontractee|epure|epuree|eclatant|eclatante|melange|delicat|delicate|maitrise|maitrisee|tres|deja|reveille|reveiller|apres|premiere|derniere|lumiere|idee|idees|etoffe|degage|degagee|seduisant|serieux|specifique)(?![a-zà-ÿ])/i;
+
+export function hasStrippedAccents(text: string): boolean {
+  return STRIPPED_ACCENT_RX.test(text);
+}
+
 export function hasFrenchCorruption(text: string): boolean {
   return FRENCH_CORRUPTION_RX.test(text);
 }
@@ -165,15 +190,23 @@ export function textMentionsSwappedOut(
   return false;
 }
 
-export function textIsConsistent(
+// Why a piece of AI prose can't ship, or null when it can: "empty",
+// "corruption" (garbled French), "vous" (French in the formal voice),
+// "accents" (French with its accents stripped), or
+// "garment:<category>:<word>" (names a category the outfit doesn't have).
+// Routes log the reason so a rejection rate is diagnosable.
+export function textGuardReason(
   items: ClothingItem[],
   text: string,
   locale: "en" | "fr" = "en"
-): boolean {
-  if (!text) return false;
+): string | null {
+  if (!text) return "empty";
   // Bail before the hallucination check if the string is character-
   // corrupted — fixing the hallucination would still ship "dor)e".
-  if (hasFrenchCorruption(text)) return false;
+  if (hasFrenchCorruption(text)) return "corruption";
+  // French in "vous" breaks the app's voice: same fallback as corruption.
+  if (locale === "fr" && hasVousForm(text)) return "vous";
+  if (locale === "fr" && hasStrippedAccents(text)) return "accents";
   // "garde-robe" legitimately appears in French prose without implying
   // a dress ("robe") is in the outfit — blank it before word-matching.
   const lower = text.toLowerCase().replace(/garde-robes?/g, "");
@@ -186,9 +219,17 @@ export function textIsConsistent(
     for (const [cat, words] of Object.entries(vocab)) {
       if (present.has(cat as ClothingItem["category"])) continue;
       for (const w of words) {
-        if (wordRx(w).test(lower)) return false;
+        if (wordRx(w).test(lower)) return `garment:${cat}:${w}`;
       }
     }
   }
-  return true;
+  return null;
+}
+
+export function textIsConsistent(
+  items: ClothingItem[],
+  text: string,
+  locale: "en" | "fr" = "en"
+): boolean {
+  return textGuardReason(items, text, locale) === null;
 }

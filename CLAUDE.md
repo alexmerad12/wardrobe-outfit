@@ -78,7 +78,7 @@ Menswear has a `MENSWEAR OVERRIDES` block in the prompt; the deterministic code 
 
 ### i18n
 
-`src/lib/i18n/` — JSON dictionaries for `en` and `fr`, `use-labels` / `use-locale` hooks. Locale flows into AI prompts via a `LANGUAGE:` directive at the end of `dynamicSuffix` so the model writes its free-text fields (reasons, notes, summaries) in the user's language while keeping item IDs stable.
+`src/lib/i18n/` — JSON dictionaries for `en` and `fr`, `use-labels` / `use-locale` hooks. Locale flows into AI prompts via a `LANGUAGE:` directive at the end of `dynamicSuffix` so the model writes its free-text fields (reasons, notes, summaries) in the user's language while keeping item IDs stable. French is always the informal "tu": `textGuardReason` (`src/lib/suggest-text-guards.ts`, shared by suggest and refine) rejects AI prose in "vous", with stripped accents, garbled characters, or naming a garment the outfit doesn't have; suggest falls back to its template, refine re-asks once and logs the reason. Mind compounds when adding words to those checks ("rendez-vous" contains "vous").
 
 ### PWA service worker
 

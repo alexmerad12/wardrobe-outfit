@@ -80,6 +80,12 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** the shoe rotation hid the date-tagged Vans (one outfit back), the other date-tagged pair was canvas (refused in the rain), so the model picked the outdoor-tagged running shoes. No rule broke, so the repair didn't run.
 - **Fix:** SHOE REPAIR also swaps an off-tag pick when the rotation hid the only wearable shoes tagged for the occasion (and only then: a visible tagged pair leaves the model's choice alone).
 
+### French stylist text in "vous" or without accents (2026-10-16, production sweep)
+- **Symptom:** a French refine answer saved on an outfit read "L'association de votre cardigan...": Linette speaks French in "tu" everywhere else. A French suggest sentence came back accentless ("cree un contraste ... pour l'exterieur").
+- **Cause:** refine's prompt only said "tu" in French, without suggest's explicit "never vous / votre / vos" rule, and no guard checked the voice or the accents (the corruption check only catches characters garbled inside a word).
+- **Fix:** refine carries the same explicit rule; `textGuardReason` (shared by suggest and refine) rejects French with `hasVousForm` or `hasStrippedAccents`. Suggest then uses its template, refine re-asks once with the slipped sentence quoted and keeps whichever answer passes; refine logs the reason and the rejected sentence (`text_guard_reason`, `rejected_reasoning`). After the fix: French refine 16/16 clean, French suggest 6/6 in "tu" with accents.
+- **Trap found on the way:** "rendez-vous" (a date) contains "vous". The first version of the check rejected every date sentence; `hasVousForm` blanks "rendez-vous" first.
+
 ### Layering bugs in the new injectors (2026-10-16 benchmark)
 - **Cause:** the BASE COMPLETER re-added the subcategory the dedupe had just removed (a zip hoodie under a zip hoodie), and the outerwear injector cancelled its injection when its closest-warmth coat duplicated a subcategory, so a 9°C rain outfit shipped coatless.
 - **Fix:** both skip duplicate subcategories before picking.
