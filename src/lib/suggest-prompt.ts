@@ -122,7 +122,7 @@ MENSWEAR OVERRIDES — you are styling a man. These REPLACE women-track defaults
 SUPPRESSED RULES (do not apply to this user — their wardrobe doesn't have these pieces):
 - Rule 11 SKIRT × OCCASION / × BALANCE / × COLD WEATHER (no skirts in a men's wardrobe).
 - Rule 9 office template "(a) sheath dress + blazer + pump (b) tailored trousers + blouse + pump" — replaced below.
-- Rule 8 "mini-to-midi dress length" for evening cocktail — replaced below.
+- Rule 8 EVENING COCKTAIL (the dressy-material bias toward silk / satin / chiffon / lace / velvet and the mini-to-midi dress length) — replaced by the menswear DATE / DINNER OUT and PARTY templates below.
 - Rule 18a "BELT THE WAIST" dress-silhouette cases (a-line/wrap/fit-and-flare/slip/bodycon/mermaid/sheath/shift) and the "sweater + skirt", "blouse + skirt", "blouse + tailored trousers tucked look" cases — replaced by the men's belt rule below.
 - Any rule referencing tights, stockings, or pantyhose layering.
 - Heel type / height rules (high-heel / mid-heel / kitten / stiletto / pump) — these subcategories belong to women's footwear.

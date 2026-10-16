@@ -954,7 +954,7 @@ export async function POST(request: NextRequest) {
       return null;
     };
     const casualWearHasAlternative = (category: string): boolean =>
-      items.some((w) => !w.is_stored && w.category === category && !casualWearBan(w));
+      items.some((w) => !w.is_stored && w.category === category && !casualWearBan(w) && passesWarmth(w));
     const RICH_CATEGORY_THRESHOLD = 3;
     const inAllByCategory = new Map<string, number>();
     for (const it of items) {
