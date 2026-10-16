@@ -17,7 +17,19 @@ const TTL_MS = 60_000;
 let shared: Promise<ClientPreferences | null> | null = null;
 let fetchedAt = 0;
 
+// No Supabase session cookie = a signed-out page (login, sign-up, password
+// reset), where /api/preferences can only answer 401: one guaranteed console
+// error per visit on linette.app until 2026-10-16. Callers already fall back
+// to their cached or browser defaults on null. @supabase/ssr keeps the
+// session cookie readable by page code (sb-<ref>-auth-token, chunked as
+// .0/.1 when large); the PKCE "-code-verifier" cookie of a half-finished
+// sign-in does not count.
+function hasSessionCookie(): boolean {
+  return typeof document !== "undefined" && /(?:^|;\s*)sb-[^=;]+-auth-token(?:\.\d+)?=/.test(document.cookie);
+}
+
 export function getPreferences(): Promise<ClientPreferences | null> {
+  if (!hasSessionCookie()) return Promise.resolve(null);
   if (!shared || Date.now() - fetchedAt > TTL_MS) {
     fetchedAt = Date.now();
     const request: Promise<ClientPreferences | null> = fetch("/api/preferences")

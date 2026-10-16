@@ -54,6 +54,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 ### 5-8 identical `/api/preferences` requests per page (2026-10-15)
 - **Cause:** `useLocale` (~40 components), `useTemperatureUnit`, the weather widget and the item pages each fetched on mount.
 - **Fix:** `src/lib/preferences-client.ts`, one shared request per page (60 s reuse, invalidated on save and sign-out).
+- **Also (2026-10-16, found on production):** signed-out pages (login, sign-up) still made that request and logged a 401 in the console on every visit, as the old per-hook fetches had. `getPreferences` now skips it when there is no Supabase session cookie.
 
 ### Preview deploys broken or not matching git (2026-10-15)
 - **Causes:** (1) the Vercel Preview environment has no Supabase, Google or KV variables; (2) a CLI deploy uploads gitignored local-only files (e.g. `src/app/logo-lab/`), so the build differs from what git deploys.
