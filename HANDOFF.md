@@ -11,9 +11,13 @@ The owner got "Couldn't put together a look" (Confident + Outdoor, men's track, 
 - **No more "relaxed" on every men's date look:** R8 (silk / satin / velvet) is women's track only; the user-tag rule and R8 count only pieces wearable in the request. Shorts / sweatpants / leggings / hoodies at dressy occasions are hidden from the prompt when an alternative exists (`casualWearBan`).
 - **Weather:** one retry plus a log line in `getWeather` (an Open-Meteo blip made 4 local requests style with no weather).
 - **Layering:** no zip hoodie under a zip hoodie, no coatless 9°C rain outfit (both injectors skip duplicate subcategories before picking).
+- **Cold bases:** bottoms under the cold warmth floor are hidden from the prompt when a warm-enough one exists (`baseTooLight` / `lightBottom`); that soft rule had relaxed ~1 cold Outdoor look in 4.
+- **Rotation vs tags:** SHOE REPAIR swaps an off-tag pick when the rotation hid the only wearable shoes tagged for the occasion (a rainy date had got workout sneakers).
 - **Owner data:** two lace-up ankle boots in the owner's wardrobe were tagged `loafers` (banned outdoors) and are now `ankle-boots`.
 
-Verification (local production build): `tsc`, lint, build clean; `npm run test:rules` 8/8 on 3.6 LOW; endpoint sweep 60/61 (the keepalive-with-secret check needs `CRON_SECRET`, which is not in `.env.local`); the owner's failing case and two more, 9/9 shipped, medians 3.6 s Outdoor / 8.4 s Work / 10.2 s Date (28.4 s before), no regenerate; text-guard unit check 13/13 on the benchmark's real sentences.
+Verification (local production build): `tsc`, lint, build clean; `npm run test:rules` 8/8 on 3.6 LOW (re-run after each follow-up); endpoint sweep 60/61 (the keepalive-with-secret check needs `CRON_SECRET`, which is not in `.env.local`); text-guard unit check 13/13 on the benchmark's real sentences.
+
+**Production (pushed 2285104, 9021c66, f7ccc32; live f7ccc32 = dpl_Eww4hTewRdqhDQDXHKXbab8CsrHM, 6:35 PM EDT):** the owner's case and two more on a copy of his wardrobe, 9/9 shipped, ALL ship path normal (no relaxed look), one Gemini call each on gemini-3.6-flash with live weather, medians 8.1 s Outdoor / 2.9 s Work / 8.2 s Date (28.4 s before; 4 of 9 calls reasoned, 1,000-2,200 thinking tokens, the rest answered in ~2 s). Full check on f7ccc32: sweep 60/61 (keepalive secret only), UI smoke 9/9 tabs with 0 console errors, 0 5xx and 0 error-level log entries in the 45 minutes after the deploy.
 
 ## STATUS 2026-10-16 — modernization pass LIVE on linette.app
 Pushed on the owner's "push everything" and deployed to production: ab0b865 at 12:36 PM EDT (dpl_D2aWf39EZ39r9YB5TeyNcXzYW3Ku), then 911699f at 12:57 PM (dpl_42zRSNJWMU9m8mcMF5vfaCqxqPLx, the signed-out preferences fix found by the production smoke). Functions in pdx1, keepalive cron registered ("17 9 * * *").
