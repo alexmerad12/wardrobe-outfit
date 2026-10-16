@@ -5,8 +5,8 @@ import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
-import { withGeminiRetry } from "@/lib/gemini-retry";
-import { genAI, QUALITY_MODEL, NO_THINKING } from "@/lib/gemini";
+import { withModelFallback } from "@/lib/gemini-retry";
+import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
@@ -138,10 +138,11 @@ Respond with ONLY:
 - reasoning: ONE editorial sentence citing one specific styling principle at play (color harmony, silhouette balance, texture play, or occasion fit). Refer to pieces by broad category only (the dress, the bottoms, the jacket).
 - styling_tip: ONE short sentence with a concrete styling action applied to items in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, knot hem). Or null if nothing useful fits.`;
 
-    const result = await withGeminiRetry(
-      () =>
+    const { result, model } = await withModelFallback(
+      QUALITY_MODELS,
+      (m) =>
         genAI.models.generateContent({
-          model: QUALITY_MODEL,
+          model: m,
           contents: prompt,
           config: {
             maxOutputTokens: 1024,
@@ -154,7 +155,7 @@ Respond with ONLY:
               },
               required: ["reasoning"],
             },
-            thinkingConfig: NO_THINKING,
+            thinkingConfig: thinkingFor(m, "none"),
           },
         }),
       { tag: "suggest/refine" }
@@ -165,7 +166,7 @@ Respond with ONLY:
       parsed = JSON.parse(result.text ?? "");
     } catch {
       refund();
-      logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model: QUALITY_MODEL } });
+      logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model } });
       return NextResponse.json({ error: "Failed to parse refine response" }, { status: 502 });
     }
 
@@ -184,7 +185,7 @@ Respond with ONLY:
     logAiCall(supabase, userId, "refine", {
       metadata: {
         kind: "refine",
-        model: QUALITY_MODEL,
+        model,
         item_count: items.length,
         text_guard_rejected: {
           reasoning: !reasoning && !!parsed.reasoning,
@@ -198,7 +199,7 @@ Respond with ONLY:
     console.error("[refine] error:", err);
     Sentry.captureException(err);
     refund();
-    logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model: QUALITY_MODEL } });
+    logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { models: QUALITY_MODELS } });
     return NextResponse.json({ error: "Refine failed" }, { status: 500 });
   }
 }

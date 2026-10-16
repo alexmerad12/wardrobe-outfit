@@ -22,6 +22,11 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Fix:** owner reactivates billing. For local tests, `GEMINI_QUALITY_MODEL` swaps the quality model (e.g. gemini-2.5-flash).
 - **Also confirmed (2026-10-16):** the old `gemini-3.5-flash` name, still used by production before this deploy, is counted against the gemini-3.6-flash quota. A request to it is refused naming gemini-3.6-flash. The alias is no separate bucket, and live linette.app shares the cap.
 
+### Outfit requests fail while gemini-3.6-flash is overloaded (2026-10-16)
+- **Symptom:** suggest returns 500 after ~5 s. Server logs show four attempts, each `503 UNAVAILABLE "This model is currently experiencing high demand"`. The rules harness lost its first test this way for 2.5 minutes straight, so the other 7 never ran.
+- **Cause:** the quality tier called one model only. Retries can't outlast a 503 spell that runs for minutes, and free-tier traffic is served last.
+- **Fix:** `withModelFallback(QUALITY_MODELS, ...)` in suggest, refine and try-on (`src/lib/gemini-retry.ts`). After one retry on a 503 (at once on a day-cap 429) the call moves to `gemini-3.5-flash-lite`, which has its own capacity and quota. Verified live the same day: 3.6 kept answering 503, and the outfit came from Flash-Lite (200). Flash-Lite itself answered 503 twice before it worked, so it gets the full 3 retries.
+
 ### 500 on unknown fields in CRUD routes (2026-10-15)
 - **Symptom:** POST /api/outfits or /api/trips returns 500 "Could not find the 'x' column".
 - **Cause:** routes pass the body straight to Supabase, so an unknown column (here a test payload's `occasion` instead of `occasions`) surfaced as a server error. The app's own pages send the right names.
@@ -60,6 +65,6 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **"Just use ISNet or BEN2"** (2026-10-15): ISNet fits (0.8 GB) but scored 84.7% mask IoU against Photoroom and lost one garment entirely. BEN2 needs 3.5 GB.
 - **"The Gemini 429 is a per-minute rate limit"** (2026-10-15): no. The quota id is PerDay FreeTier.
 - **"Flash-Lite is as good as Flash for outfits"** (2026-10-16): not quite. gemini-3.5-flash-lite passed every hard rule (harness 8/8, sweep 61/61) but skipped the soft "statement piece" instruction that gemini-3.6-flash followed on the same request. Hard rules hold on either model because the code enforces them; taste instructions don't.
-- **"gemini-3.8-flash can stand in for 3.6 while 3.6 is capped"** (2026-10-16): no. gemini-3.6-flash and gemini-3.8-flash each served one request after the reset, then hit the free-tier cap (gemini-3.7-flash untested). The Flash-Lite models kept answering.
-- **"The daily reset will free the free tier for testing"** (2026-10-16): no. After the 00:00 UTC reset, gemini-3.6-flash served one request, then refused every call again (36 refine refusals by 00:45).
+- **"gemini-3.8-flash can stand in for 3.6 while 3.6 is capped"** (2026-10-16): no. gemini-3.6-flash and gemini-3.8-flash each served one request around 00:00 UTC on 2026-10-16, then hit the free-tier cap (gemini-3.7-flash untested). The Flash-Lite models kept answering.
+- **"Gemini's free-tier counter resets at 00:00 UTC"** (2026-10-16): no. Requests-per-day quotas reset at midnight Pacific (07:00 UTC while daylight time runs, 08:00 UTC in winter), per Google's rate-limits page. The 00:00 UTC probe that found the 3.6 bucket still full (1 request served, 36 refine refusals by 00:45) was not a reset test. After the real reset, refine passed on gemini-3.6-flash on the free tier at the first attempt (13:32 UTC).
 - **"Syncthing reverted CLAUDE.md and the memory index"** (2026-10-16): no. A post-compaction reminder showed old copies, but disk and git held the new text, and there were no conflict files. The memory tool's "file reverted" warnings were frontmatter rewrites, not reverts.

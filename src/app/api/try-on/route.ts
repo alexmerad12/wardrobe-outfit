@@ -7,8 +7,8 @@ import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
-import { withGeminiRetry } from "@/lib/gemini-retry";
-import { genAI, FAST_MODEL, FAST_THINKING, QUALITY_MODEL, NO_THINKING } from "@/lib/gemini";
+import { withGeminiRetry, withModelFallback } from "@/lib/gemini-retry";
+import { genAI, FAST_MODEL, FAST_THINKING, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { colorFamily } from "@/lib/color-family";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
   // unreadable photos used to lock the feature for the whole day).
   const fail = (message: string, status: number) => {
     if (capCount !== -1) refundDailyCap(countKey);
-    logAiCall(supabase, userId, "try_on", { succeeded: false, metadata: { models: [FAST_MODEL, QUALITY_MODEL] } });
+    logAiCall(supabase, userId, "try_on", { succeeded: false, metadata: { models: [FAST_MODEL, QUALITY_MODELS[0]] } });
     return NextResponse.json({ error: message }, { status });
   };
 
@@ -211,15 +211,17 @@ export async function POST(request: NextRequest) {
     // 4. Outfit simulation — up to 3 outfits anchored on the new item.
     // Only attempt when the wardrobe is complete enough to form outfits.
     let outfits: { item_ids: string[]; reason: string }[] = [];
+    let simModel: string | null = null; // the quality-tier model that answered
     const phantomId = "phantom-item";
     if (wardrobe.length >= 3) {
       const phantomLine = `[${phantomId}] ${attrs.name ?? "new item"} (${attrs.category}${attrs.subcategory ? "/" + attrs.subcategory : ""}) | Colors: ${phantomColors.map((c) => c.name).join(", ")}${attrs.material ? " | Material: " + attrs.material.join(", ") : ""}${attrs.warmth_rating ? ` | Warmth: ${attrs.warmth_rating}/5` : ""}`;
       const wardrobeList = wardrobe.map((i) => describeItemForPrompt(i, i.id)).join("\n");
 
-      const simRes = await withGeminiRetry(
-        () =>
+      const sim = await withModelFallback(
+        QUALITY_MODELS,
+        (m) =>
           genAI.models.generateContent({
-            model: QUALITY_MODEL,
+            model: m,
             contents: `You are helping the user decide whether to buy a new piece. Build up to 3 complete outfits that show how the NEW item would pair with pieces already in the wardrobe. Use the new item as the anchor in every outfit.
 
 Rules for each outfit:
@@ -255,11 +257,13 @@ ${wardrobeList}`,
                 },
                 required: ["outfits"],
               },
-              thinkingConfig: NO_THINKING,
+              thinkingConfig: thinkingFor(m, "none"),
             },
           }),
         { tag: "try-on/sim" }
       );
+      const simRes = sim.result;
+      simModel = sim.model;
 
       try {
         const parsed = JSON.parse(simRes.text ?? "{}") as {
@@ -297,7 +301,7 @@ ${wardrobeList}`,
         category: attrs.category,
         similar_count: similarItems.length,
         outfit_count: resolvedOutfits.length,
-        models: [FAST_MODEL, QUALITY_MODEL],
+        models: simModel ? [FAST_MODEL, simModel] : [FAST_MODEL],
       },
     });
     return NextResponse.json({

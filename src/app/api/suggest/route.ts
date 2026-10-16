@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { Type, type Schema } from "@google/genai";
-import { withGeminiRetry } from "@/lib/gemini-retry";
-import { genAI, QUALITY_MODEL, SUGGEST_THINKING } from "@/lib/gemini";
+import { withModelFallback } from "@/lib/gemini-retry";
+import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { kv } from "@/lib/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
@@ -21,7 +21,8 @@ import {
 import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
 
 // Suggest runs on the quality-tier model with shallow thinking
-// (QUALITY_MODEL + SUGGEST_THINKING in src/lib/gemini.ts). 2026-05-08
+// (QUALITY_MODELS + thinkingFor in src/lib/gemini.ts: gemini-3.6-flash,
+// Flash-Lite when it is overloaded or out of quota). 2026-05-08
 // experiment: shifted from 3-outfit-generation + scoring to
 // single-outfit generation. The scorer was reliably picking outfits
 // with the same star pieces across calls, so users felt repetition
@@ -1182,6 +1183,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       }[];
       wardrobe_gap?: string | null;
     };
+    // The model that answered the latest callAi: QUALITY_MODELS[0], or the
+    // Flash-Lite fallback when it was overloaded or out of quota.
+    let answeredModel = QUALITY_MODELS[0];
     async function callAi(
       extraSuffix = ""
     ): Promise<{ parsed: ParsedShape | null; stopReason: string | null }> {
@@ -1192,20 +1196,23 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // competing candidates. extraSuffix carries the
       // regenerate-with-feedback block on the second validation pass.
       // (No temperature: Gemini 3.x ignores it and it is deprecated.)
-      const result = await withGeminiRetry(
-        () =>
+      // (A fallback call misses the prompt cache: Gemini caches per model.)
+      const { result, model } = await withModelFallback(
+        QUALITY_MODELS,
+        (m) =>
           genAI.models.generateContent({
-            model: QUALITY_MODEL,
+            model: m,
             contents: `${cachedPrefix}\n\n${dynamicSuffix}${extraSuffix}`,
             config: {
               maxOutputTokens: 16384,
               responseMimeType: "application/json",
               responseSchema: SUGGEST_RESPONSE_SCHEMA,
-              thinkingConfig: SUGGEST_THINKING,
+              thinkingConfig: thinkingFor(m, "suggest"),
             },
           }),
         { tag: "suggest" }
       );
+      answeredModel = model;
       const stopReason = result.candidates?.[0]?.finishReason ?? null;
       const text = result.text;
       if (!text) {
@@ -1250,7 +1257,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // to leave no ai_calls row at all, hiding the cost).
       logAiCall(supabase, userId, "suggest", {
         succeeded: false,
-        metadata: { reason: "bad_shape", stop: r.stopReason, model: QUALITY_MODEL },
+        metadata: { reason: "bad_shape", stop: r.stopReason, model: answeredModel },
       });
       return NextResponse.json({
         suggestions: [],
@@ -4229,9 +4236,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         mood,
         occasion,
         outfit_count: suggestions.length,
-        // GEMINI_QUALITY_MODEL can swap the model without a deploy, so
-        // every row records which one actually answered.
-        model: QUALITY_MODEL,
+        // GEMINI_QUALITY_MODEL can swap the model without a deploy and
+        // the Flash-Lite fallback can take over a call, so every row
+        // records which one actually answered (the last call's).
+        model: answeredModel,
         rules: rulesTelemetry,
       },
     });
@@ -4245,13 +4253,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       suggestions,
       wardrobe_gap,
       ...(aiError && { ai_error: true }),
-      ...(wantsDebug && { _debug_rules: rulesTelemetry }),
+      ...(wantsDebug && { _debug_rules: { ...rulesTelemetry, model: answeredModel } }),
     });
   } catch (error) {
     console.error("Suggestion error:", error);
     Sentry.captureException(error);
     if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
-    logAiCall(supabase, userId, "suggest", { succeeded: false, metadata: { model: QUALITY_MODEL } });
+    logAiCall(supabase, userId, "suggest", { succeeded: false, metadata: { models: QUALITY_MODELS } });
     return NextResponse.json(
       { error: "Failed to generate suggestions" },
       { status: 500 }

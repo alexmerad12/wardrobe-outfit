@@ -10,18 +10,31 @@
 //
 // NOT retried: a daily FREE-TIER quota 429 (quotaId ...PerDay...FreeTier).
 // It won't clear for hours, and retrying only burns the user's wait.
+// withModelFallback (below) sends that call, or one still failing on a
+// 503 after its retries, to the next model in the list instead.
 
 const RETRYABLE_PATTERN =
   /\b(503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|INTERNAL|DEADLINE_EXCEEDED|ECONNRESET|ETIMEDOUT|EAI_AGAIN)\b|fetch failed|socket hang up|other side closed/i;
 const NOT_RETRYABLE_PATTERN = /PerDay[A-Za-z]*-FreeTier/;
 
+// Worth trying a different model: this one is overloaded (503
+// UNAVAILABLE, 500 INTERNAL) or out of quota (429 RESOURCE_EXHAUSTED, the
+// free tier's day cap included). Each model has its own capacity and
+// quota. A 400 or a dropped connection would fail the same way on any
+// model, so those are not.
+const FALLBACK_PATTERN = /\b(503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|INTERNAL)\b/;
+
+// The new @google/genai SDK throws ApiError with a JSON-stringified
+// detail; older paths just throw plain Errors. Match against the
+// serialised message.
+function errorText(err: unknown): string {
+  const cause = err instanceof Error && err.cause ? ` ${String((err.cause as Error).message ?? err.cause)}` : "";
+  return (err instanceof Error ? `${err.name}: ${err.message}` : String(err)) + cause;
+}
+
 function isRetryable(err: unknown): boolean {
   if (!err) return false;
-  // The new @google/genai SDK throws ApiError with a JSON-stringified
-  // detail; older paths just throw plain Errors. Match against the
-  // serialised message.
-  const cause = err instanceof Error && err.cause ? ` ${String((err.cause as Error).message ?? err.cause)}` : "";
-  const msg = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)) + cause;
+  const msg = errorText(err);
   if (NOT_RETRYABLE_PATTERN.test(msg)) return false;
   return RETRYABLE_PATTERN.test(msg);
 }
@@ -49,4 +62,32 @@ export async function withGeminiRetry<T>(
     }
   }
   throw lastErr;
+}
+
+/**
+ * Run `call` on each model in order until one answers, each through
+ * withGeminiRetry. A model with a fallback behind it gets one retry instead
+ * of three, so a 503 spell costs the user ~2 s before the next model takes
+ * over. Moves on only for capacity and quota errors (FALLBACK_PATTERN);
+ * anything else is thrown as is. Returns the result and the model that
+ * produced it, for logAiCall.
+ */
+export async function withModelFallback<T>(
+  models: readonly string[],
+  call: (model: string) => Promise<T>,
+  opts: { tag?: string } = {}
+): Promise<{ result: T; model: string }> {
+  const { tag = "gemini" } = opts;
+  if (models.length === 0) throw new Error(`[${tag}] no models to call`);
+  for (let i = 0; ; i++) {
+    const model = models[i];
+    const isLast = i === models.length - 1;
+    try {
+      const result = await withGeminiRetry(() => call(model), { tag, maxRetries: isLast ? 3 : 1 });
+      return { result, model };
+    } catch (err) {
+      if (isLast || !FALLBACK_PATTERN.test(errorText(err))) throw err;
+      console.warn(`[${tag}] ${model} unavailable (${errorText(err).slice(0, 120)}), falling back to ${models[i + 1]}`);
+    }
+  }
 }
