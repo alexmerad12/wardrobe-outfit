@@ -3,16 +3,19 @@ import * as Sentry from "@sentry/nextjs";
 import type { ClothingItem } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
-import { withGeminiRetry } from "@/lib/gemini-retry";
-import { genAI, FAST_MODEL, FAST_THINKING } from "@/lib/gemini";
+import { withModelFallback } from "@/lib/gemini-retry";
+import { genAI, FAST_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 
-// Packing list: one text call on the fast tier (src/lib/gemini.ts).
+// Packing list: one text call on the fast tier (FAST_MODELS in
+// src/lib/gemini.ts: Flash-Lite, the quality model when it is down).
 // Weather comes from Open-Meteo (forecast within 10 days, climate
-// averages beyond).
-export const maxDuration = 60;
+// averages beyond). 120 s like the other AI routes (2026-10-16): Gemini
+// under load can outlast 60 s, and a function killed at the limit never
+// refunds the daily cap.
+export const maxDuration = 120;
 
 // Packing is rare-use (one trip per several weeks for most users) and
 // per-call cost is low (about a cent). Tier presets to keep in mind:
@@ -211,15 +214,16 @@ Respond with ONLY valid JSON:
 
 Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardrobe.`;
 
-    const result = await withGeminiRetry(
-      () =>
+    const { result, model } = await withModelFallback(
+      FAST_MODELS,
+      (m) =>
         genAI.models.generateContent({
-          model: FAST_MODEL,
+          model: m,
           contents: `${cachedPrefix}\n\n${dynamicSuffix}`,
           config: {
             maxOutputTokens: 4096,
             responseMimeType: "application/json",
-            thinkingConfig: FAST_THINKING,
+            thinkingConfig: thinkingFor(m, "none"),
           },
         }),
       { tag: "packing" }
@@ -242,7 +246,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
       // Nothing usable came back: give the use back and record it.
       console.error("[packing] Failed to parse Gemini response:", text.slice(0, 200));
       refund();
-      logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model: FAST_MODEL } });
+      logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model } });
       return NextResponse.json({ error: "Failed to generate packing list" }, { status: 502 });
     }
 
@@ -262,7 +266,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
         destination,
         days: tripDays,
         item_count: packingList.length,
-        model: FAST_MODEL,
+        model,
       },
     });
     return NextResponse.json({
@@ -275,7 +279,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     console.error("Packing list error:", error);
     Sentry.captureException(error);
     refund();
-    logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model: FAST_MODEL } });
+    logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { models: FAST_MODELS } });
     return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
   }
 }

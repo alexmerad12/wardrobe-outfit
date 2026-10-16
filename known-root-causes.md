@@ -27,6 +27,16 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** the quality tier called one model only. Retries can't outlast a 503 spell that runs for minutes, and free-tier traffic is served last.
 - **Fix:** `withModelFallback(QUALITY_MODELS, ...)` in suggest, refine and try-on (`src/lib/gemini-retry.ts`). After one retry on a 503 (at once on a day-cap 429) the call moves to `gemini-3.5-flash-lite`, which has its own capacity and quota. Verified live the same day: 3.6 kept answering 503, and the outfit came from Flash-Lite (200). Flash-Lite itself answered 503 twice before it worked, so it gets the full 3 retries.
 
+### No outfit at all on rainy days when the only shoes are suede or canvas (2026-10-16)
+- **Symptom:** suggest answers 200 with 0 outfits. `ai_calls.metadata.rules` shows `ship_path: none` and the drop `rain-triggered: "<shoe>" (shoes) uses non-rain-proof material` on the first answer and on the regenerate. Found by the endpoint sweep on a Vercel preview, where the weather comes from the request's IP (Montreal, 100% rain).
+- **Cause:** the rain rule was not wardrobe-aware. The shoe injector fell back to the only (suede) pair, then the validator and the fallback gate both refused it. Shoes are a required slot, so nothing could ship. The outdoor/travel open-toe rule, coats and bags had the same gap.
+- **Fix:** `rainRefuses` in `suggest/route.ts`, one predicate for the injectors, the validator and the fallback gate. A rain-unworthy shoe, coat or bag is refused only when the candidate pool holds a rain-worthy alternative for that slot that passes the slot's own rules. The prompt says the same. Reproduced and verified with Montreal's coordinates in the `x-vercel-ip-*` headers: only suede shoes gave 0 outfits before and 1 after; suede plus leather gives the leather pair, before and after.
+
+### Photo tagging 504 on Vercel while Google is slow (2026-10-16)
+- **Symptom:** `/api/items/analyze` answers 504 at exactly 60 s on a Vercel preview, 3 of 6 photos. Bulk items keep blank tags.
+- **Cause:** free-tier Gemini latency (the same photos took 27-31 s locally that hour, 3-8 s on earlier days) against the route's 60 s `maxDuration`. A function killed at the limit also skips the daily-cap refund.
+- **Fix:** analyze, try-on and packing allow 120 s, like suggest. The same afternoon, locally, Flash-Lite answered 503 to all four tries on 3 of 6 photos (500 "Analysis failed"), so the fast tier now falls back too: `FAST_MODELS` = Flash-Lite, then the quality model.
+
 ### 500 on unknown fields in CRUD routes (2026-10-15)
 - **Symptom:** POST /api/outfits or /api/trips returns 500 "Could not find the 'x' column".
 - **Cause:** routes pass the body straight to Supabase, so an unknown column (here a test payload's `occasion` instead of `occasions`) surfaced as a server error. The app's own pages send the right names.

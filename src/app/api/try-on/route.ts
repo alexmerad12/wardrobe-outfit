@@ -7,8 +7,8 @@ import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
-import { withGeminiRetry, withModelFallback } from "@/lib/gemini-retry";
-import { genAI, FAST_MODEL, FAST_THINKING, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
+import { withModelFallback } from "@/lib/gemini-retry";
+import { genAI, FAST_MODELS, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { colorFamily } from "@/lib/color-family";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
@@ -27,8 +27,10 @@ import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 const TRY_ON_DAILY_CAP = 3;
 
 // Vision read + wardrobe query + outfit call; well past the default on a
-// slow upstream.
-export const maxDuration = 60;
+// slow upstream. 120 s (like suggest) since 2026-10-16: two Gemini calls
+// plus the quality tier's fallback can outlast 60 s while Google is under
+// load, and a function killed at the limit never refunds the daily cap.
+export const maxDuration = 120;
 
 // Shop-with-me / "fitting room" endpoint.
 // User uploads a photo of an item they're considering buying; we analyze
@@ -105,7 +107,7 @@ export async function POST(request: NextRequest) {
   // unreadable photos used to lock the feature for the whole day).
   const fail = (message: string, status: number) => {
     if (capCount !== -1) refundDailyCap(countKey);
-    logAiCall(supabase, userId, "try_on", { succeeded: false, metadata: { models: [FAST_MODEL, QUALITY_MODELS[0]] } });
+    logAiCall(supabase, userId, "try_on", { succeeded: false, metadata: { models: [FAST_MODELS[0], QUALITY_MODELS[0]] } });
     return NextResponse.json({ error: message }, { status });
   };
 
@@ -120,10 +122,11 @@ export async function POST(request: NextRequest) {
       .toBuffer();
 
     // 1. Analyze the photo — transient, not saved to DB.
-    const analyzeRes = await withGeminiRetry(
-      () =>
+    const { result: analyzeRes, model: analyzeModel } = await withModelFallback(
+      FAST_MODELS,
+      (m) =>
         genAI.models.generateContent({
-          model: FAST_MODEL,
+          model: m,
           contents: [
             {
               role: "user",
@@ -139,7 +142,7 @@ export async function POST(request: NextRequest) {
           config: {
             maxOutputTokens: 2048,
             responseMimeType: "application/json",
-            thinkingConfig: FAST_THINKING,
+            thinkingConfig: thinkingFor(m, "none"),
           },
         }),
       { tag: "try-on/analyze" }
@@ -301,7 +304,7 @@ ${wardrobeList}`,
         category: attrs.category,
         similar_count: similarItems.length,
         outfit_count: resolvedOutfits.length,
-        models: simModel ? [FAST_MODEL, simModel] : [FAST_MODEL],
+        models: simModel ? [analyzeModel, simModel] : [analyzeModel],
       },
     });
     return NextResponse.json({

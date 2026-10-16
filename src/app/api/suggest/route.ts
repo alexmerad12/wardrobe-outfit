@@ -1601,6 +1601,47 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       return true;
     };
 
+    // Rain rules (Rule 5 RAIN: no suede / silk / satin / canvas on the
+    // shoes, coat or bag; no open toes or high heels outdoors or
+    // travelling), wardrobe-aware like the bag rules above, ONE predicate
+    // for the injectors, the validator and the fallback gate. A
+    // rain-unworthy piece is refused only when the request's candidate
+    // pool (what the model and the injectors pick from) holds a
+    // rain-worthy alternative for that slot that passes the slot's own
+    // rules. Before, a user whose only shoes were suede got ZERO outfits
+    // on every rainy day: the shoe injector fell back to the suede pair,
+    // then the validator and the fallback gate both refused it
+    // (2026-10-16, Vercel preview in the Montreal rain).
+    const rainImpractical = (i: ClothingItem): boolean =>
+      (occasion === "outdoor" || occasion === "travel") &&
+      i.category === "shoes" &&
+      (i.toe_shape === "open-toe" || i.toe_shape === "peep-toe" || i.heel_type === "high-heel");
+    const rainWorthy = (i: ClothingItem): boolean => !rainBlocked(i) && !rainImpractical(i);
+    const rainHasAlternative = (category: "shoes" | "outerwear" | "bag"): boolean => {
+      const fromPrompt = promptItems.filter((i) => i.category === category);
+      const pool =
+        fromPrompt.length > 0 ? fromPrompt : items.filter((i) => i.category === category && !i.is_stored);
+      return pool.some(
+        (i) =>
+          rainWorthy(i) &&
+          (category === "shoes" ? shoeFitsContext(i) : category === "bag" ? bagOkForInjection(i) : passesWarmth(i))
+      );
+    };
+    const rainAlternatives = rainTriggered
+      ? {
+          shoes: rainHasAlternative("shoes"),
+          outerwear: rainHasAlternative("outerwear"),
+          bag: rainHasAlternative("bag"),
+        }
+      : null;
+    const rainRefuses = (i: ClothingItem): boolean => {
+      if (!rainAlternatives || rainWorthy(i)) return false;
+      if (i.category === "shoes") return rainAlternatives.shoes;
+      if (i.category === "outerwear") return rainAlternatives.outerwear;
+      if (i.category === "bag") return rainAlternatives.bag;
+      return false;
+    };
+
     // Candidate picker for the shoe / bag / accessory injectors. Order of
     // preference: occasion-tagged > preset-compatible > metal-compatible.
     // For OPTIONAL slots (bag, accessory) a preset conflict returns null —
@@ -2004,15 +2045,16 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // (outerwear is an anchor category, so the raw wardrobe could
         // re-inject the exact coat just excluded for freshness). Raw
         // wardrobe only as graceful fallback. Either way never inject a
-        // rain-blocked material when rain is forecast — the rain
-        // validator would hard-drop the outfit this injection "fixed".
+        // coat the rain rule refuses (rainRefuses: a rain-blocked
+        // material while a dry coat exists) — the rain validator would
+        // hard-drop the outfit this injection "fixed".
         const fromPool = fullPool.filter((i) => i.category === "outerwear");
         const fromWardrobe = items.filter(
           (i) => i.category === "outerwear" && !i.is_stored
         );
         let available = fromPool.length > 0 ? fromPool : fromWardrobe;
         if (rainTriggered) {
-          available = available.filter((i) => !rainBlocked(i));
+          available = available.filter((i) => !rainRefuses(i));
         }
         if (available.length > 0) {
           const targetWarmth =
@@ -2097,7 +2139,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           if (weatherOk.length > 0) pool = weatherOk;
         }
         if (rainTriggered) {
-          const dry = pool.filter((i) => !rainBlocked(i));
+          const dry = pool.filter(rainWorthy);
           if (dry.length > 0) pool = dry;
         }
         const best = pickInjectionCandidate(pool, stripped, true);
@@ -2129,7 +2171,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           bagOkForInjection
         );
         if (rainTriggered) {
-          const dry = pool.filter((i) => !rainBlocked(i));
+          const dry = pool.filter(rainWorthy);
           if (dry.length > 0) pool = dry;
         }
         const best = pickInjectionCandidate(pool, stripped, false);
@@ -2858,41 +2900,20 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // RAIN material-intelligence — applies to element-facing layers
       // (outerwear, shoes, bag). Base outfit is exempt (handled by the
       // indoor-protection check below). When rain is triggered, drop
-      // outfits whose outer-facing items use non-rain-proof materials.
-      // (rainTriggered / rainBlocked are hoisted above the map phase.)
+      // outfits whose outer-facing items use non-rain-proof materials, and
+      // open toes / high heels outdoors or travelling, each only while the
+      // wardrobe offers a rain-worthy alternative for that slot
+      // (rainRefuses, hoisted above the map phase).
       if (rainTriggered) {
-        const offenderOuter = s.items.find((i) => {
-          if (
-            i.category !== "outerwear" &&
-            i.category !== "shoes" &&
-            i.category !== "bag"
-          )
-            return false;
-          return rainBlocked(i);
-        });
+        const offenderOuter = s.items.find(rainRefuses);
         if (offenderOuter) {
           drops.push({
             ids: s._ids,
-            reason: `rain-triggered: "${offenderOuter.name}" (${offenderOuter.category}) uses non-rain-proof material`,
+            reason: rainBlocked(offenderOuter)
+              ? `rain-triggered: "${offenderOuter.name}" (${offenderOuter.category}) uses non-rain-proof material`
+              : `rain + ${occasion}: "${offenderOuter.name}" impractical (toe=${offenderOuter.toe_shape}, heel=${offenderOuter.heel_type})`,
           });
           return false;
-        }
-        // Outdoor / travel + rain → block open-toe / high-heel.
-        if (occasion === "outdoor" || occasion === "travel") {
-          const badShoe = s.items.find(
-            (i) =>
-              i.category === "shoes" &&
-              (i.toe_shape === "open-toe" ||
-                i.toe_shape === "peep-toe" ||
-                i.heel_type === "high-heel")
-          );
-          if (badShoe) {
-            drops.push({
-              ids: s._ids,
-              reason: `rain + ${occasion}: "${badShoe.name}" impractical (toe=${badShoe.toe_shape}, heel=${badShoe.heel_type})`,
-            });
-            return false;
-          }
         }
         // Indoor protection — base layer in non-rain-proof material
         // (silk/satin/suede) at an evening occasion REQUIRES a rain-proof
@@ -3835,19 +3856,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         }
 
         // Rain rules: outer-facing rain-blocked materials; outdoor/travel
-        // open-toe/high-heel in rain.
-        if (rainTriggered) {
-          if (s.items.some(
-            (i) =>
-              (i.category === "outerwear" || i.category === "shoes" || i.category === "bag") &&
-              rainBlocked(i)
-          )) return false;
-          if ((occasion === "outdoor" || occasion === "travel") && s.items.some(
-            (i) =>
-              i.category === "shoes" &&
-              (i.toe_shape === "open-toe" || i.toe_shape === "peep-toe" || i.heel_type === "high-heel")
-          )) return false;
-        }
+        // open-toe/high-heel in rain. Same wardrobe-aware predicate as the
+        // validator, or this gate empties a wardrobe the validator let pass.
+        if (rainTriggered && s.items.some(rainRefuses)) return false;
 
         // Metal sync (skip for Playful, bag excluded on men's track —
         // mirrors the main validator's visibility rules).

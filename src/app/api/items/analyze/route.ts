@@ -4,20 +4,25 @@ import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
-import { withGeminiRetry } from "@/lib/gemini-retry";
-import { genAI, FAST_MODEL, FAST_THINKING } from "@/lib/gemini";
+import { withModelFallback } from "@/lib/gemini-retry";
+import { genAI, FAST_MODELS, thinkingFor } from "@/lib/gemini";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 import { downloadOwnedPhoto, ownedPhotoPath } from "@/lib/owned-photo";
 
-// Item analysis: one vision call on the fast tier (see src/lib/gemini.ts).
+// Item analysis: one vision call on the fast tier (FAST_MODELS in
+// src/lib/gemini.ts: Flash-Lite, the quality model when it is down).
 // sanitizeAutoFill does the enum validation, so no strict responseSchema.
 
 // Image read + sharp + Gemini comfortably exceeds the platform default
-// on slow upstreams; normalize sets more. (Audit C4/C6.)
-export const maxDuration = 60;
+// on slow upstreams; normalize sets more. (Audit C4/C6.) 120 s since
+// 2026-10-16: with Google under load, 3 of 6 analyze calls on a Vercel
+// preview ran past 60 s and died as 504s (blank tags in the bulk flow,
+// which waits on the ~24 s cutout anyway); the same photos answered in
+// 27-31 s locally. A function killed at the limit never refunds the cap.
+export const maxDuration = 120;
 
 // This was the only Gemini endpoint with NO daily cap (audit C4) —
 // a runaway client could loop vision calls unmetered. Balanced band:
@@ -96,10 +101,11 @@ export async function POST(request: NextRequest) {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    const result = await withGeminiRetry(
-      () =>
+    const { result, model } = await withModelFallback(
+      FAST_MODELS,
+      (m) =>
         genAI.models.generateContent({
-          model: FAST_MODEL,
+          model: m,
           contents: [
             {
               role: "user",
@@ -114,7 +120,7 @@ export async function POST(request: NextRequest) {
             // Headroom: any thinking tokens count against this cap.
             maxOutputTokens: 2048,
             responseMimeType: "application/json",
-            thinkingConfig: FAST_THINKING,
+            thinkingConfig: thinkingFor(m, "none"),
           },
         }),
       { tag: "analyze" }
@@ -125,7 +131,7 @@ export async function POST(request: NextRequest) {
     if (!match) {
       console.error("[analyze] Failed to parse Gemini response:", text.slice(0, 200));
       refund();
-      logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { model: FAST_MODEL } });
+      logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { model } });
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 502 });
     }
 
@@ -135,14 +141,14 @@ export async function POST(request: NextRequest) {
     // insert fail with a check-constraint violation.
     const sanitized = sanitizeAutoFill(JSON.parse(match[0]));
     logAiCall(supabase, userId, "analyze_item", {
-      metadata: { category: sanitized.category ?? null, model: FAST_MODEL },
+      metadata: { category: sanitized.category ?? null, model },
     });
     return NextResponse.json(sanitized);
   } catch (err) {
     console.error("[analyze] Item analyze error:", err);
     Sentry.captureException(err);
     refund();
-    logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { model: FAST_MODEL } });
+    logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { models: FAST_MODELS } });
     return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
   }
 }

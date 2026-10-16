@@ -39,9 +39,9 @@ export function buildStaticRulesBlock({
    - Very cold (<5°C): block thin pieces on EVERY base layer (top, bottom, dress, one-piece) with Warmth ≤1.5 — shorts and summer jumpsuits at -5°C are never the answer. Block open-toe shoes and sandals regardless of weather material — bare-toe footwear in freezing weather is wrong even if the rest of the outfit compensates.
    - INDOOR LAYERING BRAKE (≥20°C at indoor occasions — at-home, work, dinner-out, formal): SKIP cardigans, hoodies, and other layering pieces stacked OVER an existing top or dress. The base outfit is enough — no over-layer needed when it's not cold. (Cardigan as the BASE top, e.g. cardigan + jeans, still fine. The block is on doubling up.)
    - RAIN (rain% ≥ 40% OR Condition contains "rain" / "showers"): apply automated Material-Intelligence filters to element-facing layers (Outerwear, Shoes, Bag):
-     · BLOCK Material in [suede, silk, satin, canvas] for these categories — non-rain-proof.
+     · BLOCK Material in [suede, silk, satin, canvas] for these categories — non-rain-proof — whenever the wardrobe offers another piece for that slot. If every shoe (or every coat / bag) on offer is one of these, use it anyway: Rule 6 never skips shoes.
      · PREFER Material in [leather, faux-leather, patent-leather, nylon, rubber, polyester, faux-suede].
-     · For outdoor / travel occasions: also block Toe shape "open-toe" / "peep-toe" AND Heel type "high-heel" (impractical in rain).
+     · For outdoor / travel occasions: also block Toe shape "open-toe" / "peep-toe" AND Heel type "high-heel" (impractical in rain), again only while a practical pair is on offer.
      · INDOOR PROTECTION EXCEPTION: the base outfit (top / bottom / dress) is exempt from the material blacklist — silk dress is fine indoors. BUT if the base layer is non-rain-proof (silk / satin / suede) for an evening occasion (date / dinner-out / party), the chosen outerwear MUST be rain-proof (leather / nylon / polyester / rubber / faux-leather) AND length ≥ "regular" (not cropped) — long enough to protect the base when walking in.
 6. SHOES: every outfit EXCEPT occasion = at-home MUST include a "shoes" category item. No exceptions.
 7. AT-HOME: no bag. Scarves only if Warmth ≤2 (thin bandana / silk kerchief). Never pair a turtleneck top with any scarf at home.

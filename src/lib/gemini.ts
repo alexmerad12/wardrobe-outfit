@@ -42,17 +42,24 @@ export const FAST_MODEL = "gemini-3.5-flash-lite";
 export const QUALITY_MODELS: readonly string[] =
   QUALITY_MODEL === FAST_MODEL ? [QUALITY_MODEL] : [QUALITY_MODEL, FAST_MODEL];
 
-// Flash-Lite REJECTS thinkingBudget (HTTP 400); it takes thinkingLevel.
-// MINIMAL is its cheapest level (may still think a little, so leave
-// maxOutputTokens headroom: thinking tokens count against it).
-export const FAST_THINKING: ThinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
+// The fast tier's models, in order, for withModelFallback(): Flash-Lite,
+// then the quality model when Flash-Lite is overloaded or out of quota.
+// On 2026-10-16 Flash-Lite answered 503 to four tries in a row on half
+// the photo tags of an endpoint sweep (the items kept blank tags). 3.6
+// tags photos as well (category / pattern / formality / warmth 100 % on
+// its sample, subcategory 80 % against 65 %) at ~$0.0045 a photo against
+// $0.002, and only when Flash-Lite fails.
+export const FAST_MODELS: readonly string[] =
+  QUALITY_MODEL === FAST_MODEL ? [FAST_MODEL] : [FAST_MODEL, QUALITY_MODEL];
 
-// Thinking settings for a quality-tier call on `model`. Flash takes the
-// budgets the suggest rule harness was tuned on (3.6-flash accepts them,
-// verified 2026-10-15). Flash-Lite maps the same intent to thinkingLevel:
-// MINIMAL for "no thinking", MEDIUM for suggest. LOW thinks zero tokens
-// and put jeans in an office outfit in a probe; MEDIUM (~660 thinking
-// tokens there) followed the rules.
+// Thinking settings for a call on `model` (every route takes them from
+// here). Flash takes the budgets the suggest rule harness was tuned on
+// (3.6-flash accepts them, verified 2026-10-15). Flash-Lite REJECTS
+// thinkingBudget (HTTP 400) and maps the same intent to thinkingLevel:
+// MINIMAL for "no thinking" (its cheapest level, which may still think a
+// little, so leave maxOutputTokens headroom), MEDIUM for suggest. LOW
+// thinks zero tokens and put jeans in an office outfit in a probe;
+// MEDIUM (~660 thinking tokens there) followed the rules.
 export function thinkingFor(model: string, kind: "suggest" | "none"): ThinkingConfig {
   const lite = /flash-lite/.test(model);
   if (kind === "suggest") {
