@@ -955,6 +955,26 @@ export async function POST(request: NextRequest) {
     };
     const casualWearHasAlternative = (category: string): boolean =>
       items.some((w) => !w.is_stored && w.category === category && !casualWearBan(w) && passesWarmth(w));
+    // Base-layer warmth floor (Rule 5): base warmth >= 2 under 10°C and
+    // >= 2.5 under 5°C, except at home. ONE predicate for the validator's
+    // soft drop and the prompt pre-filter. A bottom under the floor is
+    // hidden from the prompt when the wardrobe holds a warm-enough one
+    // (skirts and skorts stay: tights fix those, and the tip says so).
+    // Shown, the model picked the light pair and the look shipped
+    // "relaxed" ("I stretched a rule or two") with warmer trousers in the
+    // closet (2026-10-16: warmth-1.5 drawstring trousers at 9°C, about one
+    // cold Outdoor look in four).
+    const baseTooLight = (warmth: number): boolean =>
+      temp !== null && occasion !== "at-home" && ((temp < 5 && warmth < 2.5) || (temp < 10 && warmth < 2));
+    const lightBottom = (it: ClothingItem): boolean =>
+      it.category === "bottom" &&
+      it.subcategory !== "skirt" &&
+      it.subcategory !== "skort" &&
+      typeof it.warmth_rating === "number" &&
+      baseTooLight(it.warmth_rating);
+    const hasWarmEnoughBottom = items.some(
+      (w) => !w.is_stored && w.category === "bottom" && !lightBottom(w) && !casualWearBan(w)
+    );
     const RICH_CATEGORY_THRESHOLD = 3;
     const inAllByCategory = new Map<string, number>();
     for (const it of items) {
@@ -987,6 +1007,8 @@ export async function POST(request: NextRequest) {
       // an allowed piece. Shown, the model picked them and each pick cost
       // the regenerate call (2026-10-16: summer shorts for a 9°C date).
       if (casualWearBan(it) && casualWearHasAlternative(it.category)) return false;
+      // Bottoms under the cold-weather warmth floor, same pattern.
+      if (lightBottom(it) && hasWarmEnoughBottom) return false;
       // Hot (≥25°C): never outerwear (Rule 5). The richness gate below
       // switched this off: at 25°C every coat fails warmth, the category
       // counts 0 passing items, and the whole outerwear rail was shown.
@@ -2079,6 +2101,8 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           const candidates = seenFits.length > 0 ? seenFits : fits(promptItems);
           let pool = candidates.filter(passesWarmth);
           if (pool.length === 0) pool = candidates;
+          const warmEnough = pool.filter((i) => !lightBottom(i));
+          if (warmEnough.length > 0) pool = warmEnough;
           if (missing === "top") {
             const underLayers = pool.filter(
               (i) => UNDER_LAYER_TOPS.has(i.subcategory ?? "") && !i.is_layering_piece
@@ -2280,13 +2304,23 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           shoeFitsContext(i) &&
           !rainRefuses(i) &&
           !(temp !== null && temp < 14 && occasion !== "at-home" && isOpenShoe(i));
-        if (shoe && shoe.id !== anchorItemId && !shoeOk(shoe)) {
+        const passing = (list: ClothingItem[]) =>
+          list.filter((i) => i.category === "shoes" && i.id !== shoe?.id && shoeOk(i));
+        const taggedHere = (i: ClothingItem) => (i.occasions ?? []).includes(occasion as Occasion);
+        const seen = passing(fullPool);
+        const hidden = passing(promptItems).filter((i) => !seen.some((s) => s.id === i.id));
+        // The rotation can also hide the only wearable shoes tagged for
+        // this occasion: a rainy date got workout sneakers while the
+        // date-tagged pair sat one outfit back. An off-tag pick is swapped
+        // only then (no shoe the model saw is tagged and wearable).
+        const rotationHidTagged =
+          !!shoe &&
+          (shoe.occasions ?? []).length > 0 &&
+          !taggedHere(shoe) &&
+          !seen.some(taggedHere) &&
+          hidden.some(taggedHere);
+        if (shoe && shoe.id !== anchorItemId && (!shoeOk(shoe) || rotationHidTagged)) {
           const rest = stripped.filter((i) => i.id !== shoe.id);
-          const passing = (list: ClothingItem[]) =>
-            list.filter((i) => i.category === "shoes" && i.id !== shoe.id && shoeOk(i));
-          const taggedHere = (i: ClothingItem) => (i.occasions ?? []).includes(occasion as Occasion);
-          const seen = passing(fullPool);
-          const hidden = passing(promptItems).filter((i) => !seen.some((s) => s.id === i.id));
           const pool = seen.some(taggedHere)
             ? seen
             : hidden.some(taggedHere)
@@ -3536,10 +3570,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // bans weather-protection advice there.
       if (weather && typeof weather.temp === "number" && occasion !== "at-home") {
         const baseW = baseWarmth(s.items);
-        if (
-          (weather.temp < 5 && baseW < 2.5) ||
-          (weather.temp < 10 && baseW < 2)
-        ) {
+        if (baseTooLight(baseW)) {
           // Tights only under a skirt or dress, never on the men's track
           // (the tip used to tell people in trousers to add tights).
           const showsLegs =

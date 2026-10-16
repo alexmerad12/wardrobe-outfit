@@ -71,6 +71,15 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** `getWeather` made one attempt and suggest swallowed the error silently.
 - **Fix:** one retry (5 s, then 4 s) in `src/lib/weather.ts`; a double failure logs `[weather] Open-Meteo failed twice`.
 
+### Cold Outdoor looks shipped "relaxed" with warm trousers in the closet (2026-10-16, production check)
+- **Symptom:** about one cold Outdoor look in four came back relaxed ("I stretched a rule or two"); the telemetry only says `softMismatch=1`.
+- **Cause:** the pre-filter leaves bottoms ungated between 5 and 10°C, but the validator soft-drops a base under warmth 2 there, so the model was shown warmth-1.5 drawstring trousers at 9°C and the rule then flagged them.
+- **Fix:** `baseTooLight`, one predicate for the soft drop and the pre-filter: a non-skirt bottom under the floor is hidden from the prompt when the wardrobe holds a warm-enough one; the BASE COMPLETER prefers warm-enough bottoms too.
+
+### A rainy date got workout sneakers (2026-10-16, local check)
+- **Cause:** the shoe rotation hid the date-tagged Vans (one outfit back), the other date-tagged pair was canvas (refused in the rain), so the model picked the outdoor-tagged running shoes. No rule broke, so the repair didn't run.
+- **Fix:** SHOE REPAIR also swaps an off-tag pick when the rotation hid the only wearable shoes tagged for the occasion (and only then: a visible tagged pair leaves the model's choice alone).
+
 ### Layering bugs in the new injectors (2026-10-16 benchmark)
 - **Cause:** the BASE COMPLETER re-added the subcategory the dedupe had just removed (a zip hoodie under a zip hoodie), and the outerwear injector cancelled its injection when its closest-warmth coat duplicated a subcategory, so a 9°C rain outfit shipped coatless.
 - **Fix:** both skip duplicate subcategories before picking.
