@@ -103,7 +103,7 @@ Init lives in `src/instrumentation.ts` (node + edge) and `src/instrumentation-cl
 
 Vercel auto-deploys on push to `main`. Production domain: `linette.app`. There are two collaborators on the repo, so **`git pull --rebase` before pushing** — this is a standing rule. Vercel's build runs `next build` which includes TS type-checking; a passing local `npx tsc --noEmit` is necessary but not sufficient.
 
-`vercel.json` pins functions to `pdx1` and runs a daily cron on `/api/cron/keepalive` (a one-row Supabase read, guarded by `CRON_SECRET`), so the free Supabase project never hits its 7-day idle pause. `CRON_SECRET` must exist in the Vercel production env.
+`vercel.json` pins functions to `pdx1` and runs a daily cron on `/api/cron/keepalive` (a one-row Supabase read, guarded by `CRON_SECRET`), so the free Supabase project never hits its 7-day idle pause. `CRON_SECRET` must exist in the Vercel production env. It is a sensitive variable (unreadable), so test the authorized path with `vercel crons run /api/cron/keepalive` (Vercel sends the real secret; expect 200 in `vercel logs`), not from outside.
 
 Line endings: `core.autocrlf=true` checks files out as CRLF. Edit tools that match multi-line strings can fail on a CRLF file; an unmodified file can be re-checked-out as LF with `git -c core.autocrlf=false checkout-index --force -- <file>` (git's own copy is LF, the diff stays empty).
 

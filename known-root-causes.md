@@ -110,6 +110,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 ### Tooling traps on this machine (2026-10-15)
 - Edit tools fail on multi-line matches in CRLF files (`core.autocrlf=true`). Git Bash `sed` strips the CRs, so the file looks LF. Use single-line anchors.
 - Next 16 allows one `next dev` per folder ("Another next dev server is already running"). Run a second server with `next start` on a build.
+- Git Bash rewrites a leading-slash argument into a Windows path: `vercel crons run /api/cron/keepalive` became "C:/Program Files/Git/api/cron/keepalive not found". Prefix `MSYS_NO_PATHCONV=1`.
 - Another project's dev server can hold port 3000. Tests then hit the wrong app (404s). Use `playwright.audit.config.ts` (port 3001).
 - Python packages with deep test folders fail to install under the long scratchpad path (Windows 260-character limit). Use a short venv path.
 - Home and wardrobe pages crash ("Invalid src prop ... hostname is not configured") when the account holds items whose `image_url` host is not in `next.config.ts` `images.remotePatterns`. In practice only test fixtures do (`https://example.com/...`): real items use Supabase storage (249) or Vercel Blob (10), both allowed (checked 2026-10-16). Don't run the UI smoke while another spec's fixtures sit in the test wardrobe.
