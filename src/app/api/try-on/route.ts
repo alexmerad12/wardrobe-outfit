@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
   // unreadable photos used to lock the feature for the whole day).
   const fail = (message: string, status: number) => {
     if (capCount !== -1) refundDailyCap(countKey);
-    logAiCall(supabase, userId, "try_on", { succeeded: false });
+    logAiCall(supabase, userId, "try_on", { succeeded: false, metadata: { models: [FAST_MODEL, QUALITY_MODEL] } });
     return NextResponse.json({ error: message }, { status });
   };
 

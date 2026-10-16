@@ -242,7 +242,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
       // Nothing usable came back: give the use back and record it.
       console.error("[packing] Failed to parse Gemini response:", text.slice(0, 200));
       refund();
-      logAiCall(supabase, userId, "packing", { succeeded: false });
+      logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model: FAST_MODEL } });
       return NextResponse.json({ error: "Failed to generate packing list" }, { status: 502 });
     }
 
@@ -275,7 +275,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     console.error("Packing list error:", error);
     Sentry.captureException(error);
     refund();
-    logAiCall(supabase, userId, "packing", { succeeded: false });
+    logAiCall(supabase, userId, "packing", { succeeded: false, metadata: { model: FAST_MODEL } });
     return NextResponse.json({ error: "Failed to generate packing list" }, { status: 500 });
   }
 }

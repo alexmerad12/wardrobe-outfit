@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     if (!match) {
       console.error("[analyze] Failed to parse Gemini response:", text.slice(0, 200));
       refund();
-      logAiCall(supabase, userId, "analyze_item", { succeeded: false });
+      logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { model: FAST_MODEL } });
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 502 });
     }
 
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     console.error("[analyze] Item analyze error:", err);
     Sentry.captureException(err);
     refund();
-    logAiCall(supabase, userId, "analyze_item", { succeeded: false });
+    logAiCall(supabase, userId, "analyze_item", { succeeded: false, metadata: { model: FAST_MODEL } });
     return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
   }
 }

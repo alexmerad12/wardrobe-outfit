@@ -165,7 +165,7 @@ Respond with ONLY:
       parsed = JSON.parse(result.text ?? "");
     } catch {
       refund();
-      logAiCall(supabase, userId, "refine", { succeeded: false });
+      logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model: QUALITY_MODEL } });
       return NextResponse.json({ error: "Failed to parse refine response" }, { status: 502 });
     }
 
@@ -198,7 +198,7 @@ Respond with ONLY:
     console.error("[refine] error:", err);
     Sentry.captureException(err);
     refund();
-    logAiCall(supabase, userId, "refine", { succeeded: false });
+    logAiCall(supabase, userId, "refine", { succeeded: false, metadata: { model: QUALITY_MODEL } });
     return NextResponse.json({ error: "Refine failed" }, { status: 500 });
   }
 }

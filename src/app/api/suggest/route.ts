@@ -4198,6 +4198,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         mood,
         occasion,
         outfit_count: suggestions.length,
+        // GEMINI_QUALITY_MODEL can swap the model without a deploy, so
+        // every row records which one actually answered.
+        model: QUALITY_MODEL,
         rules: rulesTelemetry,
       },
     });
@@ -4217,7 +4220,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     console.error("Suggestion error:", error);
     Sentry.captureException(error);
     if (capCount !== null && capCount !== -1) refundDailyCap(countKey);
-    logAiCall(supabase, userId, "suggest", { succeeded: false });
+    logAiCall(supabase, userId, "suggest", { succeeded: false, metadata: { model: QUALITY_MODEL } });
     return NextResponse.json(
       { error: "Failed to generate suggestions" },
       { status: 500 }

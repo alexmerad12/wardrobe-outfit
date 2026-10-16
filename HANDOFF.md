@@ -35,7 +35,12 @@ Verification (local dev server, dedicated test account `e2e-audit-claude@linette
 - Browser e2e as the test account (`--config playwright.audit.config.ts`, port 3001): UI smoke 9/9 tabs with 0 console errors, CRUD smoke 4/4, bulk upload 5/5 (happy path with AI names and 1280px cutouts, throttled 3G mobile, 5 largest photos, two batches in one session 10/10), wear-today pass.
 - Found and fixed while testing: every page load fired 5-8 identical `/api/preferences` requests (now 1, `src/lib/preferences-client.ts`); a hardcoded test login in the old bulk-upload spec (account `test@gmail.com` banned); the bulk-upload spec targeted a removed flow (rewritten).
 
-Still to verify once billing is back: `npm run test:rules` on 3.6 (8/8 so far on 2.5 models) and refine's answer on 3.6.
+- Every AI route now records the model in `ai_calls.metadata` on success AND failure (suggest recorded none, the others only on success), so the usage table shows exactly which model answered or was refused.
+
+Still to verify once billing is back: `npm run test:rules` on 3.6 (8/8 so far on 2.5 models) and refine's answer on 3.6. After the reset at 00:00 UTC on 2026-10-16, gemini-3.6-flash served one request (suggest, 00:03) and refused 36 refine calls by 00:45. The old `gemini-3.5-flash` name that production still calls is counted against the same gemini-3.6-flash quota (a request to it is refused naming gemini-3.6-flash), so live linette.app is blocked by the same cap. Run, against a server with the test account in `CAP_BYPASS_EMAILS`:
+`HARNESS_EMAIL=e2e-audit-claude@linette.app HARNESS_SUGGEST_RETRY_MINUTES=10 npx playwright test rule-compliance.spec.ts`
+
+Root causes and ruled-out theories from this session: `known-root-causes.md`.
 
 ## Earlier status (2026-10-09 audit, still true)
 - **Apple developer-name trap:** the name under the app title can be "Linette" only if Linette is a registered trade name of 9537-1076 (Quebec "déclaration de mise à jour courante", free), and it can ONLY be set when the first app record is created, never changed after. Otherwise it shows "9537-1076 Québec inc." forever. Decide before creating the app in App Store Connect. Seller always shows the legal name. Google Play publicly shows legal name + address + developer email + phone.
@@ -68,7 +73,7 @@ Still to verify once billing is back: `npm run test:rules` on 3.6 (8/8 so far on
 0. Owner: reactivate Gemini billing. Then `npm run test:rules` (HARNESS_EMAIL + CAP_BYPASS_EMAILS, see CLAUDE.md) and the AI stress specs on 3.6.
 1. Owner approves the push → deploy → verify on production: normalize (already proven on a preview), keepalive cron firing, suggest end to end. `CRON_SECRET` must be in Vercel production before the cron's first run.
 2. Owner decisions on the styling-rule taste calls (belt on shift dresses and slim bottoms, mini skirt → boots, mandatory statement piece, metal-sync strictness, Cozy palette neutrals, casual heels, bodycon at work, sandals with wide-leg trousers).
-3. Optional cleanup: unused Vercel env vars (`PHOTOROOM_API_KEY`, `ANTHROPIC_API_KEY`, `KV_URL`, `KV_REST_API_READ_ONLY_TOKEN`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; keep `BLOB_READ_WRITE_TOKEN`, it uploads the model). The Blob store `wardrobe-images` still holds 47 wardrobe photos from April 2026 (317 MB, public URLs) from before the Supabase migration: delete once confirmed migrated, keep `models/`.
+3. Optional cleanup: unused Vercel env vars (`PHOTOROOM_API_KEY`, `ANTHROPIC_API_KEY`, `KV_URL`, `KV_REST_API_READ_ONLY_TOKEN`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; keep `BLOB_READ_WRITE_TOKEN`, it uploads the model). The Blob store `wardrobe-images` still holds 47 wardrobe photos from April 2026 (317 MB, public URLs) from before the Supabase migration. Do NOT delete them yet: 10 real `clothing_items` rows still point at those Blob URLs (checked 2026-10-16). Migrate those 10 photos into Supabase storage first, then delete. Keep `models/` (the background-removal model).
 4. Store accounts (owner): resume Play Console, enroll Apple, both under 9537-1076 / DUNS 243370174.
 5. Web-side compliance (ships to linette.app too): Gemini consent screen, report button on AI output, 18+ terms + age gate, public account-deletion page, email confirm ON, private bucket + signed URLs.
 6. Store build: Capacitor scaffold → Sign in with Apple + native Google sign-in → RevenueCat + platform-aware paywall → Restore Purchases (i18n key `paywall.restore` exists) → demo reviewer account → listings. iOS builds need a Mac / Xcode 26.
