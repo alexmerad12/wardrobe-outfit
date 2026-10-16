@@ -31,6 +31,11 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** the belt strip, the accessory injector and the belt completer each kept their own copy of the belt predicate. The completer demanded the belt the strip had removed. Several injectors ignored the validators' rules (bag size, backpacks, warmth, hats).
 - **Fix:** one hoisted predicate per rule in `suggest/route.ts` (`beltBlockedBy`, `hatProblem`, `shoeFitsContext`, `bagOkForInjection`...).
 
+### Mood rules demanding a piece the outfit can't wear (2026-10-16)
+- **Symptom:** suggest ships "EMERGENCY ADMIT" (relaxed) outfits on Confident; the debug drops show "confident mood + no structured/tailored piece" on both the first answer and the regenerate.
+- **Cause:** Confident / Energized / Bold fired when the wardrobe owned a compliant piece anywhere, even when this outfit couldn't wear it: tailored trousers with a pinned dress, a blazer at home or at 25°C+ (no outerwear).
+- **Fix:** `wearableHere` in `suggest/route.ts`, so the rules only count pieces wearable in this request (occasion, weather, anchor slot). Harness emergency admits went from 4 to 2 (the 2 left: a women's fixture wardrobe on the men's track).
+
 ### 5-8 identical `/api/preferences` requests per page (2026-10-15)
 - **Cause:** `useLocale` (~40 components), `useTemperatureUnit`, the weather widget and the item pages each fetched on mount.
 - **Fix:** `src/lib/preferences-client.ts`, one shared request per page (60 s reuse, invalidated on save and sign-out).
@@ -53,5 +58,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **"A lower graph optimization level saves memory"** (2026-10-15): no. "basic" / "extended" peaked at 3-3.7 GB on the lean model, "all" at 1.3 GB.
 - **"Just use ISNet or BEN2"** (2026-10-15): ISNet fits (0.8 GB) but scored 84.7% mask IoU against Photoroom and lost one garment entirely. BEN2 needs 3.5 GB.
 - **"The Gemini 429 is a per-minute rate limit"** (2026-10-15): no. The quota id is PerDay FreeTier.
+- **"Flash-Lite is as good as Flash for outfits"** (2026-10-16): not quite. gemini-3.5-flash-lite passed every hard rule (harness 8/8, sweep 61/61) but skipped the soft "statement piece" instruction that gemini-3.6-flash followed on the same request. Hard rules hold on either model because the code enforces them; taste instructions don't.
+- **"gemini-3.8-flash can stand in for 3.6 while 3.6 is capped"** (2026-10-16): no. gemini-3.6-flash and gemini-3.8-flash each served one request after the reset, then hit the free-tier cap (gemini-3.7-flash untested). The Flash-Lite models kept answering.
 - **"The daily reset will free the free tier for testing"** (2026-10-16): no. After the 00:00 UTC reset, gemini-3.6-flash served one request, then refused every call again (36 refine refusals by 00:45).
 - **"Syncthing reverted CLAUDE.md and the memory index"** (2026-10-16): no. A post-compaction reminder showed old copies, but disk and git held the new text, and there were no conflict files. The memory tool's "file reverted" warnings were frontmatter rewrites, not reverts.

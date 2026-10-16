@@ -16,9 +16,14 @@ export const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? "" 
 // before switching. Price: $0.75 in / $3.75 out per 1M tokens through
 // 2026-12-31, doubling on 2027-01-01 (both 3.6 and 3.8).
 // GEMINI_QUALITY_MODEL overrides it without a deploy (an outage on this
-// model, or its free-tier day cap while testing locally). The override
-// must accept thinkingBudget, like gemini-2.5-flash does. Leave it unset
-// in production.
+// model, its free-tier day cap, or to run the outfit tier on Flash-Lite).
+// Any Flash or Flash-Lite id works: the thinking settings below follow it.
+// gemini-3.5-flash-lite as the outfit model, tested 2026-10-16: rule
+// harness 8/8, endpoint sweep 61/61, natural French. But on the same
+// wardrobe and request as 3.6 it skipped the prompt's soft "statement
+// piece" instruction (3.6 added the red scarf), so 3.6 stays the default.
+// Flash-Lite is the fallback: ~2.5x cheaper input, 1.5x cheaper output,
+// and it still answers on the free tier when the Flash models are capped.
 export const QUALITY_MODEL = process.env.GEMINI_QUALITY_MODEL || "gemini-3.6-flash";
 
 // Fast tier: photo classification and packing lists, protected by the
@@ -34,6 +39,15 @@ export const FAST_MODEL = "gemini-3.5-flash-lite";
 export const FAST_THINKING: ThinkingConfig = { thinkingLevel: ThinkingLevel.MINIMAL };
 
 // Quality-tier thinking. Budgets are what the suggest rule harness was
-// tuned on; 3.6-flash accepts them (verified 2026-10-15).
-export const NO_THINKING: ThinkingConfig = { thinkingBudget: 0 };
-export const SUGGEST_THINKING: ThinkingConfig = { thinkingBudget: 3072 };
+// tuned on; 3.6-flash accepts them (verified 2026-10-15). When the quality
+// tier runs on a Flash-Lite model (GEMINI_QUALITY_MODEL), the same intent
+// maps to thinkingLevel: MINIMAL for "no thinking", MEDIUM for suggest.
+// LOW thinks zero tokens and put jeans in an office outfit in a probe;
+// MEDIUM (~660 thinking tokens there) followed the rules.
+const QUALITY_IS_LITE = /flash-lite/.test(QUALITY_MODEL);
+export const NO_THINKING: ThinkingConfig = QUALITY_IS_LITE
+  ? { thinkingLevel: ThinkingLevel.MINIMAL }
+  : { thinkingBudget: 0 };
+export const SUGGEST_THINKING: ThinkingConfig = QUALITY_IS_LITE
+  ? { thinkingLevel: ThinkingLevel.MEDIUM }
+  : { thinkingBudget: 3072 };

@@ -2408,13 +2408,43 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       return false;
     };
 
-    // Wardrobe-aware capabilities: each mood validator only fires
-    // when the wardrobe actually contains a compliant item, so a user
-    // with no bright pieces doesn't get an empty Energized result.
+    // Wardrobe-aware capabilities: each mood validator only fires when
+    // the outfit could actually include a compliant item, so a user with
+    // no bright pieces doesn't get an empty Energized result.
+    //
+    // "Could actually include" is per request: at home the outfit carries
+    // no outerwear, shoes, bag or accessory (stripped upstream); at 25°C+
+    // no outerwear; and a pinned anchor holds its base slot (a pinned dress
+    // takes no top, bottom or second dress; a pinned bottom no other bottom
+    // or dress). "Owned somewhere" used to be enough, so a pinned a-line
+    // dress with no blazer failed every candidate on Confident, burned the
+    // regenerate call and shipped relaxed anyway.
     const activeWardrobe = items.filter((i) => !i.is_stored);
-    const wardrobeHasStructured = activeWardrobe.some(itemIsStructured);
-    const wardrobeHasBright = activeWardrobe.some(itemHasBright);
-    const wardrobeHasStatement = activeWardrobe.some(itemHasStatement);
+    const anchorForMoods = anchorItemId
+      ? activeWardrobe.find((i) => i.id === anchorItemId)
+      : undefined;
+    const isBaseCategory = (c: string) => c === "dress" || c === "one-piece";
+    const wearableHere = (i: ClothingItem): boolean => {
+      if (
+        occasion === "at-home" &&
+        (i.category === "outerwear" || i.category === "shoes" || i.category === "bag" || i.category === "accessory")
+      ) {
+        return false;
+      }
+      if (temp !== null && temp >= 25 && i.category === "outerwear") return false;
+      if (!anchorForMoods || i.id === anchorForMoods.id) return true;
+      if (isBaseCategory(anchorForMoods.category)) {
+        return !(isBaseCategory(i.category) || i.category === "top" || i.category === "bottom");
+      }
+      if (anchorForMoods.category === "bottom") {
+        return !(isBaseCategory(i.category) || i.category === "bottom");
+      }
+      if (anchorForMoods.category === "top") return !isBaseCategory(i.category);
+      return true;
+    };
+    const wardrobeHasStructured = activeWardrobe.some((i) => wearableHere(i) && itemIsStructured(i));
+    const wardrobeHasBright = activeWardrobe.some((i) => wearableHere(i) && itemHasBright(i));
+    const wardrobeHasStatement = activeWardrobe.some((i) => wearableHere(i) && itemHasStatement(i));
 
     const runValidation = (candidates: typeof mapped) => {
       const drops: DropEntry[] = [];
@@ -3192,7 +3222,8 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // Mood: Confident → require at least one structured/tailored
       // piece (blazer, sheath dress, tailored trousers). Without one
       // the outfit reads casual or boho, not confident. Wardrobe-aware:
-      // skip enforcement if the wardrobe lacks any structured piece.
+      // skip enforcement when no structured piece can be worn here (none
+      // owned, or only ones this occasion, weather or anchor rules out).
       if (mood === "confident" && wardrobeHasStructured) {
         const hasStructured = s.items.some(itemIsStructured);
         if (!hasStructured) {
