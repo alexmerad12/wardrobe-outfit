@@ -23,6 +23,16 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Measured on the way:** a standard (1 vCPU) instance reports 2 CPUs; cold start = ~6.8 s model download + ~5.4 s session creation; warm model run ~20-21.5 s. On a desktop CPU the model takes 21.8 s on 1 thread, 12.0 s on 2, 7.3 s on 4, so production's speed matches one thread and the Performance size (2 vCPU / 4 GB, a project-wide setting) should bring a photo to ~12-13 s.
 - **Performance size on since 2026-10-17, 8:40 AM EDT (owner's yes):** instances report 3 CPUs (the model stays at 2 threads, leaving a core for the instance's other requests); warm model run 11.8-13.6 s, cold start 8-10 s (model download 3.4-4.6 s, session 4.2-5.7 s); the same 5-photo test 65 s; production sweep 60/61 plus the keepalive at 200 through `vercel crons run` (the sweep has no production cron secret), UI smoke 9/9, 0 console errors.
 
+### White clothes on a white door: shadow, door patch and wall hook kept as part of the garment (2026-10-17)
+- **Symptom:** a side-by-side with Photoroom on the 12 reference photos (zoomed): #09 (white tee) kept a grey cast shadow under the sleeve and a light door patch by the collar; #23 (knit on a hanger) kept the white wall hook above the hanger and a door patch at the neckline. The 98% mean IoU hid them: the areas are small.
+- **Cause:** model limit on low-contrast, white-on-white regions. The shadow mistake is not mirror-symmetric; the door patches and the hook are (the model keeps them in both orientations).
+- **Fix (partial, the owner's choice):** the mirror pass, each pixel keeps the lower logit of the photo and its mirror (`minLogits` in `matte.ts`). Mean IoU 97.98% → 98.16%, no photo worse, #09 97.5% → 98.6% with the shadow mostly gone. Averaging the two logits instead ("flip-mean") scored 98.07% and made #36 worse. Door patches and the hook stay: an accepted limit (owner, 2026-10-17). Doubles model time.
+- **Considered, not done:** a bigger model (BiRefNet full: a Swin-L backbone, several times lite's compute on a CPU-only function), BEN2 (scored 97.9%, below lite), RMBG-2.0 (non-commercial license), a background-colour cleanup (would eat into white garments, the exact case).
+
+### Rules the fallback gate never re-checked (2026-10-17)
+- **Symptom:** found while moving the owner's rule decisions into shared predicates: the fallback gate had no work-dress check (a slip or mermaid dress could reach the office through it) and no espadrilles × wool trousers rule, while the validator had both. The validator had no Chill heel ban, which the shoe injector and the fallback gate both applied (the casual-heel block happened to cover it at casual occasions).
+- **Fix:** `workDressProblem`, `shoeBottomClash`, `metalMixProblem` in `src/lib/outfit-rules.ts`, called by both; the validator now drops heels on Chill like the other two.
+
 ### AI endpoints fail with Gemini 429 "FreeTier" (2026-10-15)
 - **Symptom:** suggest / refine / try-on 500; logs show `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, limit 20.
 - **Cause:** billing on the AI Studio project behind `GOOGLE_API_KEY` is inactive. Every model is capped at 20 requests a day per project, shared with production.
