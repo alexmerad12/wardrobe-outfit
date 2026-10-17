@@ -60,5 +60,12 @@
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.0.3"
+  },
+  "allowScripts": {
+    "esbuild": false,
+    "onnxruntime-node": false,
+    "protobufjs": false,
+    "unrs-resolver": false,
+    "@google/genai": false
   }
 }
