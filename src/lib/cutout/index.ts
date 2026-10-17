@@ -7,6 +7,7 @@
 import sharp from "sharp";
 import { alphaBox, compositeOnWhite, dropSpecks, logitsToMask } from "./matte";
 import { MODEL_INPUT_SIZE, predictLogits } from "./model";
+import { oneAtATime } from "./one-at-a-time";
 
 const WORK_MAX = 1600; // longest side the matte is computed at
 const OUT_SIZE = 1280;
@@ -15,15 +16,26 @@ const MAX_UPSCALE = 2;
 
 export type CutoutResult = {
   jpeg: Buffer;
-  timings: { decodeMs: number; modelMs: number; matteMs: number; encodeMs: number };
+  timings: { waitMs: number; decodeMs: number; modelMs: number; matteMs: number; encodeMs: number };
 };
+
+// One photo at a time per instance, from decode to JPEG, not only the model
+// run. The model keeps every core busy, so a photo's matte and encode used to
+// crawl beside the next photo's model run: on 2026-10-17 three photos of one
+// bulk upload, sent to the same instance by Fluid compute, all came back
+// together after ~81 s (a 1 s matte took 22 s, a 0.4 s encode 23 s).
+const enqueue = oneAtATime();
 
 /**
  * Remove the background from a photo and return the catalog JPEG, or null
  * when the model finds no clear subject (caller keeps the plain photo).
  * Throws on undecodable input or model failure.
  */
-export async function cutoutToCatalogJpeg(input: Buffer): Promise<CutoutResult | null> {
+export function cutoutToCatalogJpeg(input: Buffer): Promise<CutoutResult | null> {
+  return enqueue((waitMs) => cutout(input, waitMs));
+}
+
+async function cutout(input: Buffer, waitMs: number): Promise<CutoutResult | null> {
   const t0 = performance.now();
   const { data, info } = await sharp(input, { failOn: "none" })
     .rotate()
@@ -90,6 +102,7 @@ export async function cutoutToCatalogJpeg(input: Buffer): Promise<CutoutResult |
   return {
     jpeg,
     timings: {
+      waitMs,
       decodeMs: Math.round(t1 - t0),
       modelMs: Math.round(t2 - t1),
       matteMs: Math.round(t3 - t2),

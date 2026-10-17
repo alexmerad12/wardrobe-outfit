@@ -40,9 +40,6 @@ const CACHE_PATH = path.join(os.tmpdir(), `birefnet-lite-lean-${MODEL_SHA256.sli
 const FS_ERROR_CODES = new Set(["EACCES", "EPERM", "EROFS", "ENOSPC", "EDQUOT", "EMFILE"]);
 
 let sessionPromise: Promise<ort.InferenceSession> | null = null;
-// One inference at a time per instance: two concurrent 1024px runs double
-// peak memory and each finishes no sooner than if they queued.
-let inferenceQueue: Promise<unknown> = Promise.resolve();
 
 async function fileHasModelHash(file: string): Promise<boolean> {
   try {
@@ -104,12 +101,14 @@ async function modelSource(): Promise<string | Uint8Array> {
   }
 }
 
+// Capped: more threads than physical cores made a 10 s run take 40-60 s in
+// local tests (oversubscription). Vercel functions have 1-2 vCPUs;
+// CUTOUT_THREADS overrides for other hosts.
+const INTRA_OP_THREADS =
+  Number(process.env.CUTOUT_THREADS) || Math.min(2, Math.max(1, os.availableParallelism()));
+
 const SESSION_OPTIONS: ort.InferenceSession.SessionOptions = {
-  // Capped: more threads than physical cores made a 10 s run take 40-60 s
-  // in local tests (oversubscription). Vercel functions have 1-2 vCPUs;
-  // CUTOUT_THREADS overrides for other hosts.
-  intraOpNumThreads:
-    Number(process.env.CUTOUT_THREADS) || Math.min(2, Math.max(1, os.availableParallelism())),
+  intraOpNumThreads: INTRA_OP_THREADS,
   interOpNumThreads: 1,
   executionMode: "sequential",
   // "all" matters: it moves the convolutions to NCHWc kernels. "basic" and
@@ -124,12 +123,21 @@ const SESSION_OPTIONS: ort.InferenceSession.SessionOptions = {
 
 export function getCutoutSession(): Promise<ort.InferenceSession> {
   if (!sessionPromise) {
+    const t0 = performance.now();
     sessionPromise = modelSource()
-      .then((source) =>
-        typeof source === "string"
-          ? ort.InferenceSession.create(source, SESSION_OPTIONS)
-          : ort.InferenceSession.create(source, SESSION_OPTIONS)
-      )
+      .then(async (source) => {
+        const t1 = performance.now();
+        const session =
+          typeof source === "string"
+            ? await ort.InferenceSession.create(source, SESSION_OPTIONS)
+            : await ort.InferenceSession.create(source, SESSION_OPTIONS);
+        // Once per instance: what a cold start costs, and the CPUs it got.
+        console.log(
+          `[cutout] session ready: model ${Math.round(t1 - t0)} ms, session ${Math.round(performance.now() - t1)} ms, ` +
+            `${INTRA_OP_THREADS} threads, ${os.availableParallelism()} cpus`
+        );
+        return session;
+      })
       .catch((err) => {
         sessionPromise = null; // let the next request retry
         throw err;
@@ -140,7 +148,9 @@ export function getCutoutSession(): Promise<ort.InferenceSession> {
 
 /**
  * Run the model on a 1024x1024 RGB image (interleaved 8-bit) and return the
- * raw logits, one per pixel. Serialized per instance.
+ * raw logits, one per pixel. Not serialized here: cutoutToCatalogJpeg runs
+ * one whole photo at a time per instance (two concurrent 1024 px runs double
+ * peak memory, and each finishes no sooner than if they took turns).
  */
 export async function predictLogits(rgb1024: Uint8Array): Promise<Float32Array> {
   const session = await getCutoutSession();
@@ -153,17 +163,11 @@ export async function predictLogits(rgb1024: Uint8Array): Promise<Float32Array> 
       input[c * plane + i] = (rgb1024[i * 3 + c] / 255 - mean[c]) / std[c];
     }
   }
-  const run = async () => {
-    const feeds = {
-      [session.inputNames[0]]: new ort.Tensor("float32", input, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]),
-    };
-    const out = await session.run(feeds);
-    const tensor = out[session.outputNames[0]];
-    const data = tensor.data;
-    if (data instanceof Float32Array) return data;
-    return Float32Array.from(data as ArrayLike<number>);
+  const feeds = {
+    [session.inputNames[0]]: new ort.Tensor("float32", input, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]),
   };
-  const result = inferenceQueue.then(run, run);
-  inferenceQueue = result.catch(() => undefined);
-  return result;
+  const out = await session.run(feeds);
+  const data = out[session.outputNames[0]].data;
+  if (data instanceof Float32Array) return data;
+  return Float32Array.from(data as ArrayLike<number>);
 }
