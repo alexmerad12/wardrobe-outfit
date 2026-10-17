@@ -28,5 +28,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # The project stays on TypeScript 6 because typescript-eslint (inside
+      # eslint-config-next) throws "typescript-eslint does not support TS
+      # 7.0". The code is still checked with TypeScript 7's native compiler
+      # on every push, so the switch is a version bump the day lint allows.
+      - name: Type-check with TypeScript 7 (native compiler)
+        run: npm run typecheck:ts7
       - run: npm run lint
       - run: npm run test:unit

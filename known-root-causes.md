@@ -91,7 +91,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **lottie-react 3:** rewritten API (no default export, `src` instead of `animationData`, `speed` prop). The splash was ported; screenshots confirmed the handwriting animation and the hand-off.
 - **react-day-picker 10:** no code change needed; the open calendar looked see-through in a first screenshot only because it was taken during the popover's fade-in (opaque white panel, opacity 1, once settled).
 - **Stripe 23:** pins API `2026-09-30.endive`, drops `payment_method_types` on Checkout (unused here); the fields the billing code reads are unchanged.
-- **TypeScript 7:** NOT adopted. typescript-eslint supports `<6.1.0`, so linting would break; TypeScript 6.0.3 is the current supported line.
+- **TypeScript 7:** tested in a clean clone. The codebase type-checks clean on TypeScript 7.0.2's native `tsc`, and Next 16 builds with it (its build calls the `tsc` CLI), but `npm run lint` dies at load: "Error: typescript-eslint does not support TS 7.0." (typescript-eslint latest 8.71.2 and canary both declare `typescript <6.1.0`). So the project's TypeScript stays 6.0.3 and CI also runs `npm run typecheck:ts7` on every push; the switch is a version bump once typescript-eslint supports 7.
 
 ### Layering bugs in the new injectors (2026-10-16 benchmark)
 - **Cause:** the BASE COMPLETER re-added the subcategory the dedupe had just removed (a zip hoodie under a zip hoodie), and the outerwear injector cancelled its injection when its closest-warmth coat duplicated a subcategory, so a 9°C rain outfit shipped coatless.
