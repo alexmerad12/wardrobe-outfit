@@ -21,7 +21,7 @@ export type CutoutResult = {
 
 // One photo at a time per instance, from decode to JPEG, not only the model
 // run. The model keeps every core busy, so a photo's matte and encode used to
-// crawl beside the next photo's model run: on 2026-10-17 three photos of one
+// crawl beside the next photo's model run: on 2026-10-16 three photos of one
 // bulk upload, sent to the same instance by Fluid compute, all came back
 // together after ~81 s (a 1 s matte took 22 s, a 0.4 s encode 23 s).
 const enqueue = oneAtATime();
