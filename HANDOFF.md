@@ -3,6 +3,8 @@
 ## Project
 Linette — AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini). Owner's own product (9537-1076 Québec Inc.), not a client project. Production: https://linette.app.
 
+**Owner decisions, 2026-10-16 (late night):** (1) the app keeps Gemini only: "remodernize with Claude Opus 5.5" meant modernizing the code with Claude, not putting Claude models in the app (asked with Claude's prices on the table); (2) the real 4 GB Android phone batch is skipped for now, the emulated low-end phone run on linette.app is accepted (an optional item in the owner's task list).
+
 ## STATUS 2026-10-16 late night — engineering baseline: tests, CI, security headers, read first
 - **Unit tests:** Vitest 5 (`npm run test:unit`, `vitest.config.mts`), 35 tests in 6 files on the pure logic: text guards (swapped-out pieces, vous / accents, garment hallucinations), Gemini model choice and thinking settings, retry / parse / model fallback, weather retry, the analyze sanitizer, the Sentry privacy baseline. Built from the real cases found today.
 - **CI:** `.github/workflows/ci.yml` (GitHub Actions, Node 24): `npm run typecheck` (next typegen + tsc), lint, unit tests on every push to main and every PR. No secrets needed.
