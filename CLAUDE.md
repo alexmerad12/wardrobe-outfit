@@ -12,7 +12,7 @@ npm run build            # Production build. Vercel runs this on every push to m
 npm run lint             # ESLint (next/core-web-vitals base).
 npm run typecheck        # next typegen + tsc --noEmit (works on a fresh clone without .next)
 npm run typecheck:ts7    # same check on TypeScript 7's native compiler (the project stays on 6 for typescript-eslint)
-npm run test:unit        # Vitest: pure logic in src/**/*.test.ts (text guards, Gemini helpers, weather, sanitizer, Sentry baseline)
+npm run test:unit        # Vitest: pure logic in src/**/*.test.ts (text guards, Gemini helpers, weather, sanitizer, Sentry baseline, outfit rules, cutout queue + mirror pass)
 
 # Playwright e2e — needs STRESS_TEST_EMAIL + STRESS_TEST_PASSWORD in .env.local.
 # Tests are serial (workers: 1) because they share one test user.
@@ -103,6 +103,11 @@ Init lives in `src/instrumentation.ts` (node + edge) and `src/instrumentation-cl
 - `src/lib/supabase/server.ts` / `client.ts` — SSR vs. browser clients.
 - `src/lib/admin-bypass.ts` — caps + paywalls skip for `ADMIN_EMAIL` / `CAP_BYPASS_EMAILS`; check `isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed)` before applying gates if you add new ones. The email must be confirmed, so nobody can claim an allowlisted address by signing up with it.
 - CRUD routes parse bodies with `readJsonObject` (`src/lib/read-json.ts`, bad JSON → 400) and answer database errors with `dbErrorResponse` (`src/lib/db-error.ts`): an unknown column, a malformed id or date, or a failed constraint is the caller's mistake (400), anything else is a 500.
+- `ai_calls` rows can only be inserted for the caller (RLS `auth.uid() = user_id`, `supabase-migration-ai-call-insert-policy.sql`, applied): log through the request's own Supabase client, as `logAiCall` does.
+
+### Billing (Stripe)
+
+Web billing is live: `src/app/api/checkout/route.ts`, `src/app/api/stripe/webhook/route.ts`, `src/app/api/billing-portal/route.ts`, gates in `src/lib/subscription.ts` (grandfather cutoff), `src/lib/require-subscription.ts` (API 402) and `src/lib/supabase/proxy.ts` (pages). The webhook re-reads the live subscription from Stripe instead of trusting the event body. Checkout refuses a second subscription while one is active or trialing, and the 7-day trial applies to a FIRST subscription only. Account deletion cancels any billable subscription first and refuses to delete the account if Stripe fails. Stripe traps: `customer_creation` / `customer_update` are payment-mode only (passing them in subscription mode is a 500), and cancelling a trialing subscription in the Customer Portal sets `cancel_at`, not `cancel_at_period_end` (the webhook treats either as "won't renew").
 
 ## Deploy
 

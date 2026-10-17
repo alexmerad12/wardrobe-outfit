@@ -12,7 +12,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 ## ✅ Done
 
 ### Infrastructure
-- [x] Supabase project `oiefqivxuchsskfujopd` (us-east-1, Free tier)
+- [x] Supabase project `oiefqivxuchsskfujopd` (us-west-2, Free tier; region checked 2026-10-17 through the Management API). Vercel functions run next to it in `pdx1`, and the daily `/api/cron/keepalive` stops the free plan's 7-day idle pause
 - [x] Multi-tenant schema with Row Level Security on every table
 - [x] Per-user storage bucket (`clothing-images`) with folder-level RLS
 - [x] Wife's wardrobe migrated from Vercel KV → Supabase (45 items)
@@ -48,7 +48,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] **Turn email confirmation ON** in Supabase (Authentication → Providers → Email → "Confirm email" toggle). Currently OFF to speed up dev/testing. Must be ON before wider launch to stop fake sign-ups.
 - [ ] **Submit Google OAuth app for verification** to remove the "This app isn't verified" warning screen. Google review takes 1–4 weeks. Needed once we expect non-test-user sign-ins.
 - [ ] **Add production test users** in Google Cloud Console for any friend who wants to use Google sign-in (while app is still in Testing mode, ≤100 users).
-- [x] ~~Rate limiting on AI endpoints~~ — done (June audit, C4): per-user daily caps on all five Gemini endpoints (suggest 3 / refine 10 / try-on 3 / packing 2 / analyze 40), user-local-day reset, refunds on failures, admin bypass, KV-outage alerting.
+- [x] ~~Rate limiting on AI endpoints~~ — done (June audit, C4): per-user daily caps on all five Gemini endpoints (suggest 3 / refine 10 / try-on 3 / packing 2 / analyze 40) and on background removal (normalize 60), user-local-day reset, refunds on failures, admin bypass, KV-outage alerting.
 - [x] ~~Account deletion button~~ — done: Profile → Settings → Privacy has the full delete-account flow backed by `/api/account/delete` (+ data export beside it).
 - [x] ~~Password reset flow~~ — done: `/forgot-password` → Supabase reset email → `/auth/callback` → `/welcome` set-password.
 
@@ -69,15 +69,19 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] App icons per-platform, splash screens.
 - [ ] Privacy labels / Data Safety form submissions.
 - [ ] TestFlight / Play Internal Testing builds to 2–3 friends before public submission.
+- [ ] **Decide the Apple developer name BEFORE creating the first App Store record.** It can read "Linette" only if Linette is a registered trade name of 9537-1076 (Quebec "déclaration de mise à jour courante", free), and it is set once, when the first app record is created, never changed after; otherwise it shows "9537-1076 Québec inc." forever. Seller always shows the legal name. Google Play publicly shows the legal name, address, developer email and phone.
+- [x] Entity decided (2026-10-14): stays 9537-1076 Québec inc. + DUNS 243370174, no restructure. When filling store and SMS forms, copy the legal name and address EXACTLY as Apple's D-U-N-S lookup shows them (accents, unit number): registrations reject spelling mismatches.
+- [ ] Store review requirements not built yet: Gemini consent screen (Apple 5.1.2(i)), report button on AI output (Play AI policy), 18+ age gate + terms (Gemini API terms require 18+, the terms say 13+), a public account-deletion URL (Play), a reviewer demo account with an active entitlement, and a Mac with Xcode 26 for iOS builds.
 
-### Subscriptions (later)
-- [ ] `subscriptions` table already exists as a stub. Needs: RevenueCat / StoreKit / Play Billing / Stripe integration.
-- [ ] `<SubscriptionGuard>` wrapper around authed shell redirecting non-subscribers to `/subscribe`.
-- [ ] Pricing / plan selection page.
+### Subscriptions
+- [x] Web billing LIVE on Stripe (checkout, webhook, billing portal; CLAUDE.md "Billing (Stripe)"): $6.99/week with a 7-day trial on a first subscription, or $59.99/year. Accounts created before 2026-06-12 are grandfathered free. No real subscribers yet.
+- [ ] Store apps: RevenueCat (StoreKit / Play Billing), a platform-aware paywall and Restore Purchases (i18n key `paywall.restore` exists).
+- [x] ~~`<SubscriptionGuard>` wrapper~~: done as the middleware page gate (`src/lib/supabase/proxy.ts`), which sends non-subscribers to `/paywall`, plus the API 402 gate (`src/lib/require-subscription.ts`).
+- [x] ~~Pricing / plan selection page~~: `/paywall` (annual pre-selected).
 
 ### Data hygiene
 - [ ] Once wife's migration is clearly stable (≥1 week), delete the legacy Vercel KV blob at key `wardrobe-data`.
-- [ ] Delete legacy Vercel Blob images once all items have been re-uploaded to Supabase Storage (if we migrate old images; currently they stay on Vercel Blob indefinitely).
+- [ ] Delete legacy Vercel Blob images once all items have been re-uploaded to Supabase Storage. The `wardrobe-images` Blob store holds 47 photos from April 2026 (317 MB, public URLs), and 10 real `clothing_items` rows still point at them (checked 2026-10-16): migrate those 10 into Supabase Storage first, then delete. Keep `models/` (the background-removal model).
 
 ### Polish
 - [x] ~~First-run UX for empty accounts~~ — done: 4-step onboarding wizard + dedicated empty-wardrobe home state with add-item CTAs.
