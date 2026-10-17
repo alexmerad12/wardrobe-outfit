@@ -3,7 +3,7 @@
 ## Project
 Linette — AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini). Owner's own product (9537-1076 Québec Inc.), not a client project. Production: https://linette.app.
 
-**Owner decisions, 2026-10-16 (late night):** (1) the app keeps Gemini only: "remodernize with Claude Opus 5.5" meant modernizing the code with Claude, not putting Claude models in the app (asked with Claude's prices on the table); (2) the real 4 GB Android phone batch is skipped for now, the emulated low-end phone run on linette.app is accepted (an optional item in the owner's task list).
+**Owner decisions, 2026-10-16 (late night):** (1) the app keeps Gemini only: "remodernize with Claude Opus 5.5" meant modernizing the code with Claude, not putting Claude models in the app (asked with Claude's prices on the table); (2) the real-phone batch is skipped for now, the emulated low-end phone run on linette.app is accepted (an optional item in the owner's task list). The owner's phone is a Pixel 10, not a 4 GB phone (his correction, 2026-10-17): the "4 GB Android" crash from April was about low-memory phones in general, which the emulated run covers.
 
 ## STATUS 2026-10-16 late night — engineering baseline: tests, CI, security headers, read first
 - **Unit tests:** Vitest 5 (`npm run test:unit`, `vitest.config.mts`), 35 tests in 6 files on the pure logic: text guards (swapped-out pieces, vous / accents, garment hallucinations), Gemini model choice and thinking settings, retry / parse / model fallback, weather retry, the analyze sanitizer, the Sentry privacy baseline. Built from the real cases found today.
@@ -118,7 +118,7 @@ Root causes and ruled-out theories from this session: `known-root-causes.md`.
 
 ## Next steps (ordered)
 0. Done 2026-10-16: billing reopened, rules harness 8/8 on gemini-3.6-flash, production suggest and refine answered by 3.6.
-1. Deployed and verified 2026-10-16 (see STATUS). Left: confirm the first keepalive run in the production logs after 09:17 UTC Oct 17 (`npx vercel logs --environment production --no-branch --since 2h --json`, path /api/cron/keepalive, expect 200), and the owner's own upload of a 5-photo batch from a 4 GB Android phone.
+1. Deployed and verified 2026-10-16 (see STATUS). The keepalive's authorized path is proven (`vercel crons run /api/cron/keepalive` → 200, several times); the first scheduled run (09:17 UTC daily) can be glanced at in `vercel logs`. Optional: a 5-photo batch from the owner's own phone (a Pixel 10; the emulated low-end phone run was accepted).
 2. Owner decisions on the styling-rule taste calls (belt on shift dresses and slim bottoms, mini skirt → boots, mandatory statement piece, metal-sync strictness, Cozy palette neutrals, casual heels, bodycon at work, sandals with wide-leg trousers).
 3. Optional cleanup: unused Vercel env vars (`PHOTOROOM_API_KEY`, `ANTHROPIC_API_KEY`, `KV_URL`, `KV_REST_API_READ_ONLY_TOKEN`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`; keep `BLOB_READ_WRITE_TOKEN`, it uploads the model). The Blob store `wardrobe-images` still holds 47 wardrobe photos from April 2026 (317 MB, public URLs) from before the Supabase migration. Do NOT delete them yet: 10 real `clothing_items` rows still point at those Blob URLs (checked 2026-10-16). Migrate those 10 photos into Supabase storage first, then delete. Keep `models/` (the background-removal model).
 4. Store accounts (owner): resume Play Console, enroll Apple, both under 9537-1076 / DUNS 243370174.
