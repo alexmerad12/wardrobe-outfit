@@ -20,6 +20,10 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # onnxruntime-node's install script downloads the CUDA libraries on
+      # Linux (hundreds of MB, no GPU here). Same setting as vercel.json.
+      ONNXRUNTIME_NODE_INSTALL: skip
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

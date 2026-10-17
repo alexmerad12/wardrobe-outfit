@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "env ONNXRUNTIME_NODE_INSTALL=skip npm install",
   "regions": ["pdx1"],
   "crons": [
     {
