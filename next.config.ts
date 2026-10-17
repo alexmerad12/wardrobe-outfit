@@ -80,6 +80,10 @@ export default isDev
       project: "linette-web",
       // Only print build-time Sentry logs in CI — keeps build output quiet.
       silent: !process.env.CI,
+      // The v11 build plugin reports its own usage to Sentry by default
+      // ("Sending telemetry data on issues and performance"). Not app
+      // data, but off, in line with the dataCollection baseline.
+      telemetry: false,
       // Upload a wider set of files for source-map resolution so stack
       // traces from any chunk file are readable.
       widenClientFileUpload: true,
