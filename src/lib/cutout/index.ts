@@ -5,7 +5,7 @@
 // 8 % margin, matching what flattenOntoWhite did on the client.
 
 import sharp from "sharp";
-import { alphaBox, compositeOnWhite, dropSpecks, logitsToMask } from "./matte";
+import { alphaBox, compositeOnWhite, dropSpecks, logitsToMask, minLogits, mirrorPlane, mirrorRgb } from "./matte";
 import { MODEL_INPUT_SIZE, predictLogits } from "./model";
 import { oneAtATime } from "./one-at-a-time";
 
@@ -54,7 +54,16 @@ async function cutout(input: Buffer, waitMs: number): Promise<CutoutResult | nul
     .toBuffer();
   const t1 = performance.now();
 
-  const logits = await predictLogits(new Uint8Array(modelInput.buffer, modelInput.byteOffset, modelInput.byteLength));
+  // Mirror pass (owner's choice, 2026-10-17): the model also runs on the
+  // mirrored photo and a pixel stays only as far as both runs keep it. On
+  // the 12 reference photos it matched Photoroom at least as well as one run
+  // on every photo, and removed most of a white tee's cast shadow (97.5% ->
+  // 98.6%). It doubles the model time (~24 s a photo on 2 vCPUs).
+  const pixels = new Uint8Array(modelInput.buffer, modelInput.byteOffset, modelInput.byteLength);
+  const S = MODEL_INPUT_SIZE;
+  const direct = await predictLogits(pixels);
+  const mirrored = mirrorPlane(await predictLogits(mirrorRgb(pixels, S, S)), S, S);
+  const logits = minLogits(direct, mirrored);
   const t2 = performance.now();
 
   const mask1024 = logitsToMask(logits);

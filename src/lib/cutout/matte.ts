@@ -77,6 +77,43 @@ export function dropSpecks(alpha: Uint8Array, w: number, h: number): void {
   }
 }
 
+/** Mirror an interleaved RGB image left to right (input of the mirror pass). */
+export function mirrorRgb(rgb: Uint8Array, w: number, h: number): Uint8Array {
+  const out = new Uint8Array(rgb.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const from = (y * w + x) * 3;
+      const to = (y * w + (w - 1 - x)) * 3;
+      out[to] = rgb[from];
+      out[to + 1] = rgb[from + 1];
+      out[to + 2] = rgb[from + 2];
+    }
+  }
+  return out;
+}
+
+/** Mirror a one-value-per-pixel plane left to right (output of the mirror pass). */
+export function mirrorPlane(plane: Float32Array, w: number, h: number): Float32Array {
+  const out = new Float32Array(plane.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) out[y * w + (w - 1 - x)] = plane[y * w + x];
+  }
+  return out;
+}
+
+/**
+ * Combine the model's logits on the photo and on its mirror image (mirrored
+ * back): each pixel keeps the LOWER of the two, so it survives only as far
+ * as both passes keep it. The model's mistakes on white clothes against a
+ * white door (a cast shadow read as part of a sleeve) are not mirror-
+ * symmetric, while the garment itself is kept by both passes.
+ */
+export function minLogits(a: Float32Array, b: Float32Array): Float32Array {
+  const out = new Float32Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = Math.min(a[i], b[i]);
+  return out;
+}
+
 /** Bounding box of pixels with alpha >= threshold, or null when empty. */
 export function alphaBox(alpha: Uint8Array, w: number, h: number, threshold = 32): Box | null {
   let minX = w, minY = h, maxX = -1, maxY = -1;
