@@ -7,7 +7,7 @@
 //
 // Why our own export: the stock ONNX export peaks near 6 GB per 1024 px run
 // (the decoder's deformable convolutions turn into gathers over channels x
-// 49 taps x pixels) and a Vercel function has 2 GB, so it was killed for
+// 49 taps x pixels) and a Vercel function had 2 GB (Standard size), so it was killed for
 // running out of memory on every photo. The lean export computes the same
 // thing tap by tap and skips two full-resolution concats: masks identical to
 // the PyTorch model (100.00 % IoU), peak ~1.3 GB.

@@ -20,7 +20,7 @@ import { PHOTO_BUCKET, downloadOwnedPhoto, ownedPhotoPath } from "@/lib/owned-ph
 // upload never fails just because the cutout did.
 
 // Cold start downloads the model (183 MB) and builds the session before the
-// inference (~21 s on one Vercel vCPU, 12 s on 2 local cores). Photos are
+// inference (~12 s on the Performance size's 2 vCPUs, ~21 s on Standard's one). Photos are
 // cut out one at a time per instance, and Fluid compute can send a bulk
 // upload's 3 concurrent photos to the same instance, so the last one waits
 // for the other two: 300 s covers a cold start plus a full queue.

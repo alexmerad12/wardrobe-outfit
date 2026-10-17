@@ -13,7 +13,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 
 ### Every background removal killed on Vercel (2026-10-15)
 - **Symptom:** `/api/items/normalize` returns 500 after ~22 s; logs say "instance was killed because it ran out of available memory".
-- **Cause:** the stock BiRefNet-lite ONNX export peaks near 6 GB per 1024 px run. Exporters turn its deformable convolutions into gathers over channels x 49 taps x pixels. A Vercel function has 2 GB.
+- **Cause:** the stock BiRefNet-lite ONNX export peaks near 6 GB per 1024 px run. Exporters turn its deformable convolutions into gathers over channels x 49 taps x pixels. A Vercel function had 2 GB (Standard size; the project runs on Performance, 4 GB, since 2026-10-17).
 - **Fix:** our own export, `scripts/cutout/export_birefnet_lite_lean.py`: tap-by-tap GridSample deformable conv plus two concats folded into sums. Same masks as PyTorch (100% IoU), ~1.3 GB peak. Measure peak with `process.resourceUsage().maxRSS`: a 10 ms RSS sampler missed the spike.
 
 ### Bulk upload: three photos come back together after ~81 s (2026-10-16 night)
@@ -21,6 +21,7 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** Fluid compute's in-function concurrency sent the three concurrent requests to one instance (Vercel's docs warn it adds latency to CPU-heavy work). Only the model run took turns, so each photo's matte and JPEG encode ran beside the next photo's model run on the instance's one vCPU, and crawled. The low-end phone runs never showed it: on a slow link the photos arrived ~20 s apart. Both levers on Vercel's side are project-wide, not per function: in-function concurrency is one switch, and with Fluid the memory/CPU size is set in the dashboard, not in `vercel.json`.
 - **Fix:** `cutoutToCatalogJpeg` runs one whole photo at a time per instance, decode to JPEG (`oneAtATime`, `src/lib/cutout/one-at-a-time.ts`), and logs `waitMs` apart from `modelMs`, plus one `[cutout] session ready` line per instance (cold-start cost, threads, CPUs). Output byte-identical to production on the 5 test photos. Same test after the deploy: 98 s and 118 s (Vercel used 2 instances, then 1 for the first three photos), the first photo back at ~35 s cold, then one every ~22 s.
 - **Measured on the way:** a standard (1 vCPU) instance reports 2 CPUs; cold start = ~6.8 s model download + ~5.4 s session creation; warm model run ~20-21.5 s. On a desktop CPU the model takes 21.8 s on 1 thread, 12.0 s on 2, 7.3 s on 4, so production's speed matches one thread and the Performance size (2 vCPU / 4 GB, a project-wide setting) should bring a photo to ~12-13 s.
+- **Performance size on since 2026-10-17, 8:40 AM EDT (owner's yes):** instances report 3 CPUs (the model stays at 2 threads, leaving a core for the instance's other requests); warm model run 11.8-13.6 s, cold start 8-10 s (model download 3.4-4.6 s, session 4.2-5.7 s); the same 5-photo test 65 s; production sweep 60/61 plus the keepalive at 200 through `vercel crons run` (the sweep has no production cron secret), UI smoke 9/9, 0 console errors.
 
 ### AI endpoints fail with Gemini 429 "FreeTier" (2026-10-15)
 - **Symptom:** suggest / refine / try-on 500; logs show `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, limit 20.
