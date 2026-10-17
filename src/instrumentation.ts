@@ -9,6 +9,7 @@
 // thrown inside a route handler / server action / RSC — Sentry uses
 // it to capture errors with proper request context (URL, method, etc).
 import * as Sentry from "@sentry/nextjs";
+import { SENTRY_DATA_COLLECTION } from "@/lib/sentry-data-collection";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
@@ -18,6 +19,7 @@ export async function register() {
       // to 0.1 (10%) once we have enough traffic to risk hitting
       // Sentry's free-tier monthly transaction quota.
       tracesSampleRate: 1.0,
+      dataCollection: SENTRY_DATA_COLLECTION,
       debug: false,
     });
   }
@@ -26,6 +28,7 @@ export async function register() {
     Sentry.init({
       dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
       tracesSampleRate: 1.0,
+      dataCollection: SENTRY_DATA_COLLECTION,
       debug: false,
     });
   }

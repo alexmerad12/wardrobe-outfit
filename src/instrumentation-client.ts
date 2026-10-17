@@ -6,10 +6,12 @@
 // bundles into the client; this is fine — Sentry DSNs are not
 // secrets, they're meant to be public.
 import * as Sentry from "@sentry/nextjs";
+import { SENTRY_DATA_COLLECTION } from "@/lib/sentry-data-collection";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   tracesSampleRate: 1.0,
+  dataCollection: SENTRY_DATA_COLLECTION,
   debug: false,
 });
 

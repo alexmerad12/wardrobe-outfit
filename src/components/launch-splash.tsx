@@ -20,7 +20,7 @@
 "use client";
 
 import * as React from "react";
-import Lottie, { type LottieRefCurrentProps } from "lottie-react";
+import { Lottie } from "lottie-react";
 import linetteAnimation from "@/assets/linette-lottie.json";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useClientValue } from "@/lib/use-client-value";
@@ -56,10 +56,6 @@ export function LaunchSplash() {
   // reduced motion: a ~4s blocking handwriting animation is exactly what
   // those users asked not to see (audit a11y P3).
   const skip = useClientValue(readSkip, false);
-  // lottie-react has no `speed` prop — it's set imperatively via the
-  // ref after the animation initialises. The DOMLoaded event is what
-  // tells us the lottie player has bound to its container.
-  const lottieRef = React.useRef<LottieRefCurrentProps>(null);
 
   // Reduced-motion skips also count as "seen" for the rest of the session.
   React.useEffect(() => {
@@ -112,12 +108,13 @@ export function LaunchSplash() {
           {/* Center wordmark — Lottie handwriting animation. */}
           <div className="ls-wordmark" aria-label="Linette">
             {mounted && (
+              // lottie-react 3: `speed` is a prop (2.x set it through a
+              // ref once the player had bound, onDOMLoaded + setSpeed).
               <Lottie
-                lottieRef={lottieRef}
-                animationData={linetteAnimation}
+                src={linetteAnimation}
                 loop={false}
                 autoplay
-                onDOMLoaded={() => lottieRef.current?.setSpeed(LOTTIE_SPEED)}
+                speed={LOTTIE_SPEED}
                 rendererSettings={{ preserveAspectRatio: "xMidYMid meet" }}
                 style={{ width: "100%", height: "100%" }}
               />

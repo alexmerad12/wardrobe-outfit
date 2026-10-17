@@ -86,6 +86,13 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Fix:** refine carries the same explicit rule; `textGuardReason` (shared by suggest and refine) rejects French with `hasVousForm` or `hasStrippedAccents`. Suggest then uses its template, refine re-asks once with the slipped sentence quoted and keeps whichever answer passes; refine logs the reason and the rejected sentence (`text_guard_reason`, `rejected_reasoning`). After the fix: French refine 16/16 clean, French suggest 6/6 in "tu" with accents.
 - **Trap found on the way:** "rendez-vous" (a date) contains "vous". The first version of the check rejected every date sentence; `hasVousForm` blanks "rendez-vous" first.
 
+### Dependency majors: what each one would have broken (2026-10-16, all adopted but TypeScript 7)
+- **@sentry/nextjs 11:** `sendDefaultPii` became `dataCollection`, and unset it collects cookies (here: the Supabase session token), user info and IP, request bodies, GenAI prompts and stack-frame variables. Adopted with an explicit `SENTRY_DATA_COLLECTION` baseline in every init.
+- **lottie-react 3:** rewritten API (no default export, `src` instead of `animationData`, `speed` prop). The splash was ported; screenshots confirmed the handwriting animation and the hand-off.
+- **react-day-picker 10:** no code change needed; the open calendar looked see-through in a first screenshot only because it was taken during the popover's fade-in (opaque white panel, opacity 1, once settled).
+- **Stripe 23:** pins API `2026-09-30.endive`, drops `payment_method_types` on Checkout (unused here); the fields the billing code reads are unchanged.
+- **TypeScript 7:** NOT adopted. typescript-eslint supports `<6.1.0`, so linting would break; TypeScript 6.0.3 is the current supported line.
+
 ### Layering bugs in the new injectors (2026-10-16 benchmark)
 - **Cause:** the BASE COMPLETER re-added the subcategory the dedupe had just removed (a zip hoodie under a zip hoodie), and the outerwear injector cancelled its injection when its closest-warmth coat duplicated a subcategory, so a 9°C rain outfit shipped coatless.
 - **Fix:** both skip duplicate subcategories before picking.
