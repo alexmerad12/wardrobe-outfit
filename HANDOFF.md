@@ -3,7 +3,14 @@
 ## Project
 Linette — AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini). Owner's own product (9537-1076 Québec Inc.), not a client project. Production: https://linette.app.
 
-## STATUS 2026-10-16 night — every dependency on its current major, read first
+## STATUS 2026-10-16 late night — engineering baseline: tests, CI, security headers, read first
+- **Unit tests:** Vitest 5 (`npm run test:unit`, `vitest.config.mts`), 35 tests in 6 files on the pure logic: text guards (swapped-out pieces, vous / accents, garment hallucinations), Gemini model choice and thinking settings, retry / parse / model fallback, weather retry, the analyze sanitizer, the Sentry privacy baseline. Built from the real cases found today.
+- **CI:** `.github/workflows/ci.yml` (GitHub Actions, Node 24): `npm run typecheck` (next typegen + tsc), lint, unit tests on every push to main and every PR. No secrets needed.
+- **Security headers** on every response (next.config `headers()`): nosniff, strict-origin-when-cross-origin, X-Frame-Options DENY, framing-only CSP, Permissions-Policy (geolocation kept for this origin). No script CSP, on purpose (CLAUDE.md, Deploy).
+- **Node 24.x** pinned in `engines` (Vercel was already on 24.x).
+- Verified locally with the headers on: UI smoke 9/9 with 0 console errors, low-end Android batch 5/5 (page process 109 MB), splash and date picker.
+
+## STATUS 2026-10-16 night — every dependency on its current major
 - **Upgraded and verified:** Next 16.4.2 (LTS patch), TypeScript 5.9 → 6.0.3, @sentry/nextjs 10 → 11.6 (with an explicit privacy baseline, `src/lib/sentry-data-collection.ts`: v11's defaults would have sent the Supabase session cookie), Stripe 22 → 23, react-day-picker 9 → 10, lottie-react 2 → 3 (splash ported), dotenv 17 → 18, opentype.js 1 → 2, ESLint 10.13, lucide-react 1.58, shadcn 4.22. All 693 packages pass `npm audit signatures`; the fresh ones carry provenance attestations. Not adopted, on evidence: TypeScript 7 (typescript-eslint supports `<6.1.0`).
 - **Verified locally on that build:** tsc, lint, build; sweep 61/61; UI smoke 9/9 with 0 console errors (Sentry 11 live DSN, compiled UI, Lottie 3); CRUD flow; rules harness 8/8; splash + date-picker screenshots; low-end Android batch 5/5 with the page process peaking at 105 MB measured from the OS (196 MB for all browser processes).
 

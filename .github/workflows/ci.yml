@@ -1,0 +1,32 @@
+# Checks on every push to main and every pull request: types, lint and the
+# unit tests (pure logic, no secrets needed). Vercel's build is the deploy
+# gate; the endpoint and browser suites (Playwright) need the e2e account
+# and run against a server, so they stay manual (see CLAUDE.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:unit

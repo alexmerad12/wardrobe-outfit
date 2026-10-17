@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev              # Next dev (Turbopack). Disables TLS reject — local Supabase mTLS.
 npm run build            # Production build. Vercel runs this on every push to main.
 npm run lint             # ESLint (next/core-web-vitals base).
+npm run typecheck        # next typegen + tsc --noEmit (works on a fresh clone without .next)
+npm run test:unit        # Vitest: pure logic in src/**/*.test.ts (text guards, Gemini helpers, weather, sanitizer, Sentry baseline)
 
 # Playwright e2e — needs STRESS_TEST_EMAIL + STRESS_TEST_PASSWORD in .env.local.
 # Tests are serial (workers: 1) because they share one test user.
@@ -23,7 +25,9 @@ npm run test:rules       # rule-compliance harness: HARD-fails on any rule-break
 
 `test:rules` wipes and reseeds the wardrobe of a DEDICATED account: set `HARNESS_EMAIL` (must contain "e2e" or "harness") and put that email in `CAP_BYPASS_EMAILS` for the dev server. No password needed: without `HARNESS_PASSWORD` the harness signs in through the Supabase admin API (`tests/e2e/harness-session.ts`). Never point any e2e run at a real person's account: every spec signs in through `tests/e2e/auth.ts`, which refuses an email without "e2e" or "harness". `HARNESS_SUGGEST_RETRY_MINUTES=N` makes the rules harness retry suggest's 5xx (Gemini overload, free-tier cap) once a minute. Next 16 allows one `next dev` per folder: when one already runs, test against a production build (`next start -p <port>`).
 
-There's no `tsc` script; `next build` runs TypeScript as part of the build. Run `npx tsc --noEmit` for a standalone check — **and re-run it after touching any third-party component prop** (the dev compile is more lenient than the production build).
+`npm run typecheck` runs `next typegen` first because `next-env.d.ts` imports the generated route types from `.next/types`; `next build` also type-checks. **Re-run it after touching any third-party component prop** (the dev compile is more lenient than the production build).
+
+CI (`.github/workflows/ci.yml`, GitHub Actions, Node 24) runs typecheck, lint and the unit tests on every push to main and every pull request. It needs no secrets; the Playwright suites need the e2e account and a server, so they stay manual. Add a unit test next to any pure helper you change.
 
 ## High-level architecture
 
@@ -102,6 +106,8 @@ Init lives in `src/instrumentation.ts` (node + edge) and `src/instrumentation-cl
 ## Deploy
 
 Vercel auto-deploys on push to `main`. Production domain: `linette.app`. There are two collaborators on the repo, so **`git pull --rebase` before pushing** — this is a standing rule. Vercel's build runs `next build` which includes TS type-checking; a passing local `npx tsc --noEmit` is necessary but not sufficient.
+
+`next.config.ts` `headers()` sends a baseline on every response: `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, a framing-only CSP (`frame-ancestors 'none'; base-uri 'self'; object-src 'none'`) and a `Permissions-Policy` that keeps `geolocation=(self)` (weather, onboarding and settings ask for the position). No script CSP on purpose: inline Next bootstrap, the Sentry tunnel, Supabase, Stripe redirects and blob: previews would all need allowances. Node is pinned to 24.x (`engines`, the Vercel project setting).
 
 `vercel.json` pins functions to `pdx1` and runs a daily cron on `/api/cron/keepalive` (a one-row Supabase read, guarded by `CRON_SECRET`), so the free Supabase project never hits its 7-day idle pause. `CRON_SECRET` must exist in the Vercel production env. It is a sensitive variable (unreadable), so test the authorized path with `vercel crons run /api/cron/keepalive` (Vercel sends the real secret; expect 200 in `vercel logs`), not from outside.
 

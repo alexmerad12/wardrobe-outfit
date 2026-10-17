@@ -2,11 +2,16 @@
   "name": "wardrobe-app",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:unit": "vitest run",
     "test:smoke": "playwright test ui-smoke.spec.ts stress-crud.spec.ts",
     "test:stress": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts stress-wear-today.spec.ts",
     "test:stress:fast": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-wear-today.spec.ts",
@@ -52,6 +57,7 @@
     "shadcn": "4.22.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   }
 }

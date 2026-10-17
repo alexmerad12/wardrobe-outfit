@@ -37,6 +37,30 @@ const nextConfig: NextConfig = {
       ],
     ])
   ),
+  // Baseline security headers on every response (Vercel already sends
+  // HSTS). No script / style CSP on purpose: Next's inline bootstrap
+  // scripts, the Sentry tunnel, Supabase, Stripe redirects and blob:
+  // photo previews would all need allowances, and a wrong CSP blanks
+  // pages. These directives block framing (clickjacking), plugins and
+  // <base> hijacking only. Geolocation stays allowed for this origin: the
+  // weather widget, onboarding and settings ask for the device position.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
