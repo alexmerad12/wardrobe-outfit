@@ -10,7 +10,8 @@ Linette: AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini), the 
 - **Background removal:** self-hosted BiRefNet-lite (our lean ONNX export, in Vercel Blob) with the mirror pass, one whole photo at a time per instance. A 5-photo bulk upload takes ~110 s (109 s measured, Pixel 10 profile on 4G).
 - **Styling rules:** the owner's 8 decisions are live (below). Five are pure functions in `src/lib/outfit-rules.ts`, shared by the validator, the injectors and the fallback gate.
 - **Infra:** Vercel functions in `pdx1` on the Performance size (2 vCPU / 4 GB, project-wide). Supabase free plan in us-west-2, kept awake by the daily `/api/cron/keepalive` (09:17 UTC). Upstash KV holds the daily caps. Stripe live (webhook on, no real subscribers yet). Auth emails through Resend SMTP. Sentry with the explicit privacy baseline.
-- **Tests:** `npm run test:unit` 63 tests in 9 files. `npm run test:rules` 8/8 (needs a local server with the e2e email in `CAP_BYPASS_EMAILS`). CI (typecheck on TypeScript 6 and 7, lint, unit tests) green on every push.
+- **Language switch fixed (2026-10-17, owner report):** saving English/French in Settings (or onboarding) now switches every screen at once, the bottom nav included; it used to wait for a reload. Shared preference store, `applySavedPreferences` (CLAUDE.md, i18n).
+- **Tests:** `npm run test:unit` 70 tests in 10 files. `npm run test:smoke` includes `language-switch.spec.ts`. `npm run test:rules` 8/8 (needs a local server with the e2e email in `CAP_BYPASS_EMAILS`). CI (typecheck on TypeScript 6 and 7, lint, unit tests) green on every push.
 
 ## Owner decisions (don't reopen)
 - Gemini only: "remodernize with Claude Opus 5.5" meant modernizing the code with Claude, not Claude models in the app (2026-10-16).

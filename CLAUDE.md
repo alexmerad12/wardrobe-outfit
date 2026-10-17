@@ -16,7 +16,7 @@ npm run test:unit        # Vitest: pure logic in src/**/*.test.ts (text guards, 
 
 # Playwright e2e — needs STRESS_TEST_EMAIL + STRESS_TEST_PASSWORD in .env.local.
 # Tests are serial (workers: 1) because they share one test user.
-npm run test:smoke       # ui-smoke + stress-crud (no AI calls)
+npm run test:smoke       # ui-smoke + stress-crud + language switch (no AI calls)
 npm run test:stress      # everything (CRUD + suggest + try-on + packing + wear-today)
 npm run test:stress:fast # CRUD + wear-today only
 npm run test:stress:ai   # AI endpoints only (suggest, try-on, packing)
@@ -83,7 +83,7 @@ Menswear has a `MENSWEAR OVERRIDES` block in the prompt; the deterministic code 
 
 ### i18n
 
-`src/lib/i18n/` — JSON dictionaries for `en` and `fr`, `use-labels` / `use-locale` hooks. Locale flows into AI prompts via a `LANGUAGE:` directive at the end of `dynamicSuffix` so the model writes its free-text fields (reasons, notes, summaries) in the user's language while keeping item IDs stable. French is always the informal "tu": `textGuardReason` (`src/lib/suggest-text-guards.ts`, shared by suggest and refine) rejects AI prose in "vous", with stripped accents, garbled characters, or naming a garment the outfit doesn't have; suggest falls back to its template, refine re-asks once and logs the reason. Mind compounds when adding words to those checks ("rendez-vous" contains "vous").
+`src/lib/i18n/` — JSON dictionaries for `en` and `fr`, `use-labels` / `use-locale` hooks. The language (with the gender behind the French masculine labels) and the temperature unit each live in ONE shared store (`src/lib/preference-store.ts`, `useSyncExternalStore`): every `useLocale()` / `useTemperatureUnit()` caller reads it, so a change re-renders all of them, the layout's bottom nav included. After any successful `PUT /api/preferences`, call `applySavedPreferences` (`src/lib/saved-preferences.ts`) with the saved fields. Clearing the localStorage caches is not enough: until 2026-10-17 that left every mounted screen in the old language until a reload (`tests/e2e/language-switch.spec.ts` guards it). Locale flows into AI prompts via a `LANGUAGE:` directive at the end of `dynamicSuffix` so the model writes its free-text fields (reasons, notes, summaries) in the user's language while keeping item IDs stable. French is always the informal "tu": `textGuardReason` (`src/lib/suggest-text-guards.ts`, shared by suggest and refine) rejects AI prose in "vous", with stripped accents, garbled characters, or naming a garment the outfit doesn't have; suggest falls back to its template, refine re-asks once and logs the reason. Mind compounds when adding words to those checks ("rendez-vous" contains "vous").
 
 ### PWA service worker
 
