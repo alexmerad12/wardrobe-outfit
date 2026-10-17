@@ -13,7 +13,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "typecheck:ts7": "next typegen && npx --yes -p typescript@7.0.2 -c \"tsc --noEmit\"",
     "test:unit": "vitest run",
-    "test:smoke": "playwright test ui-smoke.spec.ts stress-crud.spec.ts",
+    "test:smoke": "playwright test ui-smoke.spec.ts stress-crud.spec.ts language-switch.spec.ts",
     "test:stress": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts stress-wear-today.spec.ts",
     "test:stress:fast": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-wear-today.spec.ts",
     "test:stress:ai": "playwright test stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts",

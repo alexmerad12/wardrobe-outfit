@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { Gender, Mood } from "@/lib/types";
 import { resolveLocale, translate, type Locale } from "./index";
-import { useClientValue } from "@/lib/use-client-value";
-import { getPreferences } from "@/lib/preferences-client";
+import { createPreferenceStore } from "@/lib/preference-store";
 
 const CACHE_KEY = "locale:v1";
 const GENDER_CACHE_KEY = "gender:v1";
 
+type LocaleState = { locale: Locale; gender: Gender };
+
 function readCached(): Locale | null {
-  if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(CACHE_KEY);
     return raw === "en" || raw === "fr" ? raw : null;
@@ -19,15 +19,7 @@ function readCached(): Locale | null {
   }
 }
 
-function writeCached(locale: Locale) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(CACHE_KEY, locale);
-  } catch {}
-}
-
 function readCachedGender(): Gender {
-  if (typeof window === "undefined") return "not-specified";
   try {
     const raw = window.localStorage.getItem(GENDER_CACHE_KEY);
     return raw === "woman" || raw === "man" || raw === "not-specified" ? raw : "not-specified";
@@ -36,12 +28,34 @@ function readCachedGender(): Gender {
   }
 }
 
-function writeCachedGender(gender: Gender) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(GENDER_CACHE_KEY, gender);
-  } catch {}
-}
+const asGender = (g: unknown): Gender => (g === "woman" || g === "man" ? g : "not-specified");
+
+/**
+ * The language and gender every useLocale() reader shares. Saving new
+ * preferences goes through applySavedPreferences (src/lib/saved-preferences.ts),
+ * which switches every mounted screen at once.
+ */
+export const localeStore = createPreferenceStore<LocaleState>({
+  serverValue: { locale: "en", gender: "not-specified" },
+  readCache: () =>
+    typeof window === "undefined" ? null : { locale: readCached() ?? "en", gender: readCachedGender() },
+  writeCache: ({ locale, gender }) => {
+    try {
+      window.localStorage.setItem(CACHE_KEY, locale);
+      window.localStorage.setItem(GENDER_CACHE_KEY, gender);
+    } catch {}
+  },
+  fromPrefs: (prefs) => ({ locale: resolveLocale(prefs.language), gender: asGender(prefs.gender) }),
+  equals: (a, b) => a.locale === b.locale && a.gender === b.gender,
+  // Keep the document language in sync — <html> stayed lang="en" while
+  // the UI rendered French, so screen readers announced French content
+  // with English pronunciation (audit a11y P3).
+  apply: ({ locale }) => {
+    try {
+      document.documentElement.lang = locale;
+    } catch {}
+  },
+});
 
 /**
  * Client-side hook to get the resolved locale (en or fr) and a translation function.
@@ -55,39 +69,11 @@ function writeCachedGender(gender: Gender) {
  * for everyone else.
  */
 export function useLocale() {
-  // Last-resolved values from localStorage first (no flash of the wrong
-  // language), then the server's answer once /api/preferences returns.
-  const cachedLocale = useClientValue(readCached, null);
-  const cachedGender = useClientValue(readCachedGender, "not-specified" as Gender);
-  const [fetched, setFetched] = useState<{ locale: Locale; gender: Gender } | null>(null);
-  const locale: Locale = fetched?.locale ?? cachedLocale ?? "en";
-  const gender: Gender = fetched?.gender ?? cachedGender;
-
-  useEffect(() => {
-    let cancelled = false;
-    // Shared with every other hook instance on the page (one request, not
-    // one per component).
-    getPreferences()
-      .then((prefs) => {
-        if (cancelled) return;
-        const resolved = resolveLocale(prefs?.language);
-        writeCached(resolved);
-        // Keep the document language in sync — <html> stayed lang="en"
-        // while the UI rendered French, so screen readers announced
-        // French content with English pronunciation (audit a11y P3).
-        try {
-          document.documentElement.lang = resolved;
-        } catch {}
-        const g: Gender =
-          prefs?.gender === "woman" || prefs?.gender === "man" ? prefs.gender : "not-specified";
-        writeCachedGender(g);
-        setFetched({ locale: resolved, gender: g });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { locale, gender } = useSyncExternalStore(
+    localeStore.subscribe,
+    localeStore.getSnapshot,
+    localeStore.getServerSnapshot
+  );
 
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>) => translate(locale, key, vars),

@@ -20,7 +20,7 @@ import { BrandedName } from "@/components/brand/branded-name";
 import type { Language, Gender, TemperatureSensitivity } from "@/lib/types";
 import { detectLocale, translate, type Locale } from "@/lib/i18n";
 import { reverseGeocode } from "@/lib/reverse-geocode";
-import { invalidatePreferences } from "@/lib/preferences-client";
+import { applySavedPreferences } from "@/lib/saved-preferences";
 
 interface CityResult {
   name: string;
@@ -193,12 +193,13 @@ export default function OnboardingPage() {
       // /onboarding with every answer wiped — a silent loop (audit P1).
       // Staying on this screen keeps their answers in state.
       if (!res.ok) throw new Error(`/api/preferences ${res.status}`);
-      try {
-        window.localStorage.removeItem("locale:v1");
-        window.localStorage.removeItem("gender:v1");
-        window.localStorage.removeItem("tempUnit:v1");
-      } catch {}
-      invalidatePreferences();
+      // The language, gendered wording and temperature unit apply at once
+      // on every mounted screen (the bottom nav included), not after a reload.
+      applySavedPreferences({
+        location: city ? { city, lat: cityLat, lng: cityLng } : null,
+        language,
+        gender,
+      });
       router.push("/");
       router.refresh();
     } catch (err) {

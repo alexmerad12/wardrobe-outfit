@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { resolveUnit } from "./temperature";
-import { useClientValue } from "./use-client-value";
-import { getPreferences } from "./preferences-client";
+import { createPreferenceStore } from "./preference-store";
 
 const CACHE_KEY = "tempUnit:v1";
 
@@ -25,33 +24,29 @@ function writeCached(unit: "celsius" | "fahrenheit") {
 }
 
 /**
+ * The temperature unit every useTemperatureUnit() reader shares. Saving new
+ * preferences goes through applySavedPreferences (src/lib/saved-preferences.ts).
+ */
+export const temperatureUnitStore = createPreferenceStore<"celsius" | "fahrenheit">({
+  serverValue: "celsius",
+  readCache: readCached,
+  writeCache: writeCached,
+  fromPrefs: (prefs) => resolveUnit(prefs.temperature_unit, prefs.location),
+  equals: (a, b) => a === b,
+});
+
+/**
  * Client-side hook to get the resolved temperature unit (celsius or fahrenheit).
  *
  * Renders stably by caching the last-resolved unit in localStorage — avoids
  * the flash where the widget briefly shows the browser-locale guess before
- * /api/preferences resolves with the user's actual choice.
+ * /api/preferences resolves with the user's actual choice. SSR and
+ * hydration render "celsius".
  */
 export function useTemperatureUnit(): "celsius" | "fahrenheit" {
-  // SSR and hydration render "celsius"; the cached value applies right
-  // after on the client, then the server's answer once it arrives.
-  const cached = useClientValue(readCached, null);
-  const [fetched, setFetched] = useState<"celsius" | "fahrenheit" | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Shared with every other preferences caller on the page.
-    getPreferences()
-      .then((prefs) => {
-        if (cancelled) return;
-        const resolved = resolveUnit(prefs?.temperature_unit, prefs?.location);
-        writeCached(resolved);
-        setFetched(resolved);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return fetched ?? cached ?? "celsius";
+  return useSyncExternalStore(
+    temperatureUnitStore.subscribe,
+    temperatureUnitStore.getSnapshot,
+    temperatureUnitStore.getServerSnapshot
+  );
 }

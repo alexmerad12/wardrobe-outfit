@@ -35,6 +35,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
 import { invalidatePreferences } from "@/lib/preferences-client";
+import { applySavedPreferences } from "@/lib/saved-preferences";
 
 type Sub = {
   status: string;
@@ -229,13 +230,15 @@ export default function SettingsPage() {
       // A non-2xx used to flash the "Saved" confirmation anyway —
       // the settings silently never persisted (audit P1).
       if (!res.ok) throw new Error(`/api/preferences ${res.status}`);
-      invalidatePreferences();
-      // Clear cached locale/unit/gender so the change takes effect immediately on next render
-      try {
-        window.localStorage.removeItem("locale:v1");
-        window.localStorage.removeItem("tempUnit:v1");
-        window.localStorage.removeItem("gender:v1");
-      } catch {}
+      // Every mounted screen (this page, the bottom nav) switches language,
+      // gendered wording and temperature unit now. Clearing the caches
+      // used to change nothing on screen until a reload.
+      applySavedPreferences({
+        language,
+        gender,
+        temperature_unit: tempUnit,
+        location: city ? { city, lat: cityLat, lng: cityLng } : null,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
