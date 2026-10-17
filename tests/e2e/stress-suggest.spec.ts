@@ -14,6 +14,8 @@ import { assertE2EAccount, signIn } from "./auth";
 // call). A full sweep is ~80 calls, so ~$1-2 per cycle.
 
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
+// The owner-decided rules (2026-10-17), same functions the route runs.
+import { heelTooDressy, metalMixProblem, shoeBottomClash, workDressProblem } from "../../src/lib/outfit-rules";
 
 assertE2EAccount();
 
@@ -142,11 +144,18 @@ function hasNonNeutralColor(item: ClothingItem): boolean {
   return (item.colors ?? []).some((c) => !NEUTRAL.test(c.name));
 }
 
-function metalFamily(finish: string | null | undefined): "gold" | "silver" | "neutral" | "other" {
-  if (!finish || finish === "none" || finish === "mixed") return "neutral";
-  if (["gold", "rose-gold", "matte-gold", "brass", "bronze"].includes(finish)) return "gold";
-  if (["silver", "chrome", "matte-silver", "gunmetal"].includes(finish)) return "silver";
-  return "other";
+// Light/dark spread between the outfit's lightest and darkest piece
+// (dominant colour, relative luminance 0-1): cream with chocolate ~0.6,
+// beige with camel ~0.3. Rule 18c counts a clear contrast as the hook.
+function luminanceSpread(items: ClothingItem[]): number {
+  const ls = items
+    .map((i) => i.colors?.[0]?.hex)
+    .filter((h): h is string => typeof h === "string" && /^#?[0-9a-f]{6}$/i.test(h))
+    .map((h) => {
+      const n = parseInt(h.replace("#", ""), 16);
+      return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+    });
+  return ls.length >= 2 ? Math.max(...ls) - Math.min(...ls) : 0;
 }
 
 // "Belt-completable" outfits — narrow definition matching the strongest
@@ -156,6 +165,7 @@ function metalFamily(finish: string | null | undefined): "gold" | "silver" | "ne
 //   ✓ blouse + tailored trousers / slacks (tucked-in look)
 //   ✗ t-shirt or shirt + jeans (belt is optional, not a "completer")
 //   ✗ oversized top (proportion is intentional, no belt needed)
+//   ✗ slim skirt or slim trousers (belt optional there, owner's call)
 function shouldHaveBelt(items: ClothingItem[]): boolean {
   const top = items.find(
     (i) =>
@@ -165,7 +175,7 @@ function shouldHaveBelt(items: ClothingItem[]): boolean {
   );
   if (!top) return false;
   const skirt = items.find(
-    (i) => i.category === "bottom" && i.subcategory === "skirt"
+    (i) => i.category === "bottom" && i.subcategory === "skirt" && i.fit !== "slim"
   );
   if (skirt) return true;
   // Blouse + tailored trousers is the other strong case.
@@ -173,7 +183,8 @@ function shouldHaveBelt(items: ClothingItem[]): boolean {
     (i) =>
       i.category === "bottom" &&
       i.subcategory === "trousers" &&
-      i.waist_style !== "elastic"
+      i.waist_style !== "elastic" &&
+      i.fit !== "slim"
   );
   return Boolean(top.subcategory === "blouse" && tailoredBottom);
 }
@@ -329,9 +340,10 @@ function validateOutfit(
     if (items.some((i) => isAthleticSneaker(i))) {
       flag("R9-office-no-sneakers", "Work outfit has athletic sneakers");
     }
-    // Bodycon / slip / mermaid dresses banned at work
-    const dress = items.find((i) => i.category === "dress");
-    if (dress && ["bodycon", "slip", "mermaid"].includes(dress.dress_silhouette ?? "")) {
+    // Slip / mermaid never at work; bodycon only as a neutral midi or maxi
+    // under a blazer or cardigan.
+    const dress = workDressProblem(items);
+    if (dress) {
       flag(
         "R9-office-wrong-silhouette",
         `Work dress silhouette "${dress.dress_silhouette}" not office-appropriate`
@@ -339,17 +351,10 @@ function validateOutfit(
     }
   }
 
-  // R10 + casual heel block: casual / brunch / outdoor / travel / at-home
-  // → no high or mid heels
-  const CASUAL = new Set([
-    "casual", "brunch", "outdoor", "travel", "at-home",
-  ]);
-  if (CASUAL.has(scenario.occasion)) {
-    const heeled = items.find(
-      (i) =>
-        i.category === "shoes" &&
-        (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
-    );
+  // R10 casual heel block: no high heels at casual / brunch / outdoor /
+  // travel / at-home, no mid heels outdoors, travelling or at home.
+  {
+    const heeled = items.find((i) => heelTooDressy(i, scenario.occasion));
     if (heeled) {
       flag(
         "R10-casual-no-heel",
@@ -463,31 +468,11 @@ function validateOutfit(
     }
   }
 
-  // R14 METAL SYNC (skip when mood = playful or emergency-admit relaxed it)
-  if (!isRelaxed && scenario.mood !== "playful") {
-    const metalEntries = items
-      .map((i) => {
-        const finish = i.category === "bag" ? i.bag_metal_finish : i.metal_finish;
-        return { item: i, finish };
-      })
-      .filter(({ item, finish }) => {
-        if (!finish || finish === "none" || finish === "mixed") return false;
-        if (item.category === "shoes") return true;
-        if (item.category === "bag") return true;
-        if (item.category === "accessory" && item.subcategory === "belt")
-          return true;
-        return false;
-      });
-    if (metalEntries.length >= 2) {
-      const families = new Set(metalEntries.map(({ finish }) => metalFamily(finish)));
-      families.delete("neutral");
-      if (families.size > 1) {
-        flag(
-          "R14-metal-sync",
-          `Mixed metals: ${metalEntries.map(({ item, finish }) => `${item.subcategory ?? item.category}=${finish}`).join(", ")}`
-        );
-      }
-    }
+  // R14 METAL SYNC: one family, or a main metal on 2+ pieces plus one
+  // accent (skip when emergency-admit relaxed it; Playful allows any mix).
+  if (!isRelaxed) {
+    const metal = metalMixProblem(items, { mensTrack: false, playful: scenario.mood === "playful" });
+    if (metal) flag("R14-metal-sync", metal);
   }
 
   // R15 PROXIMITY: hat + decorative scarf without functional cold
@@ -526,63 +511,34 @@ function validateOutfit(
     }
   }
 
-  // R18 ANTI-BLAND: every item solid + neutral palette. Skip on relaxed
-  // moods (chill/cozy/period — the user explicitly wants comfort, not
-  // a visual hook), at-home occasion (lounge context), and emergency-
-  // admit outfits where we already relaxed rules to ship something.
+  // R18 ANTI-BLAND: every item solid + neutral palette with no clear
+  // light/dark contrast. Skip on relaxed moods (chill/cozy/period — the
+  // user explicitly wants comfort, not a visual hook), at-home (lounge),
+  // work and formal (a black or navy sheath + blazer + pumps is the
+  // uniform, owner's call 2026-10-17), and emergency-admit outfits.
   const blandExempt =
     isRelaxed ||
     ["chill", "cozy", "period"].includes(scenario.mood) ||
-    scenario.occasion === "at-home";
+    ["at-home", "work", "formal"].includes(scenario.occasion);
   const allSolid = items.every((i) => {
     const ps = Array.isArray(i.pattern) ? i.pattern : [i.pattern];
     return ps.every((p) => p === "solid" || !p);
   });
   const anyNonNeutral = items.some(hasNonNeutralColor);
   const anyStatementPattern = items.some(isStatementPattern);
-  if (!blandExempt && allSolid && !anyNonNeutral && !anyStatementPattern) {
+  if (!blandExempt && allSolid && !anyNonNeutral && !anyStatementPattern && luminanceSpread(items) < 0.4) {
     flag(
       "R18-all-bland",
       `Every item solid + neutral, mood=${scenario.mood} — no visual hook`
     );
   }
 
-  // R19 SHOE × BOTTOM proportional combos
+  // R19 SHOE × BOTTOM proportional combos (same predicate as the route:
+  // heeled sandals with full wide-leg trousers are fine, flat ones aren't).
   const shoe = items.find((i) => i.category === "shoes");
   const bottomItem = items.find((i) => i.category === "bottom");
-  if (shoe && bottomItem) {
-    const shoeSub = shoe.subcategory;
-    const fit = bottomItem.bottom_fit;
-    const pl = bottomItem.pants_length;
-    const sh = shoe.shoe_height;
-    // Tall-shaft = knee-boots OR any boot with shoe_height knee/over-knee
-    // (covers cowboy/western boots, riding boots, etc.)
-    const tallShaftBoot =
-      shoeSub === "knee-boots" || sh === "knee" || sh === "over-knee";
-    if (tallShaftBoot) {
-      if (["wide-leg", "flared", "bootcut", "tapered"].includes(fit ?? "")) {
-        flag("R19-tall-boots-fit", `${shoeSub} (tall shaft) × ${fit}`);
-      }
-    }
-    if (shoeSub === "ankle-boots") {
-      if (pl === "ankle-crop") {
-        flag("R19-ankle-boots-crop", "ankle-boots × ankle-crop pants");
-      }
-      if (["flared", "bootcut"].includes(fit ?? "") && pl === "full") {
-        flag("R19-ankle-boots-flare", `ankle-boots × full ${fit} pants`);
-      }
-    }
-    if (shoeSub === "sandals" && pl === "full" && fit === "wide-leg") {
-      flag("R19-sandals-wide-full", "sandals × full wide-leg");
-    }
-    if (
-      ["flats", "ballet-flats"].includes(shoeSub ?? "") &&
-      ["flared", "bootcut"].includes(fit ?? "") &&
-      pl === "full"
-    ) {
-      flag("R19-flats-flare-full", `${shoeSub} × full ${fit}`);
-    }
-  }
+  const shoeClash = shoe && bottomItem ? shoeBottomClash(shoe, bottomItem) : null;
+  if (shoeClash) flag("R19-shoe-bottom", shoeClash);
 
   return failures;
 }

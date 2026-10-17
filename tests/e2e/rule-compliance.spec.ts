@@ -63,7 +63,7 @@ const FIXTURES: Fixture[] = [
   { name: "Elastic wide-leg trousers", category: "bottom", subcategory: "trousers", bottom_fit: "wide-leg", waist_closure: "elastic", waist_style: "elastic", fit: "loose", warmth_rating: 2, material: ["knit"], formality: "casual", colors: [{ hex: "#374151", name: "charcoal", percentage: 100 }] },
   // TRAP: athletic sneakers (very-casual) banned at work.
   { name: "Running sneakers", category: "shoes", subcategory: "sneakers", heel_type: "flat", warmth_rating: 2, material: ["nylon"], formality: "very-casual", colors: [{ hex: "#ffffff", name: "white", percentage: 100 }] },
-  // TRAP: mid-heels banned on Comfort Day (and casual occasions).
+  // TRAP: mid-heels banned on Comfort Day and Chill (and outdoor / travel / at-home).
   { name: "Black pumps", category: "shoes", subcategory: "heels", heel_type: "mid-heel", toe_shape: "pointed", warmth_rating: 2, material: ["leather"], formality: "formal", colors: [{ hex: "#111827", name: "black", percentage: 100 }] },
   { name: "Ballet flats", category: "shoes", subcategory: "ballet-flats", heel_type: "flat", toe_shape: "round", warmth_rating: 1.5, material: ["leather"], formality: "smart-casual", colors: [{ hex: "#7c2d12", name: "brown", percentage: 100 }] },
   // TRAP: open-toe sandals banned at work (both tracks since B1) and

@@ -20,6 +20,14 @@ import {
   hasFrenchCorruption,
 } from "@/lib/suggest-text-guards";
 import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
+import {
+  cozyPaletteClash,
+  heelTooDressy,
+  metalFamily,
+  metalMixProblem,
+  shoeBottomClash,
+  workDressProblem,
+} from "@/lib/outfit-rules";
 
 // Suggest runs on the quality-tier model with shallow thinking
 // (QUALITY_MODELS + thinkingFor in src/lib/gemini.ts: gemini-3.6-flash,
@@ -1456,28 +1464,27 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       return mats.some((m) => m && RAIN_BLOCK_MATERIALS.has(m));
     };
 
-    // Metal families — shared by the metal-sync validator and the
-    // injector candidate filter.
-    const GOLD_FAMILY = new Set(["gold", "rose-gold", "matte-gold", "brass", "bronze"]);
-    const SILVER_FAMILY = new Set(["silver", "chrome", "matte-silver", "gunmetal"]);
-    const metalFamilyOf = (i: ClothingItem): "gold" | "silver" | "other" | null => {
-      const finish = i.category === "bag" ? i.bag_metal_finish : i.metal_finish;
-      if (!finish || finish === "none" || finish === "mixed") return null;
-      return GOLD_FAMILY.has(finish) ? "gold" : SILVER_FAMILY.has(finish) ? "silver" : "other";
-    };
+    // Metal sync (Rule 14): ONE predicate for the validator, the fallback
+    // gate and the injector candidate filter (src/lib/outfit-rules.ts):
+    // one metal family, or a main metal on 2+ pieces plus one accent.
+    const metalFamilyOf = metalFamily;
+    const metalProblem = (outfit: ClothingItem[]) =>
+      metalMixProblem(outfit, { mensTrack: isMensTrack, playful: mood === "playful" });
 
     // ——— Belt rules (Rule 18a), ONE predicate shared by the BELT STRIP,
     // the accessory injector and the belt completer. They used to carry
     // three copies, and the completer never checked the strip's list: it
-    // demanded the belt the strip had just removed (blouse + slim
-    // trousers) and shipped the outfit relaxed with "a belt would define
-    // the waist".
+    // demanded the belt the strip had just removed and shipped the outfit
+    // relaxed with "a belt would define the waist".
+    // Owner's call (2026-10-17): a belt is ALLOWED, never required, on a
+    // shift dress and on slim trousers / jeans / skirts (a long unbroken
+    // line takes a break: a tuck, a belt or a seam). So neither blocks a
+    // belt here, and the completer doesn't ask for one there.
     const NO_BELT_DRESS_SILHOUETTES = new Set<string>([
       "slip",
       "bodycon",
       "mermaid",
       "sheath",
-      "shift",
     ]);
     const NO_BELT_BOTTOM_CLOSURES = new Set<string>([
       "elastic",
@@ -1519,11 +1526,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       ) {
         return true;
       }
-      // "Slim = no belt" is a Track A rule. The men's track replaces Rule
-      // 18a: slim trousers with a tucked shirt MUST take a belt.
+      // "Slim dress = no belt" is a Track A rule (already body-skimming).
+      // Slim BOTTOMS take an optional belt (owner's call, see above). The
+      // men's track replaces Rule 18a: slim trousers with a tucked shirt
+      // MUST take a belt.
       if (
         !isMensTrack &&
-        (i.category === "dress" || i.category === "one-piece" || i.category === "bottom") &&
+        (i.category === "dress" || i.category === "one-piece") &&
         i.fit === "slim"
       ) {
         return true;
@@ -1658,13 +1667,6 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       "espadrilles",
       "heels",
     ]);
-    const CASUAL_SHOE_OCCASIONS = new Set<string>([
-      "casual",
-      "brunch",
-      "outdoor",
-      "travel",
-      "at-home",
-    ]);
     const shoeFitsContext = (i: ClothingItem): boolean => {
       if (!passesWarmth(i)) return false;
       const tagged = (i.occasions ?? []).includes(occasion as Occasion);
@@ -1674,7 +1676,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       if (occasion === "outdoor" && i.subcategory && OUTDOOR_BAD_SHOE_SUBS.has(i.subcategory)) {
         return false;
       }
-      if (CASUAL_SHOE_OCCASIONS.has(occasion) && isHeeled(i)) return false;
+      // Casual heels (Rule 10, src/lib/outfit-rules.ts): mid heels fine at
+      // casual and brunch, flat-ish outdoors / travelling / at home.
+      if (heelTooDressy(i, occasion)) return false;
       if ((mood === "chill" || mood === "period") && isHeeled(i)) return false;
       if (mood === "sad" && i.toe_shape === "pointed") return false;
       return true;
@@ -1757,7 +1761,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
             return f === null || f === fam;
           });
           if (compatible.length > 0) candidates = compatible;
-          else if (!required) return null;
+          else {
+            // Rule 14 also allows one accent metal when the main metal is
+            // on 2+ pieces: keep the candidates the validator would pass.
+            const accentOk = candidates.filter((c) => metalProblem([...current, c]) === null);
+            if (accentOk.length > 0) candidates = accentOk;
+            else if (!required) return null;
+          }
         }
       }
       return candidates[0];
@@ -2022,7 +2032,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         }
       }
       // R18a BELT STRIP — when the AI added a belt that doesn't fit
-      // the base (slip / bodycon / sheath / shift dresses, slim-fit
+      // the base (slip / bodycon / mermaid / sheath dresses, slim-fit
       // dresses, elastic-waist or already-belted bottoms, a wrap tie,
       // etc.), strip the belt rather than ship a wrong-belt outfit. Same
       // approach as the outerwear strip below — preserves the outfit
@@ -2033,7 +2043,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           (i) => !(i.category === "accessory" && i.subcategory === "belt")
         );
         if (stripped.length !== beforeLen) {
-          fixes.push("stripped belt (incompatible base — slip/bodycon/slim/elastic-waist/overalls/wrap tie)");
+          fixes.push("stripped belt (incompatible base — slip/bodycon/mermaid/sheath/slim dress/elastic-waist/overalls/wrap tie)");
         }
       }
 
@@ -3002,17 +3012,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         }
       }
-      // R9 — work dress silhouette: prompt says avoid bodycon/slip/mermaid
-      // for the office. Enforce as a hard drop since the AI sometimes
-      // picks a slip dress for "confident · work" against the rule.
+      // R9 — work dress silhouette: no slip or mermaid dress at the office,
+      // and bodycon only as a neutral midi/maxi under a blazer or cardigan
+      // (owner's call, 2026-10-17). Hard drop: the AI sometimes picks a
+      // slip dress for "confident · work". Same predicate as the fallback
+      // gate (workDressProblem, src/lib/outfit-rules.ts).
       if (occasion === "work") {
-        const wrongWorkDress = s.items.find(
-          (i) =>
-            i.category === "dress" &&
-            (i.dress_silhouette === "slip" ||
-              i.dress_silhouette === "bodycon" ||
-              i.dress_silhouette === "mermaid")
-        );
+        const wrongWorkDress = workDressProblem(s.items);
         if (wrongWorkDress) {
           drops.push({
             ids: s._ids,
@@ -3084,38 +3090,14 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         }
       }
-      // Metal sync — all visible hardware must match. Skipped when mood
-      // is Playful (the only mood that explicitly allows mixed metals).
-      // On the men's track, the bag is excluded from the sync (men's
-      // looks bias toward watch / belt / shoes for metal hardware).
-      if (mood !== "playful") {
-        const metalItems = s.items
-          .map((i) => {
-            // Bags use bag_metal_finish; everyone else uses metal_finish.
-            const finish = i.category === "bag" ? i.bag_metal_finish : i.metal_finish;
-            return { item: i, finish };
-          })
-          .filter(({ item, finish }) => {
-            if (!finish || finish === "none" || finish === "mixed") return false;
-            // Only count items where hardware is visible / styling-relevant.
-            if (item.category === "shoes") return true;
-            if (item.category === "bag" && gender !== "man") return true;
-            if (item.category === "accessory" && item.subcategory === "belt") return true;
-            return false;
-          });
-        if (metalItems.length >= 2) {
-          const families = new Set(
-            metalItems.map(({ finish }) =>
-              GOLD_FAMILY.has(finish ?? "") ? "gold" : SILVER_FAMILY.has(finish ?? "") ? "silver" : "other"
-            )
-          );
-          if (families.size > 1) {
-            drops.push({
-              ids: s._ids,
-              reason: `metal mismatch: ${metalItems.map(({ item, finish }) => `${item.subcategory ?? item.category}=${finish}`).join(", ")}`,
-            });
-            return false;
-          }
+      // Metal sync — one metal family on the visible hardware (shoes,
+      // belt, and the bag on Track A), or a main metal on 2+ pieces plus a
+      // single accent (owner's call, 2026-10-17). Playful allows any mix.
+      {
+        const metalReason = metalProblem(s.items);
+        if (metalReason) {
+          drops.push({ ids: s._ids, reason: metalReason });
+          return false;
         }
       }
       // Proximity — head/neck zone. If the outfit has a hat AND a
@@ -3263,79 +3245,17 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         }
       }
       // SHOE × BOTTOM proportional combos that look bad regardless of
-      // occasion or mood. Sourced from stylist consensus across Vogue /
-      // Who What Wear / InStyle / The Concept Wardrobe.
+      // occasion or mood (stylist consensus: Vogue / Who What Wear /
+      // InStyle / The Concept Wardrobe). Same predicate as the fallback
+      // gate (shoeBottomClash, src/lib/outfit-rules.ts); heeled sandals
+      // with full wide-leg trousers are fine (owner's call, 2026-10-17).
       {
         const shoe = s.items.find((i) => i.category === "shoes");
         const bottom = s.items.find((i) => i.category === "bottom");
-        if (shoe && bottom) {
-          const shoeSub = shoe.subcategory;
-          const bottomFit = bottom.bottom_fit;
-          const pantsLen = bottom.pants_length;
-          let badCombo: string | null = null;
-
-          // TALL-SHAFT BOOTS — fight with wide/flared/bootcut/tapered hems
-          // (pant can't fit over the shaft). Midi skirts are fine —
-          // boho/Western/riding-boot looks are legitimate. Detected
-          // by subcategory=knee-boots OR shoe_height in [knee, over-knee]
-          // — the latter catches cowboy/western boots and any other
-          // sub that happens to be tall-shaft.
-          const shoeHeight = shoe.shoe_height;
-          const isTallShaftBoot =
-            shoeSub === "knee-boots" ||
-            shoeHeight === "knee" ||
-            shoeHeight === "over-knee";
-          if (isTallShaftBoot) {
-            const label = shoeSub ?? "tall boot";
-            if (bottomFit === "wide-leg" || bottomFit === "flared" || bottomFit === "bootcut" || bottomFit === "tapered") {
-              badCombo = `${label} (tall shaft) × ${bottomFit} pants — shaft conflict`;
-            }
-          }
-
-          // ANKLE BOOTS — hem-on-shaft + flared/bootcut burying.
-          if (!badCombo && shoeSub === "ankle-boots") {
-            if (pantsLen === "ankle-crop") {
-              badCombo = `ankle-boots × ankle-crop pants — double horizontal at the ankle`;
-            } else if (
-              (bottomFit === "flared" || bottomFit === "bootcut") &&
-              pantsLen === "full"
-            ) {
-              badCombo = `ankle-boots × full ${bottomFit} pants — flare buries the boot`;
-            }
-          }
-
-          // SANDALS — drowned by full-length wide hem.
-          if (!badCombo && shoeSub === "sandals") {
-            if (pantsLen === "full" && bottomFit === "wide-leg") {
-              badCombo = `sandals × full wide-leg pants — hem drowns the strap`;
-            }
-          }
-
-          // FLATS / BALLET FLATS — disappear under flared/bootcut full hems.
-          if (!badCombo && (shoeSub === "flats" || shoeSub === "ballet-flats")) {
-            if (
-              (bottomFit === "flared" || bottomFit === "bootcut") &&
-              pantsLen === "full"
-            ) {
-              badCombo = `${shoeSub} × full ${bottomFit} pants — dragging hem, leg looks stumpy`;
-            }
-          }
-
-          // ESPADRILLES — casual jute sole vs formal wool trousers.
-          if (!badCombo && shoeSub === "espadrilles") {
-            const bottomMats = Array.isArray(bottom.material) ? bottom.material : [bottom.material];
-            if (
-              bottom.subcategory === "trousers" &&
-              bottomMats.some((m) => m === "wool" || m === "tweed")
-            ) {
-              badCombo = `espadrilles × wool/tweed trousers — formality mismatch`;
-            }
-          }
-
-          if (badCombo) {
-            drops.push({ ids: s._ids, reason: `bad combo: ${badCombo}` });
-            return false;
-          }
+        const badCombo = shoe && bottom ? shoeBottomClash(shoe, bottom) : null;
+        if (badCombo) {
+          drops.push({ ids: s._ids, reason: `bad combo: ${badCombo}` });
+          return false;
         }
       }
       // OUTDOOR SHOE BLOCK — fashion footwear (western boots, knee
@@ -3356,13 +3276,12 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         }
       }
-      // CASUAL HEEL BLOCK — casual / brunch / outdoor / travel / at-home
-      // outfits should be flat. Heeled boots in jeans and a tee read
-      // overdressed; user has casual shoes for a reason.
-      if (CASUAL_SHOE_OCCASIONS.has(occasion)) {
-        const heeledShoe = s.items.find(
-          (i) => i.category === "shoes" && isHeeled(i)
-        );
+      // CASUAL HEEL BLOCK — no high heels at casual / brunch / outdoor /
+      // travel / at-home; mid heels (a block-heel ankle boot) are fine at
+      // casual and brunch (owner's call, 2026-10-17). Same predicate as the
+      // shoe injector (heelTooDressy, src/lib/outfit-rules.ts).
+      {
+        const heeledShoe = s.items.find((i) => heelTooDressy(i, occasion));
         if (heeledShoe) {
           drops.push({
             ids: s._ids,
@@ -3420,23 +3339,18 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           if (!pendingSoft) pendingSoft = {};
         }
       }
-      // Mood: Cozy → warm-earth palette only. Saturated cool colors
-      // (green / teal / turquoise / blue / purple / etc) mixed with
-      // warm earth tones (rust / terracotta / camel / brown / etc)
-      // creates a palette clash that fights the cozy vibe. Allow
-      // saturated cool only when paired with neutrals (no warm earth
-      // present in the outfit).
+      // Mood: Cozy → no strong warm colour (rust, mustard, orange) next to
+      // a strong cool one (emerald, teal, purple), judged from each
+      // colour's real hex. Beige, tan, camel, brown and khaki are neutrals
+      // and go with anything (owner's call, 2026-10-17: a camel coat with a
+      // sage sweater used to be dropped). cozyPaletteClash in
+      // src/lib/outfit-rules.ts.
       if (mood === "cozy") {
-        const WARM_EARTH = /\b(?:rust|terracotta|tan|camel|beige|brown|khaki|mustard|ochre|burnt|sienna|umber|espresso|chocolate|cognac|amber|copper|caramel)\b/i;
-        const SATURATED_COOL = /\b(?:green|teal|turquoise|aqua|cyan|purple|plum|lavender|violet|magenta|fuchsia|emerald|forest|kelly|royal|sapphire)\b/i;
-        const hasColorMatch = (item: ClothingItem, re: RegExp) =>
-          (item.colors ?? []).some((c) => re.test(c.name));
-        const warmItem = s.items.find((i) => hasColorMatch(i, WARM_EARTH));
-        const coolItem = s.items.find((i) => hasColorMatch(i, SATURATED_COOL));
-        if (warmItem && coolItem) {
+        const clash = cozyPaletteClash(s.items);
+        if (clash) {
           drops.push({
             ids: s._ids,
-            reason: `cozy palette clash: "${warmItem.name}" (warm earth) + "${coolItem.name}" (saturated cool)`,
+            reason: `cozy palette clash: "${clash.warm.name}" (strong warm) + "${clash.cool.name}" (strong cool)`,
           });
           return false;
         }
@@ -3492,6 +3406,21 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           drops.push({
             ids: s._ids,
             reason: "bold mood + no statement piece (no bright color, pattern, or oversized fit)",
+          });
+          return false;
+        }
+      }
+      // Mood: Chill → no mid or high heels, as the shoe injector and the
+      // fallback gate already refused (shoeFitsContext). The casual-heel
+      // block covered it only at casual occasions, and since mid heels are
+      // fine at casual and brunch (owner's call, 2026-10-17) it no longer
+      // does there.
+      if (mood === "chill") {
+        const heeled = s.items.find((i) => i.category === "shoes" && isHeeled(i));
+        if (heeled) {
+          drops.push({
+            ids: s._ids,
+            reason: `chill mood + heeled shoe ("${heeled.name}")`,
           });
           return false;
         }
@@ -3657,19 +3586,22 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
             (i.subcategory === "sweater" || i.subcategory === "blouse") &&
             i.fit !== "oversized"
         );
+        // A slim skirt or slim trousers take an OPTIONAL belt (owner's
+        // call, 2026-10-17): allowed by beltBlockedBy, never asked for.
         const skirt = s.items.find(
-          (i) => i.category === "bottom" && i.subcategory === "skirt"
+          (i) => i.category === "bottom" && i.subcategory === "skirt" && i.fit !== "slim"
         );
         const tailoredBottom = s.items.find(
           (i) =>
             i.category === "bottom" &&
             i.subcategory === "trousers" &&
-            i.waist_style !== "elastic"
+            i.waist_style !== "elastic" &&
+            i.fit !== "slim"
         );
         // Belt-friendly dress = silhouette suggests a defined waist
         // moment AND no auto-blockers (slim fit, already-belted waist).
-        // Excludes slip / bodycon / mermaid / sheath / shift — those
-        // silhouettes fight a belt — and wrap, whose tie IS the belt.
+        // Excludes slip / bodycon / mermaid / sheath (they fight a belt),
+        // shift (a belt is optional there) and wrap (its tie IS the belt).
         const beltFriendlySilhouettes = new Set<string>([
           "a-line",
           "fit-and-flare",
@@ -3843,30 +3775,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // Reject visually-bad shoe × bottom proportional combos — these
         // are visual failures regardless of wardrobe constraints, so we
         // never want to ship one even as a fallback.
+        // Same predicate as the main validator (shoeBottomClash).
         const shoe = s.items.find((i) => i.category === "shoes");
         const bottom = s.items.find((i) => i.category === "bottom");
-        if (shoe && bottom) {
-          const sub = shoe.subcategory;
-          const fit = bottom.bottom_fit;
-          const pl = bottom.pants_length;
-          const sh = shoe.shoe_height;
-          const tallShaft = sub === "knee-boots" || sh === "knee" || sh === "over-knee";
-          if (tallShaft) {
-            if (["wide-leg", "flared", "bootcut", "tapered"].includes(fit ?? "")) return false;
-          }
-          if (sub === "ankle-boots") {
-            if (pl === "ankle-crop") return false;
-            if (["flared", "bootcut"].includes(fit ?? "") && pl === "full") return false;
-          }
-          if (sub === "sandals" && pl === "full" && fit === "wide-leg") return false;
-          if (
-            (sub === "flats" || sub === "ballet-flats") &&
-            ["flared", "bootcut"].includes(fit ?? "") &&
-            pl === "full"
-          ) {
-            return false;
-          }
-        }
+        if (shoe && bottom && shoeBottomClash(shoe, bottom)) return false;
 
         // ── Hard-rule re-validation for the fallback path ──────────────
         // The fallback rescue used to admit outfits that violated occasion
@@ -3906,6 +3818,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           )) return false;
           if (gender !== "man" && s.items.some((i) => i.category === "bottom" && i.subcategory === "skirt" && i.skirt_length === "mini")) return false;
           if (s.items.some((i) => i.category === "top" && i.subcategory === "hoodie")) return false;
+          // Mirror of the R9 dress-silhouette drop (it had no mirror here,
+          // so a slip dress could ship to work through the fallback).
+          if (workDressProblem(s.items)) return false;
           // Mirrors of the open-toe and tank-without-blazer drops above.
           if (s.items.some((i) =>
             i.category === "shoes" &&
@@ -4018,19 +3933,8 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         // validator, or this gate empties a wardrobe the validator let pass.
         if (rainTriggered && s.items.some(rainRefuses)) return false;
 
-        // Metal sync (skip for Playful, bag excluded on men's track —
-        // mirrors the main validator's visibility rules).
-        if (mood !== "playful") {
-          const finishes = s.items
-            .filter((i) =>
-              i.category === "shoes" ||
-              (i.category === "bag" && gender !== "man") ||
-              (i.category === "accessory" && i.subcategory === "belt")
-            )
-            .map(metalFamilyOf)
-            .filter((f): f is "gold" | "silver" | "other" => f !== null);
-          if (finishes.length >= 2 && new Set(finishes).size > 1) return false;
-        }
+        // Metal sync — same predicate as the main validator.
+        if (metalProblem(s.items)) return false;
 
         // Drop-side mood rules (cheap, prevent visibly-wrong ships). The
         // require-side moods (confident/energized/bold) stay un-mirrored
