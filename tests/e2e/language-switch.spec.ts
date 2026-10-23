@@ -42,6 +42,24 @@ async function saveLanguage(page: Page, option: RegExp) {
   await page.getByRole("button", { name: /^(Save Settings|Enregistrer)$/ }).click();
 }
 
+// Signed out there is no saved language, so the browser's decides. The
+// shared store first fell back to a hard-coded "en" and showed French
+// browsers the login page in English (2026-10-23, known-root-causes.md).
+test("a signed-out visitor sees the browser's language", async ({ browser }) => {
+  for (const [locale, heading, button] of [
+    ["fr-CA", "Bon retour !", "Se connecter"],
+    ["en-US", "Welcome back", "Sign in"],
+  ] as const) {
+    const context = await browser.newContext({ locale });
+    const page = await context.newPage();
+    await page.goto("/login");
+    await expect(page.getByText(heading, { exact: true }), `${locale}: login heading`).toBeVisible();
+    await expect(page.getByRole("button", { name: button, exact: true }), `${locale}: sign-in button`).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe(locale.slice(0, 2));
+    await context.close();
+  }
+});
+
 test("switching the language updates every screen at once", async ({ page }) => {
   test.setTimeout(3 * 60_000);
   await signIn(page);

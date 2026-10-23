@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import type { Gender, Mood } from "@/lib/types";
-import { resolveLocale, translate, type Locale } from "./index";
+import { detectLocale, resolveLocale, translate, type Locale } from "./index";
 import { createPreferenceStore } from "@/lib/preference-store";
 
 const CACHE_KEY = "locale:v1";
@@ -37,8 +37,13 @@ const asGender = (g: unknown): Gender => (g === "woman" || g === "man" ? g : "no
  */
 export const localeStore = createPreferenceStore<LocaleState>({
   serverValue: { locale: "en", gender: "not-specified" },
+  // Nothing cached (a first visit, or signed out, where no server answer
+  // ever comes): the browser's language. A hard-coded "en" here showed
+  // French browsers the login and sign-up pages in English (2026-10-23).
   readCache: () =>
-    typeof window === "undefined" ? null : { locale: readCached() ?? "en", gender: readCachedGender() },
+    typeof window === "undefined"
+      ? null
+      : { locale: readCached() ?? detectLocale(), gender: readCachedGender() },
   writeCache: ({ locale, gender }) => {
     try {
       window.localStorage.setItem(CACHE_KEY, locale);
