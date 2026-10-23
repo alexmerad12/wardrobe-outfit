@@ -101,7 +101,7 @@ export default function BulkUploadPage() {
       {items.length === 0 && (
         <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center">
           <Sparkles className="h-8 w-8 mx-auto mb-4 text-muted-foreground" strokeWidth={1.5} />
-          <h2 className="font-heading text-xl font-medium tracking-tight mb-2">{t("bulk.subtitle")}</h2>
+          <h2 className="font-heading text-xl font-medium tracking-tight text-balance mb-2">{t("bulk.subtitle")}</h2>
           <p className="mb-2 text-sm text-muted-foreground max-w-md mx-auto">
             {t("bulk.description")}
           </p>
