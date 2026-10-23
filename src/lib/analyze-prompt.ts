@@ -50,7 +50,7 @@ ENUMS:
 - bag_metal_finish (only for category="bag"): same enum as metal_finish — "silver" | "gold" | "rose-gold" | "chrome" | "matte-silver" | "matte-gold" | "brass" | "bronze" | "gunmetal" | "mixed" | "none". The dominant metal of any visible bag hardware (clasps, chain straps, buckles, logo plates). Use "none" if the bag has no visible metal (e.g., all-fabric tote with no closure hardware).
 
 OTHER FIELDS:
-- name: 2–5 words, concise and descriptive (e.g. "Blue cotton t-shirt", "Black leather ankle boots")
+- name: 2–5 words, concise and descriptive, in sentence case: only the first word and brand names capitalized (e.g. "Blue cotton T-shirt", "Black leather ankle boots", never "Black Leather Ankle Boots")
 - colors: array of { hex: "#rrggbb", name: "Plain English color name in Title Case" } — up to 3 dominant colors. Use Title Case ("Black", "Navy Blue", "Dark Brown") not lowercase or ALL CAPS.
 - warmth_rating: number from 1 to 5 in 0.5 increments (1, 1.5, 2, 2.5, ... 5). 1 = tank top / sandals / thin bandana, 3 = shirt / jeans / sneakers, 5 = parka / heavy winter boots / chunky winter scarf. Scarves span the whole range (silk bandana 1-2, knit winter scarf 4-5). Shoes span the whole range too: open sandals/espadrilles 1, ballet flats/loafers/sneakers 2-3, ankle boots 3-4, insulated or knee boots 4-5.
 - is_layering_piece: true only for open cardigans, vests, blazers, lightweight outerwear worn over a base layer

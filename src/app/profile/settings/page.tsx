@@ -346,7 +346,7 @@ export default function SettingsPage() {
       {/* Settings card */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base">{t("profile.settings")}</CardTitle>
+          <CardTitle className="text-base">{t("profile.preferencesTitle")}</CardTitle>
         </CardHeader>
         {loading ? (
           <CardContent className="space-y-4">

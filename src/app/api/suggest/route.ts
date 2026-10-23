@@ -20,6 +20,7 @@ import {
   hasFrenchCorruption,
 } from "@/lib/suggest-text-guards";
 import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
+import { toSentenceCase } from "@/lib/name-case";
 import {
   cozyPaletteClash,
   heelTooDressy,
@@ -2538,7 +2539,10 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       }
 
       const nameFallback = `${moodInfo.label} look`;
-      const name = cleanName(s.name, nameFallback, outfitItems);
+      // French titles take one capital; the model writes them in English
+      // title case ("Bohème Assumé"), design review 2026-10-23.
+      const cleanedName = cleanName(s.name, nameFallback, outfitItems);
+      const name = locale === "fr" ? toSentenceCase(cleanedName) : cleanedName;
 
       return {
         items: outfitItems,

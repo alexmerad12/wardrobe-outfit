@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, Shirt, Sparkles, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { useBottomNavHidden } from "@/lib/bottom-nav-visibility";
 
 const NAV_ITEMS = [
   { href: "/", icon: Home, key: "home" },
@@ -17,6 +18,8 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useLocale();
+  // A full-screen form with its own close / save bar (the item editor).
+  const hiddenByScreen = useBottomNavHidden();
 
   // Hide nav on auth + legal + launch + design-preview + debug pages.
   // /welcome is part of the auth flow (invite acceptance + password reset)
@@ -25,6 +28,7 @@ export function BottomNav() {
   // the same — the user has to finish those steps before reaching the app
   // proper, so the nav would only let them escape with a half-filled profile.
   if (
+    hiddenByScreen ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password") ||

@@ -72,6 +72,7 @@ import { cn } from "@/lib/utils";
 import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { toColorKey } from "@/lib/color-label";
 import { getPreferences } from "@/lib/preferences-client";
+import { hideBottomNav } from "@/lib/bottom-nav-visibility";
 
 export default function ItemDetailPage() {
   const { t, locale } = useLocale();
@@ -146,6 +147,10 @@ export default function ItemDetailPage() {
   const [editBrand, setEditBrand] = useState("");
   const [editColors, setEditColors] = useState<{ hex: string; name: string; percentage: number }[]>([]);
   const [showColorPalette, setShowColorPalette] = useState(false);
+
+  // The edit form has its own close / save bar: the bottom nav goes away
+  // while it is open (one tap on it used to leave the form mid-edit).
+  useEffect(() => (editing ? hideBottomNav() : undefined), [editing]);
 
   // User gender preference — used to gate feminine fields on the men's track.
   useEffect(() => {

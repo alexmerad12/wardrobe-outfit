@@ -3,6 +3,15 @@ import { sanitizeAutoFill } from "./sanitize-autofill";
 
 // Models return close-but-invalid enum values; a value outside the
 // allowlist would fail a Supabase check constraint and kill the upload.
+describe("sanitizeAutoFill names", () => {
+  it("rewrites a title-case name in sentence case, leaves others alone", () => {
+    expect(sanitizeAutoFill({ name: "Black Polyester Tank Top" }).name).toBe("Black polyester tank top");
+    expect(sanitizeAutoFill({ name: "White Cotton T-Shirt" }).name).toBe("White cotton T-shirt");
+    expect(sanitizeAutoFill({ name: "Leopard print slip-on sneakers" }).name).toBe("Leopard print slip-on sneakers");
+    expect(sanitizeAutoFill({ name: "Bottines Noires En Cuir" }).name).toBe("Bottines noires en cuir");
+  });
+});
+
 describe("sanitizeAutoFill", () => {
   it("normalises near-miss enum values and drops invalid ones", () => {
     const out = sanitizeAutoFill({

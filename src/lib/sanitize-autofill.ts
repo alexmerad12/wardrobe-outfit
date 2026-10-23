@@ -9,6 +9,7 @@
 // back to the field's default than take down the entire save.
 
 import type { AutoFillResult } from "./analyze-item";
+import { sentenceCaseIfTitled } from "./name-case";
 import {
   CATEGORIES,
   SUBCATEGORIES,
@@ -90,9 +91,11 @@ export function sanitizeAutoFill(raw: unknown): AutoFillResult {
       : undefined;
 
   return {
+    // Sentence case when the model wrote title case ("Black Polyester Tank
+    // Top" next to "White cotton tank top" in one wardrobe grid).
     name:
       typeof r.name === "string" && r.name.trim()
-        ? r.name.trim().slice(0, 80)
+        ? sentenceCaseIfTitled(r.name.trim().slice(0, 80))
         : undefined,
     category: oneOf(r.category, CATEGORIES),
     subcategory: oneOf(r.subcategory, SUBCATEGORIES),

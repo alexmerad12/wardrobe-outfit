@@ -182,7 +182,7 @@ export default function AccountSecurityPage() {
           so users don't have to scroll past data export to find it. */}
       <Card>
         <CardHeader>
-          <CardTitle>{t("profile.changePassword")}</CardTitle>
+          <CardTitle>{t("profile.passwordTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Button variant="outline" className="w-full" onClick={openPasswordDialog}>
@@ -194,7 +194,7 @@ export default function AccountSecurityPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("profile.exportData")}</CardTitle>
+          <CardTitle>{t("profile.dataTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-3">
