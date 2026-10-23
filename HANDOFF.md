@@ -3,15 +3,19 @@
 ## Project
 Linette: AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini), the owner's own product (9537-1076 Québec Inc.), not a client project. Production: https://linette.app. Architecture and conventions: `CLAUDE.md`. Every confirmed root cause and ruled-out theory: `known-root-causes.md`. Launch checklist: `PRE-LAUNCH.md`.
 
-## Current state (2026-10-17)
-- **The modernization goal is CLOSED:** the owner rated the app 10/10 on 2026-10-17 (endpoints, models, styling rules, background removal). Code as of ec11e9f; later commits are docs only.
-- **Last full production check** (2026-10-17 ~1:45 PM EDT, deployment 37ec2ce): endpoint sweep 61/61, background removal included (25-37 s a photo end to end) and the keepalive's authorized path (200 through `vercel crons run`); UI smoke 9/9 tabs with 0 console errors; 0 error-level logs and 0 5xx after the deploy. Docs deploys after it were smoke-tested (pages, auth gates, logs).
+## Current state (2026-10-23)
+- **Design review done (2026-10-23):** every screen at phone size (390 × 844) in English and French, signed in and out, plus desktop, on linette.app with a seeded test wardrobe: 60 screens, automatic contrast / tap-target / clipped-text / translation checks. Fixed and live (20da6b3, abbd7c0, b5fb3f6, then the bulk heading): the launch page in French, DM Sans on the lobby pages (they asked for an unloaded 'Inter'), translated card badge / subcategory / "Save & Next" / read-only labels, French copy says "pièce", mph with °F, empty history cards hidden, "Change photo" visible on phones, contrast (54 failures → 0), 24 px colour-remove buttons, onboarding's React #418 on French phones, the FAQ matched to the Oct 17 rules, the R4b drift that shipped an empty outfit, French country names for the auto unit. Root causes in `known-root-causes.md`.
+- **Waiting on the owner (review page, link in TASKS.md, Linette):** 8 taste calls he answers on the page (stored in its database, collection `decisions`, one document per call: `{choice: yes|later|no}`, read with the ArtifactData tool), and his go for the "Fix next" list (below).
+- **Store order decided (2026-10-23):** Google Play first, then the App Store (`PRE-LAUNCH.md`, Mobile).
+- **The modernization goal is CLOSED:** the owner rated the app 10/10 on 2026-10-17 (endpoints, models, styling rules, background removal).
+- **Last full endpoint sweep** (2026-10-17 ~1:45 PM EDT, deployment 37ec2ce): 61/61, background removal included (25-37 s a photo end to end) and the keepalive's authorized path (200 through `vercel crons run`); UI smoke 9/9 tabs with 0 console errors; 0 error-level logs and 0 5xx after the deploy.
 - **Models** (`src/lib/gemini.ts`): outfits (suggest, refine, try-on simulation) on `gemini-3.6-flash` at thinking level LOW, falling back to `gemini-3.5-flash-lite`; photo tagging, packing and try-on's photo read on `gemini-3.5-flash-lite`, falling back to 3.6. Google billing on (Tier 1, prepaid, auto-reload).
 - **Background removal:** self-hosted BiRefNet-lite (our lean ONNX export, in Vercel Blob) with the mirror pass, one whole photo at a time per instance. A 5-photo bulk upload takes ~110 s (109 s measured, Pixel 10 profile on 4G).
-- **Styling rules:** the owner's 8 decisions are live (below). Five are pure functions in `src/lib/outfit-rules.ts`, shared by the validator, the injectors and the fallback gate.
+- **Styling rules:** the owner's 8 decisions are live (below). Five are pure functions in `src/lib/outfit-rules.ts`, shared by the validator, the injectors and the fallback gate, and so is R4b layering (since 2026-10-23).
 - **Infra:** Vercel functions in `pdx1` on the Performance size (2 vCPU / 4 GB, project-wide). Supabase free plan in us-west-2, kept awake by the daily `/api/cron/keepalive` (09:17 UTC). Upstash KV holds the daily caps. Stripe live (webhook on, no real subscribers yet). Auth emails through Resend SMTP. Sentry with the explicit privacy baseline.
 - **Language switch fixed (2026-10-17, owner report):** saving English/French in Settings (or onboarding) now switches every screen at once, the bottom nav included; it used to wait for a reload. Shared preference store, `applySavedPreferences` (CLAUDE.md, i18n).
-- **Tests:** `npm run test:unit` 70 tests in 10 files. `npm run test:smoke` includes `language-switch.spec.ts`. `npm run test:rules` 8/8 (needs a local server with the e2e email in `CAP_BYPASS_EMAILS`). CI (typecheck on TypeScript 6 and 7, lint, unit tests) green on every push.
+- **Last full production check** (2026-10-23 ~5 PM EDT, deployment from b5fb3f6): language + UI smoke + CRUD 5/5 (the launch page in both languages and onboarding without a hydration error are new and failed on the old code), 0 error logs and 0 5xx after the deploy; the 60-screen audit found 0 contrast failures, 0 console errors, 0 raw keys, every French screen `lang="fr"`. Rules harness 8/8 on the same build locally.
+- **Tests:** `npm run test:unit` 82 tests in 12 files. `npm run test:smoke` includes `language-switch.spec.ts` (3 tests). `npm run test:rules` 8/8 (needs a local server with the e2e email in `CAP_BYPASS_EMAILS`). CI (typecheck on TypeScript 6 and 7, lint, unit tests) green on every push.
 
 ## Owner decisions (don't reopen)
 - Gemini only: "remodernize with Claude Opus 5.5" meant modernizing the code with Claude, not Claude models in the app (2026-10-16).
@@ -30,7 +34,7 @@ Linette: AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini), the 
 - Entity stays 9537-1076 Québec inc. + DUNS 243370174, no restructure (2026-10-14).
 
 ## In progress
-Nothing mid-flight.
+Nothing mid-flight in code. The e2e test account still holds the design-review wardrobe (13 reference photos through the real pipeline, 2 outfits, a trip): keep it while the review's follow-ups need after-screenshots, then wipe it (the session's `design-seed.mts wipe`; `npm run test:rules` also wipes and reseeds it).
 
 ## Open issues / pending decisions
 - **Owner, before public launch** (`PRE-LAUNCH.md`): open Google signup (`INVITE_ONLY=false` in Vercel; unset keeps the invite gate on), photo bucket private + signed URLs (audit A7), email confirmation ON in Supabase, Google OAuth verification.
@@ -60,7 +64,8 @@ Nothing mid-flight.
 - After a context compaction, the re-read instruction files can show stale copies of CLAUDE.md and memory: check disk and git before "fixing" a revert (it happened twice, nothing had reverted).
 
 ## Next steps (ordered)
-1. Store accounts (owner): resume Play Console, enroll Apple, both under 9537-1076 / DUNS 243370174.
+1. Store accounts (owner): finish the Play Console organization signup first (Play ships first), then enroll Apple, both under 9537-1076 / DUNS 243370174.
+1b. Design review follow-ups, on the owner's go: the "Fix next" list (44 px tap targets on phones; French from the first frame via a language cookie, which makes the static pages server-rendered; French outfit names in French sentence case, prompt + code; piece names in one style, analyze prompt; duplicate headings in Settings and Account; hide the bottom bar on the full-screen edit form), then the taste calls he marks Yes on the review page.
 2. Web-side compliance (ships to linette.app too): Gemini consent screen, report button on AI output, 18+ terms + age gate, public account-deletion page, email confirmation ON, private photo bucket + signed URLs.
 3. Store build: Capacitor scaffold → Sign in with Apple + native Google sign-in → RevenueCat + platform-aware paywall → Restore Purchases (i18n key `paywall.restore` exists) → reviewer demo account → listings. iOS builds need a Mac with Xcode 26.
 4. OTP codes as the default email login (before the native wrap).
