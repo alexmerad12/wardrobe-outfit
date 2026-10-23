@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { BrandedName } from "@/components/brand/branded-name";
-import type { Language, Gender, TemperatureSensitivity } from "@/lib/types";
-import { detectLocale, translate, type Locale } from "@/lib/i18n";
+import type { Gender, TemperatureSensitivity } from "@/lib/types";
+import { translate, type Locale } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
 import { applySavedPreferences } from "@/lib/saved-preferences";
 
@@ -48,10 +49,14 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
 
-  // Initial language: detected (en/fr). User can switch in profile.
-  // We dropped "auto" as an explicit option — it always resolves to one
-  // of the two anyway, so showing both pre-resolved is clearer.
-  const [language, setLanguage] = useState<Language>(detectLocale() === "fr" ? "fr" : "en");
+  // Until the user picks one, the language is the shared store's: the
+  // browser's for a new account. We dropped "auto" as an explicit option —
+  // it always resolves to one of the two anyway, so showing both
+  // pre-resolved is clearer. Reading the browser language straight into
+  // useState rendered English on the server and French on a French phone:
+  // React error #418 on every French first visit (2026-10-23).
+  const { locale: storeLocale } = useLocale();
+  const [pickedLocale, setPickedLocale] = useState<Locale | null>(null);
   const [city, setCity] = useState("");
   const [cityLat, setCityLat] = useState(0);
   const [cityLng, setCityLng] = useState(0);
@@ -76,7 +81,10 @@ export default function OnboardingPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Use the selected language immediately inside onboarding, even before save.
-  const locale: Locale = language === "en" || language === "fr" ? language : detectLocale();
+  const locale: Locale = pickedLocale ?? storeLocale;
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   const t = (key: string, vars?: Record<string, string | number>) =>
     translate(locale, key, vars);
 
@@ -183,7 +191,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           location: city ? { city, lat: cityLat, lng: cityLng } : null,
           use_device_location: useDeviceLocation,
-          language,
+          language: locale,
           gender,
           temperature_sensitivity: tempSensitivity,
         }),
@@ -197,7 +205,7 @@ export default function OnboardingPage() {
       // on every mounted screen (the bottom nav included), not after a reload.
       applySavedPreferences({
         location: city ? { city, lat: cityLat, lng: cityLng } : null,
-        language,
+        language: locale,
         gender,
       });
       router.push("/");
@@ -269,8 +277,8 @@ export default function OnboardingPage() {
                     {t("profile.language")}
                   </Label>
                   <Select
-                    value={language}
-                    onValueChange={(v) => setLanguage(v as Language)}
+                    value={locale}
+                    onValueChange={(v) => setPickedLocale(v as Locale)}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue>

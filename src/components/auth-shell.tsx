@@ -51,7 +51,9 @@ const AUTH_CSS = `
     position: fixed; inset: 0;
     background: #ffffff;
     color: #000000;
-    font-family: 'Inter', system-ui, sans-serif;
+    /* The app's DM Sans (next/font in layout.tsx). This asked for 'Inter',
+       which is never loaded, so phones drew it in their system font. */
+    font-family: var(--font-sans), system-ui, sans-serif;
     overflow-y: auto;
     z-index: 50;
   }
@@ -140,7 +142,7 @@ const AUTH_CSS = `
   .auth-card .auth-divider {
     display: flex; align-items: center; gap: 12px;
     margin: 18px 0;
-    color: rgba(0,0,0,0.5);
+    color: rgba(0,0,0,0.6);
     font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
   }
   .auth-card .auth-divider::before,
@@ -156,7 +158,7 @@ const AUTH_CSS = `
     color: #f4f4f4;
     border: 0.5px solid #000000;
     border-radius: 999px;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     font-weight: 500; font-size: 13px; letter-spacing: 0.04em;
     cursor: pointer;
     transition: background .12s ease, transform .12s ease;

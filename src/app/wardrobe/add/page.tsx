@@ -855,8 +855,9 @@ export default function AddItemPage() {
                           <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                           <button
                             type="button"
+                            aria-label={t("common.remove")}
                             onClick={() => setDetectedColors((prev) => prev.filter((_, j) => j !== i))}
-                            className="text-muted-foreground hover:text-destructive text-xs ml-0.5"
+                            className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive"
                           >
                             ×
                           </button>
@@ -882,8 +883,9 @@ export default function AddItemPage() {
                           <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                           <button
                             type="button"
+                            aria-label={t("common.remove")}
                             onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
-                            className="text-muted-foreground hover:text-destructive text-xs ml-0.5"
+                            className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive"
                           >
                             ×
                           </button>
@@ -943,8 +945,9 @@ export default function AddItemPage() {
                   <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                   <button
                     type="button"
+                    aria-label={t("common.remove")}
                     onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
-                    className="text-muted-foreground hover:text-destructive text-xs ml-0.5"
+                    className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive"
                   >
                     ×
                   </button>

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ClothingItem } from "@/lib/types";
-import { CATEGORY_LABELS } from "@/lib/types";
+import { useLocale } from "@/lib/i18n/use-locale";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export function ClothingCard({
   fromCategory,
   fromSubcategory,
 }: ClothingCardProps) {
+  const { t } = useLocale();
   const content = (
     <div
       className={cn(
@@ -70,10 +71,12 @@ export function ClothingCard({
 
       {/* Info */}
       <div className="p-2.5">
-        <p className="truncate text-sm font-medium">{item.name}</p>
+        {/* Two lines, always reserved, so every card in a row lines up and
+            "Blue open-front knit cardigan" isn't cut to "Blue open-front knit …". */}
+        <p className="line-clamp-2 min-h-10 text-sm font-medium leading-5">{item.name}</p>
         <div className="mt-1 flex items-center gap-1.5">
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            {CATEGORY_LABELS[item.category]}
+            {t(`category.${item.category}`)}
           </Badge>
           {/* Color dots */}
           <div className="flex gap-0.5">

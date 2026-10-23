@@ -88,14 +88,18 @@ export default function HomePage() {
 
           if (recent?.length > 0) {
             setRecentOutfits(
-              recent.map((r: TodayOutfit) => ({
-                ...r,
-                items: orderOutfitItems(
-                  r.item_ids
-                    .map((id) => allItems.find((i) => i.id === id))
-                    .filter(Boolean) as ClothingItem[]
-                ),
-              }))
+              recent
+                .map((r: TodayOutfit) => ({
+                  ...r,
+                  items: orderOutfitItems(
+                    r.item_ids
+                      .map((id) => allItems.find((i) => i.id === id))
+                      .filter(Boolean) as ClothingItem[]
+                  ),
+                }))
+                // Every piece deleted since: an empty "No items" card the
+                // user can neither wear nor open. Hide it.
+                .filter((r: { items: ClothingItem[] }) => r.items.length > 0)
             );
           }
         }

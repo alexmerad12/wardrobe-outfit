@@ -20,7 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTemperatureUnit } from "@/lib/use-temperature-unit";
-import { convertTemp } from "@/lib/temperature";
+import { convertTemp, formatWind } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { WEATHER_CONDITION_KEYS } from "@/lib/weather-condition-label";
 import { getPreferences } from "@/lib/preferences-client";
@@ -127,7 +127,7 @@ export function WeatherWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const unit = useTemperatureUnit();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   useEffect(() => {
     let cancelled = false;
@@ -293,7 +293,7 @@ export function WeatherWidget() {
             <span className="font-heading italic text-4xl font-medium leading-none tracking-tight text-foreground">
               {convertTemp(weather.temp, unit)}°
             </span>
-            <span className="text-xs text-foreground/50">
+            <span className="text-xs text-foreground/70">
               {unit === "fahrenheit" ? "F" : "C"}
             </span>
           </div>
@@ -320,7 +320,7 @@ export function WeatherWidget() {
         <div className="flex items-center gap-1.5">
           <Wind className="h-3.5 w-3.5 text-foreground/40" strokeWidth={1.75} />
           <span className="text-xs text-foreground/60">
-            {weather.wind_speed} km/h
+            {formatWind(weather.wind_speed, unit, locale)}
           </span>
         </div>
         <div className="flex items-center gap-1.5">

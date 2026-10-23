@@ -779,10 +779,14 @@ export default function ItemDetailPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
+            className="absolute inset-0 flex items-end justify-center pb-3 hover:bg-black/30 transition-colors"
           >
-            <Camera className="h-8 w-8 text-white mb-1" />
-            <span className="text-sm font-medium text-white">{t("itemDetail.changePhoto")}</span>
+            {/* Always visible: a phone has no hover, so the old hover-only
+                overlay left "Change photo" undiscoverable on mobile. */}
+            <span className="flex items-center gap-1.5 rounded-full bg-black/60 px-3.5 py-2 text-sm font-medium text-white">
+              <Camera className="h-4 w-4" />
+              {t("itemDetail.changePhoto")}
+            </span>
           </button>
         )}
         <input
@@ -900,7 +904,9 @@ export default function ItemDetailPage() {
                 <div key={i} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1">
                   <span className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color.hex }} />
                   <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
-                  <button type="button" onClick={() => setEditColors((p) => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive text-xs ml-0.5">×</button>
+                  {/* 24 px tap target (WCAG 2.5.8); it was 7x16. The negative
+                      margins keep the chip its old size. */}
+                  <button type="button" aria-label={t("common.remove")} onClick={() => setEditColors((p) => p.filter((_, j) => j !== i))} className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive">×</button>
                 </div>
               ))}
             </div>
@@ -1329,7 +1335,7 @@ export default function ItemDetailPage() {
                 {t("common.saving")}
               </>
             ) : hasNext ? (
-              `Save & Next (${nextIds.length} left)`
+              t("itemDetail.saveAndNext", { count: nextIds.length })
             ) : (
               t("itemDetail.saveChanges")
             )}
@@ -1347,7 +1353,7 @@ export default function ItemDetailPage() {
           <h1 className="font-heading text-2xl font-medium mb-1 tracking-tight">{item.name}</h1>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <Badge variant="secondary">{labels.CATEGORY[item.category]}</Badge>
-            {item.subcategory && <Badge variant="outline">{item.subcategory}</Badge>}
+            {item.subcategory && <Badge variant="outline">{t(`subcategory.${item.subcategory}`)}</Badge>}
             {item.brand && <span className="text-sm text-muted-foreground">{item.brand}</span>}
             {item.is_layering_piece && <Badge variant="outline" className="text-[10px]">{t("itemDetail.layeringPiece")}</Badge>}
           </div>
@@ -1554,7 +1560,7 @@ export default function ItemDetailPage() {
           {/* Seasons */}
           {item.seasons.length > 0 && (
             <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2">{t("addItem.seasons")}</p>
+              <p className="text-sm text-muted-foreground mb-2">{t("itemDetail.seasons")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {item.seasons.map((s) => (
                   <Badge key={s} variant="outline">{labels.SEASON[s]}</Badge>
@@ -1569,7 +1575,7 @@ export default function ItemDetailPage() {
               as empty chips. */}
           {item.occasions.some((o) => labels.OCCASION[o]) && (
             <div className="mt-3">
-              <p className="text-sm text-muted-foreground mb-2">{t("addItem.occasions")}</p>
+              <p className="text-sm text-muted-foreground mb-2">{t("itemDetail.occasions")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {item.occasions
                   .filter((o) => labels.OCCASION[o])

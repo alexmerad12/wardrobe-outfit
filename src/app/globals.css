@@ -60,7 +60,10 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* 0.53, not shadcn's 0.556: muted text sits on the muted grey too (filter
+     chips, tags), where 0.556 measured 4.35:1, under WCAG AA's 4.5:1. 0.53
+     gives 4.8:1 there and 5.3:1 on white. */
+  --muted-foreground: oklch(0.53 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);

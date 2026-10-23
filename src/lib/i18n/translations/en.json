@@ -35,6 +35,15 @@
     "tagline": "Your AI Stylist",
     "subtitle": "for the closet you already own"
   },
+  "launch": {
+    "eyebrow": "Your AI stylist",
+    "eyebrowAlt": "for the closet you already own",
+    "blurb": "A digital wardrobe — your clothes, beautifully kept. Outfit suggestions tuned to weather, mood, and the shape of your day.",
+    "getStarted": "Get started",
+    "signIn": "Sign in",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
   "review": {
     "title": "Review your uploads",
     "subtitle": "{count} item — tweak anything that looks off, then save.",
@@ -117,14 +126,14 @@
   "bulk": {
     "title": "Bulk upload",
     "subtitle": "Upload a batch at once",
-    "description": "Pick as many photos as you want. We'll remove the background, read every detail, and save each one to your wardrobe. Keep using the app while it works — just don't close the tab.",
-    "resilienceHint": "Pick however many — items process one at a time and stay safe even if the connection drops.",
+    "description": "Pick up to 10 photos at a time. We'll remove the background, read every detail, and save each one to your wardrobe. Keep using the app while it works, just keep it open.",
+    "resilienceHint": "Photos process one at a time, and none are lost if the connection drops.",
     "takePhoto": "Take photo",
     "chooseFromLibrary": "Choose from library",
     "allProcessed": "All {count} item processed",
     "allProcessedPlural": "All {count} items processed",
     "readyOfTotal": "{ready} of {total} ready · {inProgress} in progress",
-    "keepBrowsing": "Keep browsing — they'll keep going. Just don't close the tab.",
+    "keepBrowsing": "Keep browsing, they'll keep going. Just keep the app open.",
     "addMore": "Add more",
     "goToWardrobe": "Go to wardrobe",
     "working": "Working…",
@@ -188,11 +197,11 @@
     "howAreYouFeelingShort": "Today's mood?",
     "anyDirection": "Style in mind?",
     "optional": "Optional - tap any that apply",
-    "customWishPlaceholder": "Or type your own... (e.g. 'I want to wear my red boots')",
+    "customWishPlaceholder": "Or type your own (e.g. 'my red boots')",
     "whatsOccasionShort": "What's the occasion?",
     "packing": "Packing",
     "linetteStylingPhase1": "Browsing closet",
-    "linetteStylingPhase2": "Mixing colours",
+    "linetteStylingPhase2": "Mixing colors",
     "linetteStylingPhase3": "Sketching looks",
     "linetteStylingPhase4": "Reading weather",
     "linetteStylingPhase5": "Pulling pieces",
@@ -829,7 +838,7 @@
     "uploadFailedCount": "{count} failed",
     "viewAll": "View all →",
     "failed": "Failed: ",
-    "tapFailedTileToRetry": "Tap a failed tile to retry · full details in browser console",
+    "tapFailedTileToRetry": "Tap a failed tile to retry.",
     "keepUsingLinette": "Keep using Linette — these stay in flight as you browse.",
     "tapToRetry": "Tap to retry",
     "tapToRetryWithError": "Tap to retry — {error}",
@@ -970,7 +979,10 @@
     "layeringPiece": "Layering piece",
     "timesWorn": "Times worn",
     "lastWorn": "Worn {when}",
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save Changes",
+    "saveAndNext": "Save & Next ({count} left)",
+    "seasons": "Seasons",
+    "occasions": "Occasions"
   },
   "tryOn": {
     "title": "Try it before buying",

@@ -189,7 +189,7 @@ export default function TryOnPage() {
             <div className="relative aspect-square rounded-lg overflow-hidden bg-card">
               <Image
                 src={previewUrl}
-                alt="Uploaded item"
+                alt={t("bulk.altClothingItem")}
                 fill
                 className="object-contain p-2"
                 sizes="400px"

@@ -69,7 +69,7 @@ const SUCCESS_CSS = `
     position: fixed; inset: 0;
     background: #ffffff;
     color: #000000;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     z-index: 50;
   }
   .ps-wall { position: absolute; inset: 0; opacity: 0.36; filter: saturate(0.85); }

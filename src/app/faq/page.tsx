@@ -85,8 +85,9 @@ function EnglishFAQ() {
             Linette is your AI stylist — picture the friend who&apos;d remember
             every piece in your closet and text you a complete outfit when
             you ask what to wear. She has a soft spot for editorial fashion,
-            a strong opinion on belts (always), and a weakness for the
-            French half of her vocabulary. Most importantly: she refuses to
+            strong opinions on belts (she knows which waists need one, and
+            which never do), and a weakness for the French half of her
+            vocabulary. Most importantly: she refuses to
             suggest pieces you don&apos;t already own. New clothes aren&apos;t her
             thing — she believes most people have everything they need, they
             just can&apos;t see it. The &quot;for the closet you already own&quot;
@@ -97,8 +98,9 @@ function EnglishFAQ() {
             <li>She speaks English and French, and switches based on your preference.</li>
             <li>Rain in the forecast? Don&apos;t expect her to sign off on suede.</li>
             <li>
-              She only allows mixing metals when your mood is &quot;Playful.&quot;
-              Otherwise — gold with gold, silver with silver.
+              She keeps your metals to one family, with room for a single
+              accent piece in another (a gold belt and bag with silver
+              shoes). On a &quot;Playful&quot; day, anything goes.
             </li>
             <li>She doesn&apos;t sleep. She has opinions about late-night outfit decisions.</li>
           </ul>
@@ -334,9 +336,10 @@ function FrenchFAQ() {
             Linette est ta styliste IA — imagine l&apos;amie qui se souviendrait
             de chaque pièce dans ton dressing et qui te texterait une tenue
             complète quand tu lui demandes quoi porter. Elle a un faible
-            pour la mode éditoriale, une opinion très claire sur les
-            ceintures (toujours), et un penchant pour la moitié
-            française de son vocabulaire. Surtout : elle refuse de suggérer
+            pour la mode éditoriale, des opinions très claires sur les
+            ceintures (elle sait quelle taille en demande une, et laquelle
+            jamais), et un penchant pour la moitié française de son
+            vocabulaire. Surtout : elle refuse de suggérer
             des pièces que tu ne possèdes pas déjà. Les achats neufs, ce
             n&apos;est pas son truc — elle pense que la plupart des gens ont
             déjà tout ce qu&apos;il leur faut, ils ne le voient juste pas. La
@@ -347,8 +350,9 @@ function FrenchFAQ() {
             <li>Elle parle anglais et français, et bascule selon ta préférence.</li>
             <li>De la pluie au programme ? Ne compte pas sur elle pour approuver le suède.</li>
             <li>
-              Elle ne permet de mélanger les métaux que lorsque ton humeur est
-              « Fun ». Sinon — or avec or, argent avec argent.
+              Elle garde tes métaux dans une seule famille, avec une place pour
+              une pièce d&apos;accent dans une autre (ceinture et sac dorés avec
+              des chaussures argentées). Les jours « Fun », tout est permis.
             </li>
             <li>
               Elle ne dort pas. Elle a donc des opinions sur les choix de

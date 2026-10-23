@@ -262,7 +262,7 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm truncate leading-tight">{item.name}</p>
                         {item.last_worn_date && (
-                          <p className="text-[10px] text-muted-foreground/70 leading-tight mt-0.5">
+                          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
                             {formatLastWorn(item.last_worn_date, locale)}
                           </p>
                         )}

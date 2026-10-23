@@ -45,19 +45,44 @@ async function saveLanguage(page: Page, option: RegExp) {
 // Signed out there is no saved language, so the browser's decides. The
 // shared store first fell back to a hard-coded "en" and showed French
 // browsers the login page in English (2026-10-23, known-root-causes.md).
+// The launch page, the first screen of every new visitor, was hard-coded in
+// English until 2026-10-23.
 test("a signed-out visitor sees the browser's language", async ({ browser }) => {
-  for (const [locale, heading, button] of [
-    ["fr-CA", "Bon retour !", "Se connecter"],
-    ["en-US", "Welcome back", "Sign in"],
+  for (const [locale, heading, button, getStarted] of [
+    ["fr-CA", "Bon retour !", "Se connecter", "Commencer"],
+    ["en-US", "Welcome back", "Sign in", "Get started"],
   ] as const) {
     const context = await browser.newContext({ locale });
+    await context.addInitScript(() => {
+      try {
+        sessionStorage.setItem("linette_splash_seen", "1");
+      } catch {}
+    });
     const page = await context.newPage();
+    await page.goto("/launch");
+    await expect(page.getByRole("link", { name: getStarted, exact: true }), `${locale}: launch page`).toBeVisible();
     await page.goto("/login");
     await expect(page.getByText(heading, { exact: true }), `${locale}: login heading`).toBeVisible();
     await expect(page.getByRole("button", { name: button, exact: true }), `${locale}: sign-in button`).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.lang)).toBe(locale.slice(0, 2));
     await context.close();
   }
+});
+
+// Onboarding read the browser language straight into useState: English on
+// the server, French on a French phone, React error #418 on every French
+// first visit (2026-10-23, known-root-causes.md).
+test("onboarding loads without a hydration error in a French browser", async ({ browser }) => {
+  const context = await browser.newContext({ locale: "fr-CA" });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await signIn(page);
+  await page.goto("/onboarding");
+  await expect(page.locator("h1").first()).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(errors.filter((e) => /#418|hydrat/i.test(e)), "hydration errors").toEqual([]);
+  await context.close();
 });
 
 test("switching the language updates every screen at once", async ({ page }) => {

@@ -192,7 +192,9 @@ const PAYWALL_CSS = `
     position: fixed; inset: 0;
     background: #ffffff;
     color: #000000;
-    font-family: 'Inter', system-ui, sans-serif;
+    /* The app's DM Sans (next/font in layout.tsx). This asked for 'Inter',
+       which is never loaded, so phones drew it in their system font. */
+    font-family: var(--font-sans), system-ui, sans-serif;
     overflow-y: auto;
     z-index: 50;
   }
@@ -287,7 +289,7 @@ const PAYWALL_CSS = `
     margin-bottom: 6px;
   }
   .pw-plan-label {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     font-size: 11px; font-weight: 600;
     letter-spacing: 0.18em; text-transform: uppercase;
     color: rgba(0,0,0,0.7);
@@ -366,7 +368,7 @@ const PAYWALL_CSS = `
     color: #f4f4f4;
     border: 0.5px solid #000000;
     border-radius: 999px;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     font-weight: 500; font-size: 14px; letter-spacing: 0.06em;
     cursor: pointer;
     transition: background .12s ease, transform .12s ease;

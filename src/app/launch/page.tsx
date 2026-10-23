@@ -8,6 +8,7 @@ import * as React from "react";
 import Link from "next/link";
 import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
 import { Monogram } from "@/components/brand/monogram";
+import { useLocale } from "@/lib/i18n/use-locale";
 
 // The committed brand palette — same shape the Rose & Damask renderer
 // expects: [bg, petalHi, _, _, _, _, stem, damaskMotif].
@@ -33,6 +34,7 @@ const BRAND = {
 } as const;
 
 export default function LaunchPage() {
+  const { t } = useLocale();
   return (
     <>
       <style>{LAUNCH_CSS}</style>
@@ -55,9 +57,9 @@ export default function LaunchPage() {
 
         <div className="launch-content">
           <header className="launch-mast">
-            <span className="eyebrow">Your AI stylist</span>
+            <span className="eyebrow">{t("launch.eyebrow")}</span>
             <span className="rule" />
-            <span className="eyebrow alt">for the closet you already own</span>
+            <span className="eyebrow alt">{t("launch.eyebrowAlt")}</span>
           </header>
 
           <section className="launch-hero">
@@ -79,25 +81,22 @@ export default function LaunchPage() {
               <em>une garde-robe bien tenue</em>
             </p>
 
-            <p className="launch-blurb">
-              A digital wardrobe — your clothes, beautifully kept. Outfit
-              suggestions tuned to weather, mood, and the shape of your day.
-            </p>
+            <p className="launch-blurb">{t("launch.blurb")}</p>
 
             <div className="launch-cta">
               <Link href="/signup" className="btn btn-primary">
-                Get started
+                {t("launch.getStarted")}
               </Link>
               <Link href="/login" className="btn btn-ghost">
-                Sign in
+                {t("launch.signIn")}
               </Link>
             </div>
           </section>
 
           <footer className="launch-foot">
-            <Link href="/privacy" className="foot-link">Privacy</Link>
+            <Link href="/privacy" className="foot-link">{t("launch.privacy")}</Link>
             <span className="dot">·</span>
-            <Link href="/terms" className="foot-link">Terms</Link>
+            <Link href="/terms" className="foot-link">{t("launch.terms")}</Link>
           </footer>
         </div>
       </div>
@@ -112,7 +111,9 @@ const LAUNCH_CSS = `
     position: fixed; inset: 0;
     background: #ffffff;
     color: #000000;
-    font-family: 'Inter', system-ui, sans-serif;
+    /* The app's DM Sans (next/font in layout.tsx). This asked for 'Inter',
+       which is never loaded, so phones drew it in their system font. */
+    font-family: var(--font-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-y: auto;
     z-index: 9999;
@@ -154,7 +155,7 @@ const LAUNCH_CSS = `
     padding-top: 8px;
   }
   .eyebrow {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans), sans-serif;
     font-size: 10px;
     letter-spacing: 0.34em;
     text-transform: uppercase;
@@ -237,7 +238,7 @@ const LAUNCH_CSS = `
     display: inline-flex; align-items: center; justify-content: center;
     height: 44px; padding: 0 26px;
     border-radius: 999px;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     font-size: 13px; font-weight: 500;
     letter-spacing: 0.04em;
     text-decoration: none;
@@ -272,7 +273,8 @@ const LAUNCH_CSS = `
     font-family: 'Bodoni Moda', serif;
     font-style: italic;
     font-size: 12px;
-    color: rgba(0,0,0,0.5);
+    /* 0.6 keeps the links at WCAG AA (4.5:1) on the ivory ground; 0.5 was 4.0:1. */
+    color: rgba(0,0,0,0.6);
   }
   .launch-foot .dot { opacity: 0.55; }
   .foot-link {

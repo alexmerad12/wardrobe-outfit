@@ -105,7 +105,7 @@ export default function BulkUploadPage() {
           <p className="mb-2 text-sm text-muted-foreground max-w-md mx-auto">
             {t("bulk.description")}
           </p>
-          <p className="mb-6 text-xs text-muted-foreground/70 max-w-md mx-auto">
+          <p className="mb-6 text-xs text-muted-foreground max-w-md mx-auto">
             {t("bulk.resilienceHint")}
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
