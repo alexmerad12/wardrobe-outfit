@@ -164,3 +164,27 @@ export function heelTooDressy(shoe: ClothingItem, occasion: string): boolean {
   if (shoe.heel_type === "mid-heel") return FLAT_OCCASIONS.has(occasion);
   return false;
 }
+
+// ——— Rule R4b, layering proportions ——————————————————————————————————
+
+// Not an owner call, a stylist one, but the same one-predicate discipline:
+// the layering strip, the outerwear injector and the validator each kept a
+// copy, and the injector's skipped an oversized top marked as a layering
+// piece, so it put back the vest the strip had just removed and the
+// validator dropped the outfit (an empty answer, 2026-10-23).
+const LONG_COATS = new Set(["coat", "peacoat", "trench-coat", "parka"]);
+
+/** The top whose bulk limits what goes over it: any top with Fit "oversized",
+ *  a layering piece (an oversized cardigan) included. */
+export function oversizedTop(items: ClothingItem[]): ClothingItem | undefined {
+  return items.find((i) => i.category === "top" && i.fit === "oversized");
+}
+
+/** Whether this outerwear sits cleanly over an oversized top: a long, drapey
+ *  coat, or an oversized / loose puffer. Structured shoulders (denim and
+ *  leather jackets, bombers, blazers, vests) bunch over the bulk whatever
+ *  their own fit. */
+export function layersOverOversized(outer: ClothingItem): boolean {
+  if (LONG_COATS.has(outer.subcategory ?? "")) return true;
+  return outer.subcategory === "puffer" && (outer.fit === "oversized" || outer.fit === "loose");
+}

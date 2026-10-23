@@ -4,7 +4,9 @@ import {
   chroma,
   cozyPaletteClash,
   heelTooDressy,
+  layersOverOversized,
   metalMixProblem,
+  oversizedTop,
   shoeBottomClash,
   workDressProblem,
 } from "./outfit-rules";
@@ -132,5 +134,21 @@ describe("heelTooDressy", () => {
   });
   it("never minds a low heel", () => {
     expect(heelTooDressy(low, "outdoor")).toBe(false);
+  });
+});
+
+describe("R4b layering proportions", () => {
+  const tank = item({ category: "top", subcategory: "tank-top", fit: "regular" });
+  const bigCardigan = item({ category: "top", subcategory: "cardigan", fit: "oversized", is_layering_piece: true });
+  it("finds an oversized top even when it is a layering piece (the drift behind the 2026-10-23 empty answer)", () => {
+    expect(oversizedTop([tank, bigCardigan])).toBe(bigCardigan);
+    expect(oversizedTop([tank])).toBeUndefined();
+  });
+  it("lets only long coats and loose puffers over an oversized top", () => {
+    expect(layersOverOversized(item({ category: "outerwear", subcategory: "trench-coat", fit: "regular" }))).toBe(true);
+    expect(layersOverOversized(item({ category: "outerwear", subcategory: "puffer", fit: "loose" }))).toBe(true);
+    expect(layersOverOversized(item({ category: "outerwear", subcategory: "puffer", fit: "slim" }))).toBe(false);
+    expect(layersOverOversized(item({ category: "outerwear", subcategory: "vest", fit: "regular" }))).toBe(false);
+    expect(layersOverOversized(item({ category: "outerwear", subcategory: "blazer", fit: "oversized" }))).toBe(false);
   });
 });

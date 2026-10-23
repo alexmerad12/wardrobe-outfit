@@ -23,8 +23,10 @@ import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
 import {
   cozyPaletteClash,
   heelTooDressy,
+  layersOverOversized,
   metalFamily,
   metalMixProblem,
+  oversizedTop,
   shoeBottomClash,
   workDressProblem,
 } from "@/lib/outfit-rules";
@@ -2055,30 +2057,16 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // long coats. Stripping preserves the outfit; if no long coat
       // exists, the cardigan stays as the outermost layer.
       {
-        // Match the post-parse drop's condition exactly — both check
-        // category=top + fit=oversized regardless of is_layering_piece,
+        // Same predicates as the post-parse drop and the outerwear
+        // injector (oversizedTop / layersOverOversized, outfit-rules.ts),
         // so the strip prevents the drop from ever firing.
-        const oversizedBase = stripped.find(
-          (i) => i.category === "top" && i.fit === "oversized"
-        );
+        const oversizedBase = oversizedTop(stripped);
         const outer = stripped.find((i) => i.category === "outerwear");
-        if (oversizedBase && outer) {
-          const LONG_COAT_SUBS = new Set<string>([
-            "coat",
-            "peacoat",
-            "trench-coat",
-            "parka",
-          ]);
-          const isLongCoat = LONG_COAT_SUBS.has(outer.subcategory ?? "");
-          const isOkPuffer =
-            outer.subcategory === "puffer" &&
-            (outer.fit === "oversized" || outer.fit === "loose");
-          if (!isLongCoat && !isOkPuffer) {
-            stripped = stripped.filter((i) => i.id !== outer.id);
-            fixes.push(
-              `stripped ${outer.subcategory ?? "outerwear"} (incompatible with oversized ${oversizedBase.subcategory ?? "top"})`
-            );
-          }
+        if (oversizedBase && outer && !layersOverOversized(outer)) {
+          stripped = stripped.filter((i) => i.id !== outer.id);
+          fixes.push(
+            `stripped ${outer.subcategory ?? "outerwear"} (incompatible with oversized ${oversizedBase.subcategory ?? "top"})`
+          );
         }
       }
 
@@ -2235,33 +2223,20 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         if (available.length > 0) {
           const targetWarmth =
             weather.temp < 5 ? 4.5 : weather.temp < 10 ? 3.5 : 2.5;
-          // If the base top is oversized, only long drapey coats or
-          // oversized/loose puffers can layer cleanly. Structured
-          // shoulder pieces (denim, leather, bomber, blazer) bunch
-          // over the bulk regardless of their own Fit class.
+          // Over an oversized top — a layering piece too, the same check
+          // as the R4b strip and drop — only long drapey coats or
+          // oversized/loose puffers layer cleanly (layersOverOversized).
+          // This used to skip layering pieces, so over an oversized
+          // cardigan it put back the vest the strip had just removed and
+          // the drop rejected the outfit (an empty answer, 2026-10-23).
           // For "loose" base tops, just avoid slim outerwear.
+          const overOversized = oversizedTop(stripped);
           const baseTopFit = stripped.find(
             (i) => i.category === "top" && !i.is_layering_piece
           )?.fit;
-          const baseIsOversized = baseTopFit === "oversized";
           const baseIsLoose = baseTopFit === "loose";
-          const LONG_COAT_SUBS = new Set<string>([
-            "coat",
-            "peacoat",
-            "trench-coat",
-            "parka",
-          ]);
           const fitCompatible = (o: ClothingItem) => {
-            if (baseIsOversized) {
-              if (LONG_COAT_SUBS.has(o.subcategory ?? "")) return true;
-              if (
-                o.subcategory === "puffer" &&
-                (o.fit === "oversized" || o.fit === "loose")
-              ) {
-                return true;
-              }
-              return false;
-            }
+            if (overOversized) return layersOverOversized(o);
             if (baseIsLoose) return o.fit !== "slim";
             return true;
           };
@@ -2273,9 +2248,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           const distinct = available.filter(
             (o) => !stripped.some((i) => !!i.subcategory && i.subcategory === o.subcategory)
           );
-          if (distinct.length > 0) {
-            const preferred = distinct.filter(fitCompatible);
-            const pool = preferred.length > 0 ? preferred : distinct;
+          // Over an oversized top an incompatible coat is never the
+          // fallback: the R4b drop would reject the outfit it "fixed".
+          // The oversized piece stays the outermost layer instead, as the
+          // strip above intends.
+          const preferred = distinct.filter(fitCompatible);
+          const pool = preferred.length > 0 ? preferred : overOversized ? [] : distinct;
+          if (pool.length > 0) {
             let best = pool[0];
             let bestDist = Math.abs((best.warmth_rating ?? 3) - targetWarmth);
             for (const o of pool.slice(1)) {
@@ -3219,29 +3198,17 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // bombers, blazers — bunch over the bulk even when their own
       // Fit is "loose," because the issue is shoulder structure, not
       // body width.
+      // Same predicates as the strip and the outerwear injector
+      // (outfit-rules.ts).
       {
-        const oversizedTop = s.items.find(
-          (i) => i.category === "top" && i.fit === "oversized"
-        );
+        const bulkyTop = oversizedTop(s.items);
         const outer = s.items.find((i) => i.category === "outerwear");
-        if (oversizedTop && outer) {
-          const LONG_COAT_SUBS = new Set<string>([
-            "coat",
-            "peacoat",
-            "trench-coat",
-            "parka",
-          ]);
-          const isLongCoat = LONG_COAT_SUBS.has(outer.subcategory ?? "");
-          const isOkPuffer =
-            outer.subcategory === "puffer" &&
-            (outer.fit === "oversized" || outer.fit === "loose");
-          if (!isLongCoat && !isOkPuffer) {
-            drops.push({
-              ids: s._ids,
-              reason: `layering proportions: ${outer.subcategory ?? "outerwear"} (fit=${outer.fit ?? "?"}) can't layer over oversized ${oversizedTop.subcategory ?? "top"} — only long coats / oversized puffers work`,
-            });
-            return false;
-          }
+        if (bulkyTop && outer && !layersOverOversized(outer)) {
+          drops.push({
+            ids: s._ids,
+            reason: `layering proportions: ${outer.subcategory ?? "outerwear"} (fit=${outer.fit ?? "?"}) can't layer over oversized ${bulkyTop.subcategory ?? "top"} — only long coats / oversized puffers work`,
+          });
+          return false;
         }
       }
       // SHOE × BOTTOM proportional combos that look bad regardless of
