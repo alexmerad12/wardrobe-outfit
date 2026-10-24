@@ -69,6 +69,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] Deep link scheme (e.g. `app.linette://auth/callback`) + Universal Links.
 - [ ] App icons per-platform, splash screens.
 - [ ] Hide the Profile "Install Linette" card inside the store app (it gives browser-menu steps). It already hides in an installed PWA (`display-mode: standalone`, `install-prompt.tsx`); a Capacitor WebView needs its own check.
+- [ ] Dark mode in the store app: the web app follows the phone through `prefers-color-scheme` (since 2026-10-24). An Android WebView in an app targeting API 33+ reports the APP theme's mode, so the shell's theme must be a DayNight one (check the parent of Capacitor's `AppTheme`), or the app stays light on a dark phone. Check on the Pixel in both modes before the first upload.
 - [ ] Privacy labels / Data Safety form submissions.
 - [ ] TestFlight / Play Internal Testing builds to 2–3 friends before public submission.
 - [ ] **Decide the Apple developer name BEFORE creating the first App Store record.** It can read "Linette" only if Linette is a registered trade name of 9537-1076 (Quebec "déclaration de mise à jour courante", free), and it is set once, when the first app record is created, never changed after; otherwise it shows "9537-1076 Québec inc." forever. Seller always shows the legal name. Google Play publicly shows the legal name, address, developer email and phone.

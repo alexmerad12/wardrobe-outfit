@@ -50,6 +50,22 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** their inline stylesheets asked for `'Inter'`, which the app never loads (`layout.tsx` loads DM Sans, Bodoni Moda and Parisienne through next/font).
 - **Fix:** `var(--font-sans)` (DM Sans) in `launch/page.tsx`, `auth-shell.tsx`, `paywall/page.tsx`, `paywall/success/page.tsx`.
 
+### A French phone read English for up to 3 s on first open (2026-10-24, design review)
+- **Symptom:** measured on production with a French phone profile: on first open the splash tagline read "Your AI Stylist" for 0.7 s (fast phone) to 3.0 s (slow), and on every reload the bottom nav said "Home" for 76-142 ms before "Accueil". Page titles were fine: they render after the app's code runs.
+- **Cause:** the locale store's server snapshot is "en" (`useSyncExternalStore` must match the server's HTML), so any text drawn before hydration is English: the bottom nav and the splash are in the static HTML.
+- **Fix:** those labels render both languages (`BothLanguages`) and CSS shows the one `<html data-locale>` names, set by the pre-paint script in `layout.tsx` (locale cache, else the browser's language) and kept in sync by the store. Re-measured on production: 0 ms of English in all four runs. `language-switch.spec.ts` blocks the app's chunks and still expects "Accueil".
+- **Considered, not done:** a language cookie read on the server. It would make every static page server-rendered on each request.
+
+### Wardrobe's category chips cut off at the bottom while scrolling (2026-10-24, live for a few hours)
+- **Symptom:** on a phone, with a category open that has subcategories (Tops), scrolling down then up: the subcategory strip covered the bottom 4 px of the category chips (measured: chips end at 140 px, the strip starts at 136 px).
+- **Cause:** the two strips were separate sticky elements, the second pinned at a hard-coded `top: 136px` = header 92 + a 44 px category strip. The 44 px tap targets (9ef9544) made the category strip 56 px tall on touch screens.
+- **Fix:** both rows in one sticky container, so no offset to keep in step (the desktop-layout change, same commit). Re-measured: no overlap on phone or desktop.
+
+### The paywall was never in a design capture (2026-10-24)
+- **Symptom:** the 2026-10-23 review's "paywall" screenshots showed Home; the paywall's own audit had never run. The first real audit found 18 px Terms / Privacy links, a 30 px "Sign out" and that line at 4.0:1 contrast.
+- **Cause:** the e2e test account was created 2026-06-11, before the paywall cutoff (2026-06-12), so it is grandfathered and the proxy sends it home from `/paywall`.
+- **Fix:** captures of a LOCAL build serve that build's `.next/server/app/paywall.html` for `/paywall` (Playwright `route.fulfill`, `PAYWALL_HTML`); the same build's code hydrates it. The three findings are fixed. `/paywall/success` renders for the test account but leaves for Home after 3 s: shoot it at once.
+
 ### React error #418 on onboarding in a French browser (2026-10-23, design review)
 - **Symptom:** on linette.app with a fr-CA browser, `/onboarding` threw "Minified React error #418" (hydration text mismatch), flashed English then French, and left `<html lang="en">`.
 - **Cause:** onboarding put `detectLocale()` (navigator.language) straight into `useState`: the server renders English (Node's own `navigator` answers en-US), a French phone hydrates French.
