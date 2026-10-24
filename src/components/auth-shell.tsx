@@ -46,11 +46,13 @@ export function AuthShell({
   );
 }
 
+// Colours come from the --lobby-* tokens in globals.css, which carry the
+// dark mode. Shadows and the corner vignette stay black in both modes.
 const AUTH_CSS = `
   .auth-shell {
     position: fixed; inset: 0;
-    background: #ffffff;
-    color: #000000;
+    background: rgb(var(--lobby-ground));
+    color: rgb(var(--lobby-ink));
     /* The app's DM Sans (next/font in layout.tsx). This asked for 'Inter',
        which is never loaded, so phones drew it in their system font. */
     font-family: var(--font-sans), system-ui, sans-serif;
@@ -62,10 +64,12 @@ const AUTH_CSS = `
     opacity: 0.42;
     filter: saturate(0.85);
   }
+  /* The damask is greyscale: dark mode draws its negative. */
+  .dark .auth-wall { filter: invert(1); }
   .auth-vignette {
     position: absolute; inset: 0;
     background:
-      radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.7) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 30%, rgb(var(--lobby-glow) / 0.7) 0%, transparent 60%),
       radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.28) 100%);
     pointer-events: none;
   }
@@ -82,16 +86,16 @@ const AUTH_CSS = `
   /* Card */
   .auth-card {
     width: 100%; max-width: 380px;
-    background: rgba(255,255,255,0.92);
-    border: 0.5px solid rgba(0,0,0,0.16);
+    background: rgb(var(--lobby-card) / 0.92);
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.16);
     border-radius: 18px;
     padding: clamp(22px, 3vw, 32px);
     backdrop-filter: blur(8px) saturate(105%);
     -webkit-backdrop-filter: blur(8px) saturate(105%);
     box-shadow:
-      0 1px 0 rgba(255,255,255,0.45) inset,
+      0 1px 0 var(--lobby-highlight) inset,
       0 12px 36px rgba(0,0,0,0.18);
-    color: #000000;
+    color: rgb(var(--lobby-ink));
   }
 
   /* Form controls inside the card — restyled to match the brand. The auth
@@ -101,17 +105,17 @@ const AUTH_CSS = `
     font-family: 'Bodoni Moda', serif; font-weight: 400;
     font-size: 26px; letter-spacing: -0.01em;
     margin: 0 0 4px; line-height: 1.05;
-    color: #000000;
+    color: rgb(var(--lobby-ink));
     text-align: center;
   }
   .auth-card .auth-sub {
     font-family: 'Bodoni Moda', serif; font-style: italic;
     font-size: 14px; margin: 0 0 22px;
-    color: rgba(0,0,0,0.65);
+    color: rgb(var(--lobby-ink) / 0.65);
     text-align: center;
   }
   .auth-card label {
-    color: rgba(0,0,0,0.75);
+    color: rgb(var(--lobby-ink) / 0.75);
     font-size: 12px; font-weight: 500;
     letter-spacing: 0.04em;
   }
@@ -119,18 +123,18 @@ const AUTH_CSS = `
   .auth-card input[type="password"],
   .auth-card input[type="text"] {
     width: 100%;
-    background: rgba(255,255,255,0.85);
-    border: 0.5px solid rgba(0,0,0,0.22);
+    background: rgb(var(--lobby-field) / 0.85);
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.22);
     border-radius: 10px;
     padding: 11px 12px;
     font: inherit;
-    color: #000000;
+    color: rgb(var(--lobby-ink));
     transition: border-color .12s ease, background .12s ease;
   }
   .auth-card input:focus {
     outline: none;
-    border-color: rgba(0,0,0,0.6);
-    background: rgba(255,255,255,1);
+    border-color: rgb(var(--lobby-ink) / 0.6);
+    background: rgb(var(--lobby-field));
   }
   /* Reserve room for the show/hide eye toggle. The component's pr-10
      utility loses to this unlayered stylesheet (Tailwind v4 emits
@@ -142,21 +146,21 @@ const AUTH_CSS = `
   .auth-card .auth-divider {
     display: flex; align-items: center; gap: 12px;
     margin: 18px 0;
-    color: rgba(0,0,0,0.6);
+    color: rgb(var(--lobby-ink) / 0.6);
     font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
   }
   .auth-card .auth-divider::before,
   .auth-card .auth-divider::after {
     content: ''; flex: 1; height: 0.5px;
-    background: rgba(0,0,0,0.22);
+    background: rgb(var(--lobby-ink) / 0.22);
   }
   .auth-card .auth-primary {
     display: inline-flex; align-items: center; justify-content: center;
     width: 100%;
     height: 44px; padding: 0 18px;
-    background: #000000;
-    color: #f4f4f4;
-    border: 0.5px solid #000000;
+    background: rgb(var(--lobby-ink));
+    color: rgb(var(--lobby-on-ink));
+    border: 0.5px solid rgb(var(--lobby-ink));
     border-radius: 999px;
     font-family: var(--font-sans), system-ui, sans-serif;
     font-weight: 500; font-size: 13px; letter-spacing: 0.04em;
@@ -164,7 +168,7 @@ const AUTH_CSS = `
     transition: background .12s ease, transform .12s ease;
   }
   .auth-card .auth-primary:hover:not(:disabled) {
-    background: #1a1a1a;
+    background: rgb(var(--lobby-ink-hover));
     transform: translateY(-1px);
   }
   .auth-card .auth-primary:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -173,36 +177,44 @@ const AUTH_CSS = `
     display: inline-flex; align-items: center; justify-content: center;
     gap: 10px;
     width: 100%; height: 44px; padding: 0 16px;
-    background: rgba(255,255,255,0.92);
-    border: 0.5px solid rgba(0,0,0,0.22);
+    background: rgb(var(--lobby-card) / 0.92);
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.22);
     border-radius: 999px;
-    color: #000000;
+    color: rgb(var(--lobby-ink));
     font-weight: 500; font-size: 13px;
     cursor: pointer;
     transition: background .12s ease, border-color .12s ease;
   }
   .auth-card .auth-google:hover:not(:disabled) {
-    background: #fafafa;
-    border-color: rgba(0,0,0,0.4);
+    background: rgb(var(--lobby-ink) / 0.03);
+    border-color: rgb(var(--lobby-ink) / 0.4);
   }
+  /* Google's dark button: #131314 fill, #8E918F stroke, #E3E3E3 text,
+     the G in its own colours (Sign in with Google branding guidelines). */
+  .dark .auth-card .auth-google {
+    background: #131314;
+    border: 1px solid #8e918f;
+    color: #e3e3e3;
+  }
+  .dark .auth-card .auth-google:hover:not(:disabled) { background: #1f1f20; }
 
   .auth-card .auth-error {
-    color: #5a0a18;
+    color: rgb(var(--lobby-error));
     font-size: 13px;
-    background: rgba(90,10,24,0.06);
-    border: 0.5px solid rgba(90,10,24,0.2);
+    background: rgb(var(--lobby-error) / 0.06);
+    border: 0.5px solid rgb(var(--lobby-error) / 0.2);
     border-radius: 8px;
     padding: 8px 10px;
   }
 
   .auth-card .auth-link {
-    color: #000000;
+    color: rgb(var(--lobby-ink));
     font-weight: 500;
-    text-decoration: underline dotted rgba(0,0,0,0.4);
+    text-decoration: underline dotted rgb(var(--lobby-ink) / 0.4);
     text-decoration-thickness: 0.5px;
     text-underline-offset: 3px;
   }
-  .auth-card .auth-link:hover { text-decoration-color: #000000; }
+  .auth-card .auth-link:hover { text-decoration-color: rgb(var(--lobby-ink)); }
   /* 44 px tap areas on a touch screen, same look (design review,
      2026-10-24): padding cancelled by a negative margin. */
   @media (pointer: coarse) {
@@ -215,27 +227,27 @@ const AUTH_CSS = `
      to "Don't have an account?") where the dotted line reads as
      visual noise. */
   .auth-card .auth-link-subtle {
-    color: rgba(0,0,0,0.65);
+    color: rgb(var(--lobby-ink) / 0.65);
     font-weight: 500;
     text-decoration: none;
   }
-  .auth-card .auth-link-subtle:hover { color: #000000; }
+  .auth-card .auth-link-subtle:hover { color: rgb(var(--lobby-ink)); }
 
   .auth-card .auth-foot-note {
     margin-top: 18px;
     font-size: 13px; text-align: center;
-    color: rgba(0,0,0,0.65);
+    color: rgb(var(--lobby-ink) / 0.65);
   }
 
   .auth-card .auth-terms {
     margin-top: 22px; padding-top: 18px;
-    border-top: 0.5px solid rgba(0,0,0,0.16);
+    border-top: 0.5px solid rgb(var(--lobby-ink) / 0.16);
     font-size: 11px; line-height: 1.5; text-align: center;
-    color: rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink) / 0.55);
   }
   .auth-card .auth-terms a {
-    color: rgba(0,0,0,0.78);
-    border-bottom: 0.5px dotted rgba(0,0,0,0.35);
+    color: rgb(var(--lobby-ink) / 0.78);
+    border-bottom: 0.5px dotted rgb(var(--lobby-ink) / 0.35);
     text-decoration: none;
   }
 

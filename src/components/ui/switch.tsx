@@ -32,6 +32,8 @@ function Switch({
       <SwitchPrimitive.Thumb
         className={cn(
           "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-sm",
+          // A dark thumb on the dark "off" track was hard to see.
+          "dark:data-[unchecked]:bg-muted-foreground",
           "transition-transform",
           "data-[checked]:translate-x-5 data-[unchecked]:translate-x-0.5",
         )}

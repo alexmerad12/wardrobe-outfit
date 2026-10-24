@@ -178,13 +178,15 @@ export default function ProfilePage() {
                   {colorDistribution.map((color) => (
                     <div key={color.key} className="flex items-center gap-2">
                       <span
-                        className="h-3 w-3 rounded-full flex-shrink-0 border border-border"
+                        className="h-3 w-3 rounded-full flex-shrink-0 border border-swatch"
                         style={{ backgroundColor: color.hex }}
                       />
                       <span className="text-sm w-20 truncate">{t(`colorFamily.${color.key}`)}</span>
                       <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        {/* The outline shows the length of a bar the track's
+                            own colour hides: white in light mode, black in dark. */}
                         <div
-                          className="h-full rounded-full bg-foreground/20"
+                          className="h-full rounded-full bg-foreground/20 ring-1 ring-inset ring-foreground/25"
                           style={{
                             width: `${(color.count / maxColorCount) * 100}%`,
                             backgroundColor: color.hex,
@@ -247,10 +249,10 @@ export default function ProfilePage() {
                       href={`/wardrobe/${item.id}`}
                       className="flex items-center gap-2 -mx-1 px-1 py-1 rounded-md hover:bg-muted/50 active:bg-muted transition-colors"
                     >
-                      {/* bg-white (not bg-muted) so the white background of
+                      {/* bg-photo (not bg-muted) so the white background of
                           bg-removed item images blends in instead of leaving
                           a visible gray halo around each thumbnail. */}
-                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-white">
+                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 bg-photo">
                         <Image
                           src={item.thumbnail_url ?? item.image_url}
                           alt={item.name}

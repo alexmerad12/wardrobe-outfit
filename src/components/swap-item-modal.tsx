@@ -100,7 +100,7 @@ export function SwapItemModal({
                       collapsing card heights. h-44 guarantees every
                       image area is exactly 176px tall, with object-
                       contain showing the full item centered. */}
-                  <div className="relative h-44 w-full bg-card shrink-0">
+                  <div className="relative h-44 w-full bg-photo shrink-0">
                     <Image
                       src={item.image_url}
                       alt={item.name}

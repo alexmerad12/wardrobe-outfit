@@ -76,7 +76,10 @@ export function AddItemFab() {
           // room so the FAB clears the safe area on devices with home
           // indicators. z-50 matches the nav so they share the same
           // layer; the FAB renders later in the tree so it lands on top.
-          "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50"
+          // Right: the content's edge, not the window's. The wardrobe
+          // column is max-w-2xl (21rem each side of centre) with 1rem
+          // padding; on a phone that is the usual 1rem from the edge.
+          "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[max(1rem,calc(50%-20rem))] z-50"
         )}
       >
         <DropdownMenu>
@@ -85,7 +88,7 @@ export function AddItemFab() {
               <button
                 type="button"
                 aria-label={t("wardrobe.add")}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-foreground/20 transition-transform active:scale-95"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/20 transition-transform active:scale-95"
               >
                 <Plus className="h-6 w-6" />
               </button>
@@ -98,7 +101,7 @@ export function AddItemFab() {
             align="end"
             side="top"
             className="w-72"
-            backdropClassName="fixed inset-0 z-50 bg-foreground/25 transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0"
+            backdropClassName="fixed inset-0 z-50 bg-black/25 transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 dark:bg-black/60"
           >
             <DropdownMenuItem
               onClick={() => cameraInputRef.current?.click()}

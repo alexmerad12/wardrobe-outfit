@@ -773,7 +773,7 @@ export default function ItemDetailPage() {
       )}
 
       {/* Image */}
-      <div className="relative aspect-square overflow-hidden rounded-xl bg-card mb-4">
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-photo mb-4">
         <Image src={newImagePreview || item.image_url} alt={item.name} fill className="object-contain" sizes="(max-width: 448px) 100vw, 448px" priority />
         {/* Bg-removal in-flight: dim the photo and overlay a spinner so the
             user can see the cutout is being prepared. The image underneath
@@ -856,7 +856,7 @@ export default function ItemDetailPage() {
       )}
 
       {editing && bgError && (
-        <p className="mb-4 text-xs text-red-600 text-center">{bgError}</p>
+        <p className="mb-4 text-xs text-red-600 dark:text-red-400 text-center">{bgError}</p>
       )}
 
       {editing ? (
@@ -913,7 +913,7 @@ export default function ItemDetailPage() {
             <div className="flex flex-wrap gap-2">
               {editColors.map((color, i) => (
                 <div key={i} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1">
-                  <span className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color.hex }} />
+                  <span className="h-4 w-4 rounded-full border border-swatch" style={{ backgroundColor: color.hex }} />
                   <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                   {/* 24 px tap target (WCAG 2.5.8); it was 7x16. The negative
                       margins keep the chip its old size. */}
@@ -932,7 +932,7 @@ export default function ItemDetailPage() {
                       <p className="text-[10px] font-medium text-muted-foreground mb-1">{t(`colorGroup.${group.group}`)}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {group.colors.map((c) => (
-                          <button key={c.hex + c.name} type="button" title={t(`color.${toColorKey(c.name)}`)} onClick={() => setEditColors((p) => [...p, { hex: c.hex, name: c.name, percentage: 0 }])} className="h-7 w-7 rounded-full border border-border hover:ring-2 hover:ring-primary transition-all" style={{ backgroundColor: c.hex }} />
+                          <button key={c.hex + c.name} type="button" title={t(`color.${toColorKey(c.name)}`)} onClick={() => setEditColors((p) => [...p, { hex: c.hex, name: c.name, percentage: 0 }])} className="h-7 w-7 rounded-full border border-swatch hover:ring-2 hover:ring-primary transition-all" style={{ backgroundColor: c.hex }} />
                         ))}
                       </div>
                     </div>
@@ -1357,7 +1357,7 @@ export default function ItemDetailPage() {
             )}
           </Button>
           {saveError && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 break-words">
+            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 break-words dark:bg-red-950/40 dark:border-red-900 dark:text-red-200">
               {saveError}
             </div>
           )}
@@ -1381,7 +1381,7 @@ export default function ItemDetailPage() {
               <div className="flex gap-1.5">
                 {item.colors.map((color, i) => (
                   <div key={i} className="flex items-center gap-1">
-                    <span className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: color.hex }} />
+                    <span className="h-4 w-4 rounded-full border border-swatch" style={{ backgroundColor: color.hex }} />
                     <span className="text-xs text-muted-foreground">{t(`color.${toColorKey(color.name)}`)}</span>
                   </div>
                 ))}

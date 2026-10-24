@@ -702,7 +702,7 @@ export default function AddItemPage() {
             onClick={() => libraryInputRef.current?.click()}
             className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 overflow-hidden"
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-card">
+            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-photo">
               <Image
                 src={imagePreview}
                 alt={t("bulk.altClothingItem")}
@@ -810,7 +810,7 @@ export default function AddItemPage() {
             redundant "Remove background" button cluttering the form. */}
         {imagePreview && bgError && (
           <div className="space-y-2">
-            <p className="text-xs text-red-600 text-center">{bgError}</p>
+            <p className="text-xs text-red-600 dark:text-red-400 text-center">{bgError}</p>
             <Button
               type="button"
               variant="outline"
@@ -858,7 +858,7 @@ export default function AddItemPage() {
                           className="flex items-center gap-1.5 rounded-full border px-2.5 py-1"
                         >
                           <span
-                            className="h-4 w-4 rounded-full border border-border"
+                            className="h-4 w-4 rounded-full border border-swatch"
                             style={{ backgroundColor: color.hex }}
                           />
                           <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
@@ -886,7 +886,7 @@ export default function AddItemPage() {
                           className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1"
                         >
                           <span
-                            className="h-4 w-4 rounded-full border border-border"
+                            className="h-4 w-4 rounded-full border border-swatch"
                             style={{ backgroundColor: color.hex }}
                           />
                           <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
@@ -922,7 +922,7 @@ export default function AddItemPage() {
                                 onClick={() => {
                                   setManualColors((prev) => [...prev, { hex: c.hex, name: c.name, percentage: 0 }]);
                                 }}
-                                className="h-7 w-7 rounded-full border border-border hover:ring-2 hover:ring-primary transition-all"
+                                className="h-7 w-7 rounded-full border border-swatch hover:ring-2 hover:ring-primary transition-all"
                                 style={{ backgroundColor: c.hex }}
                               />
                             ))}

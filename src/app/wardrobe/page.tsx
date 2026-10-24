@@ -405,10 +405,10 @@ function WardrobePageInner() {
         // makes the frosted background extend to the viewport edges within
         // the page's max-width container. -mt-6 + pt-6 cancels the page's
         // top padding so the bar starts flush. min-h-[88px] keeps the bar
-        // the same height as the normal header so the sticky offsets on
-        // the category/subcategory strips below (top-[92px], top-[136px])
-        // stay accurate — without this the strips dock 24px below the
-        // shorter select bar with empty page bleeding through the gap.
+        // the same height as the normal header so the sticky offset on
+        // the filter strip below (top-[92px]) stays accurate — without
+        // this the strip docks 24px below the shorter select bar with
+        // empty page bleeding through the gap.
         <div className="sticky top-[env(safe-area-inset-top)] z-30 -mx-4 -mt-6 mb-4 flex min-h-[88px] flex-col justify-center border-b bg-background px-4 pb-3 pt-6">
           <div className="flex items-center justify-between gap-2">
             {/* Left slot: exit + count + labeled Select-all button.
@@ -572,19 +572,24 @@ function WardrobePageInner() {
         </div>
       )}
 
-      {/* Category filters — sticky strip that hides on scroll-down
-          and slides back into view on scroll-up so users can switch
-          tabs without scrolling all the way to the top. Hidden entirely
-          on an empty wardrobe — categories filter nothing when there's
-          nothing to filter, and the strip competes with the empty-state
-          welcome card for vertical space. */}
+      {/* Category filters, with the subcategory drill-down under them,
+          in ONE sticky strip that hides on scroll-down and slides back
+          into view on scroll-up so users can switch tabs without
+          scrolling all the way to the top. One strip, so neither row
+          needs a hard-coded offset from the other (two strips overlapped
+          once the chips grew to 44 px on phones). A phone scrolls each
+          row sideways; a mouse can't, so on a computer the rows wrap.
+          Hidden entirely on an empty wardrobe — categories filter
+          nothing when there's nothing to filter, and the strip competes
+          with the empty-state welcome card for vertical space. */}
       {items.length > 0 && (
       <div
         className={cn(
-          "sticky top-[calc(92px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+          "sticky top-[calc(92px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 bg-background transition-transform duration-200",
           scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
         )}
       >
+      <div className="flex gap-2 overflow-x-auto px-4 pb-2 pt-1 scrollbar-hide pointer-fine:flex-wrap">
         {ALL_CATEGORIES.map((cat) => (
           <button
             key={cat}
@@ -605,24 +610,13 @@ function WardrobePageInner() {
           </button>
         ))}
       </div>
-      )}
 
       {/* Subcategory drill-down pills — only visible when a real
           category is active and the user has at least 2 distinct
           subcategories worth filtering by. "All" stays the default
           so users can browse every item in the category by default. */}
       {availableSubcategories.length >= 2 && (
-        <div
-          className={cn(
-            "sticky top-[calc(136px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
-            // -translate-y-[120px] moves the bar far enough up that
-            // its bottom edge clears the header on scroll-down. The
-            // category bar gets away with -translate-y-full because
-            // it's only ~44px from the header; this bar is 80px
-            // further down and its own height isn't enough.
-            scrollDir === "down" ? "-translate-y-[120px]" : "translate-y-0"
-          )}
-        >
+        <div className="flex gap-2 overflow-x-auto px-4 pb-2 pt-1 scrollbar-hide pointer-fine:flex-wrap">
           <button
             onClick={() => setActiveSubcategory("all")}
             className={cn(
@@ -649,6 +643,8 @@ function WardrobePageInner() {
             </button>
           ))}
         </div>
+      )}
+      </div>
       )}
 
       {/* Pending uploads (shown on the "all" view so they don't disappear
@@ -923,7 +919,7 @@ function PendingStrip({
         </>
       )}
       {firstError ? (
-        <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-2.5 py-1.5 text-xs text-red-800">
+        <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-2.5 py-1.5 text-xs text-red-800 dark:bg-red-950/40 dark:border-red-900 dark:text-red-200">
           <div>
             <span className="font-medium">{t("wardrobe.failed")} </span>
             <span className="break-words">{firstError}</span>
@@ -932,7 +928,7 @@ function PendingStrip({
             <button
               type="button"
               onClick={onDismissAllFailed}
-              className="text-[11px] font-medium text-red-700 hover:text-red-900 underline"
+              className="text-[11px] font-medium text-red-700 hover:text-red-900 underline dark:text-red-300 dark:hover:text-red-100"
             >
               {t("wardrobe.dismissAllFailed", { count: errorCount })}
             </button>
@@ -940,7 +936,7 @@ function PendingStrip({
             <button
               type="button"
               onClick={copyErrors}
-              className="text-[11px] font-medium text-red-700 hover:text-red-900 underline"
+              className="text-[11px] font-medium text-red-700 hover:text-red-900 underline dark:text-red-300 dark:hover:text-red-100"
             >
               {t("wardrobe.copyErrorDetails")}
             </button>

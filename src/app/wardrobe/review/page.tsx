@@ -310,7 +310,7 @@ function ReviewBatchPage() {
               key={item.id}
               className="rounded-xl border bg-card p-3 flex gap-3"
             >
-              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-photo">
                 <Image
                   src={item.image_url}
                   alt={effectiveName}
@@ -405,7 +405,7 @@ function ReviewBatchPage() {
                           key={m}
                           type="button"
                           onClick={() => toggleMaterial(m)}
-                          className="rounded-full bg-foreground text-white px-2 py-0.5 text-[11px]"
+                          className="rounded-full bg-foreground text-background px-2 py-0.5 text-[11px]"
                         >
                           {labels.MATERIAL[m] ?? m} ×
                         </button>
@@ -420,7 +420,7 @@ function ReviewBatchPage() {
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[11px] border transition-colors",
                             on
-                              ? "bg-foreground text-white border-foreground"
+                              ? "bg-foreground text-background border-foreground"
                               : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-foreground hover:text-foreground"
                           )}
                         >
@@ -442,7 +442,7 @@ function ReviewBatchPage() {
                           key={p}
                           type="button"
                           onClick={() => togglePattern(p)}
-                          className="rounded-full bg-foreground text-white px-2 py-0.5 text-[11px]"
+                          className="rounded-full bg-foreground text-background px-2 py-0.5 text-[11px]"
                         >
                           {labels.PATTERN[p] ?? p} ×
                         </button>
@@ -457,7 +457,7 @@ function ReviewBatchPage() {
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[11px] border transition-colors",
                             on
-                              ? "bg-foreground text-white border-foreground"
+                              ? "bg-foreground text-background border-foreground"
                               : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-foreground hover:text-foreground"
                           )}
                         >
@@ -474,7 +474,7 @@ function ReviewBatchPage() {
                     {item.colors.slice(0, 3).map((c, i) => (
                       <span
                         key={i}
-                        className="h-3.5 w-3.5 rounded-full border"
+                        className="h-3.5 w-3.5 rounded-full border border-swatch"
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                       />
@@ -495,7 +495,7 @@ function ReviewBatchPage() {
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+        <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 dark:bg-red-950/40 dark:border-red-900 dark:text-red-200">
           {error}
         </div>
       )}

@@ -64,19 +64,23 @@ export default function PaywallSuccessPage() {
   );
 }
 
+// Colours come from the --lobby-* tokens in globals.css, which carry the
+// dark mode. Shadows and the corner vignette stay black in both modes.
 const SUCCESS_CSS = `
   .ps-shell {
     position: fixed; inset: 0;
-    background: #ffffff;
-    color: #000000;
+    background: rgb(var(--lobby-ground));
+    color: rgb(var(--lobby-ink));
     font-family: var(--font-sans), system-ui, sans-serif;
     z-index: 50;
   }
   .ps-wall { position: absolute; inset: 0; opacity: 0.36; filter: saturate(0.85); }
+  /* The damask is greyscale: dark mode draws its negative. */
+  .dark .ps-wall { filter: invert(1); }
   .ps-vignette {
     position: absolute; inset: 0; pointer-events: none;
     background:
-      radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.75) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 30%, rgb(var(--lobby-glow) / 0.75) 0%, transparent 60%),
       radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.28) 100%);
   }
   .ps-content {
@@ -88,13 +92,13 @@ const SUCCESS_CSS = `
   }
   .ps-card {
     width: 100%; max-width: 380px;
-    background: rgba(255,255,255,0.94);
-    border: 0.5px solid rgba(0,0,0,0.16);
+    background: rgb(var(--lobby-card) / 0.94);
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.16);
     border-radius: 18px;
     padding: 30px 26px;
     backdrop-filter: blur(8px) saturate(105%);
     box-shadow:
-      0 1px 0 rgba(255,255,255,0.45) inset,
+      0 1px 0 var(--lobby-highlight) inset,
       0 12px 36px rgba(0,0,0,0.18);
     text-align: center;
   }
@@ -107,14 +111,14 @@ const SUCCESS_CSS = `
     font-family: 'Bodoni Moda', serif; font-style: italic;
     font-size: 14px;
     margin: 0 0 22px;
-    color: rgba(0,0,0,0.65);
+    color: rgb(var(--lobby-ink) / 0.65);
   }
   .ps-cta {
     width: 100%; height: 44px;
-    background: #000000; color: #f4f4f4;
-    border: 0.5px solid #000000; border-radius: 999px;
+    background: rgb(var(--lobby-ink)); color: rgb(var(--lobby-on-ink));
+    border: 0.5px solid rgb(var(--lobby-ink)); border-radius: 999px;
     font-weight: 500; font-size: 13px; letter-spacing: 0.06em;
     cursor: pointer;
   }
-  .ps-cta:hover { background: #1a1a1a; }
+  .ps-cta:hover { background: rgb(var(--lobby-ink-hover)); }
 `;

@@ -536,7 +536,7 @@ export default function SettingsPage() {
             </div>
 
             {saveFailed && (
-              <p className="text-sm text-red-600" role="alert">
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">
                 {t("common.saveFailed")}
               </p>
             )}

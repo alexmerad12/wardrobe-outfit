@@ -42,7 +42,7 @@ export function ClothingCard({
           pure white to match the flattened image content; a tinted
           muted color created a visible off-white halo between subject
           and card frame. */}
-      <div className="relative aspect-square bg-card">
+      <div className="relative aspect-square bg-photo">
         <Image
           src={item.image_url}
           alt={item.name}
@@ -83,7 +83,7 @@ export function ClothingCard({
             {item.colors.slice(0, 3).map((color, i) => (
               <span
                 key={i}
-                className="inline-block h-3 w-3 rounded-full border border-border"
+                className="inline-block h-3 w-3 rounded-full border border-swatch"
                 style={{ backgroundColor: color.hex }}
               />
             ))}

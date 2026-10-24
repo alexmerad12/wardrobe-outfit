@@ -75,15 +75,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  // Monochrome brand colour — matches manifest.json + the launch splash
-  // so the iOS status bar / Android chrome / PWA splash all carry the
-  // pure black-and-white identity.
-  themeColor: "#ffffff",
-  // Tell every browser / in-app webview (Gmail, Outlook, etc.) that the
-  // app is light-themed so they don't auto-invert the hardcoded #ffffff
-  // surfaces (launch page, AuthShell, /welcome, onboarding) when the
-  // user's phone is in dark mode.
-  colorScheme: "light",
+  // The browser bar takes the page's own background in each mode
+  // (--background in globals.css: white, and #0a0a0a in dark).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  // The app follows the phone's light or dark mode (the pre-paint script
+  // below sets .dark). Declaring both also stops in-app webviews (Gmail,
+  // Outlook) and Android's forced dark from inverting the page themselves.
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   // Pinch-zoom stays ENABLED (audit a11y P2): maximumScale:1 +
@@ -105,19 +106,10 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${dmSans.variable} ${bodoni.variable} ${parisienne.variable} h-full antialiased`}
-      style={{ colorScheme: "light" }}
-      // The script below sets a class and data-locale before React runs.
+      // The script below sets classes and data-locale before React runs.
       suppressHydrationWarning
     >
       <head>
-        {/* Belt-and-suspenders for in-app webviews (Gmail, Outlook,
-            Samsung Email, etc.) that aggressively force-darken pages
-            and ignore the viewport.colorScheme meta tag. The
-            "supported-color-schemes" meta is the older, more widely-
-            honored variant; the "light only" content value tells
-            engines that the page MUST NOT be auto-inverted. */}
-        <meta name="color-scheme" content="light only" />
-        <meta name="supported-color-schemes" content="light" />
         {/* Synchronously decide whether to skip the launch splash
             BEFORE any rendering. If the user already saw the splash
             this session, add a class to <html> so the splash CSS
@@ -125,10 +117,12 @@ export default function RootLayout({
             moment on every navigation. Same moment, the language for
             the text drawn before the code runs (BothLanguages): the
             locale store's cache, else the browser's language, exactly
-            as the store itself decides (use-locale.ts). */}
+            as the store itself decides (use-locale.ts). And .dark
+            when the phone is in dark mode, kept in sync if it
+            switches while the app is open (sunset schedules). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}})();`,
+            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){d.classList.toggle('dark',m.matches);};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
           }}
         />
       </head>

@@ -186,7 +186,7 @@ export default function TryOnPage() {
       {previewUrl && (
         <Card>
           <CardContent className="p-3 space-y-3">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-card">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-photo">
               <Image
                 src={previewUrl}
                 alt={t("bulk.altClothingItem")}
@@ -248,7 +248,7 @@ export default function TryOnPage() {
                 {result.item.colors.slice(0, 3).map((c, i) => (
                   <span
                     key={i}
-                    className="inline-block h-4 w-4 rounded-full border border-border"
+                    className="inline-block h-4 w-4 rounded-full border border-swatch"
                     style={{ backgroundColor: c.hex }}
                     title={c.name}
                   />
@@ -283,7 +283,7 @@ export default function TryOnPage() {
                       href={`/wardrobe/${item.id}`}
                       className="flex-shrink-0 w-20"
                     >
-                      <div className="relative aspect-square rounded-md overflow-hidden bg-card mb-1">
+                      <div className="relative aspect-square rounded-md overflow-hidden bg-photo mb-1">
                         <Image
                           src={item.image_url}
                           alt={item.name}
@@ -348,7 +348,7 @@ export default function TryOnPage() {
                           {outfit.items.slice(0, isExpanded ? outfit.items.length : 4).map((item) => (
                             <div key={item.id} className="min-w-0">
                             <div
-                              className={`relative aspect-square rounded-md overflow-hidden bg-card ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
+                              className={`relative aspect-square rounded-md overflow-hidden bg-photo ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
                             >
                               {item.id === result.phantomId ? (
                                 previewUrl ? (

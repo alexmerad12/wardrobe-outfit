@@ -450,7 +450,7 @@ export default function HomePage() {
                       onClick={(e) => e.stopPropagation()}
                       className="block min-w-0"
                     >
-                      <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                      <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
                         <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 45vw, 200px" />
                       </div>
                       {/* Under the photo, not over it (owner's call, 2026-10-24). */}
@@ -464,7 +464,7 @@ export default function HomePage() {
                 // fixed width so dragging feels predictable.
                 <div className="flex h-28 gap-0.5 -mx-4 overflow-x-auto overflow-y-hidden scrollbar-hide">
                   {todayItems.map((item) => (
-                    <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-card">
+                    <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-photo">
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
                     </div>
                   ))}
@@ -472,7 +472,7 @@ export default function HomePage() {
               ) : (
                 <div className="flex h-28 gap-0.5 -mx-4 overflow-hidden">
                   {todayItems.map((item) => (
-                    <div key={item.id} className="relative flex-1 overflow-hidden bg-card">
+                    <div key={item.id} className="relative flex-1 overflow-hidden bg-photo">
                       <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                     </div>
                   ))}
@@ -679,7 +679,7 @@ export default function HomePage() {
                             onClick={(e) => e.stopPropagation()}
                             className="block min-w-0"
                           >
-                            <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                            <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
                               <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
                             </div>
                             <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
@@ -690,7 +690,7 @@ export default function HomePage() {
                       // 6+ items — horizontal scroll for the collapsed view.
                       <div className="flex h-28 gap-0.5 overflow-x-auto overflow-y-hidden scrollbar-hide">
                         {outfit.items.map((item) => (
-                          <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-card">
+                          <div key={item.id} className="relative h-28 w-24 shrink-0 overflow-hidden bg-photo">
                             <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="96px" />
                           </div>
                         ))}
@@ -698,7 +698,7 @@ export default function HomePage() {
                     ) : (
                       <div className="flex h-28 gap-0.5">
                         {outfit.items.map((item) => (
-                          <div key={item.id} className="relative flex-1 overflow-hidden bg-card">
+                          <div key={item.id} className="relative flex-1 overflow-hidden bg-photo">
                             <Image src={item.image_url} alt={item.name} fill className="object-contain p-1" sizes="120px" />
                           </div>
                         ))}

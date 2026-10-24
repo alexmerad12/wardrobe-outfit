@@ -91,7 +91,7 @@ export function OutfitCard({
             const swappable = !!onSwapItem && !lockedItemIds?.has(item.id);
             return (
               <figure key={item.id} className="min-w-0">
-                <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
                   <Image
                     src={item.image_url}
                     alt={item.name}

@@ -187,11 +187,13 @@ export default function PaywallPage() {
   );
 }
 
+// Colours come from the --lobby-* tokens in globals.css, which carry the
+// dark mode. Shadows and the corner vignette stay black in both modes.
 const PAYWALL_CSS = `
   .paywall-shell {
     position: fixed; inset: 0;
-    background: #ffffff;
-    color: #000000;
+    background: rgb(var(--lobby-ground));
+    color: rgb(var(--lobby-ink));
     /* The app's DM Sans (next/font in layout.tsx). This asked for 'Inter',
        which is never loaded, so phones drew it in their system font. */
     font-family: var(--font-sans), system-ui, sans-serif;
@@ -208,10 +210,12 @@ const PAYWALL_CSS = `
     opacity: 0.36;
     filter: saturate(0.85);
   }
+  /* The damask is greyscale: dark mode draws its negative. */
+  .dark .paywall-wall { filter: invert(1); }
   .paywall-vignette {
     position: fixed; inset: 0;
     background:
-      radial-gradient(ellipse at 50% 28%, rgba(255,255,255,0.75) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 28%, rgb(var(--lobby-glow) / 0.75) 0%, transparent 60%),
       radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.28) 100%);
     pointer-events: none;
   }
@@ -227,16 +231,16 @@ const PAYWALL_CSS = `
 
   .paywall-card {
     width: 100%; max-width: 420px;
-    background: rgba(255,255,255,0.94);
-    border: 0.5px solid rgba(0,0,0,0.16);
+    background: rgb(var(--lobby-card) / 0.94);
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.16);
     border-radius: 20px;
     padding: clamp(24px, 4vw, 34px) clamp(22px, 4vw, 30px);
     backdrop-filter: blur(8px) saturate(105%);
     -webkit-backdrop-filter: blur(8px) saturate(105%);
     box-shadow:
-      0 1px 0 rgba(255,255,255,0.45) inset,
+      0 1px 0 var(--lobby-highlight) inset,
       0 12px 36px rgba(0,0,0,0.18);
-    color: #000000;
+    color: rgb(var(--lobby-ink));
   }
 
   .pw-title {
@@ -245,14 +249,14 @@ const PAYWALL_CSS = `
     letter-spacing: -0.01em; line-height: 1.05;
     margin: 0 0 4px;
     text-align: center;
-    color: #000000;
+    color: rgb(var(--lobby-ink));
   }
   .pw-sub {
     font-family: 'Bodoni Moda', serif; font-style: italic;
     font-size: 14px;
     margin: 0 0 22px;
     text-align: center;
-    color: rgba(0,0,0,0.65);
+    color: rgb(var(--lobby-ink) / 0.65);
   }
 
   /* Plan cards */
@@ -264,8 +268,8 @@ const PAYWALL_CSS = `
     appearance: none;
     text-align: left;
     width: 100%;
-    background: rgba(255,255,255,0.85);
-    border: 1px solid rgba(0,0,0,0.18);
+    background: rgb(var(--lobby-card) / 0.85);
+    border: 1px solid rgb(var(--lobby-ink) / 0.18);
     border-radius: 14px;
     padding: 14px 16px;
     cursor: pointer;
@@ -273,14 +277,14 @@ const PAYWALL_CSS = `
     font: inherit; color: inherit;
   }
   .pw-plan:hover {
-    border-color: rgba(0,0,0,0.4);
-    background: rgba(255,255,255,0.95);
+    border-color: rgb(var(--lobby-ink) / 0.4);
+    background: rgb(var(--lobby-card) / 0.95);
   }
   .pw-plan.is-selected {
-    border-color: #000000;
+    border-color: rgb(var(--lobby-ink));
     border-width: 1.5px;
     padding: 13.5px 15.5px;
-    background: #ffffff;
+    background: rgb(var(--lobby-card));
     box-shadow: 0 6px 20px rgba(0,0,0,0.08);
   }
   .pw-plan-head {
@@ -292,13 +296,13 @@ const PAYWALL_CSS = `
     font-family: var(--font-sans), system-ui, sans-serif;
     font-size: 11px; font-weight: 600;
     letter-spacing: 0.18em; text-transform: uppercase;
-    color: rgba(0,0,0,0.7);
+    color: rgb(var(--lobby-ink) / 0.7);
   }
-  .pw-plan.is-selected .pw-plan-label { color: #000000; }
+  .pw-plan.is-selected .pw-plan-label { color: rgb(var(--lobby-ink)); }
   .pw-badge {
     display: inline-block;
-    background: #000000;
-    color: #f4f4f4;
+    background: rgb(var(--lobby-ink));
+    color: rgb(var(--lobby-on-ink));
     font-size: 10px; font-weight: 600;
     letter-spacing: 0.14em; text-transform: uppercase;
     padding: 3px 8px;
@@ -307,9 +311,9 @@ const PAYWALL_CSS = `
   .pw-trial-pill {
     font-size: 11px; font-weight: 500;
     letter-spacing: 0.04em;
-    color: rgba(0,0,0,0.65);
+    color: rgb(var(--lobby-ink) / 0.65);
     padding: 3px 8px;
-    border: 0.5px solid rgba(0,0,0,0.22);
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.22);
     border-radius: 999px;
   }
   .pw-price {
@@ -320,20 +324,20 @@ const PAYWALL_CSS = `
     font-family: 'Bodoni Moda', serif;
     font-size: 28px; font-weight: 500;
     letter-spacing: -0.015em;
-    color: #000000;
+    color: rgb(var(--lobby-ink));
   }
   .pw-price-per {
     font-size: 13px;
-    color: rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink) / 0.55);
   }
   .pw-equiv {
     font-size: 12px; font-style: italic;
-    color: rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink) / 0.55);
     margin-bottom: 4px;
   }
   .pw-note {
     font-size: 11px; line-height: 1.4;
-    color: rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink) / 0.55);
   }
 
   /* Benefits */
@@ -341,7 +345,7 @@ const PAYWALL_CSS = `
     list-style: none;
     padding: 0;
     margin: 0 0 22px;
-    border-top: 0.5px solid rgba(0,0,0,0.12);
+    border-top: 0.5px solid rgb(var(--lobby-ink) / 0.12);
     padding-top: 16px;
   }
   .pw-benefits li {
@@ -349,14 +353,17 @@ const PAYWALL_CSS = `
     padding-left: 22px;
     font-size: 13px;
     line-height: 1.6;
-    color: rgba(0,0,0,0.78);
+    color: rgb(var(--lobby-ink) / 0.78);
   }
+  /* A border, not a 1.5px-tall box: the box snapped to 2 or 4 screen
+     pixels row by row, so the dashes looked uneven; a border keeps one
+     width on every row. */
   .pw-benefits li::before {
     content: '';
     position: absolute;
     left: 0; top: 0.6em;
-    width: 12px; height: 1.5px;
-    background: #000000;
+    width: 12px; height: 0;
+    border-top: 1.5px solid rgb(var(--lobby-ink));
   }
 
   /* CTA */
@@ -364,9 +371,9 @@ const PAYWALL_CSS = `
     display: inline-flex; align-items: center; justify-content: center;
     width: 100%;
     height: 48px; padding: 0 18px;
-    background: #000000;
-    color: #f4f4f4;
-    border: 0.5px solid #000000;
+    background: rgb(var(--lobby-ink));
+    color: rgb(var(--lobby-on-ink));
+    border: 0.5px solid rgb(var(--lobby-ink));
     border-radius: 999px;
     font-family: var(--font-sans), system-ui, sans-serif;
     font-weight: 500; font-size: 14px; letter-spacing: 0.06em;
@@ -374,17 +381,17 @@ const PAYWALL_CSS = `
     transition: background .12s ease, transform .12s ease;
   }
   .pw-cta:hover:not(:disabled) {
-    background: #1a1a1a;
+    background: rgb(var(--lobby-ink-hover));
     transform: translateY(-1px);
   }
   .pw-cta:disabled { opacity: 0.55; cursor: not-allowed; }
 
   .pw-error {
     margin-bottom: 12px;
-    color: #5a0a18;
+    color: rgb(var(--lobby-error));
     font-size: 13px;
-    background: rgba(90,10,24,0.06);
-    border: 0.5px solid rgba(90,10,24,0.2);
+    background: rgb(var(--lobby-error) / 0.06);
+    border: 0.5px solid rgb(var(--lobby-error) / 0.2);
     border-radius: 8px;
     padding: 8px 10px;
   }
@@ -392,23 +399,24 @@ const PAYWALL_CSS = `
   .pw-disclosure {
     margin: 16px 0 0;
     font-size: 11px; line-height: 1.55;
-    color: rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink) / 0.55);
     text-align: center;
   }
 
   .pw-foot {
     margin-top: 14px; padding-top: 14px;
-    border-top: 0.5px solid rgba(0,0,0,0.12);
+    border-top: 0.5px solid rgb(var(--lobby-ink) / 0.12);
     display: flex; justify-content: center; gap: 10px;
     font-size: 11px;
-    color: rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink) / 0.55);
   }
   .pw-foot-link {
-    color: rgba(0,0,0,0.7);
-    text-decoration: none;
-    border-bottom: 0.5px dotted rgba(0,0,0,0.35);
+    color: rgb(var(--lobby-ink) / 0.7);
+    text-decoration: underline dotted rgb(var(--lobby-ink) / 0.35);
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 3px;
   }
-  .pw-foot-link:hover { color: #000000; }
+  .pw-foot-link:hover { color: rgb(var(--lobby-ink)); }
 
   .pw-signout {
     display: block;
@@ -417,12 +425,19 @@ const PAYWALL_CSS = `
     background: none; border: none;
     font: inherit;
     font-size: 12px;
-    color: rgba(0,0,0,0.5);
+    /* 0.6, not 0.5: 0.5 measured 4.0:1 on the card, under WCAG AA. */
+    color: rgb(var(--lobby-ink) / 0.6);
     text-decoration: underline;
     text-underline-offset: 3px;
     cursor: pointer;
     padding: 6px 8px;
   }
-  .pw-signout:hover:not(:disabled) { color: #000000; }
+  .pw-signout:hover:not(:disabled) { color: rgb(var(--lobby-ink)); }
   .pw-signout:disabled { opacity: 0.5; cursor: default; }
+  /* 44 px tap areas on a touch screen, same look: padding cancelled by a
+     negative margin (the sign-out text keeps its place). */
+  @media (pointer: coarse) {
+    .pw-foot-link { display: inline-block; padding: 14px 7px; margin: -14px -7px; }
+    .pw-signout { padding: 13px 8px; margin: 5px auto -7px; }
+  }
 `;

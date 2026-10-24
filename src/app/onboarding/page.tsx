@@ -224,10 +224,10 @@ export default function OnboardingPage() {
           from first paint through onboarding. Slightly desaturated +
           softened so it reads as a backdrop and the card content
           dominates. */}
+      {/* The damask is greyscale: dark mode draws its negative. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.55]"
-        style={{ filter: "saturate(0.85)" }}
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.55] saturate-[0.85] dark:invert"
       >
         <PatternRoseDamask
           palette={BRAND_PALETTE}
@@ -242,7 +242,7 @@ export default function OnboardingPage() {
         className="pointer-events-none fixed inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.65) 0%, transparent 55%), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.18) 100%)",
+            "radial-gradient(ellipse at 50% 35%, rgb(var(--lobby-glow) / 0.65) 0%, transparent 55%), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.18) 100%)",
         }}
       />
 
@@ -465,7 +465,7 @@ export default function OnboardingPage() {
             )}
 
             {saveFailed && (
-              <p className="text-sm text-red-600 pt-2" role="alert">
+              <p className="text-sm text-red-600 dark:text-red-400 pt-2" role="alert">
                 {t("common.saveFailed")}
               </p>
             )}

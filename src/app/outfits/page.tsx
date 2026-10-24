@@ -256,11 +256,12 @@ export default function FavoritesPage() {
       </div>
 
       {/* Occasion filter tabs — sticky strip that hides on scroll-down
-          and slides back into view on scroll-up. */}
+          and slides back into view on scroll-up. A phone scrolls it
+          sideways; a mouse can't, so on a computer it wraps. */}
       {!loading && outfits.length > 0 && (
         <div
           className={cn(
-            "sticky top-[calc(92px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200",
+            "sticky top-[calc(92px+env(safe-area-inset-top))] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-background px-4 pb-2 pt-1 scrollbar-hide transition-transform duration-200 pointer-fine:flex-wrap",
             scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
           )}
         >
@@ -446,7 +447,7 @@ export default function FavoritesPage() {
                     {(outfit.items ?? []).map((item) =>
                       selectMode ? (
                         <div key={item.id} className="min-w-0">
-                          <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                          <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
                             <Image
                               src={item.image_url}
                               alt={item.name}
@@ -464,7 +465,7 @@ export default function FavoritesPage() {
                           onClick={(e) => e.stopPropagation()}
                           className="block min-w-0"
                         >
-                          <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                          <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
                             <Image
                               src={item.image_url}
                               alt={item.name}
@@ -485,7 +486,7 @@ export default function FavoritesPage() {
                     {(outfit.items ?? []).map((item) => (
                       <div
                         key={item.id}
-                        className="relative h-28 w-24 shrink-0 overflow-hidden bg-card"
+                        className="relative h-28 w-24 shrink-0 overflow-hidden bg-photo"
                       >
                         <Image
                           src={item.image_url}
@@ -500,7 +501,7 @@ export default function FavoritesPage() {
                 ) : (
                   <div className="flex h-28 gap-0.5">
                     {(outfit.items ?? []).map((item) => (
-                      <div key={item.id} className="relative flex-1 overflow-hidden bg-card">
+                      <div key={item.id} className="relative flex-1 overflow-hidden bg-photo">
                         <Image
                           src={item.image_url}
                           alt={item.name}

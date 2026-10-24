@@ -23,9 +23,6 @@ const BRAND_PALETTE: Palette = [
 const BRAND = {
   ink: "#000000",
   ivory: "#ffffff",
-  ivoryHi: "#f4f4f4",
-  hairline: "rgba(0,0,0,0.18)",
-  hairlineHi: "rgba(0,0,0,0.45)",
   bodoni: '"Bodoni Moda", "Bodoni 72", "Didot", serif',
   // Parisienne — modern French-flavored hand-script for the brand L
   // mark. Bodoni still owns the LINETTE wordmark beneath; script is
@@ -104,13 +101,16 @@ export default function LaunchPage() {
   );
 }
 
+// Colours come from the --lobby-* tokens in globals.css, which carry the
+// dark mode. The wallpaper and the monogram are greyscale art drawn by
+// props, so dark mode inverts them instead. The corner vignette stays black.
 const LAUNCH_CSS = `
   .launch {
     /* Cover the whole viewport including the app's BottomNav so the launch
        page feels like a true landing surface, not an embedded panel. */
     position: fixed; inset: 0;
-    background: #ffffff;
-    color: #000000;
+    background: rgb(var(--lobby-ground));
+    color: rgb(var(--lobby-ink));
     /* The app's DM Sans (next/font in layout.tsx). This asked for 'Inter',
        which is never loaded, so phones drew it in their system font. */
     font-family: var(--font-sans), system-ui, sans-serif;
@@ -126,10 +126,11 @@ const LAUNCH_CSS = `
     opacity: 0.66;
     filter: saturate(0.88);
   }
+  .dark .launch-wall { filter: invert(1); }
   .launch-vignette {
     position: absolute; inset: 0;
     background:
-      radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.55) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 35%, rgb(var(--lobby-glow) / 0.55) 0%, transparent 55%),
       radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.32) 100%);
     pointer-events: none;
   }
@@ -159,11 +160,11 @@ const LAUNCH_CSS = `
     font-size: 10px;
     letter-spacing: 0.34em;
     text-transform: uppercase;
-    color: rgba(0,0,0,0.7);
+    color: rgb(var(--lobby-ink) / 0.7);
   }
-  .eyebrow.alt { color: rgba(0,0,0,0.55); font-variant-numeric: tabular-nums; }
+  .eyebrow.alt { color: rgb(var(--lobby-ink) / 0.55); font-variant-numeric: tabular-nums; }
   .rule {
-    width: 36px; height: 0.5px; background: rgba(0,0,0,0.45);
+    width: 36px; height: 0.5px; background: rgb(var(--lobby-ink) / 0.45);
   }
 
   /* ── Hero ── */
@@ -181,13 +182,15 @@ const LAUNCH_CSS = `
        on. Bell-curve easing keeps the emergence symmetric. */
     animation: launch-mono-in 1500ms cubic-bezier(0.4, 0, 0.4, 1) 0ms both;
   }
+  /* The ink disc with an ivory L, like the splash. */
+  .dark .launch-logo svg { filter: invert(1); }
   /* Soft halo behind the logo so it lifts off the wallpaper. */
   .launch-logo::before {
     content: '';
     position: absolute;
     inset: -28px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, transparent 70%);
+    background: radial-gradient(circle, rgb(var(--lobby-glow) / 0.55) 0%, transparent 70%);
     z-index: -1;
   }
   @keyframes launch-mono-in {
@@ -203,12 +206,12 @@ const LAUNCH_CSS = `
     font-family: ${BRAND.script};
     font-weight: 400;
     font-size: clamp(56px, 9vw, 104px);
-    color: ${BRAND.ink};
+    color: rgb(var(--lobby-ink));
     line-height: 1;
   }
   .launch-rule {
     width: 22px; height: 0.5px;
-    background: rgba(0,0,0,0.55);
+    background: rgb(var(--lobby-ink) / 0.55);
     margin: 4px 0 2px;
   }
   .launch-tagline {
@@ -216,7 +219,7 @@ const LAUNCH_CSS = `
     font-family: ${BRAND.bodoni};
     font-style: italic;
     font-size: clamp(15px, 1.8vw, 19px);
-    color: rgba(0,0,0,0.78);
+    color: rgb(var(--lobby-ink) / 0.78);
     letter-spacing: 0.02em;
   }
   .launch-blurb {
@@ -225,7 +228,7 @@ const LAUNCH_CSS = `
     text-align: center;
     font-size: clamp(13px, 1.4vw, 15px);
     line-height: 1.6;
-    color: rgba(0,0,0,0.66);
+    color: rgb(var(--lobby-ink) / 0.66);
   }
 
   /* ── CTAs ── */
@@ -246,22 +249,22 @@ const LAUNCH_CSS = `
     cursor: pointer;
   }
   .btn-primary {
-    background: ${BRAND.ink};
-    color: ${BRAND.ivoryHi};
-    border: 0.5px solid ${BRAND.ink};
+    background: rgb(var(--lobby-ink));
+    color: rgb(var(--lobby-on-ink));
+    border: 0.5px solid rgb(var(--lobby-ink));
   }
   .btn-primary:hover {
-    background: #1a1612;
+    background: rgb(var(--lobby-ink-hover));
     transform: translateY(-1px);
   }
   .btn-ghost {
     background: transparent;
-    color: ${BRAND.ink};
-    border: 0.5px solid rgba(0,0,0,0.55);
+    color: rgb(var(--lobby-ink));
+    border: 0.5px solid rgb(var(--lobby-ink) / 0.55);
   }
   .btn-ghost:hover {
-    border-color: ${BRAND.ink};
-    background: rgba(0,0,0,0.04);
+    border-color: rgb(var(--lobby-ink));
+    background: rgb(var(--lobby-ink) / 0.04);
   }
 
   /* ── Footer ── */
@@ -274,16 +277,16 @@ const LAUNCH_CSS = `
     font-style: italic;
     font-size: 12px;
     /* 0.6 keeps the links at WCAG AA (4.5:1) on the ivory ground; 0.5 was 4.0:1. */
-    color: rgba(0,0,0,0.6);
+    color: rgb(var(--lobby-ink) / 0.6);
   }
   .launch-foot .dot { opacity: 0.55; }
   .foot-link {
     color: inherit;
-    text-decoration: underline dotted rgba(0,0,0,0.35);
+    text-decoration: underline dotted rgb(var(--lobby-ink) / 0.35);
     text-decoration-thickness: 0.5px;
     text-underline-offset: 3px;
   }
-  .foot-link:hover { color: ${BRAND.ink}; text-decoration-color: ${BRAND.ink}; }
+  .foot-link:hover { color: rgb(var(--lobby-ink)); text-decoration-color: rgb(var(--lobby-ink)); }
   /* A 44 px tap area on a touch screen, same look (design review,
      2026-10-24): padding cancelled by a negative margin. */
   @media (pointer: coarse) {

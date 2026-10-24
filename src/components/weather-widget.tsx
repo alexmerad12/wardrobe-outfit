@@ -43,22 +43,23 @@ function roundCoord(n: number) {
 // fashion-spread color palette rather than a weather-app icon set. Each
 // condition gets a monochrome Lucide icon in a muted foreground tint;
 // the mood comes from the card background, not from saturated icons.
+// Dark mode keeps each mood as a deep tint of the same hue.
 function iconForCondition(condition: string): { Icon: LucideIcon; bg: string } {
   const c = condition.toLowerCase();
-  if (c.includes("thunder")) return { Icon: CloudLightning, bg: "bg-[#d8d3df]" };
+  if (c.includes("thunder")) return { Icon: CloudLightning, bg: "bg-[#d8d3df] dark:bg-[#2a2733]" };
   if (c.includes("snow grains") || c.includes("heavy snow"))
-    return { Icon: Snowflake, bg: "bg-[#eaeef2]" };
-  if (c.includes("snow")) return { Icon: CloudSnow, bg: "bg-[#eaeef2]" };
+    return { Icon: Snowflake, bg: "bg-[#eaeef2] dark:bg-[#232a31]" };
+  if (c.includes("snow")) return { Icon: CloudSnow, bg: "bg-[#eaeef2] dark:bg-[#232a31]" };
   if (c.includes("heavy rain") || c.includes("violent"))
-    return { Icon: CloudRainWind, bg: "bg-[#c5d1db]" };
-  if (c.includes("drizzle")) return { Icon: CloudDrizzle, bg: "bg-[#d1dae2]" };
+    return { Icon: CloudRainWind, bg: "bg-[#c5d1db] dark:bg-[#1d2731]" };
+  if (c.includes("drizzle")) return { Icon: CloudDrizzle, bg: "bg-[#d1dae2] dark:bg-[#212a33]" };
   if (c.includes("rain") || c.includes("shower"))
-    return { Icon: CloudRain, bg: "bg-[#d1dae2]" };
-  if (c.includes("fog") || c.includes("rime")) return { Icon: CloudFog, bg: "bg-[#dfdedb]" };
-  if (c.includes("overcast")) return { Icon: Cloud, bg: "bg-[#d8d5d0]" };
-  if (c.includes("partly cloudy")) return { Icon: CloudSun, bg: "bg-[#e5e3dc]" };
+    return { Icon: CloudRain, bg: "bg-[#d1dae2] dark:bg-[#212a33]" };
+  if (c.includes("fog") || c.includes("rime")) return { Icon: CloudFog, bg: "bg-[#dfdedb] dark:bg-[#2a2927]" };
+  if (c.includes("overcast")) return { Icon: Cloud, bg: "bg-[#d8d5d0] dark:bg-[#2b2926]" };
+  if (c.includes("partly cloudy")) return { Icon: CloudSun, bg: "bg-[#e5e3dc] dark:bg-[#2d2b25]" };
   if (c.includes("clear") || c.includes("mainly clear"))
-    return { Icon: Sun, bg: "bg-[#f1e8d2]" };
+    return { Icon: Sun, bg: "bg-[#f1e8d2] dark:bg-[#322b1d]" };
   return { Icon: Thermometer, bg: "bg-muted" };
 }
 
