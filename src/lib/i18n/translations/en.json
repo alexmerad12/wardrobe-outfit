@@ -153,7 +153,6 @@
     "uploadMany": "Or upload up to 10 at once",
     "allSet": "You're all set for today.",
     "letsFindOutfit": "Let's find your perfect outfit today.",
-    "todaysOutfit": "Your look",
     "todaysLook": "Today's Look",
     "forgottenInWardrobe": "Forgotten in your wardrobe",
     "forgottenHint": "These haven't been worn in a while",
@@ -171,7 +170,6 @@
     "outfitHistoryEmpty": "Your outfit history will appear here.",
     "outfitHistoryHint": "Tap \"Wear Today\" on a suggestion to start logging!",
     "confirmRemoveTodaysOutfit": "Remove today's outfit?",
-    "tapWearTodayHint": "Tap \"Wear Today\" on a new suggestion to see mood & occasion here",
     "moodLabel": "Mood",
     "occasionLabel": "Occasion",
     "weatherLabel": "Weather",
@@ -184,6 +182,7 @@
   "suggest": {
     "title": "Your Look",
     "stepTagline": "Let's style your day",
+    "stepCount": "Step {current} of {total}",
     "howAreYouFeeling": "How are you feeling today?",
     "stylingPreferences": "Any styling preferences?",
     "whatsTheOccasion": "What's the occasion?",

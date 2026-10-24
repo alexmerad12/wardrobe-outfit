@@ -240,6 +240,7 @@ export default function FavoritesPage() {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="tap"
                   aria-label={t("wardrobe.select")}
                   onClick={() => {
                     setSelectMode(true);
@@ -274,7 +275,7 @@ export default function FavoritesPage() {
               key={key}
               onClick={() => setActiveFilter(key as Occasion | "all" | "custom")}
               className={cn(
-                "whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                "tap-h whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
                 activeFilter === key
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -420,7 +421,7 @@ export default function FavoritesPage() {
                         type="button"
                         aria-label={t("itemDetail.close")}
                         onClick={(e) => { e.stopPropagation(); setExpandedId(null); }}
-                        className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                        className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -429,7 +430,7 @@ export default function FavoritesPage() {
                         type="button"
                         aria-label={t("common.expand")}
                         onClick={(e) => { e.stopPropagation(); setExpandedId(outfit.id); }}
-                        className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                        className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
                       >
                         <ChevronDown className="h-4 w-4" />
                       </button>
@@ -439,38 +440,40 @@ export default function FavoritesPage() {
 
                 {/* Image strip (collapsed) or grid (expanded) */}
                 {expandedId === outfit.id ? (
-                  <div className="grid grid-cols-2 gap-1 p-1">
+                  // Names under the photos, not over them (owner's call for
+                  // every outfit grid, 2026-10-24).
+                  <div className="grid grid-cols-2 gap-x-1 gap-y-3 p-1 pb-3">
                     {(outfit.items ?? []).map((item) =>
                       selectMode ? (
-                        <div key={item.id} className="relative aspect-square overflow-hidden rounded-lg bg-card">
-                          <Image
-                            src={item.image_url}
-                            alt={item.name}
-                            fill
-                            className="object-contain p-2"
-                            sizes="(max-width: 640px) 50vw, 250px"
-                          />
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                            <p className="text-xs text-white truncate">{item.name}</p>
+                        <div key={item.id} className="min-w-0">
+                          <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                            <Image
+                              src={item.image_url}
+                              alt={item.name}
+                              fill
+                              className="object-contain p-2"
+                              sizes="(max-width: 640px) 50vw, 250px"
+                            />
                           </div>
+                          <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
                         </div>
                       ) : (
                         <Link
                           key={item.id}
                           href={`/wardrobe/${item.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="relative aspect-square overflow-hidden rounded-lg bg-card"
+                          className="block min-w-0"
                         >
-                          <Image
-                            src={item.image_url}
-                            alt={item.name}
-                            fill
-                            className="object-contain p-2"
-                            sizes="(max-width: 640px) 50vw, 250px"
-                          />
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                            <p className="text-xs text-white truncate">{item.name}</p>
+                          <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                            <Image
+                              src={item.image_url}
+                              alt={item.name}
+                              fill
+                              className="object-contain p-2"
+                              sizes="(max-width: 640px) 50vw, 250px"
+                            />
                           </div>
+                          <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
                         </Link>
                       )
                     )}

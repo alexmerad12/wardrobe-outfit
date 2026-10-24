@@ -34,6 +34,9 @@ async function putPrefs(page: Page, prefs: Prefs, language: string) {
 
 const heading = (page: Page) => page.locator("h1").first();
 const bottomNav = (page: Page) => page.locator("nav").last();
+// The nav carries both languages and CSS shows one (BothLanguages), so the
+// checks read the visible text, never textContent (which holds both).
+const visible = { useInnerText: true } as const;
 
 async function saveLanguage(page: Page, option: RegExp) {
   const field = page.locator("div.space-y-2", { has: page.getByText(/^(Language|Langue)$/) });
@@ -69,6 +72,32 @@ test("a signed-out visitor sees the browser's language", async ({ browser }) => 
   }
 });
 
+// Text on screen before the app's code runs (the bottom nav, the splash
+// tagline) follows the phone's language from the first paint. With the code
+// blocked, a French user's phone must already read French: it read "Home"
+// and "Your AI Stylist" until the code loaded, up to 3 s on a slow phone
+// (2026-10-23, known-root-causes.md).
+test("before the app's code runs, a French phone already reads French", async ({ browser }) => {
+  // The service worker hides requests from page routing: block it.
+  const context = await browser.newContext({ locale: "fr-CA", serviceWorkers: "block" });
+  // Block the app's code before the first page loads (a chunk cached by an
+  // earlier page would hydrate anyway), and give the phone a French user's
+  // locale cache (this test account itself is English).
+  // Next 16 serves them from /_next/static/immutable/chunks/.
+  await context.route(/\/_next\/static\/(?:.+\/)?chunks\/.+\.js/, (route) => route.abort());
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem("locale:v1", "fr");
+    } catch {}
+  });
+  const page = await context.newPage();
+  await signIn(page);
+  await page.goto("/profile");
+  await expect(page.locator("nav a[href='/']")).toHaveText("Accueil", visible);
+  await expect(page.locator(".ls-tag")).toHaveText(/ta styliste ia/i, visible);
+  await context.close();
+});
+
 // Onboarding read the browser language straight into useState: English on
 // the server, French on a French phone, React error #418 on every French
 // first visit (2026-10-23, known-root-causes.md).
@@ -93,24 +122,24 @@ test("switching the language updates every screen at once", async ({ page }) => 
   try {
     await page.goto("/profile/settings");
     await expect(heading(page)).toHaveText("Settings");
-    await expect(bottomNav(page)).toContainText("Home");
+    await expect(bottomNav(page)).toContainText("Home", visible);
 
     await saveLanguage(page, /^Français$/);
     await expect(heading(page), "the settings page stayed in English").toHaveText("Paramètres");
-    await expect(bottomNav(page), "the bottom nav stayed in English").toContainText("Accueil");
+    await expect(bottomNav(page), "the bottom nav stayed in English").toContainText("Accueil", visible);
     expect(await page.evaluate(() => document.documentElement.lang)).toBe("fr");
 
     // Client-side navigation: the nav (mounted once in the layout) and the
     // next page both read the new language.
     await bottomNav(page).getByRole("link").nth(1).click();
     await expect(heading(page)).toHaveText("Dressing");
-    await expect(bottomNav(page)).toContainText("Accueil");
+    await expect(bottomNav(page)).toContainText("Accueil", visible);
 
     await page.goto("/profile/settings");
     await expect(heading(page)).toHaveText("Paramètres");
     await saveLanguage(page, /^English$/);
     await expect(heading(page), "the settings page stayed in French").toHaveText("Settings");
-    await expect(bottomNav(page), "the bottom nav stayed in French").toContainText("Home");
+    await expect(bottomNav(page), "the bottom nav stayed in French").toContainText("Home", visible);
     expect(await page.evaluate(() => document.documentElement.lang)).toBe("en");
   } finally {
     await putPrefs(page, original, original.language ?? "auto");

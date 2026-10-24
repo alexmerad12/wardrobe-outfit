@@ -83,40 +83,46 @@ export function OutfitCard({
           <h3 className="font-heading text-lg font-medium mb-3 tracking-tight">{name}</h3>
         )}
 
-        {/* Outfit items grid */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        {/* Outfit items grid. Each name sits under its photo (owner's call,
+            2026-10-24): the grey band over the photos used to hide the
+            clothes' hems. */}
+        <div className="grid grid-cols-2 gap-x-2 gap-y-3 mb-4">
           {items.map((item) => {
             const swappable = !!onSwapItem && !lockedItemIds?.has(item.id);
             return (
-              <div
-                key={item.id}
-                className="relative aspect-square overflow-hidden rounded-lg bg-card"
-              >
-                <Image
-                  src={item.image_url}
-                  alt={item.name}
-                  fill
-                  className="object-contain p-2"
-                  sizes="(max-width: 640px) 45vw, 200px"
-                />
-                {swappable && (
-                  <button
-                    type="button"
-                    onClick={() => onSwapItem?.(item)}
-                    aria-label={t("suggest.swap")}
-                    className={cn(
-                      "absolute top-1.5 right-1.5 flex h-7 w-7 items-center justify-center",
-                      "rounded-full bg-background/90 text-foreground shadow-sm border border-border/60",
-                      "transition-all hover:bg-background hover:scale-105 active:scale-95"
-                    )}
-                  >
-                    <Shuffle className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                  <p className="text-xs text-white truncate">{item.name}</p>
+              <figure key={item.id} className="min-w-0">
+                <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                  <Image
+                    src={item.image_url}
+                    alt={item.name}
+                    fill
+                    className="object-contain p-2"
+                    sizes="(max-width: 640px) 45vw, 200px"
+                  />
+                  {swappable && (
+                    // A 44 px tap area around a small visible circle.
+                    <button
+                      type="button"
+                      onClick={() => onSwapItem?.(item)}
+                      aria-label={t("suggest.swap")}
+                      className="group absolute top-0 right-0 flex h-11 w-11 items-center justify-center"
+                    >
+                      <span
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center",
+                          "rounded-full bg-background/90 text-foreground shadow-sm border border-border/60",
+                          "transition-all group-hover:bg-background group-hover:scale-105 group-active:scale-95"
+                        )}
+                      >
+                        <Shuffle className="h-3.5 w-3.5" />
+                      </span>
+                    </button>
+                  )}
                 </div>
-              </div>
+                <figcaption className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">
+                  {item.name}
+                </figcaption>
+              </figure>
             );
           })}
         </div>

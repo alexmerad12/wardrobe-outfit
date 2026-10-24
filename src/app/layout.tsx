@@ -106,6 +106,8 @@ export default function RootLayout({
       lang="en"
       className={`${dmSans.variable} ${bodoni.variable} ${parisienne.variable} h-full antialiased`}
       style={{ colorScheme: "light" }}
+      // The script below sets a class and data-locale before React runs.
+      suppressHydrationWarning
     >
       <head>
         {/* Belt-and-suspenders for in-app webviews (Gmail, Outlook,
@@ -120,10 +122,13 @@ export default function RootLayout({
             BEFORE any rendering. If the user already saw the splash
             this session, add a class to <html> so the splash CSS
             display:nones it instantly — no flash of the brand
-            moment on every navigation. */}
+            moment on every navigation. Same moment, the language for
+            the text drawn before the code runs (BothLanguages): the
+            locale store's cache, else the browser's language, exactly
+            as the store itself decides (use-locale.ts). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(sessionStorage.getItem('linette_splash_seen')==='1')document.documentElement.classList.add('skip-splash');}catch(e){}})();`,
+            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}})();`,
           }}
         />
       </head>

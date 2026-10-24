@@ -333,7 +333,7 @@ export default function TryOnPage() {
                             type="button"
                             aria-label={isExpanded ? t("itemDetail.close") : t("common.expand")}
                             onClick={() => setExpandedOutfit(isExpanded ? null : idx)}
-                            className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                            className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
                           >
                             {isExpanded ? <X className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </button>
@@ -344,10 +344,10 @@ export default function TryOnPage() {
                             phantom item keeps its primary ring in both
                             states so the user can see at a glance
                             which piece is the new one. */}
-                        <div className={isExpanded ? "grid grid-cols-2 gap-1.5 px-2 pb-2" : "grid grid-cols-4 gap-1 px-2 pb-2"}>
+                        <div className={isExpanded ? "grid grid-cols-2 gap-x-1.5 gap-y-3 px-2 pb-2" : "grid grid-cols-4 gap-1 px-2 pb-2"}>
                           {outfit.items.slice(0, isExpanded ? outfit.items.length : 4).map((item) => (
+                            <div key={item.id} className="min-w-0">
                             <div
-                              key={item.id}
                               className={`relative aspect-square rounded-md overflow-hidden bg-card ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
                             >
                               {item.id === result.phantomId ? (
@@ -374,13 +374,14 @@ export default function TryOnPage() {
                                   sizes={isExpanded ? "(max-width: 640px) 50vw, 250px" : "80px"}
                                 />
                               )}
-                              {isExpanded && (
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
-                                  <p className="truncate text-[10px] text-white">
-                                    {item.id === result.phantomId ? t("tryOn.newItem") : item.name}
-                                  </p>
-                                </div>
-                              )}
+                            </div>
+                            {/* The name under the photo, not over it (owner's
+                                call for every outfit grid, 2026-10-24). */}
+                            {isExpanded && (
+                              <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">
+                                {item.id === result.phantomId ? t("tryOn.newItem") : item.name}
+                              </p>
+                            )}
                             </div>
                           ))}
                         </div>

@@ -736,13 +736,19 @@ export default function ItemDetailPage() {
         <div className="flex gap-2">
           {!editing && (
             <>
-              <Button variant="ghost" size="icon" onClick={startEditing}>
+              <Button variant="ghost" size="icon" onClick={startEditing} aria-label={t("itemDetail.editDetails")}>
                 <Pencil className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={toggleFavorite}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleFavorite}
+                aria-label={t("suggest.favorite")}
+                aria-pressed={item.is_favorite}
+              >
                 <Heart className={cn("h-5 w-5", item.is_favorite && "fill-foreground text-foreground")} />
               </Button>
-              <Button variant="ghost" size="icon" onClick={deleteItem}>
+              <Button variant="ghost" size="icon" onClick={deleteItem} aria-label={t("common.delete")}>
                 <Trash2 className="h-5 w-5" />
               </Button>
             </>
@@ -911,7 +917,7 @@ export default function ItemDetailPage() {
                   <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
                   {/* 24 px tap target (WCAG 2.5.8); it was 7x16. The negative
                       margins keep the chip its old size. */}
-                  <button type="button" aria-label={t("common.remove")} onClick={() => setEditColors((p) => p.filter((_, j) => j !== i))} className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive">×</button>
+                  <button type="button" aria-label={t("common.remove")} onClick={() => setEditColors((p) => p.filter((_, j) => j !== i))} className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive pointer-coarse:-my-3.5 pointer-coarse:-mr-3.5 pointer-coarse:h-11 pointer-coarse:w-11">×</button>
                 </div>
               ))}
             </div>
@@ -942,7 +948,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.howDoesItFit")}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {(Object.keys(labels.FIT) as Fit[]).map((f) => (
-                  <button key={f} type="button" onClick={() => setEditFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.FIT[f]}</button>
+                  <button key={f} type="button" onClick={() => setEditFit(f)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.FIT[f]}</button>
                 ))}
               </div>
             </div>
@@ -954,7 +960,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.howDoesItFit")}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {(Object.keys(labels.BOTTOM_FIT) as BottomFit[]).map((f) => (
-                  <button key={f} type="button" onClick={() => setEditBottomFit(f)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBottomFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BOTTOM_FIT[f]}</button>
+                  <button key={f} type="button" onClick={() => setEditBottomFit(f)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBottomFit === f ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BOTTOM_FIT[f]}</button>
                 ))}
               </div>
             </div>
@@ -966,7 +972,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.length")}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {(Object.keys(labels.LENGTH) as Length[]).map((l) => (
-                  <button key={l} type="button" onClick={() => setEditLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.LENGTH[l]}</button>
+                  <button key={l} type="button" onClick={() => setEditLength(l)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.LENGTH[l]}</button>
                 ))}
               </div>
             </div>
@@ -978,7 +984,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.length")}</Label>
               <div className="grid grid-cols-5 gap-2">
                 {(Object.keys(labels.PANTS_LENGTH) as PantsLength[]).map((l) => (
-                  <button key={l} type="button" onClick={() => setEditPantsLength(l)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editPantsLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.PANTS_LENGTH[l]}</button>
+                  <button key={l} type="button" onClick={() => setEditPantsLength(l)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editPantsLength === l ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.PANTS_LENGTH[l]}</button>
                 ))}
               </div>
             </div>
@@ -990,7 +996,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.waistHeight")}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(labels.WAIST_HEIGHT) as WaistHeight[]).map((w) => (
-                  <button key={w} type="button" onClick={() => setEditWaistHeight(w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistHeight === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_HEIGHT[w]}</button>
+                  <button key={w} type="button" onClick={() => setEditWaistHeight(w)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistHeight === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_HEIGHT[w]}</button>
                 ))}
               </div>
             </div>
@@ -1002,7 +1008,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.waistClosure")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.WAIST_CLOSURE) as WaistClosure[]).map((c) => (
-                  <button key={c} type="button" onClick={() => setEditWaistClosure(editWaistClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editWaistClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_CLOSURE[c]}</button>
+                  <button key={c} type="button" onClick={() => setEditWaistClosure(editWaistClosure === c ? null : c)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editWaistClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_CLOSURE[c]}</button>
                 ))}
               </div>
             </div>
@@ -1014,7 +1020,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.waist")}</Label>
               <div className="grid grid-cols-4 gap-2">
                 {(Object.keys(labels.WAIST_STYLE) as WaistStyle[]).map((w) => (
-                  <button key={w} type="button" onClick={() => setEditWaistStyle(editWaistStyle === w ? null : w)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistStyle === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_STYLE[w]}</button>
+                  <button key={w} type="button" onClick={() => setEditWaistStyle(editWaistStyle === w ? null : w)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editWaistStyle === w ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.WAIST_STYLE[w]}</button>
                 ))}
               </div>
             </div>
@@ -1025,7 +1031,10 @@ export default function ItemDetailPage() {
           {editShowLayeringPiece && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setEditLayering(!editLayering)} className={cn("h-5 w-5 rounded border-2 transition-colors", editLayering ? "border-primary bg-primary" : "border-muted-foreground/30")} />
+                {/* A real checkbox, 44 px tap area around the 20 px box. */}
+                <button type="button" role="checkbox" aria-checked={editLayering} aria-label={t("addItem.layeringPiece")} onClick={() => setEditLayering(!editLayering)} className="-m-3 inline-flex shrink-0 items-center justify-center p-3">
+                  <span className={cn("h-5 w-5 rounded border-2 transition-colors", editLayering ? "border-primary bg-primary" : "border-muted-foreground/30")} />
+                </button>
                 <Label className="cursor-pointer" onClick={() => setEditLayering(!editLayering)}>{t("addItem.layeringPiece")}</Label>
               </div>
             </div>
@@ -1037,7 +1046,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.shoeHeight")}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(labels.SHOE_HEIGHT) as ShoeHeight[]).map((h) => (
-                  <button key={h} type="button" onClick={() => setEditShoeHeight(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editShoeHeight === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_HEIGHT[h]}</button>
+                  <button key={h} type="button" onClick={() => setEditShoeHeight(h)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editShoeHeight === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_HEIGHT[h]}</button>
                 ))}
               </div>
             </div>
@@ -1049,7 +1058,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.heelType")}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(labels.HEEL_TYPE) as HeelType[]).map((h) => (
-                  <button key={h} type="button" onClick={() => setEditHeelType(h)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editHeelType === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HEEL_TYPE[h]}</button>
+                  <button key={h} type="button" onClick={() => setEditHeelType(h)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editHeelType === h ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HEEL_TYPE[h]}</button>
                 ))}
               </div>
             </div>
@@ -1061,7 +1070,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.closure")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.SHOE_CLOSURE) as ShoeClosure[]).map((c) => (
-                  <button key={c} type="button" onClick={() => setEditShoeClosure(editShoeClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editShoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_CLOSURE[c]}</button>
+                  <button key={c} type="button" onClick={() => setEditShoeClosure(editShoeClosure === c ? null : c)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editShoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_CLOSURE[c]}</button>
                 ))}
               </div>
             </div>
@@ -1073,7 +1082,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.beltStyle")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.BELT_STYLE) as BeltStyle[]).map((b) => (
-                  <button key={b} type="button" onClick={() => setEditBeltStyle(editBeltStyle === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBeltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_STYLE[b]}</button>
+                  <button key={b} type="button" onClick={() => setEditBeltStyle(editBeltStyle === b ? null : b)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBeltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_STYLE[b]}</button>
                 ))}
               </div>
             </div>
@@ -1085,7 +1094,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.beltPosition")}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(labels.BELT_POSITION) as BeltPosition[]).map((b) => (
-                  <button key={b} type="button" onClick={() => setEditBeltPosition(b)} className={cn("rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBeltPosition === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_POSITION[b]}</button>
+                  <button key={b} type="button" onClick={() => setEditBeltPosition(b)} className={cn("tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors", editBeltPosition === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_POSITION[b]}</button>
                 ))}
               </div>
             </div>
@@ -1097,7 +1106,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.metalFinish")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.METAL_FINISH) as MetalFinish[]).map((m) => (
-                  <button key={m} type="button" onClick={() => setEditMetalFinish(editMetalFinish === m ? null : m)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.METAL_FINISH[m]}</button>
+                  <button key={m} type="button" onClick={() => setEditMetalFinish(editMetalFinish === m ? null : m)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.METAL_FINISH[m]}</button>
                 ))}
               </div>
             </div>
@@ -1109,7 +1118,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.bagSize")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.BAG_SIZE) as BagSize[]).map((b) => (
-                  <button key={b} type="button" onClick={() => setEditBagSize(editBagSize === b ? null : b)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagSize === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_SIZE[b]}</button>
+                  <button key={b} type="button" onClick={() => setEditBagSize(editBagSize === b ? null : b)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagSize === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_SIZE[b]}</button>
                 ))}
               </div>
             </div>
@@ -1121,7 +1130,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.bagTexture")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.BAG_TEXTURE) as BagTexture[]).map((tx) => (
-                  <button key={tx} type="button" onClick={() => setEditBagTexture(editBagTexture === tx ? null : tx)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagTexture === tx ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_TEXTURE[tx]}</button>
+                  <button key={tx} type="button" onClick={() => setEditBagTexture(editBagTexture === tx ? null : tx)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagTexture === tx ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BAG_TEXTURE[tx]}</button>
                 ))}
               </div>
             </div>
@@ -1133,7 +1142,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.bagMetalFinish")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.METAL_FINISH) as MetalFinish[]).map((m) => (
-                  <button key={m} type="button" onClick={() => setEditBagMetalFinish(editBagMetalFinish === m ? null : m)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.METAL_FINISH[m]}</button>
+                  <button key={m} type="button" onClick={() => setEditBagMetalFinish(editBagMetalFinish === m ? null : m)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editBagMetalFinish === m ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.METAL_FINISH[m]}</button>
                 ))}
               </div>
             </div>
@@ -1145,7 +1154,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.hatSilhouette")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.HAT_SILHOUETTE) as HatSilhouette[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditHatSilhouette(editHatSilhouette === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editHatSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HAT_SILHOUETTE[s]}</button>
+                  <button key={s} type="button" onClick={() => setEditHatSilhouette(editHatSilhouette === s ? null : s)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editHatSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.HAT_SILHOUETTE[s]}</button>
                 ))}
               </div>
             </div>
@@ -1157,7 +1166,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.scarfFunction")}</Label>
               <div className="flex gap-2">
                 {(Object.keys(labels.SCARF_FUNCTION) as ScarfFunction[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditScarfFunction(editScarfFunction === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editScarfFunction === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SCARF_FUNCTION[s]}</button>
+                  <button key={s} type="button" onClick={() => setEditScarfFunction(editScarfFunction === s ? null : s)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editScarfFunction === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SCARF_FUNCTION[s]}</button>
                 ))}
               </div>
             </div>
@@ -1169,7 +1178,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.skirtLength")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.SKIRT_LENGTH) as SkirtLength[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditSkirtLength(editSkirtLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSkirtLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SKIRT_LENGTH[s]}</button>
+                  <button key={s} type="button" onClick={() => setEditSkirtLength(editSkirtLength === s ? null : s)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSkirtLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SKIRT_LENGTH[s]}</button>
                 ))}
               </div>
             </div>
@@ -1181,7 +1190,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.dressSilhouette")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.DRESS_SILHOUETTE) as DressSilhouette[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditDressSilhouette(editDressSilhouette === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editDressSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.DRESS_SILHOUETTE[s]}</button>
+                  <button key={s} type="button" onClick={() => setEditDressSilhouette(editDressSilhouette === s ? null : s)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editDressSilhouette === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.DRESS_SILHOUETTE[s]}</button>
                 ))}
               </div>
             </div>
@@ -1193,7 +1202,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.toeShape")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.TOE_SHAPE) as ToeShape[]).map((ts) => (
-                  <button key={ts} type="button" onClick={() => setEditToeShape(editToeShape === ts ? null : ts)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editToeShape === ts ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.TOE_SHAPE[ts]}</button>
+                  <button key={ts} type="button" onClick={() => setEditToeShape(editToeShape === ts ? null : ts)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editToeShape === ts ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.TOE_SHAPE[ts]}</button>
                 ))}
               </div>
             </div>
@@ -1205,7 +1214,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.neckline")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.NECKLINE) as Neckline[]).map((n) => (
-                  <button key={n} type="button" onClick={() => setEditNeckline(editNeckline === n ? null : n)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editNeckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.NECKLINE[n]}</button>
+                  <button key={n} type="button" onClick={() => setEditNeckline(editNeckline === n ? null : n)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editNeckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.NECKLINE[n]}</button>
                 ))}
               </div>
             </div>
@@ -1217,7 +1226,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.sleeveLength")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.SLEEVE_LENGTH) as SleeveLength[]).map((s) => (
-                  <button key={s} type="button" onClick={() => setEditSleeveLength(editSleeveLength === s ? null : s)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SLEEVE_LENGTH[s]}</button>
+                  <button key={s} type="button" onClick={() => setEditSleeveLength(editSleeveLength === s ? null : s)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SLEEVE_LENGTH[s]}</button>
                 ))}
               </div>
             </div>
@@ -1229,7 +1238,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.closure")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.CLOSURE) as Closure[]).map((c) => (
-                  <button key={c} type="button" onClick={() => setEditClosure(editClosure === c ? null : c)} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.CLOSURE[c]}</button>
+                  <button key={c} type="button" onClick={() => setEditClosure(editClosure === c ? null : c)} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.CLOSURE[c]}</button>
                 ))}
               </div>
             </div>
@@ -1241,7 +1250,7 @@ export default function ItemDetailPage() {
               <Label>{t("addItem.materialSelect")}</Label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(labels.MATERIAL) as Material[]).map((m) => (
-                  <button key={m} type="button" onClick={() => setEditMaterials(toggleArr(editMaterials, m))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMaterials.includes(m) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.MATERIAL[m]}</button>
+                  <button key={m} type="button" onClick={() => setEditMaterials(toggleArr(editMaterials, m))} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editMaterials.includes(m) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.MATERIAL[m]}</button>
                 ))}
               </div>
             </div>
@@ -1252,7 +1261,7 @@ export default function ItemDetailPage() {
             <Label>{t("addItem.patternSelect")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.PATTERN) as Pattern[]).map((p) => (
-                <button key={p} type="button" onClick={() => setEditPatterns(toggleArr(editPatterns, p))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editPatterns.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.PATTERN[p]}</button>
+                <button key={p} type="button" onClick={() => setEditPatterns(toggleArr(editPatterns, p))} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editPatterns.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.PATTERN[p]}</button>
               ))}
             </div>
           </div>
@@ -1262,7 +1271,7 @@ export default function ItemDetailPage() {
             <Label>{t("addItem.formality")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.FORMALITY) as Formality[]).map((f) => (
-                <button key={f} type="button" onClick={() => setEditFormalities(toggleArr(editFormalities, f))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editFormalities.includes(f) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.FORMALITY[f]}</button>
+                <button key={f} type="button" onClick={() => setEditFormalities(toggleArr(editFormalities, f))} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editFormalities.includes(f) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.FORMALITY[f]}</button>
               ))}
             </div>
           </div>
@@ -1272,7 +1281,7 @@ export default function ItemDetailPage() {
             <Label>{t("addItem.seasons")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.SEASON) as Season[]).map((s) => (
-                <button key={s} type="button" onClick={() => setEditSeasons(toggleArr(editSeasons, s))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSeasons.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SEASON[s]}</button>
+                <button key={s} type="button" onClick={() => setEditSeasons(toggleArr(editSeasons, s))} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editSeasons.includes(s) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SEASON[s]}</button>
               ))}
             </div>
           </div>
@@ -1282,7 +1291,7 @@ export default function ItemDetailPage() {
             <Label>{t("addItem.occasions")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.OCCASION) as Occasion[]).map((o) => (
-                <button key={o} type="button" onClick={() => setEditOccasions(toggleArr(editOccasions, o))} className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", editOccasions.includes(o) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.OCCASION[o]}</button>
+                <button key={o} type="button" onClick={() => setEditOccasions(toggleArr(editOccasions, o))} className={cn("tap rounded-full border px-3 py-1 text-xs font-medium transition-colors", editOccasions.includes(o) ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.OCCASION[o]}</button>
               ))}
             </div>
           </div>
@@ -1303,7 +1312,7 @@ export default function ItemDetailPage() {
                 step={0.5}
                 value={editWarmth}
                 onChange={(e) => setEditWarmth(Number(e.target.value))}
-                className="w-full accent-primary"
+                className="tap-h w-full accent-primary"
                 aria-label={t("addItem.warmth")}
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -1317,7 +1326,9 @@ export default function ItemDetailPage() {
 
           {/* Stored */}
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setEditStored(!editStored)} className={cn("h-5 w-5 rounded border-2 transition-colors", editStored ? "border-primary bg-primary" : "border-muted-foreground/30")} />
+            <button type="button" role="checkbox" aria-checked={editStored} aria-label={t("addItem.stored")} onClick={() => setEditStored(!editStored)} className="-m-3 inline-flex shrink-0 items-center justify-center p-3">
+              <span className={cn("h-5 w-5 rounded border-2 transition-colors", editStored ? "border-primary bg-primary" : "border-muted-foreground/30")} />
+            </button>
             <div>
               <Label className="cursor-pointer" onClick={() => setEditStored(!editStored)}>
                 {editStored ? t("addItem.storedOn") : t("addItem.stored")}

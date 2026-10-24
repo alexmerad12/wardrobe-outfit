@@ -91,6 +91,7 @@ export default function BulkUploadPage() {
           // they see their batch is in flight instead of ending up
           // wherever they came from with no feedback.
           onClick={() => router.push("/wardrobe")}
+          aria-label={t("common.back")}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>

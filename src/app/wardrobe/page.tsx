@@ -514,7 +514,7 @@ function WardrobePageInner() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1.5"
+                  className="gap-1.5 tap"
                   aria-label={t("wardrobe.search")}
                   onClick={() => {
                     setSearchOpen((v) => {
@@ -530,6 +530,7 @@ function WardrobePageInner() {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="tap"
                   aria-label={t("wardrobe.select")}
                   onClick={() => setSelectMode(true)}
                 >
@@ -590,7 +591,7 @@ function WardrobePageInner() {
             ref={cat === activeCategory ? activeCategoryRef : undefined}
             onClick={() => handleCategoryChange(cat)}
             className={cn(
-              "whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+              "tap-h whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
               activeCategory === cat
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -625,7 +626,7 @@ function WardrobePageInner() {
           <button
             onClick={() => setActiveSubcategory("all")}
             className={cn(
-              "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              "tap-h whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
               activeSubcategory === "all"
                 ? "bg-foreground text-background"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted"
@@ -638,7 +639,7 @@ function WardrobePageInner() {
               key={sub}
               onClick={() => setActiveSubcategory(sub)}
               className={cn(
-                "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                "tap-h whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors",
                 activeSubcategory === sub
                   ? "bg-foreground text-background"
                   : "bg-muted/60 text-muted-foreground hover:bg-muted"

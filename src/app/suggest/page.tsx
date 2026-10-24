@@ -492,8 +492,9 @@ function SuggestContent() {
       )}
 
       {/* Weather context — hidden in the empty state since there's no
-          outfit to weather-adjust yet. */}
-      {!showEmptyWardrobeCTA && (
+          outfit to weather-adjust yet, and on steps 2 and 3, where it
+          repeated the card the user just saw (owner's call, 2026-10-24). */}
+      {!showEmptyWardrobeCTA && (step === "mood" || step === "results") && (
         <div className="mb-4">
           <WeatherWidget />
         </div>
@@ -582,6 +583,7 @@ function SuggestContent() {
       {wardrobeLoaded && !wardrobeLoadFailed && !showEmptyWardrobeCTA && step === "mood" && (
         <div className="space-y-6">
           <div>
+            <p className="editorial-label mb-1.5">{t("suggest.stepCount", { current: 1, total: 3 })}</p>
             <h2 className="text-base font-semibold mb-3">
               {t("suggest.howAreYouFeelingShort")}
             </h2>
@@ -601,6 +603,7 @@ function SuggestContent() {
       {wardrobeLoaded && !wardrobeLoadFailed && !showEmptyWardrobeCTA && step === "style" && (
         <div className="space-y-6">
           <div>
+            <p className="editorial-label mb-1.5">{t("suggest.stepCount", { current: 2, total: 3 })}</p>
             <h2 className="text-base font-semibold mb-1">
               {t("suggest.anyDirection")}
             </h2>
@@ -611,7 +614,7 @@ function SuggestContent() {
                   key={key}
                   onClick={() => toggleStyleWish(label)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     styleWishes.includes(label)
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -626,7 +629,7 @@ function SuggestContent() {
               placeholder={t("suggest.customWishPlaceholder")}
               value={customWish}
               onChange={(e) => setCustomWish(e.target.value)}
-              className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="tap-h mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div className="flex gap-3">
@@ -644,9 +647,12 @@ function SuggestContent() {
       {wardrobeLoaded && !wardrobeLoadFailed && !showEmptyWardrobeCTA && step === "occasion" && (
         <div className="space-y-4">
           <div className="space-y-3">
-            <h2 className="text-base font-semibold mb-2">
-              {t("suggest.whatsOccasionShort")}
-            </h2>
+            <div>
+              <p className="editorial-label mb-1.5">{t("suggest.stepCount", { current: 3, total: 3 })}</p>
+              <h2 className="text-base font-semibold mb-2">
+                {t("suggest.whatsOccasionShort")}
+              </h2>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(OCCASION_LABELS) as Occasion[]).map(
                 (occ) => (

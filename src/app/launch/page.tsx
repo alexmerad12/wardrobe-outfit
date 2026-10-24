@@ -278,10 +278,17 @@ const LAUNCH_CSS = `
   }
   .launch-foot .dot { opacity: 0.55; }
   .foot-link {
-    color: inherit; text-decoration: none;
-    border-bottom: 0.5px dotted rgba(0,0,0,0.35);
+    color: inherit;
+    text-decoration: underline dotted rgba(0,0,0,0.35);
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 3px;
   }
-  .foot-link:hover { color: ${BRAND.ink}; border-bottom-color: ${BRAND.ink}; }
+  .foot-link:hover { color: ${BRAND.ink}; text-decoration-color: ${BRAND.ink}; }
+  /* A 44 px tap area on a touch screen, same look (design review,
+     2026-10-24): padding cancelled by a negative margin. */
+  @media (pointer: coarse) {
+    .foot-link { display: inline-block; padding: 13px 6px; margin: -13px -6px; }
+  }
 
   /* Smaller screens: tighten things up. */
   @media (max-width: 520px) {

@@ -405,33 +405,36 @@ export default function HomePage() {
       {/* Today's Outfit */}
       {todayOutfit && todayItems.length > 0 && (
         <div className="mb-6">
-          <h2 className="font-heading text-xl font-medium tracking-tight mb-3">{t("home.todaysOutfit")}</h2>
+          {/* One heading (it was "Your look" over a card titled "Today's
+              Look", owner's call 2026-10-24), with the expand control
+              beside it. Only the chevron expands. */}
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-heading text-xl font-medium tracking-tight">{t("home.todaysLook")}</h2>
+            {todayExpanded ? (
+              <button
+                type="button"
+                aria-label={t("itemDetail.close")}
+                onClick={() => setTodayExpanded(false)}
+                className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label={t("common.expand")}
+                onClick={() => setTodayExpanded(true)}
+                className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <Card className="overflow-hidden">
             <CardContent className="p-4 space-y-4">
-              {/* Outfit name + expand/collapse control. Only the chevron
-                  expands; tapping the card body does nothing. */}
-              <div className="flex items-center justify-between">
-                <p className="font-heading text-lg font-medium tracking-tight">{todayOutfit.name || t("home.todaysLook")}</p>
-                {todayExpanded ? (
-                  <button
-                    type="button"
-                    aria-label={t("itemDetail.close")}
-                    onClick={() => setTodayExpanded(false)}
-                    className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    aria-label={t("common.expand")}
-                    onClick={() => setTodayExpanded(true)}
-                    className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+              {todayOutfit.name && (
+                <p className="font-heading text-lg font-medium tracking-tight">{todayOutfit.name}</p>
+              )}
 
               {/* Item photos. Collapsed: horizontal scroll (compact).
                   Expanded: 2-column grid with bigger images, matching
@@ -439,18 +442,19 @@ export default function HomePage() {
                   a Link to the item's detail page; stopPropagation so
                   tapping doesn't also toggle the card. */}
               {todayExpanded ? (
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-x-1.5 gap-y-3">
                   {todayItems.map((item) => (
                     <Link
                       key={item.id}
                       href={`/wardrobe/${item.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="relative aspect-square overflow-hidden rounded-lg bg-card"
+                      className="block min-w-0"
                     >
-                      <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 45vw, 200px" />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5">
-                        <p className="truncate text-[10px] text-white">{item.name}</p>
+                      <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                        <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 45vw, 200px" />
                       </div>
+                      {/* Under the photo, not over it (owner's call, 2026-10-24). */}
+                      <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
                     </Link>
                   ))}
                 </div>
@@ -475,11 +479,11 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Mood / Occasion / Weather row (below items) */}
+              {/* Mood / Occasion / Weather row (below items), only when
+                  there is something in it: a look with none of them used
+                  to carry a two-line "Tap Wear Today…" hint here. */}
+              {(todayOutfit.mood || todayOutfit.occasion || (todayOutfit.weather_temp !== null && todayOutfit.weather_temp !== undefined)) && (
               <div className="flex flex-wrap gap-2">
-                {!todayOutfit.mood && !todayOutfit.occasion && (todayOutfit.weather_temp === null || todayOutfit.weather_temp === undefined) && (
-                  <p className="text-xs text-muted-foreground italic">{t("home.tapWearTodayHint")}</p>
-                )}
                 {todayOutfit.mood && MOOD_CONFIG[todayOutfit.mood as Mood] && (() => {
                   const MoodIcon = MOOD_ICONS[todayOutfit.mood as Mood];
                   return (
@@ -511,6 +515,7 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Expanded content: description + stylist tip + action buttons */}
               {todayExpanded && (
@@ -648,7 +653,7 @@ export default function HomePage() {
                           type="button"
                           aria-label={t("itemDetail.close")}
                           onClick={() => setExpandedRecent(null)}
-                          className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                          className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -657,7 +662,7 @@ export default function HomePage() {
                           type="button"
                           aria-label={t("common.expand")}
                           onClick={() => setExpandedRecent(outfit.outfit_id)}
-                          className="-mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                          className="tap -mr-1 inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:bg-muted pointer-coarse:-my-2.5 pointer-coarse:-mr-3"
                         >
                           <ChevronDown className="h-4 w-4" />
                         </button>
@@ -666,18 +671,18 @@ export default function HomePage() {
 
                     {/* Image strip (collapsed) or grid (expanded) */}
                     {isExpanded ? (
-                      <div className="grid grid-cols-2 gap-1 p-1">
+                      <div className="grid grid-cols-2 gap-x-1 gap-y-3 p-1 pb-3">
                         {outfit.items.map((item) => (
                           <Link
                             key={item.id}
                             href={`/wardrobe/${item.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="relative aspect-square overflow-hidden rounded-lg bg-card"
+                            className="block min-w-0"
                           >
-                            <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                              <p className="text-xs text-white truncate">{item.name}</p>
+                            <div className="relative aspect-square overflow-hidden rounded-lg bg-card">
+                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
                             </div>
+                            <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
                           </Link>
                         ))}
                       </div>
@@ -705,10 +710,12 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    {/* Badges row — always visible, sized by state */}
-                    <div className="px-3 pt-2 pb-3">
+                    {/* Badges row, sized by state, and only when there is a
+                        badge to show: an outfit with no mood, weather or
+                        occasion left an empty strip under its photos. */}
+                    <div className={cn("px-3", outfit.mood || outfit.occasion || (outfit.weather_temp !== null && outfit.weather_temp !== undefined) || isExpanded ? "pt-2 pb-3" : "pb-2")}>
                       <div className={cn(
-                        "flex flex-wrap items-center gap-1.5",
+                        "flex flex-wrap items-center gap-1.5 empty:hidden",
                         isExpanded ? "" : ""
                       )}>
                         {outfit.mood && MOOD_CONFIG[outfit.mood as Mood] && (() => {

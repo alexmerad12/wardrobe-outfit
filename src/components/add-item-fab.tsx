@@ -91,7 +91,15 @@ export function AddItemFab() {
               </button>
             }
           />
-          <DropdownMenuContent align="end" side="top" className="w-72">
+          {/* The backdrop dims the whole screen, bottom nav included, so the
+              menu reads as its own layer (owner's call, 2026-10-24); a tap
+              on it closes the menu. */}
+          <DropdownMenuContent
+            align="end"
+            side="top"
+            className="w-72"
+            backdropClassName="fixed inset-0 z-50 bg-foreground/25 transition-opacity duration-150 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0"
+          >
             <DropdownMenuItem
               onClick={() => cameraInputRef.current?.click()}
               className="gap-2"

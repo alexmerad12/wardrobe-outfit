@@ -185,7 +185,7 @@ function EnglishPolicy() {
         .
       </p>
 
-      <div className="mt-12 flex gap-6 text-sm">
+      <div className="mt-12 flex gap-6 text-sm [&>a]:inline-flex [&>a]:items-center [&>a]:tap-h">
         <Link href="/terms" className="underline">
           Terms of Service
         </Link>
@@ -386,7 +386,7 @@ function FrenchPolicy() {
         .
       </p>
 
-      <div className="mt-12 flex gap-6 text-sm">
+      <div className="mt-12 flex gap-6 text-sm [&>a]:inline-flex [&>a]:items-center [&>a]:tap-h">
         <Link href="/terms" className="underline">
           Conditions d&apos;utilisation
         </Link>

@@ -24,14 +24,20 @@ function DropdownMenuContent({
   side = "bottom",
   sideOffset = 4,
   className,
+  backdropClassName,
   ...props
 }: MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
-  >) {
+  > & {
+    /** Renders the menu's backdrop with these classes (it sits in the
+     *  portal under the popup, so it dims the bottom nav too). */
+    backdropClassName?: string
+  }) {
   return (
     <MenuPrimitive.Portal>
+      {backdropClassName && <MenuPrimitive.Backdrop className={backdropClassName} />}
       <MenuPrimitive.Positioner
         className="isolate z-50 outline-none"
         align={align}

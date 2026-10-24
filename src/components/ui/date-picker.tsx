@@ -60,7 +60,7 @@ export function DatePicker({
       <PopoverTrigger
         disabled={disabled}
         className={cn(
-          "flex h-9 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+          "tap-h flex h-9 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
           !display && "text-muted-foreground",
           className
         )}

@@ -132,6 +132,30 @@
   }
 }
 
+/* Touch targets: on a touch screen every control is at least 44 px
+   (Apple's minimum; Google asks 48 dp and its pre-launch report flags
+   smaller ones). A computer keeps the compact look. `tap` for icon
+   buttons, `tap-h` for text buttons and chips (design review, 2026-10-23). */
+@utility tap {
+  @media (pointer: coarse) {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+}
+@utility tap-h {
+  @media (pointer: coarse) {
+    min-height: 2.75rem;
+  }
+}
+
+/* Text drawn before the app's code runs carries both languages
+   (BothLanguages); the pre-paint script in layout.tsx and then the locale
+   store set <html data-locale>. */
+html[data-locale="fr"] .lang-en,
+html:not([data-locale="fr"]) .lang-fr {
+  display: none !important;
+}
+
 @keyframes fade {
   0%, 20% { opacity: 0; }
   40% { opacity: 1; }

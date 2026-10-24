@@ -153,7 +153,6 @@
     "goodEvening": "Bonsoir de {brand}",
     "allSet": "Tu es prête pour aujourd'hui.",
     "letsFindOutfit": "Trouvons ta tenue parfaite du jour.",
-    "todaysOutfit": "Ta tenue",
     "todaysLook": "Look du jour",
     "forgottenInWardrobe": "Oubliés dans ton dressing",
     "forgottenHint": "Tu ne les as pas portés depuis un moment",
@@ -171,7 +170,6 @@
     "outfitHistoryEmpty": "Ton historique de tenues apparaîtra ici.",
     "outfitHistoryHint": "Tape « Porter aujourd'hui » sur une suggestion pour commencer !",
     "confirmRemoveTodaysOutfit": "Retirer la tenue du jour ?",
-    "tapWearTodayHint": "Appuie sur « Porter aujourd'hui » sur une nouvelle suggestion pour voir l'humeur et l'occasion ici",
     "moodLabel": "Humeur",
     "occasionLabel": "Occasion",
     "weatherLabel": "Météo",
@@ -184,6 +182,7 @@
   "suggest": {
     "title": "Ton look",
     "stepTagline": "On style ta journée",
+    "stepCount": "Étape {current} sur {total}",
     "howAreYouFeeling": "Humeur du jour ?",
     "stylingPreferences": "Des préférences de style ?",
     "whatsTheOccasion": "Quelle occasion ?",

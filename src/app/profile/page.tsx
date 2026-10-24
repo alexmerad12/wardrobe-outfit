@@ -119,7 +119,7 @@ export default function ProfilePage() {
         <h1 className="font-heading text-3xl font-medium tracking-tight">{t("profile.title")}</h1>
         <Link
           href="/profile/settings"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="tap inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label={t("profile.settings")}
           title={t("profile.settings")}
         >
@@ -312,7 +312,7 @@ export default function ProfilePage() {
               className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-heading text-lg leading-tight">{t("profile.discoverBulkTitle")}</p>
+                <p className="text-sm font-medium leading-tight">{t("profile.discoverBulkTitle")}</p>
                 <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverBulkDesc")}</p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -322,7 +322,7 @@ export default function ProfilePage() {
               className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-heading text-lg leading-tight">{t("profile.discoverTryOnTitle")}</p>
+                <p className="text-sm font-medium leading-tight">{t("profile.discoverTryOnTitle")}</p>
                 <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverTryOnDesc")}</p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -332,7 +332,7 @@ export default function ProfilePage() {
               className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-heading text-lg leading-tight">{t("profile.discoverStorageTitle")}</p>
+                <p className="text-sm font-medium leading-tight">{t("profile.discoverStorageTitle")}</p>
                 <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverStorageDesc")}</p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

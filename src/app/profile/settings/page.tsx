@@ -335,7 +335,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-2 mb-6">
         <Link
           href="/profile"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-muted transition-colors"
+          className="tap inline-flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-muted transition-colors"
           aria-label={t("common.back")}
         >
           <ArrowLeft className="h-5 w-5" />

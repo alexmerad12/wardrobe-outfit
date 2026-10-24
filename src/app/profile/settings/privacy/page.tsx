@@ -168,7 +168,7 @@ export default function AccountSecurityPage() {
       <div className="flex items-center gap-2 mb-2">
         <Link
           href="/profile/settings"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
+          className="tap inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
           aria-label={t("common.back")}
         >
           <ArrowLeft className="h-4 w-4" />

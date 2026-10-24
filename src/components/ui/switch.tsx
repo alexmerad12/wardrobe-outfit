@@ -16,7 +16,10 @@ function Switch({
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full",
+        "peer relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full",
+        // 44 px tall to a finger: the invisible ::after takes the taps
+        // 10 px above and below the track (design review, 2026-10-24).
+        "pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-2.5",
         "border border-input transition-colors",
         "data-[checked]:bg-foreground data-[checked]:border-foreground",
         "data-[unchecked]:bg-muted",

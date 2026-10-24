@@ -169,7 +169,7 @@ function EnglishTerms() {
         .
       </p>
 
-      <div className="mt-12 flex gap-6 text-sm">
+      <div className="mt-12 flex gap-6 text-sm [&>a]:inline-flex [&>a]:items-center [&>a]:tap-h">
         <Link href="/privacy" className="underline">
           Privacy Policy
         </Link>
@@ -353,7 +353,7 @@ function FrenchTerms() {
         .
       </p>
 
-      <div className="mt-12 flex gap-6 text-sm">
+      <div className="mt-12 flex gap-6 text-sm [&>a]:inline-flex [&>a]:items-center [&>a]:tap-h">
         <Link href="/privacy" className="underline">
           Politique de confidentialité
         </Link>

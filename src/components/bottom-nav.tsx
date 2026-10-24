@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Shirt, Sparkles, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLocale } from "@/lib/i18n/use-locale";
 import { useBottomNavHidden } from "@/lib/bottom-nav-visibility";
+import { BothLanguages } from "@/components/both-languages";
 
 const NAV_ITEMS = [
   { href: "/", icon: Home, key: "home" },
@@ -17,7 +17,6 @@ const NAV_ITEMS = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { t } = useLocale();
   // A full-screen form with its own close / save bar (the item editor).
   const hiddenByScreen = useBottomNavHidden();
 
@@ -66,7 +65,10 @@ export function BottomNav() {
               )}
             >
               <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
-              <span className={cn(isActive && "font-semibold")}>{t(`nav.${key}`)}</span>
+              {/* Drawn before the code runs: both languages, CSS picks one. */}
+              <span className={cn(isActive && "font-semibold")}>
+                <BothLanguages k={`nav.${key}`} />
+              </span>
             </Link>
           );
         })}

@@ -22,7 +22,7 @@ function BackArrow({ label }: { label: string }) {
       type="button"
       onClick={() => router.back()}
       aria-label={label}
-      className="inline-flex h-9 w-9 -ml-2 mb-4 items-center justify-center rounded-md text-foreground hover:bg-muted transition-colors"
+      className="tap inline-flex h-9 w-9 -ml-2 mb-4 items-center justify-center rounded-md text-foreground hover:bg-muted transition-colors"
     >
       <ArrowLeft className="h-5 w-5" />
     </button>

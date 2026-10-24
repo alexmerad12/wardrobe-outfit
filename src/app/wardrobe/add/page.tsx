@@ -497,9 +497,8 @@ export default function AddItemPage() {
     if (files.length > 1) {
       const result = addFiles(files);
       if (result.rejected > 0) {
-        alert(
-          `Only ${MAX_BATCH} items at a time. ${result.rejected} photo${result.rejected === 1 ? "" : "s"} not added — finish this batch, then pick another.`
-        );
+        // Same translated message as the + button (it was English here).
+        alert(t("wardrobe.batchCapAlert", { max: MAX_BATCH, count: result.rejected }));
       }
       if (result.accepted > 0) {
         router.push("/wardrobe/bulk");
@@ -689,6 +688,7 @@ export default function AddItemPage() {
           // visible — they see their upload is in-flight instead of
           // ending up wherever they came from with no feedback.
           onClick={() => router.push("/wardrobe")}
+          aria-label={t("common.back")}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -705,14 +705,17 @@ export default function AddItemPage() {
             <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-card">
               <Image
                 src={imagePreview}
-                alt="Preview"
+                alt={t("bulk.altClothingItem")}
                 fill
                 className="object-contain"
               />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity hover:opacity-100">
-                <p className="text-sm font-medium text-white">
+              {/* Always visible: a phone has no hover (the hover-only
+                  overlay hid "change the photo" on mobile). */}
+              <div className="absolute inset-0 flex items-end justify-center pb-3 transition-colors hover:bg-black/20">
+                <span className="flex items-center gap-1.5 rounded-full bg-black/60 px-3.5 py-2 text-sm font-medium text-white">
+                  <Camera className="h-4 w-4" />
                   {t("addItem.tapToChange")}
-                </p>
+                </span>
               </div>
             </div>
           </div>
@@ -828,6 +831,12 @@ export default function AddItemPage() {
           </div>
         )}
 
+        {/* Photo first (owner's call, 2026-10-24): the form appears once
+            a photo is picked and Linette has read it, already filled in.
+            While she reads, the photo and the status line above are all
+            there is; if the read fails the form appears empty to fill. */}
+        {imagePreview && !autoFilling && (<>
+
         {/* Colors (when image is present or colors detected) */}
         {(detectedColors.length > 0 || detectingColors || manualColors.length > 0) && (
           <div className="space-y-3">
@@ -857,7 +866,7 @@ export default function AddItemPage() {
                             type="button"
                             aria-label={t("common.remove")}
                             onClick={() => setDetectedColors((prev) => prev.filter((_, j) => j !== i))}
-                            className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive"
+                            className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive pointer-coarse:-my-3.5 pointer-coarse:-mr-3.5 pointer-coarse:h-11 pointer-coarse:w-11"
                           >
                             ×
                           </button>
@@ -885,7 +894,7 @@ export default function AddItemPage() {
                             type="button"
                             aria-label={t("common.remove")}
                             onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
-                            className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive"
+                            className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive pointer-coarse:-my-3.5 pointer-coarse:-mr-3.5 pointer-coarse:h-11 pointer-coarse:w-11"
                           >
                             ×
                           </button>
@@ -925,54 +934,6 @@ export default function AddItemPage() {
                 </div>
               </>
             )}
-          </div>
-        )}
-
-        {/* Colors (when no image yet) */}
-        {!imagePreview && detectedColors.length === 0 && (
-          <div className="space-y-2">
-            <Label>{t("addItem.colors")}</Label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {manualColors.map((color, i) => (
-                <div
-                  key={`manual-${i}`}
-                  className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1"
-                >
-                  <span
-                    className="h-4 w-4 rounded-full border border-border"
-                    style={{ backgroundColor: color.hex }}
-                  />
-                  <span className="text-xs font-medium">{t(`color.${toColorKey(color.name)}`)}</span>
-                  <button
-                    type="button"
-                    aria-label={t("common.remove")}
-                    onClick={() => setManualColors((prev) => prev.filter((_, j) => j !== i))}
-                    className="-my-1 -mr-1.5 ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-sm text-muted-foreground hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowColorPalette(!showColorPalette)}>
-                {showColorPalette ? t("addItem.hidePalette") : t("addItem.colorPalette")}
-              </Button>
-              {showColorPalette && (
-                <div className="rounded-lg border p-3 space-y-3 max-h-64 overflow-y-auto">
-                  {FASHION_COLORS.map((group) => (
-                    <div key={group.group}>
-                      <p className="text-[10px] font-medium text-muted-foreground mb-1">{group.group}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.colors.map((c) => (
-                          <button key={c.hex + c.name} type="button" title={c.name} onClick={() => setManualColors((prev) => [...prev, { hex: c.hex, name: c.name, percentage: 0 }])} className="h-7 w-7 rounded-full border border-border hover:ring-2 hover:ring-primary transition-all" style={{ backgroundColor: c.hex }} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -1054,7 +1015,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setFit(f)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     fit === f
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1073,7 +1034,7 @@ export default function AddItemPage() {
             <Label>{t("addItem.neckline")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.NECKLINE) as Neckline[]).map((n) => (
-                <button key={n} type="button" onClick={() => setNeckline(neckline === n ? null : n)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", neckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.NECKLINE[n]}</button>
+                <button key={n} type="button" onClick={() => setNeckline(neckline === n ? null : n)} className={cn("tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", neckline === n ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.NECKLINE[n]}</button>
               ))}
             </div>
           </div>
@@ -1085,7 +1046,7 @@ export default function AddItemPage() {
             <Label>{t("addItem.sleeveLength")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.SLEEVE_LENGTH) as SleeveLength[]).map((s) => (
-                <button key={s} type="button" onClick={() => setSleeveLength(sleeveLength === s ? null : s)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", sleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SLEEVE_LENGTH[s]}</button>
+                <button key={s} type="button" onClick={() => setSleeveLength(sleeveLength === s ? null : s)} className={cn("tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", sleeveLength === s ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SLEEVE_LENGTH[s]}</button>
               ))}
             </div>
           </div>
@@ -1097,7 +1058,7 @@ export default function AddItemPage() {
             <Label>{t("addItem.closure")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.CLOSURE) as Closure[]).map((c) => (
-                <button key={c} type="button" onClick={() => setClosure(closure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", closure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.CLOSURE[c]}</button>
+                <button key={c} type="button" onClick={() => setClosure(closure === c ? null : c)} className={cn("tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", closure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.CLOSURE[c]}</button>
               ))}
             </div>
           </div>
@@ -1114,7 +1075,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setBottomFit(f)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     bottomFit === f
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1138,7 +1099,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setLength(l)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     length === l
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1162,7 +1123,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setPantsLength(l)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     pantsLength === l
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1186,7 +1147,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setWaistHeight(w)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     waistHeight === w
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1210,7 +1171,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setWaistClosure(waistClosure === c ? null : c)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     waistClosure === c
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1234,7 +1195,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setWaistStyle(waistStyle === w ? null : w)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     waistStyle === w
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1253,16 +1214,26 @@ export default function AddItemPage() {
         {/* Layering piece toggle - tops and outerwear */}
         {category && showLayeringPiece && (
           <div className="flex items-center gap-3">
+            {/* A real checkbox for screen readers, with a 44 px tap area
+                around the 20 px box (the padding is cancelled by the
+                negative margin, so the layout doesn't move). */}
             <button
               type="button"
+              role="checkbox"
+              aria-checked={isLayeringPiece}
+              aria-label={t("addItem.layeringPiece")}
               onClick={() => setIsLayeringPiece(!isLayeringPiece)}
-              className={cn(
-                "h-5 w-5 rounded border-2 transition-colors",
-                isLayeringPiece
-                  ? "border-primary bg-primary"
-                  : "border-muted-foreground/30"
-              )}
-            />
+              className="-m-3 inline-flex shrink-0 items-center justify-center p-3"
+            >
+              <span
+                className={cn(
+                  "h-5 w-5 rounded border-2 transition-colors",
+                  isLayeringPiece
+                    ? "border-primary bg-primary"
+                    : "border-muted-foreground/30"
+                )}
+              />
+            </button>
             <div>
               <Label className="cursor-pointer" onClick={() => setIsLayeringPiece(!isLayeringPiece)}>
                 {t("addItem.layeringPiece")}
@@ -1285,7 +1256,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setShoeHeight(h)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     shoeHeight === h
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1309,7 +1280,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setHeelType(h)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     heelType === h
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1328,7 +1299,7 @@ export default function AddItemPage() {
             <Label>{t("addItem.closure")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.SHOE_CLOSURE) as ShoeClosure[]).map((c) => (
-                <button key={c} type="button" onClick={() => setShoeClosure(shoeClosure === c ? null : c)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", shoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_CLOSURE[c]}</button>
+                <button key={c} type="button" onClick={() => setShoeClosure(shoeClosure === c ? null : c)} className={cn("tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", shoeClosure === c ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.SHOE_CLOSURE[c]}</button>
               ))}
             </div>
           </div>
@@ -1340,7 +1311,7 @@ export default function AddItemPage() {
             <Label>{t("addItem.beltStyle")}</Label>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(labels.BELT_STYLE) as BeltStyle[]).map((b) => (
-                <button key={b} type="button" onClick={() => setBeltStyle(beltStyle === b ? null : b)} className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", beltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_STYLE[b]}</button>
+                <button key={b} type="button" onClick={() => setBeltStyle(beltStyle === b ? null : b)} className={cn("tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors", beltStyle === b ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{labels.BELT_STYLE[b]}</button>
               ))}
             </div>
           </div>
@@ -1357,7 +1328,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setBeltPosition(b)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    "tap-h rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     beltPosition === b
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1381,7 +1352,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setMetalFinish(metalFinish === m ? null : m)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     metalFinish === m
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1405,7 +1376,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setBagSize(bagSize === b ? null : b)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     bagSize === b
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1429,7 +1400,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setBagTexture(bagTexture === tx ? null : tx)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     bagTexture === tx
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1453,7 +1424,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setDressSilhouette(dressSilhouette === s ? null : s)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     dressSilhouette === s
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1477,7 +1448,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setHatSilhouette(hatSilhouette === s ? null : s)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     hatSilhouette === s
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1501,7 +1472,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setScarfFunction(scarfFunction === s ? null : s)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     scarfFunction === s
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1525,7 +1496,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setSkirtLength(skirtLength === s ? null : s)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     skirtLength === s
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1549,7 +1520,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setBagMetalFinish(bagMetalFinish === m ? null : m)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     bagMetalFinish === m
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1573,7 +1544,7 @@ export default function AddItemPage() {
                   type="button"
                   onClick={() => setToeShape(toeShape === ts ? null : ts)}
                   className={cn(
-                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                     toeShape === ts
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:bg-muted"
@@ -1597,7 +1568,7 @@ export default function AddItemPage() {
                 type="button"
                 onClick={() => toggleMaterial(m)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   materials.includes(m)
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border hover:bg-muted"
@@ -1620,7 +1591,7 @@ export default function AddItemPage() {
                 type="button"
                 onClick={() => togglePattern(p)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   patterns.includes(p)
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border hover:bg-muted"
@@ -1642,7 +1613,7 @@ export default function AddItemPage() {
                 type="button"
                 onClick={() => toggleFormality(f)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   formalities.includes(f)
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border hover:bg-muted"
@@ -1664,7 +1635,7 @@ export default function AddItemPage() {
                 type="button"
                 onClick={() => toggleSeason(s)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   seasons.includes(s)
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border hover:bg-muted"
@@ -1686,7 +1657,7 @@ export default function AddItemPage() {
                 type="button"
                 onClick={() => toggleOccasion(o)}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  "tap-h rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   occasions.includes(o)
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border hover:bg-muted"
@@ -1714,7 +1685,7 @@ export default function AddItemPage() {
               step={0.5}
               value={warmthRating}
               onChange={(e) => setWarmthRating(Number(e.target.value))}
-              className="w-full accent-primary"
+              className="tap-h w-full accent-primary"
               aria-label={t("addItem.warmth")}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -1740,7 +1711,10 @@ export default function AddItemPage() {
 
         </>}
 
-        {/* Error */}
+        </>)}
+
+        {/* Error — outside the photo-first gate: a photo that can't be
+            read (HEIC) reports here before there is any preview. */}
         {error && (
           <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
@@ -1748,6 +1722,7 @@ export default function AddItemPage() {
         )}
 
         {/* Submit */}
+        {imagePreview && !autoFilling && (
         <Button
           type="submit"
           className="w-full h-12 text-base"
@@ -1762,6 +1737,7 @@ export default function AddItemPage() {
             t("addItem.submit")
           )}
         </Button>
+        )}
       </form>
     </div>
   );

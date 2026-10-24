@@ -470,7 +470,7 @@ export default function PackingPage() {
                           type="button"
                           aria-label={t("packing.delete")}
                           onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }}
-                          className="text-muted-foreground hover:text-foreground p-1"
+                          className="tap inline-flex items-center justify-center text-muted-foreground hover:text-foreground p-1 pointer-coarse:-my-2.5"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

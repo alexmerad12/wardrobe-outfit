@@ -198,10 +198,17 @@ const AUTH_CSS = `
   .auth-card .auth-link {
     color: #000000;
     font-weight: 500;
-    border-bottom: 0.5px dotted rgba(0,0,0,0.4);
-    text-decoration: none;
+    text-decoration: underline dotted rgba(0,0,0,0.4);
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 3px;
   }
-  .auth-card .auth-link:hover { border-bottom-color: #000000; }
+  .auth-card .auth-link:hover { text-decoration-color: #000000; }
+  /* 44 px tap areas on a touch screen, same look (design review,
+     2026-10-24): padding cancelled by a negative margin. */
+  @media (pointer: coarse) {
+    .auth-card .auth-link,
+    .auth-card .auth-link-subtle { display: inline-block; padding: 14px 4px; margin: -14px -4px; }
+  }
 
   /* Quieter variant — no underline, used for utility links inline with
      form fields or footnotes (e.g. "Forgot password?", "Sign up" next

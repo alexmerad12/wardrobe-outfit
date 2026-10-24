@@ -55,9 +55,12 @@ export const localeStore = createPreferenceStore<LocaleState>({
   // Keep the document language in sync — <html> stayed lang="en" while
   // the UI rendered French, so screen readers announced French content
   // with English pronunciation (audit a11y P3).
+  // data-locale picks the language of the text drawn before the code runs
+  // (BothLanguages, the pre-paint script in layout.tsx sets it first).
   apply: ({ locale }) => {
     try {
       document.documentElement.lang = locale;
+      document.documentElement.dataset.locale = locale;
     } catch {}
   },
 });
