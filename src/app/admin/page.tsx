@@ -1,17 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PAGE_SIZE, selectAll } from "@/lib/select-all";
 import { Card, CardContent } from "@/components/ui/card";
 
 // Admin-only usage dashboard. Layout already gated this — no redundant
 // auth check, but we use the service-role client so we can read across
 // users (auth.users + every user's ai_calls and clothing_items).
 //
-// All numbers are computed in JS from a single fetch per table —
-// trivial at beta scale (5 users × ~30 calls/day = a few thousand
-// rows). If this ever feels slow, group the queries server-side.
+// All numbers are computed in JS from every row of each table, read in
+// pages of 1,000 (PostgREST's cap per request: one plain select stopped at
+// the first 1,000 ai_calls, 2026-10-24). If this ever feels slow, group the
+// queries server-side.
 
-type AiFeature = "suggest" | "try_on" | "packing" | "analyze_item";
+type AiFeature = "suggest" | "refine" | "try_on" | "packing" | "analyze_item";
 
 type AiCallRow = {
   id: string;
@@ -27,14 +30,27 @@ type ItemRow = {
   created_at: string;
 };
 
+// Every tag logAiCall writes ("refine" was logged but missing here until
+// 2026-10-24, so its calls counted in the totals and nowhere else).
 const FEATURE_LABELS: Record<AiFeature, string> = {
   suggest: "Outfit suggest",
+  refine: "Outfit refine",
   try_on: "Try-on",
   packing: "Packing",
   analyze_item: "Item analyze",
 };
 
-const FEATURES: AiFeature[] = ["suggest", "try_on", "packing", "analyze_item"];
+const FEATURES: AiFeature[] = ["suggest", "refine", "try_on", "packing", "analyze_item"];
+
+async function listAllUsers(admin: ReturnType<typeof createAdminClient>): Promise<User[]> {
+  const users: User[] = [];
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PAGE_SIZE });
+    if (error) throw error;
+    users.push(...data.users);
+    if (data.users.length < PAGE_SIZE) return users;
+  }
+}
 
 function fmtUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -69,21 +85,27 @@ function percentile(arr: number[], p: number): number {
 export default async function AdminPage() {
   const admin = createAdminClient();
 
-  const [callsRes, itemsRes, usersRes] = await Promise.all([
-    admin.from("ai_calls").select("id, user_id, feature, cost_estimate_cents, succeeded, created_at"),
-    admin.from("clothing_items").select("user_id, created_at"),
-    admin.auth.admin.listUsers({ perPage: 1000 }),
+  const [callRows, items, users] = await Promise.all([
+    selectAll<AiCallRow>((from, to) =>
+      admin
+        .from("ai_calls")
+        .select("id, user_id, feature, cost_estimate_cents, succeeded, created_at")
+        .order("id")
+        .range(from, to)
+    ),
+    selectAll<ItemRow>((from, to) =>
+      admin.from("clothing_items").select("user_id, created_at").order("id").range(from, to)
+    ),
+    listAllUsers(admin),
   ]);
 
-  const calls = ((callsRes.data ?? []) as AiCallRow[]).map((r) => ({
+  const calls = callRows.map((r) => ({
     ...r,
     cost_estimate_cents:
       typeof r.cost_estimate_cents === "string"
         ? parseFloat(r.cost_estimate_cents)
         : r.cost_estimate_cents,
   }));
-  const items = (itemsRes.data ?? []) as ItemRow[];
-  const users = usersRes.data?.users ?? [];
 
   // Top-line numbers
   const monthStart = new Date();
@@ -156,6 +178,7 @@ export default async function AdminPage() {
         items: userItems.length,
         suggestsToday: counts("suggest", "today"),
         suggestsWeek: counts("suggest", "week"),
+        refineWeek: counts("refine", "week"),
         tryOnWeek: counts("try_on", "week"),
         packingTotal: counts("packing", "total"),
         analyzeTotal: counts("analyze_item", "total"),
@@ -198,6 +221,7 @@ export default async function AdminPage() {
   // Color per feature for the chart
   const featureColor: Record<AiFeature, string> = {
     suggest: "bg-primary",
+    refine: "bg-violet-500",
     try_on: "bg-blue-500",
     packing: "bg-amber-500",
     analyze_item: "bg-emerald-500",
@@ -252,7 +276,10 @@ export default async function AdminPage() {
       <Card>
         <CardContent className="p-4 space-y-3">
           <p className="editorial-label">Last 7 days · AI calls per day</p>
-          <div className="flex items-end gap-2 h-32">
+          {/* Columns stretch to the row's height: with items-end each one
+              shrank to its labels, the bar area got 0 px and no bar ever
+              drew (unseen while the 1,000-row cap kept this week at 0). */}
+          <div className="flex gap-2 h-32">
             {dayBuckets.map((d) => (
               <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full flex-1 flex flex-col-reverse rounded-sm overflow-hidden bg-muted/40 relative">
@@ -361,6 +388,7 @@ export default async function AdminPage() {
                   <th className="py-2 pr-3 font-normal">User</th>
                   <th className="py-2 px-3 font-normal text-right">Items</th>
                   <th className="py-2 px-3 font-normal text-right">Suggests<br /><span className="text-[10px]">today / week</span></th>
+                  <th className="py-2 px-3 font-normal text-right">Refine<br /><span className="text-[10px]">week</span></th>
                   <th className="py-2 px-3 font-normal text-right">Try-on<br /><span className="text-[10px]">week</span></th>
                   <th className="py-2 px-3 font-normal text-right">Packing<br /><span className="text-[10px]">total</span></th>
                   <th className="py-2 px-3 font-normal text-right">Analyze<br /><span className="text-[10px]">total</span></th>
@@ -371,7 +399,7 @@ export default async function AdminPage() {
               <tbody>
                 {perUser.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-muted-foreground text-xs">
+                    <td colSpan={9} className="py-6 text-center text-muted-foreground text-xs">
                       No users yet.
                     </td>
                   </tr>
@@ -385,6 +413,7 @@ export default async function AdminPage() {
                     <td className="py-2 px-3 text-right tabular-nums">
                       {u.suggestsToday} / {u.suggestsWeek}
                     </td>
+                    <td className="py-2 px-3 text-right tabular-nums">{u.refineWeek}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{u.tryOnWeek}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{u.packingTotal}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{u.analyzeTotal}</td>
