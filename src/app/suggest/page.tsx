@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { WeatherWidget } from "@/components/weather-widget";
 import { MoodPicker } from "@/components/mood-picker";
 import { OutfitCard } from "@/components/outfit-card";
+import { ReportAiButton } from "@/components/report-ai-button";
 import { SwapItemModal } from "@/components/swap-item-modal";
 import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
@@ -756,6 +757,24 @@ function SuggestContent() {
               {t("suggest.relaxedNotice")}
             </p>
           )}
+
+          {/* Flag this outfit (Play's AI policy: offensive AI content must
+              be reportable without leaving the app). */}
+          <div className="text-center">
+            <ReportAiButton
+              feature="suggest"
+              content={{
+                name: suggestions[0].name,
+                reasoning: suggestions[0].reasoning,
+                styling_tip: suggestions[0].styling_tip,
+                item_ids: suggestions[0].items.map((i) => i.id),
+                item_names: suggestions[0].items.map((i) => i.name),
+                mood,
+                occasion,
+                relaxed: Boolean(suggestions[0].relaxed),
+              }}
+            />
+          </div>
 
           {/* Single-outfit mode: tap to re-generate. Variety across
               taps is enforced server-side via the recent-suggestions

@@ -1236,5 +1236,22 @@
     "terms": "Terms",
     "signOut": "Sign out",
     "deleteAccount": "Delete my account"
+  },
+  "report": {
+    "open": "Report this result",
+    "title": "Report an AI result",
+    "intro": "Tell us what is wrong with what Linette suggested. We read every report.",
+    "reasonLabel": "What is wrong?",
+    "reasonOffensive": "It is offensive or inappropriate",
+    "reasonInaccurate": "It is wrong or makes no sense",
+    "reasonOther": "Something else",
+    "noteLabel": "Anything to add? (optional)",
+    "notePlaceholder": "What did you expect instead?",
+    "send": "Send report",
+    "sending": "Sending...",
+    "sent": "Thank you. Your report was sent.",
+    "error": "Couldn't send the report. Try again.",
+    "limit": "You've sent many reports today. Try again tomorrow, or write to hello@linette.app.",
+    "close": "Close"
   }
 }

@@ -76,7 +76,8 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [x] Entity decided (2026-10-14): stays 9537-1076 Québec inc. + DUNS 243370174, no restructure. When filling store and SMS forms, copy the legal name and address EXACTLY as Apple's D-U-N-S lookup shows them (accents, unit number): registrations reject spelling mismatches.
 - [x] ~~A public account-deletion URL (Play)~~ — done 2026-11-09: `https://linette.app/delete-account` (EN/FR). ~~18+ in the terms and at sign-up~~ — done the same day (Gemini's API terms require 18+).
 - [x] ~~Gemini consent screen (Apple 5.1.2(i)) and the 18+ confirmation~~ — done 2026-11-09: `/consent`, once per account, before the paywall and before any AI call. ~~Approximate location only~~ — done the same day: positions are rounded to about 11 km before they leave the phone, so Play's Data safety form can say "approximate location".
-- [ ] Store review requirements not built yet: report button on AI output (Play AI policy): its table is applied (`supabase-migration-consent-and-reports.sql`), the code is not written (plan in `HANDOFF.md`). A reviewer demo account with an active entitlement. Play's Data safety form itself. A Mac with Xcode 26 for iOS builds.
+- [x] ~~Report button on AI output (Play AI policy)~~ — done 2026-11-09: "Report this result" under the outfit, the try-on and the packing results, saved in `ai_reports`, listed in `/admin`, "offensive" also emailed to hello@linette.app.
+- [ ] Still needed for the stores, outside the web app: a reviewer demo account with an active entitlement, Play's Data safety form itself, the store listing assets, and a Mac with Xcode 26 for iOS builds.
 
 ### Subscriptions
 - [x] Web billing LIVE on Stripe (checkout, webhook, billing portal; CLAUDE.md "Billing (Stripe)"): $6.99/week with a 7-day trial on a first subscription, or $59.99/year. Accounts created before 2026-06-12 are grandfathered free. No real subscribers yet.

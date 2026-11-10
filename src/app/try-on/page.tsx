@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Upload, Sparkles, ArrowLeft, Loader2, AlertCircle, ChevronDown, X } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { ReportAiButton } from "@/components/report-ai-button";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { downscaleImage } from "@/lib/image-utils";
 import type { ClothingItem } from "@/lib/types";
@@ -406,6 +407,21 @@ export default function TryOnPage() {
             <Button variant="outline" className="flex-1" onClick={resetAll}>
               {t("tryOn.tryAnother")}
             </Button>
+          </div>
+
+          {/* Flag what the AI said about this piece (Play's AI policy). */}
+          <div className="text-center">
+            <ReportAiButton
+              feature="try_on"
+              content={{
+                item: { name: result.item.name, category: result.item.category, subcategory: result.item.subcategory },
+                outfits: result.outfits.map((o) => ({
+                  reason: o.reason,
+                  item_ids: o.items.map((i) => i.id),
+                  item_names: o.items.map((i) => i.name),
+                })),
+              }}
+            />
           </div>
         </>
       )}

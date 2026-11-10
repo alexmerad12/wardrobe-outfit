@@ -1241,5 +1241,22 @@
     "terms": "Conditions",
     "signOut": "Se déconnecter",
     "deleteAccount": "Supprimer mon compte"
+  },
+  "report": {
+    "open": "Signaler ce résultat",
+    "title": "Signaler un résultat de l'IA",
+    "intro": "Dis-nous ce qui ne va pas dans ce que Linette a proposé. Nous lisons chaque signalement.",
+    "reasonLabel": "Qu'est-ce qui ne va pas ?",
+    "reasonOffensive": "C'est offensant ou déplacé",
+    "reasonInaccurate": "C'est faux ou ça n'a aucun sens",
+    "reasonOther": "Autre chose",
+    "noteLabel": "Quelque chose à ajouter ? (facultatif)",
+    "notePlaceholder": "À quoi t'attendais-tu ?",
+    "send": "Envoyer le signalement",
+    "sending": "Envoi...",
+    "sent": "Merci. Ton signalement a été envoyé.",
+    "error": "Impossible d'envoyer le signalement. Réessaie.",
+    "limit": "Tu as envoyé beaucoup de signalements aujourd'hui. Réessaie demain, ou écris à hello@linette.app.",
+    "close": "Fermer"
   }
 }

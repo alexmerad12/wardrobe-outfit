@@ -30,6 +30,18 @@ type ItemRow = {
   created_at: string;
 };
 
+// One "Report this result" on AI output (src/app/api/report/route.ts).
+type AiReportRow = {
+  id: string;
+  user_id: string;
+  feature: string;
+  reason: string;
+  note: string | null;
+  content: unknown;
+  status: string;
+  created_at: string;
+};
+
 // Every tag logAiCall writes ("refine" was logged but missing here until
 // 2026-10-24, so its calls counted in the totals and nowhere else).
 const FEATURE_LABELS: Record<AiFeature, string> = {
@@ -98,6 +110,16 @@ export default async function AdminPage() {
     ),
     listAllUsers(admin),
   ]);
+
+  // What users flagged with the Report control on an AI result. Small by
+  // nature (20 a day per user at most), so the last 50 are enough here.
+  const { data: reportData } = await admin
+    .from("ai_reports")
+    .select("id, user_id, feature, reason, note, content, status, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const reports = (reportData ?? []) as AiReportRow[];
+  const emailOf = new Map(users.map((u) => [u.id, u.email ?? "(no email)"]));
 
   const calls = callRows.map((r) => ({
     ...r,
@@ -422,6 +444,57 @@ export default async function AdminPage() {
                       {u.lastSeen
                         ? new Date(u.lastSeen).toLocaleDateString(undefined, { month: "short", day: "numeric" })
                         : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <p className="editorial-label">AI results reported by users</p>
+          <p className="text-xs text-muted-foreground">
+            The Report control under an outfit, a try-on or a packing list. Newest first, last 50.
+            A report marked offensive is also emailed to hello@linette.app when it is sent.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-3 font-normal">When</th>
+                  <th className="py-2 px-3 font-normal">User</th>
+                  <th className="py-2 px-3 font-normal">Feature</th>
+                  <th className="py-2 px-3 font-normal">Reason</th>
+                  <th className="py-2 px-3 font-normal">Note</th>
+                  <th className="py-2 pl-3 font-normal">What they saw</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-center text-muted-foreground text-xs">
+                      No reports yet.
+                    </td>
+                  </tr>
+                )}
+                {reports.map((r) => (
+                  <tr key={r.id} className="border-b last:border-b-0 align-top">
+                    <td className="py-2 pr-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </td>
+                    <td className="py-2 px-3">
+                      <p className="text-xs truncate max-w-[160px]">{emailOf.get(r.user_id) ?? r.user_id}</p>
+                    </td>
+                    <td className="py-2 px-3 text-xs">{r.feature}</td>
+                    <td className={`py-2 px-3 text-xs ${r.reason === "offensive" ? "font-semibold text-red-600 dark:text-red-400" : ""}`}>
+                      {r.reason}
+                    </td>
+                    <td className="py-2 px-3 text-xs max-w-[220px]">{r.note ?? "—"}</td>
+                    <td className="py-2 pl-3 text-[11px] text-muted-foreground max-w-[320px] break-words">
+                      {JSON.stringify(r.content).slice(0, 280)}
                     </td>
                   </tr>
                 ))}

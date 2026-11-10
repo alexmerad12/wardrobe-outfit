@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StylistLoader } from "@/components/stylist-loader";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { ReportAiButton } from "@/components/report-ai-button";
 import { getLocalDateString } from "@/lib/local-date";
 import {
   ArrowLeft,
@@ -537,6 +538,20 @@ export default function PackingPage() {
                 </Card>
               ))}
             </div>
+          </div>
+
+          {/* Flag this list (Play's AI policy). */}
+          <div className="text-center">
+            <ReportAiButton
+              feature="packing"
+              content={{
+                destination,
+                start_date: startDate,
+                end_date: endDate,
+                items: packingList.map(({ item, reason }) => ({ id: item.id, name: item.name, reason })),
+                outfits: outfitSuggestions.map((day) => ({ day: day.day, item_ids: day.items.map((i) => i.id) })),
+              }}
+            />
           </div>
 
           {outfitSuggestions.length > 0 && (
