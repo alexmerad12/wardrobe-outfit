@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { hasActiveAccess, isGrandfathered } from "@/lib/subscription";
+import { hasConsented, isConsentExempt } from "@/lib/consent";
 
 const PUBLIC_PATHS = [
   "/login", "/signup", "/forgot-password", "/auth", "/privacy", "/terms", "/faq",
@@ -52,7 +53,24 @@ const SUBSCRIPTION_EXEMPT_PREFIXES = [
   "/faq",
   "/onboarding",
   "/welcome",
+  // The consent screen comes before the paywall (see the consent gate).
+  "/consent",
+  "/delete-account",
 ];
+
+// Endpoints the browser or the phone calls by itself, never pages: the
+// Sentry tunnel and the home-screen icon. The gates for signed-in accounts
+// (onboarding, consent, paywall) must leave them alone: a POST /monitoring
+// redirected to a page answers 405, so browser errors on the paywall, in
+// onboarding and on the consent screen never reached Sentry (found
+// 2026-11-09 while testing the consent screen).
+const MACHINE_ENDPOINTS = ["/monitoring", "/apple-icon"];
+
+function isMachineEndpoint(pathname: string) {
+  return MACHINE_ENDPOINTS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
 
 function isSubscriptionExempt(pathname: string) {
   return SUBSCRIPTION_EXEMPT_PREFIXES.some(
@@ -139,11 +157,12 @@ export async function updateSession(request: NextRequest) {
     user &&
     !pathname.startsWith("/onboarding") &&
     !pathname.startsWith("/welcome") &&
-    !pathname.startsWith("/api/")
+    !pathname.startsWith("/api/") &&
+    !isMachineEndpoint(pathname)
   ) {
     const { data: prefs } = await supabase
       .from("user_preferences")
-      .select("user_id")
+      .select("user_id, age_confirmed_at, ai_consent_at")
       .eq("user_id", user.id)
       .maybeSingle();
     if (!prefs) {
@@ -152,10 +171,32 @@ export async function updateSession(request: NextRequest) {
       onboardingUrl.search = "";
       return NextResponse.redirect(onboardingUrl);
     }
+    // Consent gate (2026-11-09), after onboarding and before the paywall:
+    // 18 or older, and photos and wardrobe details may go to Google Gemini
+    // (src/lib/consent.ts). Until both are on file every app page leads to
+    // /consent; reading the terms, signing out and deleting the account
+    // stay open. The AI routes carry their own check (require-consent.ts).
+    const consented = hasConsented(prefs);
+    if (!consented && !isConsentExempt(pathname)) {
+      const consentUrl = request.nextUrl.clone();
+      consentUrl.pathname = "/consent";
+      consentUrl.search = "";
+      return NextResponse.redirect(consentUrl);
+    }
+    // Already answered: the screen has nothing left to ask.
+    if (consented && pathname === "/consent") {
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = "/";
+      homeUrl.search = "";
+      return NextResponse.redirect(homeUrl);
+    }
   }
 
   const needsSubscriptionCheck =
-    user && !pathname.startsWith("/api/") && !isSubscriptionExempt(pathname);
+    user &&
+    !pathname.startsWith("/api/") &&
+    !isMachineEndpoint(pathname) &&
+    !isSubscriptionExempt(pathname);
   // Already-paying users who land on the paywall (Back button after
   // checkout, an old tab) go home: a second checkout would bill twice.
   // /paywall/success stays reachable while the webhook catches up.

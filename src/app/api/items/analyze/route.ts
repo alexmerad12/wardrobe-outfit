@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
+import { requireAiConsent } from "@/lib/require-consent";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import { withModelFallback, withParseRetry, parseJsonObject } from "@/lib/gemini-retry";
 import { genAI, FAST_MODELS, thinkingFor } from "@/lib/gemini";
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
   const { supabase, userId } = ctx;
   const subBlock = await requireActiveSubscription(ctx);
   if (subBlock) return subBlock;
+  const consentBlock = await requireAiConsent(ctx);
+  if (consentBlock) return consentBlock;
 
   const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
   const countKey = `analyze_count:${userId}:${localDayKey(request)}`;

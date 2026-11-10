@@ -1220,5 +1220,21 @@
     "playBody": "Deleting your account does not cancel a subscription bought in Google Play. Cancel it in Google Play, under Payments and subscriptions.",
     "partTitle": "Delete only part of your data",
     "partBody": "You can delete any piece, outfit or trip in the app without deleting your account."
+  },
+  "consent": {
+    "title": "Before you start",
+    "intro": "Two things to confirm, once.",
+    "adult": "I am 18 or older.",
+    "ai": "I agree that Linette sends my clothing photos and wardrobe details to Google's Gemini AI to tag my pieces and build my outfits.",
+    "sentTitle": "What is sent to Google Gemini",
+    "sentPhotos": "Photos of your clothes, when you add a piece or use Try-on.",
+    "sentDetails": "Your pieces' names, categories and colors, the weather in your city, and the mood, occasion, style wishes or trip you enter.",
+    "sentNever": "Never your name or your email address.",
+    "continue": "Agree and continue",
+    "error": "Couldn't save your answer. Try again.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms",
+    "signOut": "Sign out",
+    "deleteAccount": "Delete my account"
   }
 }

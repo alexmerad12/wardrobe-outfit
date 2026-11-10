@@ -201,6 +201,11 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Fix:** a signed-out `/` redirects to `/launch`; `robots.ts` and `sitemap.ts` exist and the matcher skips `robots.txt`, `sitemap.xml` and `.well-known`; `/delete-account` is public; `isDocumentPage` (`src/lib/document-pages.ts`) keeps the splash off privacy, terms, FAQ and account deletion, in the component and in the pre-paint script. Guarded by `tests/e2e/public-pages.spec.ts`.
 - **Also found:** the privacy policy named neither Google sign-in data nor Stripe. Both are in since this date.
 
+### Browser errors on the paywall and in onboarding never reached Sentry (2026-11-09)
+- **Symptom:** the first screenshot of the new consent screen logged "405 (Method Not Allowed)": a `POST /consent`. Nothing on the page posts there.
+- **Cause:** the Sentry browser SDK posts to the tunnel `/monitoring`. It is in `PUBLIC_PATHS`, but that list only protects signed-out visitors: the gates for signed-in accounts (onboarding, paywall, and the new consent gate) redirected every non-API path that wasn't theirs, the tunnel included. A redirected POST lands on a page, which answers 405. So for an account in onboarding or on the paywall, no browser error was ever delivered.
+- **Fix:** `MACHINE_ENDPOINTS` (`/monitoring`, `/apple-icon`) in `src/lib/supabase/proxy.ts`, skipped by all three gates. `tests/e2e/consent.spec.ts` posts to the tunnel while the gate is closed and expects no redirect.
+
 ### FAQ and Terms still said Linette was free (2026-11-09)
 - **Symptom:** five months after the paywall went live (2026-06-12), the public FAQ answered "Is Linette free?" with "free during the beta, paid plans will come later", and Terms section 6 (EN and FR) said access was free of charge. Found while changing the try-on limit, by grepping every place the limits are written.
 - **Cause:** the pricing launch changed the paywall, the code and the translations, and nobody grepped the long-form pages (`src/app/faq/page.tsx`, `src/app/terms/page.tsx`), which carry their text in JSX, not in the dictionaries.

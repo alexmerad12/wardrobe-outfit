@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWeather } from "@/lib/weather";
+import { coarsen } from "@/lib/coarse-location";
 
 // Vercel sets these on every edge/serverless request when deployed.
 // In local dev they're absent — we just fall through to the static fallback.
@@ -22,8 +23,11 @@ export async function GET(request: NextRequest) {
   let source: "gps" | "ip" | "fallback";
 
   if (Number.isFinite(queryLat) && Number.isFinite(queryLng)) {
-    lat = queryLat;
-    lng = queryLng;
+    // The page already rounds to about 11 km. Rounded again here so an
+    // older copy of the app still open on a phone can't make us look up,
+    // or log, an exact position (coarse-location.ts).
+    lat = coarsen(queryLat);
+    lng = coarsen(queryLng);
     source = "gps";
   } else {
     const ipGeo = ipGeoFromHeaders(request);

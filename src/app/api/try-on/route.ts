@@ -4,6 +4,7 @@ import { Type } from "@google/genai";
 import sharp from "sharp";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
+import { requireAiConsent } from "@/lib/require-consent";
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
 import type { ClothingItem } from "@/lib/types";
 import { orderOutfitItems } from "@/lib/outfit-order";
@@ -80,6 +81,8 @@ export async function POST(request: NextRequest) {
 
   const subBlock = await requireActiveSubscription(ctx);
   if (subBlock) return subBlock;
+  const consentBlock = await requireAiConsent(ctx);
+  if (consentBlock) return consentBlock;
 
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("image");

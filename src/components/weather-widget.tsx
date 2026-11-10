@@ -24,6 +24,7 @@ import { convertTemp, formatWind } from "@/lib/temperature";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { WEATHER_CONDITION_KEYS } from "@/lib/weather-condition-label";
 import { getPreferences } from "@/lib/preferences-client";
+import { coarsen, coarseCoords } from "@/lib/coarse-location";
 
 // Condition-string → i18n-key mapping lives in
 // src/lib/weather-condition-label.ts (shared with the outfit cards).
@@ -105,7 +106,9 @@ async function fetchWeatherFromApi(coords: Coords | null): Promise<WeatherData> 
   // Passing no coords lets the server fall back to IP-based geolocation
   // so the widget can render something useful before the browser's GPS
   // prompt resolves.
-  const qs = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : "";
+  // Coarsened here too: a position cached by an older version of the app
+  // is still exact.
+  const qs = coords ? `?lat=${coarsen(coords.lat)}&lng=${coarsen(coords.lng)}` : "";
   const res = await fetch(`/api/weather${qs}`);
   if (!res.ok) throw new Error("Failed to fetch weather");
   return (await res.json()) as WeatherData;
@@ -231,10 +234,9 @@ export function WeatherWidget() {
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            const coords = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            };
+            // About 11 km: enough for the weather, and the exact position
+            // never leaves the phone (coarse-location.ts).
+            const coords = coarseCoords(position.coords);
             writeCachedCoords(coords);
             loadForCoords(coords);
           },

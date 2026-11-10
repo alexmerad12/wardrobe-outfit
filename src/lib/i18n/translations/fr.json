@@ -1225,5 +1225,21 @@
     "playBody": "Supprimer ton compte n'annule pas un abonnement pris dans Google Play. Annule-le dans Google Play, sous Paiements et abonnements.",
     "partTitle": "Supprimer seulement une partie de tes données",
     "partBody": "Tu peux supprimer une pièce, une tenue ou un voyage dans l'app sans supprimer ton compte."
+  },
+  "consent": {
+    "title": "Avant de commencer",
+    "intro": "Deux choses à confirmer, une seule fois.",
+    "adult": "J'ai 18 ans ou plus.",
+    "ai": "J'accepte que Linette envoie les photos de mes vêtements et les détails de mon dressing à l'IA Gemini de Google pour étiqueter mes pièces et composer mes tenues.",
+    "sentTitle": "Ce qui est envoyé à Google Gemini",
+    "sentPhotos": "Les photos de tes vêtements, quand tu ajoutes une pièce ou que tu utilises l'essayage.",
+    "sentDetails": "Le nom, la catégorie et les couleurs de tes pièces, la météo de ta ville, et l'humeur, l'occasion, les envies de style ou le voyage que tu indiques.",
+    "sentNever": "Jamais ton nom ni ton adresse courriel.",
+    "continue": "Accepter et continuer",
+    "error": "Impossible d'enregistrer ta réponse. Réessaie.",
+    "privacy": "Politique de confidentialité",
+    "terms": "Conditions",
+    "signOut": "Se déconnecter",
+    "deleteAccount": "Supprimer mon compte"
   }
 }

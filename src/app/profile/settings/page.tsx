@@ -36,6 +36,7 @@ import { setThemeChoice, useThemeChoice } from "@/lib/use-theme";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
+import { coarseCoords } from "@/lib/coarse-location";
 import { invalidatePreferences } from "@/lib/preferences-client";
 import { applySavedPreferences } from "@/lib/saved-preferences";
 
@@ -267,11 +268,10 @@ export default function SettingsPage() {
     setDetectingLocation(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const result = await reverseGeocode(
-          position.coords.latitude,
-          position.coords.longitude,
-          locale,
-        );
+        // The city is all we need: the geocoder gets a position rounded
+        // to about 11 km, never the exact one (coarse-location.ts).
+        const here = coarseCoords(position.coords);
+        const result = await reverseGeocode(here.lat, here.lng, locale);
         setDetectingLocation(false);
         if (result) {
           setCity(result.city);

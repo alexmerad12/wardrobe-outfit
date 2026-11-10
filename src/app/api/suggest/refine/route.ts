@@ -5,6 +5,7 @@ import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 import { MOOD_CONFIG, OCCASION_LABELS } from "@/lib/types";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { requireActiveSubscription } from "@/lib/require-subscription";
+import { requireAiConsent } from "@/lib/require-consent";
 import { withModelFallback, withParseRetry } from "@/lib/gemini-retry";
 import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
 
   const subBlock = await requireActiveSubscription(ctx);
   if (subBlock) return subBlock;
+  const consentBlock = await requireAiConsent(ctx);
+  if (consentBlock) return consentBlock;
 
   const body = (await request.json().catch(() => null)) as RefineBody | null;
   if (!body) return NextResponse.json({ error: "Bad request" }, { status: 400 });
