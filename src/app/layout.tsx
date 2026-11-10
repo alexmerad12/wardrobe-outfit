@@ -6,6 +6,7 @@ import { AddItemFab } from "@/components/add-item-fab";
 import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
 import { LaunchSplash } from "@/components/launch-splash";
 import { SwRegister } from "@/components/sw-register";
+import { DOCUMENT_PAGE_PATTERN } from "@/lib/document-pages";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -122,7 +123,7 @@ export default function RootLayout({
             switches while the app is open (sunset schedules). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){d.classList.toggle('dark',m.matches);};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
+            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}if(new RegExp('${DOCUMENT_PAGE_PATTERN}').test(location.pathname))d.classList.add('skip-splash');try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){d.classList.toggle('dark',m.matches);};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
           }}
         />
       </head>

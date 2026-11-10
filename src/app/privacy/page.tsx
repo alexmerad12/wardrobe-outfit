@@ -10,8 +10,8 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LegalBackArrow } from "@/components/legal-back-arrow";
 
-const EFFECTIVE_DATE_EN = "October 15, 2026";
-const EFFECTIVE_DATE_FR = "15 octobre 2026";
+const EFFECTIVE_DATE_EN = "November 9, 2026";
+const EFFECTIVE_DATE_FR = "9 novembre 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
@@ -48,6 +48,22 @@ function EnglishPolicy() {
         <li>
           <strong>Account information:</strong> email address and password
           (stored as a salted hash by our authentication provider).
+        </li>
+        <li>
+          <strong>If you sign in with Google:</strong> Google sends us your
+          name, email address, profile picture and a Google account
+          identifier. We use the email address to create and recognize your
+          account and nothing else from your Google account: we cannot see
+          your Gmail, contacts, calendar or files. This information is
+          stored by our authentication provider (Supabase), is never used
+          for advertising, is shared only with the providers listed in
+          section 5, and is deleted when you delete your account.
+        </li>
+        <li>
+          <strong>Payment information:</strong> subscriptions bought on the
+          website are paid through Stripe. Stripe collects your card
+          details: we never see or store them. We keep your plan, its
+          status and its dates (trial end, renewal or cancellation).
         </li>
         <li>
           <strong>Wardrobe content you provide:</strong> photos of clothing
@@ -120,8 +136,9 @@ function EnglishPolicy() {
         We do not sell your personal information. We share data only with
         service providers acting as sub-processors strictly to operate the
         service: Supabase (database, storage), Vercel (hosting and
-        background removal), Google (AI), Sentry (error monitoring), and
-        Resend (transactional email). We may disclose information if
+        background removal), Google (AI, and sign-in if you choose it),
+        Stripe (payments), Sentry (error monitoring), and Resend
+        (transactional email). We may disclose information if
         required by law or to protect the rights, property, or safety of
         users or the public.
       </p>
@@ -150,7 +167,12 @@ function EnglishPolicy() {
       <p className="mb-6">
         We retain your account data for as long as your account is active.
         When you delete your account, we delete your personal data within 30
-        days, except where retention is required by law.
+        days, except where retention is required by law. How to delete your
+        account, and what is deleted or kept, is explained on the{" "}
+        <Link className="underline" href="/delete-account">
+          account deletion page
+        </Link>
+        .
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">8. Security</h2>
@@ -163,10 +185,10 @@ function EnglishPolicy() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">9. Children</h2>
       <p className="mb-6">
-        Linette is not directed to children under 13. We do not knowingly
-        collect personal information from children under 13. If you believe a
-        child has provided us personal information, please contact us and we
-        will delete it.
+        Linette is for adults. It is not directed to anyone under 18, and we
+        do not knowingly collect personal information from anyone under 18.
+        If you believe a minor has provided us personal information, please
+        contact us and we will delete it.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">10. Changes</h2>
@@ -227,6 +249,25 @@ function FrenchPolicy() {
           <strong>Renseignements de compte :</strong> adresse e-mail et mot
           de passe (stocké sous forme de hachage salé par notre fournisseur
           d&apos;authentification).
+        </li>
+        <li>
+          <strong>Si tu te connectes avec Google :</strong> Google nous
+          transmet ton nom, ton adresse e-mail, ta photo de profil et un
+          identifiant de compte Google. Nous utilisons l&apos;adresse e-mail
+          pour créer et reconnaître ton compte, et rien d&apos;autre de ton
+          compte Google : nous ne voyons ni tes messages Gmail, ni tes
+          contacts, ni ton agenda, ni tes fichiers. Ces renseignements sont
+          conservés par notre fournisseur d&apos;authentification
+          (Supabase), ne servent jamais à la publicité, ne sont partagés
+          qu&apos;avec les prestataires indiqués à la section 5 et sont
+          supprimés quand tu supprimes ton compte.
+        </li>
+        <li>
+          <strong>Renseignements de paiement :</strong> les abonnements
+          achetés sur le site sont payés par l&apos;entremise de Stripe.
+          Stripe recueille les données de ta carte : nous ne les voyons et
+          ne les conservons jamais. Nous conservons ton forfait, son état
+          et ses dates (fin d&apos;essai, renouvellement ou annulation).
         </li>
         <li>
           <strong>Contenu de garde-robe que tu fournis :</strong> photos de
@@ -307,8 +348,9 @@ function FrenchPolicy() {
         des données uniquement avec des prestataires agissant en qualité de
         sous-traitants, strictement pour faire fonctionner le service :
         Supabase (base de données, stockage), Vercel (hébergement et
-        retrait de l&apos;arrière-plan), Google (IA), Sentry (surveillance
-        des erreurs) et Resend (courriels transactionnels). Nous pouvons
+        retrait de l&apos;arrière-plan), Google (IA, et connexion si tu la
+        choisis), Stripe (paiements), Sentry (surveillance des erreurs) et
+        Resend (courriels transactionnels). Nous pouvons
         divulguer des renseignements si la loi l&apos;exige ou pour protéger
         les droits, la propriété ou la sécurité des utilisateurs ou du
         public.
@@ -347,7 +389,12 @@ function FrenchPolicy() {
         Nous conservons les données de ton compte tant qu&apos;il reste
         actif. Lorsque tu supprimes ton compte, nous supprimons tes données
         personnelles dans les 30 jours, sauf si la loi exige leur
-        conservation.
+        conservation. La marche à suivre, et ce qui est supprimé ou
+        conservé, est expliquée sur la{" "}
+        <Link className="underline" href="/delete-account">
+          page de suppression de compte
+        </Link>
+        .
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">8. Sécurité</h2>
@@ -362,11 +409,11 @@ function FrenchPolicy() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">9. Enfants</h2>
       <p className="mb-6">
-        Linette n&apos;est pas destiné aux enfants de moins de 13 ans. Nous
-        ne recueillons pas sciemment de renseignements personnels auprès
-        d&apos;enfants de moins de 13 ans. Si tu crois qu&apos;un enfant
-        nous a fourni des renseignements personnels, contacte-nous et nous
-        les supprimerons.
+        Linette s&apos;adresse aux adultes. Il n&apos;est pas destiné aux
+        personnes de moins de 18 ans, et nous ne recueillons pas sciemment
+        de renseignements personnels auprès d&apos;elles. Si tu crois
+        qu&apos;une personne mineure nous a fourni des renseignements
+        personnels, contacte-nous et nous les supprimerons.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">10. Modifications</h2>

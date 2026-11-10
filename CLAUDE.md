@@ -16,7 +16,7 @@ npm run test:unit        # Vitest: pure logic in src/**/*.test.ts (text guards, 
 
 # Playwright e2e — needs STRESS_TEST_EMAIL + STRESS_TEST_PASSWORD in .env.local.
 # Tests are serial (workers: 1) because they share one test user.
-npm run test:smoke       # ui-smoke + stress-crud + language switch (no AI calls)
+npm run test:smoke       # public pages + ui-smoke + stress-crud + language switch (no AI calls)
 npm run test:stress      # everything (CRUD + suggest + try-on + packing + wear-today)
 npm run test:stress:fast # CRUD + wear-today only
 npm run test:stress:ai   # AI endpoints only (suggest, try-on, packing)
@@ -24,7 +24,7 @@ npm run test:rules       # rule-compliance harness: HARD-fails on any rule-break
 # Single spec: npx playwright test tests/e2e/<file>.spec.ts
 ```
 
-`test:rules` wipes and reseeds the wardrobe of a DEDICATED account: set `HARNESS_EMAIL` (must contain "e2e" or "harness") and put that email in `CAP_BYPASS_EMAILS` for the dev server. No password needed: without `HARNESS_PASSWORD` the harness signs in through the Supabase admin API (`tests/e2e/harness-session.ts`). Never point any e2e run at a real person's account: every spec signs in through `tests/e2e/auth.ts`, which refuses an email without "e2e" or "harness". `HARNESS_SUGGEST_RETRY_MINUTES=N` makes the rules harness retry suggest's 5xx (Gemini overload, free-tier cap) once a minute. Next 16 allows one `next dev` per folder: when one already runs, test against a production build (`next start -p <port>`).
+`test:rules` wipes and reseeds the wardrobe of a DEDICATED account: set `HARNESS_EMAIL` (must contain "e2e" or "harness") and put that email in `CAP_BYPASS_EMAILS` for the dev server. No password needed: without `HARNESS_PASSWORD` the harness signs in through the Supabase admin API (`tests/e2e/harness-session.ts`). Never point any e2e run at a real person's account: every spec signs in through `tests/e2e/auth.ts`, which refuses an email without "e2e" or "harness". `HARNESS_SUGGEST_RETRY_MINUTES=N` makes the rules harness retry suggest's 5xx (Gemini overload, free-tier cap) once a minute. Next 16 allows one `next dev` per folder: when one already runs, test against a production build (`next start -p <port>`). Stop that server by its command line (the node processes containing `start -p <port>`), then check the port no longer answers: a kill-by-port found nothing on this machine, and tests then ran against the old process and its stale build (2026-11-09).
 
 `npm run typecheck` runs `next typegen` first because `next-env.d.ts` imports the generated route types from `.next/types`; `next build` also type-checks. **Re-run it after touching any third-party component prop** (the dev compile is more lenient than the production build).
 
@@ -91,7 +91,7 @@ Menswear has a `MENSWEAR OVERRIDES` block in the prompt; the deterministic code 
 
 ### Launch splash
 
-`src/components/launch-splash.tsx` renders once per session (sessionStorage `linette_splash_seen` gate; an inline script in `layout.tsx` adds `.skip-splash` to `<html>` to hide it instantly on return). The wordmark is a Lottie animation (`src/assets/linette-lottie.json`) played via `lottie-react` 3: the named `{ Lottie }` export with `src`, `speed`, `loop`, `autoplay` and `rendererSettings` props (2.x had a default export, `animationData`, and speed set through a ref in `onDOMLoaded`).
+`src/components/launch-splash.tsx` renders once per session (sessionStorage `linette_splash_seen` gate; an inline script in `layout.tsx` adds `.skip-splash` to `<html>` to hide it instantly on return). The wordmark is a Lottie animation (`src/assets/linette-lottie.json`) played via `lottie-react` 3: the named `{ Lottie }` export with `src`, `speed`, `loop`, `autoplay` and `rendererSettings` props (2.x had a default export, `animationData`, and speed set through a ref in `onDOMLoaded`). Documents people open from outside the app (privacy, terms, FAQ, account deletion: `isDocumentPage` in `src/lib/document-pages.ts`, whose pattern the pre-paint script also uses) never show it: it covered the whole first screen of the deletion page until 2026-11-09.
 
 ### Dark mode
 
@@ -110,6 +110,7 @@ Init lives in `src/instrumentation.ts` (node + edge) and `src/instrumentation-cl
 ### Auth + admin
 
 - `src/lib/supabase/require-user.ts` — the single auth gate. Use everywhere a route needs a logged-in user.
+- Public without an account (`PUBLIC_PATHS` in `src/lib/supabase/proxy.ts`): the lobby, `/privacy`, `/terms`, `/faq` and `/delete-account` (the deletion page the Play listing links to: keep it accurate when the deletion flow changes). A signed-out `/` redirects to `/launch`, the home page Google's sign-in review reads: it must stay public, name the app and link to the privacy policy. `robots.ts`, `sitemap.ts` and `/.well-known` are outside the proxy matcher (`src/proxy.ts`). `tests/e2e/public-pages.spec.ts` guards all of it.
 - `src/lib/supabase/server.ts` / `client.ts` — SSR vs. browser clients.
 - `/admin` (usage dashboard) is admin-only: `src/app/admin/layout.tsx` 404s anyone but `ADMIN_EMAIL`. To look at it, start a LOCAL server with `ADMIN_EMAIL` set to the e2e account (process env beats `.env.local`); never change production's. `src/app/logo-lab/` (the rebrand's logo tool, still titled Closette) is gitignored: it exists only in local copies and never deploys. The dashboard reads whole tables through `selectAll` (`src/lib/select-all.ts`): PostgREST returns at most 1,000 rows per request and doesn't say it stopped (it counted 1,000 of 1,204 AI calls until 2026-10-24). Any new cross-user read goes through it.
 - `src/lib/admin-bypass.ts` — caps + paywalls skip for `ADMIN_EMAIL` / `CAP_BYPASS_EMAILS`; check `isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed)` before applying gates if you add new ones. The email must be confirmed, so nobody can claim an allowlisted address by signing up with it.

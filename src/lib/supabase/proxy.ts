@@ -6,6 +6,9 @@ import { hasActiveAccess, isGrandfathered } from "@/lib/subscription";
 const PUBLIC_PATHS = [
   "/login", "/signup", "/forgot-password", "/auth", "/privacy", "/terms", "/faq",
   "/launch", "/design",
+  // How to delete an account and its data, readable without signing in:
+  // Google Play asks for this link on the store listing.
+  "/delete-account",
   // PWA / browser-icon endpoints. iOS fetches /apple-icon WITHOUT
   // any auth session when adding to home screen, so the auth-gate
   // redirect was sending iOS the login HTML and iOS was falling back
@@ -99,6 +102,16 @@ export async function updateSession(request: NextRequest) {
         { error: "Unauthorized" },
         { status: 401 }
       );
+    }
+    // The front door: a signed-out visit to linette.app opens the launch
+    // page (what the app is, Get started, Sign in, the legal links), not a
+    // bare sign-in form. Google's sign-in review and the stores open this
+    // address without an account.
+    if (pathname === "/") {
+      const launchUrl = request.nextUrl.clone();
+      launchUrl.pathname = "/launch";
+      launchUrl.search = "";
+      return NextResponse.redirect(launchUrl);
     }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";

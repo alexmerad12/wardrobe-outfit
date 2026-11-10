@@ -44,5 +44,6 @@ export async function signIn(page: Page): Promise<void> {
   const baseURL = test.info().project.use.baseURL ?? "http://localhost:3000";
   await page.context().addCookies(await mintSessionCookies(E2E_EMAIL, baseURL));
   await page.goto("/");
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 30_000 });
+  // A signed-out visit to "/" lands on /launch (or /login from a deep link).
+  await page.waitForURL((url) => !/^\/(login|launch)/.test(url.pathname), { timeout: 30_000 });
 }

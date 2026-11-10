@@ -191,8 +191,15 @@ Public repo: technical facts only, no keys, accounts or client details.
 - Next 16 allows one `next dev` per folder ("Another next dev server is already running"). Run a second server with `next start` on a build.
 - Git Bash rewrites a leading-slash argument into a Windows path: `vercel crons run /api/cron/keepalive` became "C:/Program Files/Git/api/cron/keepalive not found". Prefix `MSYS_NO_PATHCONV=1`.
 - Another project's dev server can hold port 3000. Tests then hit the wrong app (404s). Use `playwright.audit.config.ts` (port 3001).
+- A local `next start` server survives a kill-by-port here (2026-11-09): its listener showed in neither `netstat -ano` nor `Get-NetTCPConnection`, so the kill found nothing, the next server died on EADDRINUSE, and the smoke tests (and three model benchmark runs) were answered by the OLD process with a stale build (chunk 500s, French never applied). Stop it by command line (node processes containing `start -p <port>`), then check the port no longer answers, and confirm the new build is the one served before trusting a result.
 - Python packages with deep test folders fail to install under the long scratchpad path (Windows 260-character limit). Use a short venv path.
 - Home and wardrobe pages crash ("Invalid src prop ... hostname is not configured") when the account holds items whose `image_url` host is not in `next.config.ts` `images.remotePatterns`. In practice only test fixtures do (`https://example.com/...`): real items use Supabase storage (249) or Vercel Blob (10), both allowed (checked 2026-10-16). Don't run the UI smoke while another spec's fixtures sit in the test wardrobe.
+
+### Public pages bounced to the login, and a splash over documents (2026-11-09)
+- **Symptoms:** signed out, `https://linette.app/`, `/robots.txt`, `/sitemap.xml` and `/.well-known/assetlinks.json` all answered 307 to `/login` (found while preparing Google's sign-in brand review: the home page must be public and more than a login). The first screenshot of the new public `/delete-account` was a black screen with the wordmark: the launch splash plays once per session on ANY first page, documents included.
+- **Causes:** the proxy matcher covered every path except static assets and only the lobby paths were public; the splash had no notion of a page opened to be read.
+- **Fix:** a signed-out `/` redirects to `/launch`; `robots.ts` and `sitemap.ts` exist and the matcher skips `robots.txt`, `sitemap.xml` and `.well-known`; `/delete-account` is public; `isDocumentPage` (`src/lib/document-pages.ts`) keeps the splash off privacy, terms, FAQ and account deletion, in the component and in the pre-paint script. Guarded by `tests/e2e/public-pages.spec.ts`.
+- **Also found:** the privacy policy named neither Google sign-in data nor Stripe. Both are in since this date.
 
 ## Debunked
 

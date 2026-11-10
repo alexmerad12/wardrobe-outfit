@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LegalBackArrow } from "@/components/legal-back-arrow";
 
-const EFFECTIVE_DATE_EN = "April 19, 2026";
-const EFFECTIVE_DATE_FR = "19 avril 2026";
+const EFFECTIVE_DATE_EN = "November 9, 2026";
+const EFFECTIVE_DATE_FR = "9 novembre 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
@@ -34,9 +34,8 @@ function EnglishTerms() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">1. Eligibility</h2>
       <p className="mb-6">
-        You must be at least 13 years old to use Linette. If you are under
-        the age of majority where you live, you must have your parent or
-        guardian&apos;s permission.
+        Linette is for adults. You must be at least 18 years old to create
+        an account or use Linette.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">2. Your account</h2>
@@ -200,9 +199,8 @@ function FrenchTerms() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">1. Admissibilité</h2>
       <p className="mb-6">
-        Tu dois avoir au moins 13 ans pour utiliser Linette. Si tu es en
-        dessous de l&apos;âge de la majorité dans ta région, tu dois avoir
-        la permission d&apos;un parent ou tuteur.
+        Linette s&apos;adresse aux adultes. Tu dois avoir au moins 18 ans
+        pour créer un compte ou utiliser Linette.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">2. Ton compte</h2>

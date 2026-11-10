@@ -24,6 +24,7 @@ import { Lottie } from "lottie-react";
 import linetteAnimation from "@/assets/linette-lottie.json";
 import { useClientValue } from "@/lib/use-client-value";
 import { BothLanguages } from "@/components/both-languages";
+import { isDocumentPage } from "@/lib/document-pages";
 
 // Lottie metadata: 133 frames / 30 fps = 4.433s native. We play it
 // back at 1.4× to keep the splash snappy without losing the hand-
@@ -38,6 +39,9 @@ const SESSION_KEY = "linette_splash_seen";
 type Phase = "entering" | "held" | "exiting" | "done";
 
 function readSkip(): boolean {
+  // Never over a document someone opened directly (privacy, terms, FAQ,
+  // account deletion): they came to read it.
+  if (isDocumentPage(window.location.pathname)) return true;
   try {
     if (sessionStorage.getItem(SESSION_KEY) === "1") return true;
   } catch {

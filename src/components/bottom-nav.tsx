@@ -36,6 +36,8 @@ export function BottomNav() {
     pathname.startsWith("/paywall") ||
     pathname.startsWith("/privacy") ||
     pathname.startsWith("/terms") ||
+    pathname.startsWith("/delete-account") ||
+    pathname.startsWith("/consent") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/launch") ||
     pathname.startsWith("/design") ||
