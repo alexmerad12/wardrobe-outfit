@@ -7,6 +7,7 @@ import { PendingUploadsProvider } from "@/lib/pending-uploads-context";
 import { LaunchSplash } from "@/components/launch-splash";
 import { SwRegister } from "@/components/sw-register";
 import { DOCUMENT_PAGE_PATTERN } from "@/lib/document-pages";
+import { THEME_COLORS, THEME_OVERRIDE_ID, THEME_STORAGE_KEY } from "@/lib/theme";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -79,11 +80,12 @@ export const viewport = {
   // The browser bar takes the page's own background in each mode
   // (--background in globals.css: white, and #0a0a0a in dark).
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
   ],
-  // The app follows the phone's light or dark mode (the pre-paint script
-  // below sets .dark). Declaring both also stops in-app webviews (Gmail,
+  // The app follows the phone's light or dark mode unless the person
+  // picked one in Settings (src/lib/theme.ts); the pre-paint script below
+  // sets .dark either way. Declaring both also stops in-app webviews (Gmail,
   // Outlook) and Android's forced dark from inverting the page themselves.
   colorScheme: "light dark",
   width: "device-width",
@@ -123,7 +125,7 @@ export default function RootLayout({
             switches while the app is open (sunset schedules). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}if(new RegExp('${DOCUMENT_PAGE_PATTERN}').test(location.pathname))d.classList.add('skip-splash');try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){d.classList.toggle('dark',m.matches);};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
+            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}if(new RegExp('${DOCUMENT_PAGE_PATTERN}').test(location.pathname))d.classList.add('skip-splash');try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){var t=null;try{t=localStorage.getItem('${THEME_STORAGE_KEY}');}catch(e){}var k=t==='dark'||(t!=='light'&&m.matches);d.classList.toggle('dark',k);var x=document.getElementById('${THEME_OVERRIDE_ID}');if(t==='dark'||t==='light'){if(!x){x=document.createElement('meta');x.id='${THEME_OVERRIDE_ID}';x.name='theme-color';document.head.insertBefore(x,document.head.firstChild);}x.content=k?'${THEME_COLORS.dark}':'${THEME_COLORS.light}';}else if(x){x.parentNode.removeChild(x);}};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
           }}
         />
       </head>

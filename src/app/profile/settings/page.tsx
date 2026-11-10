@@ -30,7 +30,9 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
-import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, CreditCard } from "lucide-react";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, LogOut, User, Check, ChevronRight, CreditCard, SunMoon } from "lucide-react";
+import type { ThemeChoice } from "@/lib/theme";
+import { setThemeChoice, useThemeChoice } from "@/lib/use-theme";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { reverseGeocode } from "@/lib/reverse-geocode";
@@ -85,6 +87,7 @@ export default function SettingsPage() {
   const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
   const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
   const [language, setLanguage] = useState<Language>("auto");
+  const themeChoice = useThemeChoice();
   const [gender, setGender] = useState<Gender>("not-specified");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -508,6 +511,33 @@ export default function SettingsPage() {
                   <SelectItem value="fr">{t("profile.french")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Appearance: this device only, and it applies at once (it is
+                not part of Save: it lives in the browser, src/lib/theme.ts) */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <SunMoon className="h-3.5 w-3.5" />
+                {t("profile.appearance")}
+              </Label>
+              <Select value={themeChoice} onValueChange={(v) => setThemeChoice(v as ThemeChoice)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (value === "system") return t("profile.appearanceSystem");
+                      if (value === "light") return t("profile.appearanceLight");
+                      if (value === "dark") return t("profile.appearanceDark");
+                      return null;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">{t("profile.appearanceSystem")}</SelectItem>
+                  <SelectItem value="light">{t("profile.appearanceLight")}</SelectItem>
+                  <SelectItem value="dark">{t("profile.appearanceDark")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{t("profile.appearanceHint")}</p>
             </div>
 
             {/* Gender */}
