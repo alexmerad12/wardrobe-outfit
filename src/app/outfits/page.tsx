@@ -555,12 +555,6 @@ export default function FavoritesPage() {
 
                   {expandedId === outfit.id && (
                     <div className="space-y-3 mt-3">
-                      {outfit.ai_reasoning && (
-                        <p className="stylist-quote text-sm">
-                          {outfit.ai_reasoning}
-                        </p>
-                      )}
-
                       {outfit.styling_tip && (
                         <div className="border-t border-b border-border py-2.5">
                           <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>

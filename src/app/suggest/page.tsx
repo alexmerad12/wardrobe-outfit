@@ -728,7 +728,6 @@ function SuggestContent() {
         <div className="space-y-4">
           <OutfitCard
             items={suggestions[0].items}
-            reasoning={suggestions[0].reasoning}
             stylingTip={suggestions[0].styling_tip}
             name={suggestions[0].name}
             saving={saving}
@@ -748,15 +747,9 @@ function SuggestContent() {
             ]}
           />
 
-          {/* Degraded-path disclosure: the server relaxed at least one
-              styling rule to avoid an empty result. Without this line a
-              rule-bending outfit is indistinguishable from a validated
-              one (audit P1). */}
-          {suggestions[0].relaxed && (
-            <p className="text-xs text-muted-foreground text-center px-4">
-              {t("suggest.relaxedNotice")}
-            </p>
-          )}
+          {/* No "I stretched a rule" line any more (the owner's call,
+              2026-11-09: too much text under an outfit). `relaxed` still
+              comes back from the server and goes into a report's snapshot. */}
 
           {/* Flag this outfit (Play's AI policy: offensive AI content must
               be reportable without leaving the app). */}

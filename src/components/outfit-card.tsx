@@ -10,7 +10,6 @@ import { useLocale } from "@/lib/i18n/use-locale";
 
 interface OutfitCardProps {
   items: ClothingItem[];
-  reasoning: string;
   stylingTip?: string | null;
   name?: string;
   onSave?: () => void;
@@ -36,7 +35,6 @@ interface OutfitCardProps {
 
 export function OutfitCard({
   items,
-  reasoning,
   stylingTip,
   name,
   onSave,
@@ -127,12 +125,10 @@ export function OutfitCard({
           })}
         </div>
 
-        {/* Styling note */}
-        <p className="stylist-quote text-sm mb-3">
-          {reasoning}
-        </p>
-
-        {/* Stylist's how-to-wear tip — only shown when the AI provided one. */}
+        {/* The tip is the only sentence shown (the owner's call, 2026-11-09:
+            the description, the tip and the "stretched a rule" line were
+            too much to read). The description is still written and saved
+            with the outfit, just not shown. Only when the AI gave a tip. */}
         {stylingTip && (
           <div className="mb-4 border-t border-b border-border py-2.5">
             <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>

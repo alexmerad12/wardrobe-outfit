@@ -38,6 +38,8 @@ Linette: AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini), the 
 - **Tests:** `npm run test:unit` 92 tests in 14 files. `npm run test:smoke` includes `language-switch.spec.ts` (4 tests, one blocks the app's code and still expects French). `npm run test:rules` 8/8 (needs a local server with the e2e email in `CAP_BYPASS_EMAILS`). CI (typecheck on TypeScript 6 and 7, lint, unit tests) green on every push.
 
 ## Owner decisions (don't reopen)
+- **Outfit text: the tip only (2026-11-09, "let's drop the other two and only keep the tip").** Wherever an outfit is shown (the Style Me result, Home, Favorites) the only sentence is the Stylist tip. The description (`reasoning` / `ai_reasoning`) is still written by the model and saved, and `relaxed` still comes back, but neither is shown: no description, no "I stretched a rule" line. The "Wardrobe gap" line under the result was not part of his list and stays.
+- **Try-ons: 15 a month (2026-11-09).** He asked for a monthly limit, proposed 10, asked whether it should be more.
 - Gemini only: "remodernize with Claude Opus 5.5" meant modernizing the code with Claude, not Claude models in the app (2026-10-16).
 - The real-phone upload batch is skipped, the emulated phone runs are accepted. His phone is a Pixel 10, not a 4 GB phone (2026-10-16).
 - Vercel Performance size on (2026-10-17). To switch back: `PATCH /v9/projects/<project id>` with `resourceConfig.functionDefaultMemoryType: "standard"`, then redeploy. Keep any model's peak under 2 GB so that stays safe.

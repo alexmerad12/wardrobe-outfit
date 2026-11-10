@@ -517,14 +517,10 @@ export default function HomePage() {
               </div>
               )}
 
-              {/* Expanded content: description + stylist tip + action buttons */}
+              {/* Expanded content: the stylist tip + action buttons (the
+                  description is no longer shown: outfit-card.tsx) */}
               {todayExpanded && (
                 <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                  {todayOutfit.reasoning && (
-                    <p className="stylist-quote text-xs">
-                      {todayOutfit.reasoning}
-                    </p>
-                  )}
                   {todayOutfit.styling_tip && (
                     <div className="border-t border-b border-border py-2.5">
                       <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>
@@ -749,12 +745,6 @@ export default function HomePage() {
                       {/* Expanded-only details */}
                       {isExpanded && (
                         <div className="space-y-3 mt-3">
-                          {outfit.reasoning && (
-                            <p className="stylist-quote text-sm">
-                              {outfit.reasoning}
-                            </p>
-                          )}
-
                           {outfit.styling_tip && (
                             <div className="border-t border-b border-border py-2.5">
                               <p className="editorial-label mb-1">{t("suggest.stylistTip")}</p>
