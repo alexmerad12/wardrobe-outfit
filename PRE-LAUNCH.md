@@ -59,6 +59,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] Set up email forwarding: `hello@linette.app` → `alex@automatable.co` so support requests don't get lost.
 
 ### Mobile (Phase B Part 2 — separate plan)
+- The plan and the research behind it (versions, shell config, Google sign-in, Play billing through RevenueCat, CI, store listing): `docs/android-shell-plan.md` (2026-11-09). Nothing is built. Its store-facing half waits on three accounts only the owner can open.
 - [x] **Store order (2026-10-23): Google Play first, then the App Store** (the owner's plan; checked the same day, it is the better order). The owner tests on a Pixel 10, and an Android build needs no Mac (iOS needs Xcode). Google's 12-testers / 14-days closed test applies only to personal developer accounts created after Nov 13 2023 (support.google.com/googleplay/android-developer/answer/14151465); this account is an organization (DUNS 243370174), so internal testing can go straight to production. Google's first review is quicker and more lenient; Apple adds Sign in with Apple (4.8, Google sign-in is offered) and rejects apps that feel like a website in a wrapper (4.2). $25 once vs $99 a year.
 - [ ] **Google Play Console** enrollment ($25 one-time).
 - [ ] **Apple Developer Program** enrollment ($99/yr, 2–5 day approval). Required if shipping to App Store.
