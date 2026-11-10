@@ -94,9 +94,28 @@ function EnglishTerms() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">6. Subscriptions and fees</h2>
       <p className="mb-6">
-        Linette may introduce paid subscription plans in the future. Fees,
-        billing terms, and cancellation policies will be presented before
-        any charge. Until then, access is provided free of charge.
+        Linette is a paid subscription. There are two plans: a weekly
+        plan, which starts with a 7-day free trial the first time you
+        subscribe, and an annual plan. The price of each plan, and any
+        tax, is shown before you pay. Your subscription renews
+        automatically at the end of each period (each week or each year),
+        and a free trial becomes a paid weekly subscription when it ends,
+        unless you cancel before then. You can cancel at any time in
+        Settings: you keep access until the end of the period you have
+        paid for and you are not charged again. Deleting your account
+        also cancels a subscription bought on linette.app.
+      </p>
+      <p className="mb-6">
+        If you subscribe through an app store (Google Play or the App
+        Store), the store bills you, its own terms and refund rules apply,
+        and you manage or cancel the subscription in the store. If we
+        change a price, we tell you in advance by email or in the app, and
+        the new price applies only from your next renewal. If you believe
+        a charge is a mistake, write to {CONTACT_EMAIL} and we will review
+        it. Nothing in this section limits the rights you have under
+        consumer protection law. Accounts created before June 12, 2026
+        keep free access. Some features have usage limits, which are
+        listed in the FAQ.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">7. Service changes & availability</h2>
@@ -270,10 +289,33 @@ function FrenchTerms() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">6. Abonnements et frais</h2>
       <p className="mb-6">
-        Linette pourra introduire des forfaits d&apos;abonnement payants
-        dans le futur. Les tarifs, conditions de facturation et politiques
-        d&apos;annulation seront présentés avant toute facturation.
-        D&apos;ici là, l&apos;accès est gratuit.
+        Linette est un abonnement payant. Il existe deux forfaits : un
+        forfait hebdomadaire, qui commence par un essai gratuit de 7 jours
+        la première fois que tu t&apos;abonnes, et un forfait annuel. Le
+        prix de chaque forfait, et les taxes s&apos;il y en a, sont
+        affichés avant le paiement. Ton abonnement se renouvelle
+        automatiquement à la fin de chaque période (chaque semaine ou
+        chaque année), et un essai gratuit devient un abonnement
+        hebdomadaire payant quand il se termine, sauf si tu annules avant.
+        Tu peux annuler à tout moment dans les Paramètres : tu gardes
+        l&apos;accès jusqu&apos;à la fin de la période payée et tu
+        n&apos;es plus facturé. Supprimer ton compte annule aussi un
+        abonnement pris sur linette.app.
+      </p>
+      <p className="mb-6">
+        Si tu t&apos;abonnes par une boutique d&apos;applications (Google
+        Play ou l&apos;App Store), c&apos;est la boutique qui te facture,
+        ses propres conditions et règles de remboursement s&apos;appliquent,
+        et tu gères ou annules l&apos;abonnement dans la boutique. Si nous
+        changeons un prix, nous te prévenons à l&apos;avance par courriel
+        ou dans l&apos;app, et le nouveau prix ne s&apos;applique
+        qu&apos;à ton prochain renouvellement. Si tu penses qu&apos;un
+        paiement est une erreur, écris à {CONTACT_EMAIL} et nous
+        l&apos;examinerons. Rien dans cette section ne limite les droits
+        que te donne la loi sur la protection du consommateur. Les comptes
+        créés avant le 12 juin 2026 gardent un accès gratuit. Certaines
+        fonctions ont des limites d&apos;utilisation, indiquées dans la
+        FAQ.
       </p>
 
       <h2 className="font-semibold text-lg mt-8 mb-3">7. Modifications & disponibilité du service</h2>

@@ -13,7 +13,7 @@ import { colorFamily } from "@/lib/color-family";
 import { buildAnalyzePrompt } from "@/lib/analyze-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
-import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
+import { consumeDailyCap, refundDailyCap, localMonthKey, MONTH_CAP_TTL_SECONDS } from "@/lib/daily-cap";
 
 // Two Gemini calls per use (about 2-3 cents), so 3/day caps worst case
 // at roughly $2/mo per user. Tier presets to keep in mind:
@@ -24,7 +24,11 @@ import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 // 5-8 items in one outing); 3/day is the floor where it still works
 // for casual shopping. Beta matches the eventual Linette tier so the
 // constraint reads as the real launch experience.
-const TRY_ON_DAILY_CAP = 3;
+// Per calendar month, not per day (the owner's call, 2026-11-09): try-ons
+// happen in bursts on the day someone shops, and 3 a day stopped them at
+// the third piece. 15 covers two shopping trips and bounds a month at
+// 15 calls where 3 a day allowed 90.
+const TRY_ON_MONTHLY_CAP = 15;
 
 // Vision read + wardrobe query + outfit call; well past the default on a
 // slow upstream. 120 s (like suggest) since 2026-10-16: two Gemini calls
@@ -91,14 +95,14 @@ export async function POST(request: NextRequest) {
   // free validation exits, refunded when the request delivers nothing,
   // admin/tester bypass like every other AI route.
   const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
-  const countKey = `tryon_count:${userId}:${localDayKey(request)}`;
-  const capCount = await consumeDailyCap(countKey);
-  if (!isAdmin && capCount > TRY_ON_DAILY_CAP) {
+  const countKey = `tryon_count:${userId}:${localMonthKey(request)}`;
+  const capCount = await consumeDailyCap(countKey, MONTH_CAP_TTL_SECONDS);
+  if (!isAdmin && capCount > TRY_ON_MONTHLY_CAP) {
     return NextResponse.json(
       {
-        error: "daily_limit_reached",
-        limit: TRY_ON_DAILY_CAP,
-        used: Math.min(capCount, TRY_ON_DAILY_CAP),
+        error: "monthly_limit_reached",
+        limit: TRY_ON_MONTHLY_CAP,
+        used: Math.min(capCount, TRY_ON_MONTHLY_CAP),
       },
       { status: 429 }
     );

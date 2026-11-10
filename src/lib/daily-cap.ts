@@ -51,7 +51,24 @@ function inBackground(task: () => Promise<unknown>): void {
   }
 }
 
-export async function consumeDailyCap(key: string): Promise<number> {
+// The same key by calendar month (YYYY-MM in the user's timezone), for the
+// caps counted per month. Try-ons are: people try things on in bursts, on
+// the day they shop, so a per-day count stopped them mid-visit.
+export function localMonthKey(request: {
+  headers: { get(name: string): string | null };
+}): string {
+  return localDayKey(request).slice(0, 7);
+}
+
+const DAY_CAP_TTL_SECONDS = 60 * 60 * 36;
+// A month plus the timezone wraparound. The key carries the month, so the
+// TTL is only housekeeping.
+export const MONTH_CAP_TTL_SECONDS = 60 * 60 * 24 * 33;
+
+export async function consumeDailyCap(
+  key: string,
+  ttlSeconds: number = DAY_CAP_TTL_SECONDS
+): Promise<number> {
   let count: number;
   try {
     count = await kv().incr(key);
@@ -61,8 +78,8 @@ export async function consumeDailyCap(key: string): Promise<number> {
     return -1;
   }
   if (count === 1) {
-    // 36h TTL: covers timezone wraparound on the UTC-dated key.
-    inBackground(() => kv().expire(key, 60 * 60 * 36));
+    // 36h TTL by default: covers timezone wraparound on the UTC-dated key.
+    inBackground(() => kv().expire(key, ttlSeconds));
   }
   return count;
 }

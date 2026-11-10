@@ -284,11 +284,14 @@ function EnglishFAQ() {
       <Section title="Pricing & support">
         <Q q="Is Linette free?">
           <p>
-            Linette is free during the beta. To keep the lights on, AI
-            features have daily limits — currently 3 outfit suggestions,
-            3 try-ons, and 2 packing lists per day. Paid plans will come
-            later; you&apos;ll see them in the app well before you&apos;re
-            asked to pay anything.
+            No. Linette is a paid subscription with two plans: weekly,
+            which starts with a 7-day free trial, and annual. You see the
+            current prices before you pay, and you can cancel at any time
+            in Settings. If you created your account during the beta
+            (before June 12, 2026), your access stays free. To keep the
+            service sustainable, AI features have limits: currently 3
+            outfit suggestions a day, 2 packing lists a day and 15
+            try-ons a month.
           </p>
         </Q>
         <Q q="I have a question, bug, or idea — how do I reach you?">
@@ -549,12 +552,14 @@ function FrenchFAQ() {
       <Section title="Tarifs & support">
         <Q q="Est-ce que Linette est gratuit ?">
           <p>
-            Linette est gratuit pendant la phase bêta. Pour garder les
-            coûts raisonnables, les fonctions IA ont des limites
-            quotidiennes — actuellement 3 suggestions de tenues, 3 essayages
-            et 2 listes de bagages par jour. Les forfaits payants
-            arriveront plus tard ; tu les verras dans l&apos;app bien avant
-            qu&apos;on te demande de payer quoi que ce soit.
+            Non. Linette est un abonnement payant, avec deux forfaits :
+            hebdomadaire, qui commence par un essai gratuit de 7 jours, et
+            annuel. Tu vois les prix en vigueur avant de payer, et tu peux
+            annuler à tout moment dans les Paramètres. Si tu as créé ton
+            compte pendant la bêta (avant le 12 juin 2026), ton accès reste
+            gratuit. Pour que le service reste viable, les fonctions IA ont
+            des limites : actuellement 3 suggestions de tenues par jour, 2
+            listes de bagages par jour et 15 essayages par mois.
           </p>
         </Q>
         <Q q="J'ai une question, un bug, une idée — comment vous joindre ?">

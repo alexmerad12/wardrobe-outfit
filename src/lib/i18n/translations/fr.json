@@ -1012,7 +1012,7 @@
     "outfitsCountPlural": "{count} tenues possibles",
     "newItem": "Nouveau",
     "limitTitle": "Tu as atteint la limite quotidienne.",
-    "limitHint": "Les essayages sont limités à 3 par jour. Réessaie demain."
+    "limitHint": "Les essayages sont limités à 15 par mois. Ils reviennent le 1er."
   },
   "packing": {
     "title": "Essentiels de voyage",
