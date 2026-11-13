@@ -9,6 +9,12 @@ loadEnv({ path: path.resolve(__dirname, ".env.local") });
 
 // Smoke tests for the bulk-upload / review flow, run against a local
 // dev server. Serial because the test user is shared.
+// Where the tests run. Port 3000 unless E2E_BASE_URL names another server
+// that is ALREADY running (a production build on another port, so two
+// sessions on this machine don't stop each other's server: the dev server
+// below always starts on 3000).
+const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3000";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -16,7 +22,7 @@ export default defineConfig({
   reporter: "list",
   timeout: 5 * 60 * 1000, // 5 min per test — bulk processing is slow
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: BASE_URL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "off",
@@ -36,7 +42,7 @@ export default defineConfig({
     env: {
       NODE_OPTIONS: "--max-old-space-size=4096",
     },
-    url: "http://localhost:3000",
+    url: BASE_URL,
     timeout: 120 * 1000,
     reuseExistingServer: true,
   },

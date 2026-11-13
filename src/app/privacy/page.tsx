@@ -137,7 +137,10 @@ function EnglishPolicy() {
         service providers acting as sub-processors strictly to operate the
         service: Supabase (database, storage), Vercel (hosting and
         background removal), Google (AI, and sign-in if you choose it),
-        Stripe (payments), Sentry (error monitoring), Upstash (the
+        Stripe (payments on linette.app), Google Play and RevenueCat
+        (payments in the Android app: RevenueCat checks your Google Play
+        purchase and receives your account identifier and your purchase
+        history in the app), Sentry (error monitoring), Upstash (the
         counters behind the usage limits and a one-week memory of your
         recent outfits, so suggestions don&apos;t repeat), Open-Meteo
         (weather forecasts
@@ -358,7 +361,11 @@ function FrenchPolicy() {
         sous-traitants, strictement pour faire fonctionner le service :
         Supabase (base de données, stockage), Vercel (hébergement et
         retrait de l&apos;arrière-plan), Google (IA, et connexion si tu la
-        choisis), Stripe (paiements), Sentry (surveillance des erreurs),
+        choisis), Stripe (paiements sur linette.app), Google Play et
+        RevenueCat (paiements dans l&apos;appli Android : RevenueCat
+        vérifie ton achat Google Play et reçoit l&apos;identifiant de ton
+        compte et l&apos;historique de tes achats dans l&apos;appli),
+        Sentry (surveillance des erreurs),
         Upstash (les compteurs des limites d&apos;utilisation et une
         mémoire d&apos;une semaine de tes tenues récentes, pour que les
         suggestions ne se répètent pas), Open-Meteo

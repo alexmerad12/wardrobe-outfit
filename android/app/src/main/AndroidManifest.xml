@@ -20,13 +20,16 @@
 
         <!-- Portrait on phones, like the web app's own manifest
              (public/manifest.json): the screens are designed upright.
-             Android 16+ ignores this on tablets and unfolded phones. -->
+             Android 16+ ignores this on tablets and unfolded phones.
+             singleTop, not Capacitor's singleTask: with singleTask Android
+             can cancel a Google Play purchase when the person leaves the
+             app to approve it with their bank (RevenueCat's guidance). -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
-            android:launchMode="singleTask"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="true">
 

@@ -17,7 +17,8 @@
     "test:stress": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts stress-wear-today.spec.ts",
     "test:stress:fast": "playwright test ui-smoke.spec.ts stress-crud.spec.ts stress-wear-today.spec.ts",
     "test:stress:ai": "playwright test stress-suggest.spec.ts stress-tryon.spec.ts stress-packing.spec.ts",
-    "test:rules": "playwright test rule-compliance.spec.ts"
+    "test:rules": "playwright test rule-compliance.spec.ts",
+    "test:paywall": "playwright test play-paywall.spec.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -50,6 +51,7 @@
     "@capacitor/filesystem": "8.1.5",
     "@capacitor/share": "8.0.3",
     "@playwright/test": "^1.64.1",
+    "@revenuecat/purchases-capacitor": "14.1.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/chroma-js": "^3.1.2",
     "@types/node": "^24.19.2",

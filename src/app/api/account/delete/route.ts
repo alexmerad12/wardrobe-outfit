@@ -3,7 +3,8 @@
 // GDPR + App Store / Play Store requirement: every account must be able
 // to delete itself. This route:
 //   1. Authenticates the caller against the session cookie.
-//   2. Cancels their Stripe subscription, if any. Deleting the user used to
+//   2. Cancels their subscription, if any: at Stripe, or at Google Play
+//      (through RevenueCat) when it was bought in the Android app. Deleting the user used to
 //      leave Stripe billing running ($6.99/week for an account that no
 //      longer exists), so if the cancel fails we stop here.
 //   3. Wipes their files from the `clothing-images` storage bucket
@@ -21,6 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { deleteUserKeys } from "@/lib/user-keys";
+import { cancelPlaySubscription, deleteRevenueCatCustomer } from "@/lib/play-billing-server";
 
 const STORAGE_BUCKET = "clothing-images";
 // Statuses where Stripe would still charge or could resume charging.
@@ -38,14 +40,31 @@ export async function DELETE() {
 
   const { data: sub, error: subErr } = await admin
     .from("user_subscriptions")
-    .select("stripe_subscription_id, status")
+    .select("stripe_subscription_id, status, source")
     .eq("user_id", userId)
     .maybeSingle();
   if (subErr) {
     console.error("[account/delete] subscription lookup failed", subErr);
     return NextResponse.json({ error: "Could not check your subscription" }, { status: 500 });
   }
-  if (sub?.stripe_subscription_id && BILLABLE.has(sub.status as string)) {
+  // A subscription bought in the Android app is billed by Google Play.
+  // Stop it from renewing (through RevenueCat) before anything is deleted;
+  // if that fails, stop here and say where to cancel it by hand.
+  if (sub?.source === "play" && BILLABLE.has(sub.status as string)) {
+    try {
+      await cancelPlaySubscription(userId);
+    } catch (err) {
+      console.error("[account/delete] Google Play cancel failed", err);
+      return NextResponse.json(
+        {
+          error:
+            "Could not cancel your Google Play subscription. Nothing was deleted. Cancel it in Google Play, then try again.",
+          code: "play_cancel_failed",
+        },
+        { status: 502 }
+      );
+    }
+  } else if (sub?.stripe_subscription_id && BILLABLE.has(sub.status as string)) {
     try {
       await stripe.subscriptions.cancel(sub.stripe_subscription_id as string);
     } catch (err) {
@@ -113,6 +132,8 @@ export async function DELETE() {
   // The account is gone: clear what the Redis store kept about it (usage
   // counters, the week of recent outfits). Best effort, never an error.
   await deleteUserKeys(userId);
+  // And the customer RevenueCat kept for Google Play purchases, if any.
+  if (sub?.source === "play") await deleteRevenueCatCustomer(userId);
 
   await supabase.auth.signOut();
 

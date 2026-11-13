@@ -119,7 +119,21 @@ are published, or a demo wardrobe of other photos.
 - App category: Lifestyle. Tags: chosen in the Console from Google's list (wardrobe, fashion, style).
 - Contact email: hello@linette.app. Website: https://linette.app. No phone number.
 - Privacy policy: https://linette.app/privacy.
-- Countries: the owner's choice. Suggested start: Canada and the United States (English and French, one tax
+- Countries (the owner's answer, 2026-11-13): Canada, the United States, France, and the other English-speaking
+  countries: the United Kingdom, Ireland, Australia, New Zealand. Google converts the price per country and collects
+  the sales tax or VAT itself. What France, Ireland and the UK add:
+  - Google shows the trader's details on the listing in the EU (the organization's legal name, address, email and
+    phone number, verified in the Console). A phone number has to be given there.
+  - GDPR and the UK GDPR apply to those users. The privacy policy already names every provider and offers export
+    and deletion, but it is written for Quebec and Canada: before those three countries are switched on it needs
+    the legal bases, the transfers outside the EU and the UK (every provider is American), the right to complain to
+    the CNIL, the DPC or the ICO, and a decision on an EU and a UK representative (asked of a company with no office
+    there that offers a service to people there; the exception for occasional processing is unlikely to fit a
+    subscription app). NOT done: it is a legal text and a cost, the owner's call. Canada, the US, Australia and New
+    Zealand can open first.
+  - A subscription bought in the EU or the UK comes with a 14-day right of withdrawal; Google Play handles the
+    refund requests it receives.
+- Before this answer the suggestion was: Canada and the United States (English and French, one tax
   setup). Distribution in the EU adds the trader details Google shows on the listing (the organization's address
   and contact).
 
@@ -130,7 +144,7 @@ are published, or a demo wardrobe of other photos.
 | Privacy policy | https://linette.app/privacy | public, no sign-in (`PUBLIC_PATHS`) |
 | Ads | No ads | no ad SDK in `package.json`, none in the Android project |
 | App access | Restricted: sign-in required. Give a demo account (email and password) that is already through onboarding and consent, with a wardrobe, and one line of instructions | every screen but the lobby needs an account |
-| Content rating (IARC) | Category "Utility, productivity, communication or other". No violence, sexuality, language, drugs, gambling. Users cannot talk to or share content with other users in the app, and no location is shared with other users. Digital purchases: per section 7 | no social feature exists; the share button hands an image to Android's share sheet |
+| Content rating (IARC) | Category "Utility, productivity, communication or other". No violence, sexuality, language, drugs, gambling. Users cannot talk to or share content with other users in the app, and no location is shared with other users. Digital purchases: yes, a subscription (section 7) | no social feature exists; the share button hands an image to Android's share sheet |
 | Target audience | 18 and over only. Not designed for children | terms and sign-up line (18+), consent screen |
 | News app | No | |
 | Data safety | section 5 | |
@@ -163,7 +177,7 @@ form does not count as sharing.
 | App interactions | Yes | No | Required | App functionality, Analytics | A log line for each AI request (which feature, when, how long, tokens): the usage limits and cost tracking |
 | Crash logs | Yes | No | Required | App functionality, Analytics | Errors, through Sentry, with the privacy baseline of `src/lib/sentry-data-collection.ts` |
 | Diagnostics | Yes | No | Required | App functionality, Analytics | Page and request timings, through Sentry (`tracesSampleRate: 1.0`) |
-| Purchase history | No (see section 7) | | | | Nothing is bought in the Android app while it has no store billing |
+| Purchase history | Yes | No | Required | App functionality | The Google Play subscription, checked by RevenueCat (a service provider) under the account's internal id. Set when Play billing ships (section 7) |
 | Everything else (contacts, messages, audio, files, calendar, health, web history, device IDs, financial info) | No | | | | |
 
 None of it is processed "ephemerally" in Google's sense except the position sent for the weather forecast itself.
@@ -179,7 +193,15 @@ None of it is processed "ephemerally" in Google's sense except the position sent
 4. Release notes, first version. English: "First version of Linette for Android." French: "Première version de
    Linette pour Android."
 
-## 7. The open decision: how the first Android version charges
+## 7. How the first Android version charges: DECIDED, Google Play billing
+
+**The owner's answer, 2026-11-13: Google Play billing now** (the second option below; Claude had recommended the
+first). What is built, the names to create in the Console, the accounts he has to open and the test that must pass
+before it ships: `docs/play-billing.md`. Until that test passes the app must not be published. In the forms:
+"Digital purchases" is yes, "Purchase history" is collected, and the listing's price line follows the Console's
+subscription.
+
+The three options as they were put to him:
 
 Google Play requires its own billing for a subscription sold inside an app, and forbids sending people to another
 way to pay. Today a new account reaches a paywall that opens Stripe's checkout: that cannot ship in the Android app.
@@ -193,5 +215,5 @@ Three ways out, asked of the owner on 2026-11-13:
 - **No purchase in the app.** People would have to subscribe on the website first, and the app may not say so. A
   dead end for anyone who finds the app in the store.
 
-Until he answers, the listing says nothing about price, "Digital purchases" in the content rating stays
-unanswered, and "Purchase history" in the data form stays "No".
+(Before his answer the listing said nothing about price, "Digital purchases" in the content rating stayed
+unanswered, and "Purchase history" in the data form was "No".)

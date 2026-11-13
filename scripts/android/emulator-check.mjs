@@ -456,7 +456,7 @@ try {
   );
   check(
     "the native bridge and its plugins reach the page",
-    bridge.native && bridge.platform === "android" && ["App", "Filesystem", "Share", "SystemBars"].every((name) => bridge.plugins.includes(name)),
+    bridge.native && bridge.platform === "android" && ["App", "Filesystem", "Purchases", "Share", "SystemBars"].every((name) => bridge.plugins.includes(name)),
     `${bridge.platform}: ${bridge.plugins.join(", ")}`,
   );
 

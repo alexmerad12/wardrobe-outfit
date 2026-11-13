@@ -27,6 +27,9 @@ const PUBLIC_PATHS = [
   // Stripe posts webhook events with no session. The handler verifies
   // the request via the Stripe signature header.
   "/api/stripe",
+  // RevenueCat posts Google Play subscription events with no session. The
+  // handler checks the Authorization value set in RevenueCat's dashboard.
+  "/api/revenuecat",
   // Vercel Cron calls these with no session; each handler checks the
   // CRON_SECRET bearer token itself.
   "/api/cron",

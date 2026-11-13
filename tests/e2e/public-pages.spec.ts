@@ -35,7 +35,7 @@ test.describe("public pages (signed out)", () => {
     // Every outside service the code talks to is named (the stores' data
     // forms are filled from this list). Add a service here when the app
     // starts calling one.
-    for (const service of ["Supabase", "Vercel", "Stripe", "Sentry", "Resend", "Upstash", "Open-Meteo", "BigDataCloud"]) {
+    for (const service of ["Supabase", "Vercel", "Stripe", "Sentry", "Resend", "Upstash", "Open-Meteo", "BigDataCloud", "RevenueCat", "Google Play"]) {
       await expect(page.locator("body"), service).toContainText(service, { useInnerText: true });
     }
   });
