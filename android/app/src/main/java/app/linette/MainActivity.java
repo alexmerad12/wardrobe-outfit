@@ -3,6 +3,7 @@ package app.linette;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.WebView;
 import androidx.activity.EdgeToEdge;
@@ -14,6 +15,8 @@ import com.getcapacitor.WebViewListener;
 // see capacitor.config.ts at the repo root. This class only smooths the
 // first second of a launch and saves the session when the app is left.
 public class MainActivity extends BridgeActivity {
+
+    private static final String TAG = "Linette";
 
     // The longest the system's launch screen waits for the site's first
     // page. Android counts an app as slow to start from 5 seconds.
@@ -44,15 +47,31 @@ public class MainActivity extends BridgeActivity {
             firstPageReady = true;
             return;
         }
+        // The log lines tell a page that never arrived (no network) from
+        // one the site refused: Capacitor shows the same offline page for
+        // both and logs neither. They carry no address and no user data.
+        // Both error callbacks also fire for an image or a script inside a
+        // page, not only for the page itself.
         bridge.addWebViewListener(
             new WebViewListener() {
                 @Override
                 public void onPageCommitVisible(WebView view, String url) {
+                    if (!firstPageReady) {
+                        boolean offline = url != null && url.contains("/offline.html");
+                        Log.i(TAG, "first page shown: " + (offline ? "the offline page" : "the site"));
+                    }
                     firstPageReady = true;
                 }
 
                 @Override
                 public void onReceivedError(WebView view) {
+                    Log.w(TAG, "a request failed (network error)");
+                    firstPageReady = true;
+                }
+
+                @Override
+                public void onReceivedHttpError(WebView view) {
+                    Log.w(TAG, "a request was answered with an HTTP error");
                     firstPageReady = true;
                 }
             }

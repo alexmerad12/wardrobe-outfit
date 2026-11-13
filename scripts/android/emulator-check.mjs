@@ -276,7 +276,14 @@ try {
   const installLine = installed.split("\n").find((line) => /Success|Failure|Exception|Error/i.test(line)) ?? installed.trim().split("\n")[0] ?? "";
   if (!check("the app installs", /Success/.test(installed), installLine.trim().slice(0, 300))) throw new Error("install failed");
 
+  // A freshly booted emulator says "boot completed" before its network is
+  // up: the first run opened the app straight into its offline page. Wait
+  // until Android itself has validated the connection.
+  const online = await waitUntil(() => /Capabilities:[^\n]*\bVALIDATED\b/.test(sh("dumpsys connectivity")), 120_000, 2000);
+  note("network", online ? "validated before the first launch" : "NOT validated after 2 minutes: the launch may end on the offline page");
+
   // --- 1. Cold start: what the first seconds look like ---
+  sh("logcat -c");
   sh(`am force-stop ${PKG}`);
   const started = Date.now();
   const startOutput = launch();
@@ -300,8 +307,27 @@ try {
 
   // --- 2. The site inside the app ---
   page = await connect();
-  const landed = await waitFor(page, `location.origin === ${JSON.stringify(SITE)} && location.pathname === "/launch" && document.readyState === "complete"`, 90_000);
-  check("it opens the site's launch page (signed out)", landed, await page.run("location.href").catch((e) => e.message));
+  const onLaunchPage = `location.origin === ${JSON.stringify(SITE)} && location.pathname === "/launch" && document.readyState === "complete"`;
+  let landed = await waitFor(page, onLaunchPage, 60_000);
+  // What the app itself logged about the first page (MainActivity).
+  const appLog = sh("logcat -d -s Linette:V")
+    .split("\n")
+    .filter((line) => /Linette\s*:/.test(line))
+    .map((line) => line.replace(/^.*?Linette\s*:\s*/, "").trim())
+    .slice(0, 8)
+    .join(" / ");
+  check(
+    "the first launch opens the site's launch page (signed out)",
+    landed,
+    `${await page.run("location.href").catch((e) => e.message)} | app log: ${appLog || "nothing"}`,
+  );
+  // If the launch ended on the offline page, carry on from there so the
+  // rest still gets checked.
+  for (let attempt = 0; attempt < 6 && !landed; attempt++) {
+    await page.run("(document.querySelector('a[lang=en]') || document.querySelector('a')).click()").catch(() => {});
+    landed = await waitFor(page, onLaunchPage, 15_000);
+  }
+  if (!landed) throw new Error("the site never loaded inside the app");
 
   const userAgent = await page.run("navigator.userAgent");
   const chrome = Number(/Chrome\/(\d+)\./.exec(userAgent)?.[1] ?? 0);
@@ -473,12 +499,18 @@ try {
   await sleep(1200);
   const darkFrame = capture("06-launch-dark");
   check("switching the phone to dark turns the open page dark", wentDark, `frame brightness ${brightness(darkFrame)}`);
-  note("window while dark", sh("dumpsys window | grep -iE 'LIGHT_STATUS_BARS|LIGHT_NAVIGATION_BARS' | head -3").replace(/\s+/g, " ").trim() || "no light-bar flags (light icons)");
+  // The clock and icons must contrast with what is behind them. Android's
+  // own record of the focused window says which colour they have.
+  const barIcons = () => {
+    const line = /mLastAppearance=([^\n]*)/.exec(sh("dumpsys window"))?.[1];
+    return line === undefined ? null : /LIGHT_STATUS_BARS/.test(line) ? "dark" : "light";
+  };
+  if (barIcons() === null) note("status bar icons", "not readable on this Android version");
+  else check("in dark mode the status bar icons are light", await waitUntil(() => barIcons() === "light", 6000), `icons: ${barIcons()}`);
   sh("cmd uimode night no");
   const wentLight = await waitFor(page, "!matchMedia('(prefers-color-scheme: dark)').matches && !document.documentElement.classList.contains('dark')", 15_000);
   check("and back to light", wentLight);
-  await sleep(800);
-  note("window while light", sh("dumpsys window | grep -iE 'LIGHT_STATUS_BARS|LIGHT_NAVIGATION_BARS' | head -3").replace(/\s+/g, " ").trim() || "no light-bar flags");
+  if (barIcons() !== null) check("in light mode they are dark", await waitUntil(() => barIcons() === "dark", 6000), `icons: ${barIcons()}`);
 
   // --- 9. No connection: the page that ships inside the app ---
   sh(`am force-stop ${PKG}`);
