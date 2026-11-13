@@ -10,8 +10,8 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LegalBackArrow } from "@/components/legal-back-arrow";
 
-const EFFECTIVE_DATE_EN = "November 9, 2026";
-const EFFECTIVE_DATE_FR = "9 novembre 2026";
+const EFFECTIVE_DATE_EN = "November 13, 2026";
+const EFFECTIVE_DATE_FR = "13 novembre 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
@@ -137,8 +137,17 @@ function EnglishPolicy() {
         service providers acting as sub-processors strictly to operate the
         service: Supabase (database, storage), Vercel (hosting and
         background removal), Google (AI, and sign-in if you choose it),
-        Stripe (payments), Sentry (error monitoring), and Resend
-        (transactional email). We may disclose information if
+        Stripe (payments), Sentry (error monitoring), Upstash (the
+        counters behind the usage limits and a one-week memory of your
+        recent outfits, so suggestions don&apos;t repeat), Open-Meteo
+        (weather forecasts
+        and city search), BigDataCloud (finds the name of your city when
+        you turn on &quot;Follow my current location&quot;) and Resend
+        (transactional email). The weather and city services receive an
+        approximate position (rounded to about 11 km) or the city name
+        you type and, like any service your device contacts, your IP
+        address. They never receive your name, your email address or
+        your wardrobe. We may disclose information if
         required by law or to protect the rights, property, or safety of
         users or the public.
       </p>
@@ -349,8 +358,17 @@ function FrenchPolicy() {
         sous-traitants, strictement pour faire fonctionner le service :
         Supabase (base de données, stockage), Vercel (hébergement et
         retrait de l&apos;arrière-plan), Google (IA, et connexion si tu la
-        choisis), Stripe (paiements), Sentry (surveillance des erreurs) et
-        Resend (courriels transactionnels). Nous pouvons
+        choisis), Stripe (paiements), Sentry (surveillance des erreurs),
+        Upstash (les compteurs des limites d&apos;utilisation et une
+        mémoire d&apos;une semaine de tes tenues récentes, pour que les
+        suggestions ne se répètent pas), Open-Meteo
+        (prévisions météo et recherche de ville), BigDataCloud (trouve le
+        nom de ta ville quand tu actives « Suivre ma position actuelle ») et
+        Resend (courriels transactionnels). Les services de météo et de
+        ville reçoivent une position approximative (arrondie à environ
+        11 km) ou le nom de ville que tu tapes et, comme tout service que
+        ton appareil contacte, ton adresse IP. Ils ne reçoivent jamais ton
+        nom, ton adresse courriel ni ta garde-robe. Nous pouvons
         divulguer des renseignements si la loi l&apos;exige ou pour protéger
         les droits, la propriété ou la sécurité des utilisateurs ou du
         public.

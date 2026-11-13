@@ -20,6 +20,7 @@ import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
+import { deleteUserKeys } from "@/lib/user-keys";
 
 const STORAGE_BUCKET = "clothing-images";
 // Statuses where Stripe would still charge or could resume charging.
@@ -109,6 +110,10 @@ export async function DELETE() {
 
   // Clear the session cookies on the response so the browser can't
   // keep using a token that points at a now-deleted user.
+  // The account is gone: clear what the Redis store kept about it (usage
+  // counters, the week of recent outfits). Best effort, never an error.
+  await deleteUserKeys(userId);
+
   await supabase.auth.signOut();
 
   return NextResponse.json({ ok: true });

@@ -32,6 +32,12 @@ test.describe("public pages (signed out)", () => {
     await page.goto("/privacy");
     await expect(page.locator("body")).toContainText(/Google/, { useInnerText: true });
     await expect(page.locator('a[href="/delete-account"]').first()).toBeVisible();
+    // Every outside service the code talks to is named (the stores' data
+    // forms are filled from this list). Add a service here when the app
+    // starts calling one.
+    for (const service of ["Supabase", "Vercel", "Stripe", "Sentry", "Resend", "Upstash", "Open-Meteo", "BigDataCloud"]) {
+      await expect(page.locator("body"), service).toContainText(service, { useInnerText: true });
+    }
   });
 
   test("robots.txt and sitemap.xml are served, not redirected", async ({ request }) => {
