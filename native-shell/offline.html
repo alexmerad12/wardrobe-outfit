@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Linette</title>
+    <!-- Shown by the Android app when linette.app can't be loaded (no
+         connection, or the site answered with an error). It ships inside
+         the app, so it uses no font, image or script from the network.
+         Both languages are in the page: the phone's language picks one.
+
+         The first time it appears in a session it stays black and tries
+         the site again by itself after a moment: a first request can fail
+         while the phone's connection is still waking up (both emulator
+         runs of 2026-11-13 failed their very first load, then loaded), and
+         black is what the launch screens on both sides look like. Only if
+         that second try fails too does the message show.
+
+         Going back to the site REPLACES this page in the history. As a
+         normal link it stayed behind the site, and Back on the site's
+         first page came back here instead of leaving the app. -->
+    <style>
+      :root { --bg: #ffffff; --ink: #0a0a0a; --soft: #6b6b6b; --on-ink: #fafafa; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #0a0a0a; --ink: #fafafa; --soft: #a1a1a1; --on-ink: #0a0a0a; } }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg); color: var(--ink);
+        font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        display: flex; align-items: center; justify-content: center;
+        padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+        text-align: center;
+      }
+      main { max-width: 22rem; }
+      h1 { font: 600 2rem/1.1 "Bodoni Moda", Didot, "Bodoni MT", Georgia, serif; margin: 0 0 0.75rem; }
+      p { margin: 0 0 1.5rem; color: var(--soft); }
+      a {
+        display: inline-block; min-height: 48px; padding: 13px 28px; border-radius: 999px;
+        background: var(--ink); color: var(--on-ink); font-weight: 600; text-decoration: none;
+      }
+      [lang="fr"] { display: none; }
+      html.fr [lang="fr"] { display: revert; }
+      html.fr [lang="en"] { display: none; }
+      html.quiet body { background: #000000; }
+      html.quiet main { display: none; }
+    </style>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var SITE = "https://linette.app/";
+        if ((navigator.language || "").toLowerCase().indexOf("fr") === 0) root.className = "fr";
+        // One silent second try per session.
+        var tried = true;
+        try {
+          tried = sessionStorage.getItem("linette_offline_retry") === "1";
+          sessionStorage.setItem("linette_offline_retry", "1");
+        } catch (e) {}
+        if (!tried) {
+          root.className += " quiet";
+          setTimeout(function () { location.replace(SITE); }, 1500);
+        }
+        window.linetteRetry = function () { location.replace(SITE); return false; };
+      })();
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Linette</h1>
+      <p lang="en">Linette can't be reached right now. Check your connection and try again.</p>
+      <p lang="fr">Impossible de joindre Linette pour le moment. Vérifie ta connexion et réessaie.</p>
+      <a lang="en" href="https://linette.app/" onclick="return linetteRetry()">Try again</a>
+      <a lang="fr" href="https://linette.app/" onclick="return linetteRetry()">Réessayer</a>
+    </main>
+  </body>
+</html>

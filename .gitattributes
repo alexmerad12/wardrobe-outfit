@@ -1,0 +1,6 @@
+# The Android app is built on Linux (GitHub Actions). Its Gradle launcher
+# is a shell script: it must keep Unix line endings whatever the machine
+# that commits it (this repo is edited on Windows with autocrlf on).
+android/gradlew text eol=lf
+android/gradlew.bat text eol=crlf
+*.jar binary

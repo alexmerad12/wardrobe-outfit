@@ -59,18 +59,21 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] Set up email forwarding: `hello@linette.app` → `alex@automatable.co` so support requests don't get lost.
 
 ### Mobile (Phase B Part 2 — separate plan)
-- The plan and the research behind it (versions, shell config, Google sign-in, Play billing through RevenueCat, CI, store listing): `docs/android-shell-plan.md` (2026-11-09). Nothing is built. Its store-facing half waits on three accounts only the owner can open.
+- What is built, what is planned and the research behind it: `docs/android-shell-plan.md`. The Android shell was built on 2026-11-13 (not on the store yet); the listing texts, declarations and data safety answers are in `docs/play-store-listing.md`. Native Google sign-in, Play billing and App Links wait on three accounts only the owner can open.
 - [x] **Store order (2026-10-23): Google Play first, then the App Store** (the owner's plan; checked the same day, it is the better order). The owner tests on a Pixel 10, and an Android build needs no Mac (iOS needs Xcode). Google's 12-testers / 14-days closed test applies only to personal developer accounts created after Nov 13 2023 (support.google.com/googleplay/android-developer/answer/14151465); this account is an organization (DUNS 243370174), so internal testing can go straight to production. Google's first review is quicker and more lenient; Apple adds Sign in with Apple (4.8, Google sign-in is offered) and rejects apps that feel like a website in a wrapper (4.2). $25 once vs $99 a year.
 - [ ] **Google Play Console** enrollment ($25 one-time).
 - [ ] **Apple Developer Program** enrollment ($99/yr, 2–5 day approval). Required if shipping to App Store.
-- [ ] Capacitor wrap (iOS + Android native shells pointing at linette.app).
+- [x] Capacitor wrap, Android: done 2026-11-13 (`android/`, built and tried on emulators by `.github/workflows/android.yml`).
+- [ ] Capacitor wrap, iOS (needs a Mac with Xcode).
+- [ ] **Before the Android app can be published: decide how it charges.** A new account reaches the paywall, which opens Stripe's checkout, and Google Play forbids that in an app (`docs/play-store-listing.md`, section 7).
+- [ ] Upload key and Play App Signing, once the Console account exists (`docs/android-shell-plan.md`, Signing).
 - [ ] Bundle ID decided + locked: `app.linette` (proposed).
 - [ ] Apple Sign In (required by Apple guideline 4.8 since Google OAuth is offered on iOS).
 - [ ] Native Google Sign-In plugin (`@capgo/capacitor-social-login`) to avoid OAuth-in-WebView issues.
 - [ ] Deep link scheme (e.g. `app.linette://auth/callback`) + Universal Links.
 - [ ] App icons per-platform, splash screens.
-- [ ] Hide the Profile "Install Linette" card inside the store app (it gives browser-menu steps). It already hides in an installed PWA (`display-mode: standalone`, `install-prompt.tsx`); a Capacitor WebView needs its own check.
-- [ ] Dark mode in the store app: the web app follows the phone through `prefers-color-scheme` (since 2026-10-24). An Android WebView in an app targeting API 33+ reports the APP theme's mode, so the shell's theme must be a DayNight one (check the parent of Capacitor's `AppTheme`), or the app stays light on a dark phone. Check on the Pixel in both modes before the first upload.
+- [x] ~~Hide the Profile "Install Linette" card inside the store app~~: done 2026-11-13 (`isShellUserAgent` in `install-prompt.tsx`).
+- [x] ~~Dark mode in the store app~~: the shell's theme is a DayNight one, and on the Android 15 emulator a switch of the phone to dark and back reached the open page (2026-11-13). Still worth one look on the Pixel in both modes before the first upload.
 - [ ] Privacy labels / Data Safety form submissions.
 - [ ] TestFlight / Play Internal Testing builds to 2–3 friends before public submission.
 - [ ] **Decide the Apple developer name BEFORE creating the first App Store record.** It can read "Linette" only if Linette is a registered trade name of 9537-1076 (Quebec "déclaration de mise à jour courante", free), and it is set once, when the first app record is created, never changed after; otherwise it shows "9537-1076 Québec inc." forever. Seller always shows the legal name. Google Play publicly shows the legal name, address, developer email and phone.
@@ -78,7 +81,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [x] ~~A public account-deletion URL (Play)~~ — done 2026-11-09: `https://linette.app/delete-account` (EN/FR). ~~18+ in the terms and at sign-up~~ — done the same day (Gemini's API terms require 18+).
 - [x] ~~Gemini consent screen (Apple 5.1.2(i)) and the 18+ confirmation~~ — done 2026-11-09: `/consent`, once per account, before the paywall and before any AI call. ~~Approximate location only~~ — done the same day: positions are rounded to about 11 km before they leave the phone, so Play's Data safety form can say "approximate location".
 - [x] ~~Report button on AI output (Play AI policy)~~ — done 2026-11-09: "Report this result" under the outfit, the try-on and the packing results, saved in `ai_reports`, listed in `/admin`, "offensive" also emailed to hello@linette.app.
-- [ ] Still needed for the stores, outside the web app: a reviewer demo account with an active entitlement, Play's Data safety form itself, the store listing assets, and a Mac with Xcode 26 for iOS builds.
+- [ ] Still needed for the stores, outside the web app: a reviewer demo account with an active entitlement, the screenshots (both wait on which wardrobe may be shown publicly), entering Play's forms from `docs/play-store-listing.md` (answers, texts, icon and feature graphic are ready), and a Mac with Xcode 26 for iOS builds.
 
 ### Subscriptions
 - [x] Web billing LIVE on Stripe (checkout, webhook, billing portal; CLAUDE.md "Billing (Stripe)"): $6.99/week with a 7-day trial on a first subscription, or $59.99/year. Accounts created before 2026-06-12 are grandfathered free. No real subscribers yet.

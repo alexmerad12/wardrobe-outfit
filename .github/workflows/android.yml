@@ -1,0 +1,176 @@
+# Builds the Android app and tries it on emulators. The app is a thin
+# native shell (Capacitor) around https://linette.app: capacitor.config.ts,
+# android/, docs/android-shell-plan.md. The owner's PC has no Java or
+# Android SDK, so this workflow is where the app gets built.
+#
+# It runs when the app's own files change, never on an ordinary web push.
+# No secret is needed: the build is a debug build, and the emulator check
+# stays signed out (scripts/android/emulator-check.mjs).
+#
+# The results are written as annotations on the run (a notice with every
+# check, an error with the reason of a failure), so they can be read from
+# the run page or GitHub's API without opening the logs.
+name: Android
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - "native-shell/**"
+      - "capacitor.config.ts"
+      - "scripts/android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the app
+    # Pinned: Capacitor 8 needs Java 21, and newer runner images default
+    # to a later Java.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # Same setting as ci.yml and vercel.json: no CUDA download.
+      ONNXRUNTIME_NODE_INSTALL: skip
+      # Google Play wants a higher number on every upload.
+      VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      # The Android project builds Capacitor and its plugins from
+      # node_modules (android/capacitor.settings.gradle).
+      - run: npm ci
+      # Writes what android/.gitignore leaves out: the shell's two pages
+      # and the config and plugin lists read by the app at start.
+      - name: Copy the shell's files into the Android project
+        run: npx cap sync android
+      # The debug app is what the emulators run. The release bundle is the
+      # format Google Play takes: built here unsigned, only to know that
+      # it builds (the upload key arrives with the Play Console account).
+      - name: Build the debug app and the release bundle
+        shell: bash
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug :app:bundleRelease --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+      - name: Say why the build failed
+        if: failure()
+        run: node scripts/android/annotate-failure.mjs "$RUNNER_TEMP/gradle.log"
+      - name: Say what was built
+        shell: bash
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          bundle=android/app/build/outputs/bundle/release/app-release.aab
+          # What Google Play's forms ask about, read from the built app
+          # itself: the permissions after every library's manifest is
+          # merged in, and whether it carries native code (which would
+          # have to support 16 KB memory pages).
+          # (Every lookup ends in "|| true": a report must never fail a
+          # build that succeeded.)
+          manifest=$(find android/app/build/intermediates -path '*merged_manifest*' -name AndroidManifest.xml 2>/dev/null | grep -i release | head -1 || true)
+          permissions=$([ -n "$manifest" ] && grep -o 'uses-permission[^>]*android:name="[^"]*"' "$manifest" | sed 's/.*android:name="//; s/"$//; s/android.permission.//' | sort -u | tr '\n' ' ' || true)
+          libraries=$(unzip -l "$apk" | grep -c '\.so$' || true)
+          kb() { (du -k "$1" 2>/dev/null || echo "?") | cut -f1; }
+          echo "::notice title=Android build::app-debug.apk $(kb "$apk") KB, release bundle $(kb "$bundle") KB, version code $VERSION_CODE, commit ${GITHUB_SHA::7}. Permissions in the release app: ${permissions:-not read}. Native libraries: ${libraries:-?}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linette-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  emulator:
+    name: Try it on Android ${{ matrix.android }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # The Android 15 emulator is the reference: it must pass. The Android 17
+    # one is reported but does not fail the run (see its comment).
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # An older system WebView (124): Capacitor pads the page away from
+          # the system bars. All 27 checks pass here.
+          - android: "15"
+            api-level: "35"
+            disk: ""
+            experimental: false
+          # The only image with a current WebView (145), which draws the
+          # page under the bars: the layout almost every phone gets. It
+          # cannot run the app on these runners. When the app's window
+          # comes up, Android's display service (surfaceflinger) aborts
+          # inside the emulator's own graphics driver, mapper.ranchu.so
+          # ("Assertion failed: !rcEnc->featureInfo()->hasReadColorBufferDma"),
+          # and the whole system restarts, while Android's own Settings
+          # app starts fine. A real phone has no such driver. Tried without
+          # effect: -gpu auto, -feature -ReadColorBufferDma; with
+          # -gpu swangle_indirect the emulator did not boot. The Android 16
+          # image (API 36.1, WebView 134) fails the same way and was taken
+          # out. Kept here so that a newer emulator or image shows up as a
+          # pass: known-root-causes.md has the nine runs.
+          - android: "17"
+            api-level: "37.0"
+            experimental: true
+            # This image leaves no room on the default data partition:
+            # "adb install" answered "not enough space".
+            disk: 6000M
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          name: linette-debug-apk
+          path: ${{ runner.temp }}/apk
+      - name: Let the emulator use hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the app and check it
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disk-size: ${{ matrix.disk }}
+          # Memory stays at the image's default: with 4 GB and a larger
+          # disk the Android 15 emulator raised "isn't responding" dialogs
+          # over the app.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back emulated
+          script: node scripts/android/emulator-check.mjs "${{ runner.temp }}/apk/app-debug.apk" "${{ runner.temp }}/android-check"
+      - name: Show the result on the run page
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/android-check/annotations.txt" ]; then
+            cat "$RUNNER_TEMP/android-check/annotations.txt"
+          else
+            echo "::error title=Android emulator::the check wrote no report (the emulator did not start, or the script stopped early)"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: emulator-android-${{ matrix.android }}
+          path: ${{ runner.temp }}/android-check
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <!-- The theme the app runs in (Capacitor switches to it by name when
+         the activity starts). Keep the DayNight parent: it is what makes
+         the WebView report the phone's light or dark mode to the site
+         (prefers-color-scheme). The window colour is the site's own page
+         colour in each mode (values/ and values-night/colors.xml): on a
+         WebView older than 140 Capacitor pads the page away from the
+         system bars, and this colour is what shows behind them. -->
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <!-- The system's launch screen: black with the white L of the app
+         icon, the same picture as the site's own launch screen that
+         follows it. MainActivity keeps it up until the first page is
+         ready to draw. -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/launch_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>
+</resources>

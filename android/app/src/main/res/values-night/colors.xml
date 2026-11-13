@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The site's page colour in dark mode (THEME_COLORS in
+         src/lib/theme.ts). -->
+    <color name="window_background">#0A0A0A</color>
+</resources>
