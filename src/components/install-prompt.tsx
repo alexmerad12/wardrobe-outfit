@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BrandedName } from "@/components/brand/branded-name";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useClientValue } from "@/lib/use-client-value";
+import { isShellUserAgent } from "@/lib/native-shell";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -24,8 +25,10 @@ function detectPlatform(): Platform {
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
-  // iOS Safari exposes navigator.standalone; other browsers use display-mode
+  // iOS Safari exposes navigator.standalone; other browsers use display-mode.
+  // The Android app is neither, and it is already installed.
   return (
+    isShellUserAgent(window.navigator.userAgent) ||
     window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as { standalone?: boolean }).standalone === true
   );

@@ -61,9 +61,14 @@ function LoginForm() {
         <BrandedName template={t("auth.signInToLinette")} scriptClassName="text-lg" />
       </p>
 
-      <GoogleSignInButton next={next} variant="brand" />
+      {/* Not in the Android app: Google refuses its web sign-in inside an
+          app's WebView. The line under the form tells Google accounts how
+          to get in there (src/lib/native-shell.ts, .web-only). */}
+      <div className="web-only">
+        <GoogleSignInButton next={next} variant="brand" />
 
-      <div className="auth-divider">{t("auth.or")}</div>
+        <div className="auth-divider">{t("auth.or")}</div>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
@@ -109,6 +114,8 @@ function LoginForm() {
         {t("auth.noAccount")}{" "}
         <Link href="/signup" className="auth-link-subtle">{t("auth.signUp")}</Link>
       </p>
+
+      <p className="auth-foot-note shell-only">{t("auth.googleAccountInApp")}</p>
 
       <p className="auth-terms">
         {t("auth.termsPrefix")}

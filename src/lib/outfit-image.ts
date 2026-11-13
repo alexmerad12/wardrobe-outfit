@@ -19,6 +19,7 @@
  */
 
 import type { Category } from "./types";
+import { shareFileThroughShell } from "./native-shell";
 
 export interface OutfitImageItem {
   name: string;
@@ -547,6 +548,11 @@ export async function shareOutfitImage(
   blob: Blob,
   filename: string
 ): Promise<"shared" | "downloaded" | "cancelled"> {
+  // Inside the Android app: Android's share sheet (a WebView has neither
+  // the Web Share API nor downloads, so the two paths below do nothing).
+  const throughApp = await shareFileThroughShell(blob, filename);
+  if (throughApp) return throughApp;
+
   const file = new File([blob], filename, { type: "image/png" });
 
   const canShareFiles =

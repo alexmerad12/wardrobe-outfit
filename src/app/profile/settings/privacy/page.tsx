@@ -22,6 +22,7 @@ import {
 import { ArrowLeft, Loader2, Trash2, Download, KeyRound, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { shareFileThroughShell } from "@/lib/native-shell";
 
 export default function AccountSecurityPage() {
   const { t } = useLocale();
@@ -125,11 +126,15 @@ export default function AccountSecurityPage() {
         throw new Error(body?.error || "Export failed");
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
       const cd = res.headers.get("Content-Disposition") || "";
       const match = cd.match(/filename="([^"]+)"/);
       const filename = match?.[1] || "linette-data.json";
 
+      // Inside the Android app a download link does nothing: the file
+      // goes to Android's share sheet instead (save to Files, Drive, mail).
+      if (await shareFileThroughShell(blob, filename)) return;
+
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;

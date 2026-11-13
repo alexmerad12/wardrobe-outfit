@@ -91,6 +91,7 @@
     "createAccount": "Créer mon compte",
     "alreadyHaveAccount": "Tu as déjà un compte ?",
     "continueWithGoogle": "Continuer avec Google",
+    "googleAccountInApp": "Compte créé avec Google ? Touche « Mot de passe oublié ? » pour choisir un mot de passe pour l'appli.",
     "or": "OU",
     "welcomeChoosePassword": "Choisis ton mot de passe",
     "welcomeChoosePasswordSub": "Définis un mot de passe pour finaliser ton compte.",

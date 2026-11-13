@@ -8,6 +8,8 @@ import { LaunchSplash } from "@/components/launch-splash";
 import { SwRegister } from "@/components/sw-register";
 import { DOCUMENT_PAGE_PATTERN } from "@/lib/document-pages";
 import { THEME_COLORS, THEME_OVERRIDE_ID, THEME_STORAGE_KEY } from "@/lib/theme";
+import { SHELL_ATTRIBUTE, SHELL_UA_MARKER } from "@/lib/native-shell";
+import { NativeShell } from "@/components/native-shell";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -122,10 +124,13 @@ export default function RootLayout({
             locale store's cache, else the browser's language, exactly
             as the store itself decides (use-locale.ts). And .dark
             when the phone is in dark mode, kept in sync if it
-            switches while the app is open (sunset schedules). */}
+            switches while the app is open (sunset schedules). First
+            of all, data-shell when the page runs inside the Android
+            app (src/lib/native-shell.ts), for the .web-only and
+            .shell-only rules in globals.css. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var d=document.documentElement;try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}if(new RegExp('${DOCUMENT_PAGE_PATTERN}').test(location.pathname))d.classList.add('skip-splash');try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){var t=null;try{t=localStorage.getItem('${THEME_STORAGE_KEY}');}catch(e){}var k=t==='dark'||(t!=='light'&&m.matches);d.classList.toggle('dark',k);var x=document.getElementById('${THEME_OVERRIDE_ID}');if(t==='dark'||t==='light'){if(!x){x=document.createElement('meta');x.id='${THEME_OVERRIDE_ID}';x.name='theme-color';document.head.insertBefore(x,document.head.firstChild);}x.content=k?'${THEME_COLORS.dark}':'${THEME_COLORS.light}';}else if(x){x.parentNode.removeChild(x);}};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
+            __html: `(function(){var d=document.documentElement;if(navigator.userAgent.indexOf('${SHELL_UA_MARKER}')!==-1)d.setAttribute('${SHELL_ATTRIBUTE}','android');try{if(sessionStorage.getItem('linette_splash_seen')==='1')d.classList.add('skip-splash');}catch(e){}if(new RegExp('${DOCUMENT_PAGE_PATTERN}').test(location.pathname))d.classList.add('skip-splash');try{var l=localStorage.getItem('locale:v1');if(l!=='en'&&l!=='fr'){l=(navigator.language||'').toLowerCase().indexOf('fr')===0?'fr':'en';}d.setAttribute('data-locale',l);}catch(e){}try{var m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){var t=null;try{t=localStorage.getItem('${THEME_STORAGE_KEY}');}catch(e){}var k=t==='dark'||(t!=='light'&&m.matches);d.classList.toggle('dark',k);var x=document.getElementById('${THEME_OVERRIDE_ID}');if(t==='dark'||t==='light'){if(!x){x=document.createElement('meta');x.id='${THEME_OVERRIDE_ID}';x.name='theme-color';document.head.insertBefore(x,document.head.firstChild);}x.content=k?'${THEME_COLORS.dark}':'${THEME_COLORS.light}';}else if(x){x.parentNode.removeChild(x);}};s();if(m.addEventListener)m.addEventListener('change',s);else if(m.addListener)m.addListener(s);}catch(e){}})();`,
           }}
         />
       </head>
@@ -138,6 +143,7 @@ export default function RootLayout({
           <BottomNav />
           <LaunchSplash />
           <SwRegister />
+          <NativeShell />
         </PendingUploadsProvider>
       </body>
     </html>

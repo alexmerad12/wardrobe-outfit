@@ -91,6 +91,7 @@
     "createAccount": "Create account",
     "alreadyHaveAccount": "Already have an account?",
     "continueWithGoogle": "Continue with Google",
+    "googleAccountInApp": "Account created with Google? Tap “Forgot password?” to choose a password for the app.",
     "or": "OR",
     "welcomeChoosePassword": "Choose your password",
     "welcomeChoosePasswordSub": "Set a password to finish setting up your account.",

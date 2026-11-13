@@ -214,6 +214,16 @@ html:not([data-locale="fr"]) .lang-fr {
   display: none !important;
 }
 
+/* Inside the Android app the pre-paint script in layout.tsx sets
+   <html data-shell> (src/lib/native-shell.ts). .web-only hides what can't
+   work in the app's WebView (Google's web sign-in), .shell-only shows what
+   only makes sense there. Decided in CSS, before the first frame, so the
+   server and the phone render the same markup. */
+html[data-shell] .web-only,
+html:not([data-shell]) .shell-only {
+  display: none !important;
+}
+
 @keyframes fade {
   0%, 20% { opacity: 0; }
   40% { opacity: 1; }
