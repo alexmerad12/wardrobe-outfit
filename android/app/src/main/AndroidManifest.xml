@@ -18,12 +18,16 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- Portrait on phones, like the web app's own manifest
+             (public/manifest.json): the screens are designed upright.
+             Android 16+ ignores this on tablets and unfolded phones. -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:screenOrientation="portrait"
             android:exported="true">
 
             <intent-filter>
