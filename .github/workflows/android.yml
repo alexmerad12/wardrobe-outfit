@@ -1,4 +1,4 @@
-# Builds the Android app and tries it on two emulators. The app is a thin
+# Builds the Android app and tries it on emulators. The app is a thin
 # native shell (Capacitor) around https://linette.app: capacitor.config.ts,
 # android/, docs/android-shell-plan.md. The owner's PC has no Java or
 # Android SDK, so this workflow is where the app gets built.
@@ -150,7 +150,7 @@ jobs:
           # Memory stays at the image's default: with 4 GB and the larger
           # disk the Android 15 emulator raised "isn't responding" dialogs
           # over the app.
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back emulated
           script: node scripts/android/emulator-check.mjs "${{ runner.temp }}/apk/app-debug.apk" "${{ runner.temp }}/android-check"
       - name: Show the result on the run page
         if: always()

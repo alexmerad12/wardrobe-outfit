@@ -570,6 +570,42 @@ try {
   await waitUntil(() => focusedWindow().includes(PKG), 8000);
   note("share promise after the sheet was closed", await waitFor(page, "window.__ciShare !== 'pending' && window.__ciShare", 6000) ?? "still pending");
 
+  // --- 7b. Photo fields: adding a piece starts with one ---
+  // The site's fields are <input type="file" accept="image/*">, with
+  // capture="environment" for the camera and "multiple" for the gallery.
+  // The same two are created here (signed out, the real ones are behind
+  // the sign-in) and clicked: Android must open its picker, and the
+  // camera app for the capture one (which needs the <queries> entry in
+  // the manifest, or the app can't see that a camera app exists).
+  for (const field of [
+    { name: "a photo field opens Android's picker", capture: false, opens: /documentsui|photopicker|providers\.media|Chooser|intentresolver/i },
+    { name: "a camera field opens the camera app", capture: true, opens: /camera|permissioncontroller/i },
+  ]) {
+    await dismissSystemDialogs();
+    await page.run(`(() => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      ${field.capture ? 'input.setAttribute("capture", "environment");' : "input.multiple = true;"}
+      input.style.cssText = "position:fixed;left:0;top:0;opacity:0";
+      document.body.appendChild(input);
+      input.click();
+      setTimeout(() => input.remove(), 4000);
+      return true;
+    })()`);
+    const leftApp = () => !/mCurrentFocus=Window\{[^}]*app\.linette\//.test(focusedWindow());
+    const opened = await waitUntil(() => leftApp() && field.opens.test(focusedWindow()), 12_000);
+    check(field.name, opened, focusedWindow());
+    for (let i = 0; i < 4 && leftApp(); i++) {
+      sh("input keyevent KEYCODE_BACK");
+      await sleep(1200);
+    }
+    if (leftApp()) {
+      launch();
+      await waitUntil(() => !leftApp(), 8000);
+    }
+  }
+
   // --- 8. Dark mode follows the phone while the app is open ---
   sh("cmd uimode night yes");
   const wentDark = await waitFor(page, "matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.classList.contains('dark')", 15_000);
