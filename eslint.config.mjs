@@ -28,6 +28,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Android project (docs/android-shell-plan.md): Gradle output and
+    // the scripts Capacitor copies into it are not ours to lint.
+    "android/**",
   ]),
 ]);
 

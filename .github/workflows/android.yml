@@ -1,0 +1,141 @@
+# Builds the Android app and tries it on two emulators. The app is a thin
+# native shell (Capacitor) around https://linette.app: capacitor.config.ts,
+# android/, docs/android-shell-plan.md. The owner's PC has no Java or
+# Android SDK, so this workflow is where the app gets built.
+#
+# It runs when the app's own files change, never on an ordinary web push.
+# No secret is needed: the build is a debug build, and the emulator check
+# stays signed out (scripts/android/emulator-check.mjs).
+#
+# The results are written as annotations on the run (a notice with every
+# check, an error with the reason of a failure), so they can be read from
+# the run page or GitHub's API without opening the logs.
+name: Android
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - "native-shell/**"
+      - "capacitor.config.ts"
+      - "scripts/android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the app
+    # Pinned: Capacitor 8 needs Java 21, and newer runner images default
+    # to a later Java.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # Same setting as ci.yml and vercel.json: no CUDA download.
+      ONNXRUNTIME_NODE_INSTALL: skip
+      # Google Play wants a higher number on every upload.
+      VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      # The Android project builds Capacitor and its plugins from
+      # node_modules (android/capacitor.settings.gradle).
+      - run: npm ci
+      # Writes what android/.gitignore leaves out: the shell's two pages
+      # and the config and plugin lists read by the app at start.
+      - name: Copy the shell's files into the Android project
+        run: npx cap sync android
+      # The debug app is what the emulators run. The release bundle is the
+      # format Google Play takes: built here unsigned, only to know that
+      # it builds (the upload key arrives with the Play Console account).
+      - name: Build the debug app and the release bundle
+        shell: bash
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug :app:bundleRelease --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+      - name: Say why the build failed
+        if: failure()
+        run: node scripts/android/annotate-failure.mjs "$RUNNER_TEMP/gradle.log"
+      - name: Say what was built
+        shell: bash
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          echo "::notice title=Android build::app-debug.apk, $(du -k "$apk" | cut -f1) KB, version code $VERSION_CODE, commit ${GITHUB_SHA::7}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linette-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  emulator:
+    name: Try it on Android ${{ matrix.android }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # An older system WebView: Capacitor pads the page away from the
+          # system bars.
+          - android: "15"
+            api-level: "35"
+          # A current one: the page draws under the bars (edge to edge),
+          # which is what almost every phone gets.
+          - android: "17"
+            api-level: "37.0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          name: linette-debug-apk
+          path: ${{ runner.temp }}/apk
+      - name: Let the emulator use hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the app and check it
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: node scripts/android/emulator-check.mjs "${{ runner.temp }}/apk/app-debug.apk" "${{ runner.temp }}/android-check"
+      - name: Show the result on the run page
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/android-check/annotations.txt" ]; then
+            cat "$RUNNER_TEMP/android-check/annotations.txt"
+          else
+            echo "::error title=Android emulator::the check wrote no report (the emulator did not start, or the script stopped early)"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: emulator-android-${{ matrix.android }}
+          path: ${{ runner.temp }}/android-check
+          if-no-files-found: warn
+          retention-days: 14

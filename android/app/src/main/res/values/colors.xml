@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The system's launch screen: the black of the app icon and of the
+         site's own launch screen. -->
+    <color name="launch_background">#000000</color>
+    <!-- The window behind the page: the site's page colour in light mode
+         (THEME_COLORS in src/lib/theme.ts). The dark one is in
+         values-night/colors.xml. -->
+    <color name="window_background">#FFFFFF</color>
+</resources>
