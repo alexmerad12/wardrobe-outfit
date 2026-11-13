@@ -99,47 +99,34 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    # The Android 15 emulator is the reference: it must pass. The two newer
-    # images could not start an installed app at all when they were added
-    # (2026-11-13): their result is reported but does not fail the run.
+    # The Android 15 emulator is the reference: it must pass. The Android 17
+    # one is reported but does not fail the run (see its comment).
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # An older system WebView: Capacitor pads the page away from the
-          # system bars.
+          # An older system WebView (124): Capacitor pads the page away from
+          # the system bars. All 27 checks pass here.
           - android: "15"
             api-level: "35"
             disk: ""
             experimental: false
-            gpu: swiftshader_indirect
-          # Android 16, where edge to edge is mandatory for an app that
-          # targets API 36. (This image's WebView is 134, so it still gets
-          # the padded layout, like Android 15's.)
-          # The layout almost every phone gets, the page drawn under the bars
-          # (edge to edge), needs WebView 140+: only the Android 17 image has it.
-          - android: "16"
-            api-level: "36.1"
-            # On this image and the next one, Android's display service
-            # aborts inside the emulator's own graphics driver when the app's
-            # window comes up (mapper.ranchu.so, "Assertion failed:
-            # !rcEnc->featureInfo()->hasReadColorBufferDma"), and the whole
-            # system restarts. Tried here with that emulator feature off.
-            # The emulator's own renderer choice (-gpu auto) changed nothing.
-            # A real phone has no such driver.
-            gpu: swiftshader_indirect -feature -ReadColorBufferDma
-            experimental: true
-            disk: 6000M
-          # The newest image. Its own screenshot tool crashes in the
-          # graphics layer under the software renderer used here, so this
-          # job says more about the emulator than about the app: read its
-          # report before trusting a failure.
+          # The only image with a current WebView (145), which draws the
+          # page under the bars: the layout almost every phone gets. It
+          # cannot run the app on these runners. When the app's window
+          # comes up, Android's display service (surfaceflinger) aborts
+          # inside the emulator's own graphics driver, mapper.ranchu.so
+          # ("Assertion failed: !rcEnc->featureInfo()->hasReadColorBufferDma"),
+          # and the whole system restarts, while Android's own Settings
+          # app starts fine. A real phone has no such driver. Tried without
+          # effect: -gpu auto, -feature -ReadColorBufferDma; with
+          # -gpu swangle_indirect the emulator did not boot. The Android 16
+          # image (API 36.1, WebView 134) fails the same way and was taken
+          # out. Kept here so that a newer emulator or image shows up as a
+          # pass: known-root-causes.md has the nine runs.
           - android: "17"
             api-level: "37.0"
-            # Same trouble as Android 16's image. With swangle_indirect the
-            # emulator did not boot at all on the runner.
-            gpu: swiftshader_indirect -feature -ReadColorBufferDma
             experimental: true
             # This image leaves no room on the default data partition:
             # "adb install" answered "not enough space".
@@ -165,14 +152,11 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          # The Android 17 image left no room on the default data
-          # partition: "adb install" answered "not enough space" and system
-          # apps could not create their own files.
           disk-size: ${{ matrix.disk }}
-          # Memory stays at the image's default: with 4 GB and the larger
+          # Memory stays at the image's default: with 4 GB and a larger
           # disk the Android 15 emulator raised "isn't responding" dialogs
           # over the app.
-          emulator-options: -no-window -gpu ${{ matrix.gpu }} -no-snapshot -noaudio -no-boot-anim -camera-back emulated
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back emulated
           script: node scripts/android/emulator-check.mjs "${{ runner.temp }}/apk/app-debug.apk" "${{ runner.temp }}/android-check"
       - name: Show the result on the run page
         if: always()

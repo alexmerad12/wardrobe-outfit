@@ -30,7 +30,7 @@ Day-to-day rules for working on it are in `CLAUDE.md` (Android app). This file i
 what `CLAUDE.md` lists. Nothing changes in a browser.
 
 **The build** (`.github/workflows/android.yml`): debug APK (about 4 MB) and an unsigned release bundle, then the app
-on emulators (Android 15 with an older system WebView, Android 16 and 17 with current ones). No secret is involved.
+on emulators (Android 15, which must pass, and Android 17, reported only). No secret is involved.
 
 **The store listing** (`docs/play-store-listing.md`, `store/android/`): texts in English and French, the icon, the
 feature graphic, the declarations and data safety answers. Screenshots wait on the owner (they show a wardrobe).
@@ -45,10 +45,12 @@ feature graphic, the declarations and data safety answers. Screenshots wait on t
   the focused field stays in view; Back returns to the page before; a file goes to Android's share sheet; a
   switch of the phone to dark and back reaches the open page; the offline page shows without a connection and
   "Try again" brings the site back; a photo field opens Android's picker and a camera field opens the camera
-  app; a cookie set a second before the app is closed is still there at the next launch. 26 checks, all passing
-  from the third run on.
+  app; a cookie set a second before the app is closed is still there at the next launch; after the offline page,
+  Back on the site's first page leaves the app. 27 checks, all passing in the eighth run (the earlier runs are
+  how the bugs below were found).
 - Found by those runs and fixed the same day: the status bar icons stayed dark after a switch to dark (Capacitor
-  works its default out once); Back returned to the offline page after "Try again"; the very first load after an
+  works its default out once); Back returned to the offline page after "Try again" (the link, then the copies a
+  second failed load leaves in the history); the very first load after an
   install can fail once on the emulator (`net::ERR_NAME_NOT_RESOLVED`, its DNS not answering yet), which the
   offline page now covers by retrying once by itself, in black, before it says anything.
 - The build's own report (the "Android build" notice of each run): the release app asks for `INTERNET` and the
@@ -56,8 +58,11 @@ feature graphic, the declarations and data safety answers. Screenshots wait on t
 - Android 16 and 17 images (API 36.1 with WebView 134, API 37 with WebView 145): the app installs and then cannot
   be started, with no crash and no exit record of its own. The reports show why: Android's services are gone when
   asked ("Can't find service: package", "Failure calling service activity: Broken pipe"), so the system itself
-  restarts when anything is started under the runner's software renderer. The Android 17 image also needs a 6 GB data partition to install
-  anything, and its own screenshot tool crashes in the graphics layer. They report without failing the run.
+  restarts: its display service (surfaceflinger) aborts inside the emulator's own graphics driver
+  (`mapper.ranchu.so`, an assertion on `hasReadColorBufferDma`) when the app's window comes up. A real phone has
+  no such driver (`known-root-causes.md`). The Android 17 image also needs a 6 GB data partition to install
+  anything, and its own screenshot tool crashes in the same driver. Three renderer settings changed nothing. The
+  Android 17 job stays as a report that does not fail the run; the Android 16 one was taken out.
   The edge-to-edge layout of WebView 140+, which almost every phone gets, is therefore NOT verified on Android
   yet, only in a browser with a stand-in bridge: a real phone is the missing check. See `HANDOFF.md` for
   where that run stands.
