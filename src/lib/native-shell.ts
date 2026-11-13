@@ -30,8 +30,8 @@ export function webViewMajor(userAgent: string | null | undefined): number | nul
 // From this WebView version Capacitor lets the page draw under the system
 // bars (SystemBars.java, WEBVIEW_VERSION_WITH_SAFE_AREA_FIX). Below it the
 // page is padded away from the bars and the strip behind them takes the
-// phone's own light or dark colour, so the bar icons must follow the
-// phone, not the page: the site leaves them alone there.
+// phone's own light or dark colour, so the bar icons follow the phone
+// there, not the page (src/components/native-shell.tsx).
 export const EDGE_TO_EDGE_WEBVIEW = 140;
 
 export function drawsUnderSystemBars(userAgent: string | null | undefined): boolean {

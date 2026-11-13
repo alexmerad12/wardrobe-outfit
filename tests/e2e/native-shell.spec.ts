@@ -146,12 +146,19 @@ test("the status bar icons follow the page: light on the black splash, then the 
   await dark.context().close();
 
   // An old WebView is padded away from the bars and the strip behind them
-  // takes the phone's colour: the site must leave the icons to the phone.
-  const old = await appPage(browser, { userAgent: OLD_WEBVIEW_UA });
+  // takes the phone's colour: there the icons follow the PHONE (also
+  // during the splash, and whatever the page's own mode), and keep
+  // following it when it switches with the app open.
+  const old = await appPage(browser, { userAgent: OLD_WEBVIEW_UA, splash: true, colorScheme: "light" });
   await old.goto("/launch");
-  await old.waitForFunction(() => (window as unknown as { __shell: ShellProbe }).__shell.back !== null);
-  await old.waitForTimeout(500);
-  expect(await barStyles(old)).toEqual([]);
+  await expect.poll(() => barStyles(old)).toEqual(["LIGHT"]);
+  await old.evaluate(() => document.documentElement.classList.add("dark"));
+  await old.waitForTimeout(300);
+  expect(await barStyles(old)).toEqual(["LIGHT"]);
+  await old.emulateMedia({ colorScheme: "dark" });
+  await expect.poll(() => barStyles(old)).toEqual(["LIGHT", "DARK"]);
+  await old.emulateMedia({ colorScheme: "light" });
+  await expect.poll(() => barStyles(old)).toEqual(["LIGHT", "DARK", "LIGHT"]);
   await old.context().close();
 });
 
