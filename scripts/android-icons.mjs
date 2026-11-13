@@ -2,7 +2,7 @@
 // a black tile with the white script L). Run it again whenever that
 // file changes:
 //
-//   node scripts/android-icons.mjs [--preview some/file.png]
+//   node scripts/android-icons.mjs [--store] [--preview some/file.png]
 //
 // What it writes under android/app/src/main/res:
 //  - drawable/ic_launcher_foreground.xml  the L alone, as a vector. It is
@@ -126,6 +126,24 @@ for (const leftover of [["drawable-v24", "ic_launcher_foreground.xml"], ["drawab
   }
   const dir = path.join(res, leftover[0]);
   if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
+}
+
+// 3b. Optional (--store): the Google Play listing icon. 512 x 512, a full
+// square with no transparency: Google rounds the corners itself, so the
+// tile's own rounded corners are squared off here. The letter keeps the
+// size it has on the web icon.
+if (process.argv.includes("--store")) {
+  const storeDir = path.join(root, "store", "android");
+  fs.mkdirSync(storeDir, { recursive: true });
+  const square = iconSvg.replace(/\srx="[^"]*"/, "").replace(/\sry="[^"]*"/, "");
+  if (square === iconSvg) throw new Error("public/icon.svg: the tile's rounded corners were not found");
+  await sharp(Buffer.from(square), { density: 400 })
+    .resize(512, 512)
+    .flatten({ background: "#000000" })
+    .ensureAlpha() // Google asks for a 32-bit PNG: the channel is there, fully opaque
+    .png()
+    .toFile(path.join(storeDir, "icon-512.png"));
+  console.log("wrote store/android/icon-512.png");
 }
 
 // 4. Optional preview: what a launcher shows (circle, then squircle), the

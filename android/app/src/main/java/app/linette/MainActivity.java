@@ -5,15 +5,20 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.webkit.CookieManager;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import androidx.activity.EdgeToEdge;
 import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
 import com.getcapacitor.WebViewListener;
 
 // The whole app is the site (https://linette.app) in the phone's WebView:
 // see capacitor.config.ts at the repo root. This class only smooths the
-// first second of a launch and saves the session when the app is left.
+// first second of a launch, saves the session when the app is left, and
+// writes down why a page failed to load.
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "Linette";
@@ -47,11 +52,6 @@ public class MainActivity extends BridgeActivity {
             firstPageReady = true;
             return;
         }
-        // The log lines tell a page that never arrived (no network) from
-        // one the site refused: Capacitor shows the same offline page for
-        // both and logs neither. They carry no address and no user data.
-        // Both error callbacks also fire for an image or a script inside a
-        // page, not only for the page itself.
         bridge.addWebViewListener(
             new WebViewListener() {
                 @Override
@@ -65,14 +65,38 @@ public class MainActivity extends BridgeActivity {
 
                 @Override
                 public void onReceivedError(WebView view) {
-                    Log.w(TAG, "a request failed (network error)");
                     firstPageReady = true;
                 }
 
                 @Override
                 public void onReceivedHttpError(WebView view) {
-                    Log.w(TAG, "a request was answered with an HTTP error");
                     firstPageReady = true;
+                }
+            }
+        );
+
+        // Capacitor's own page-load client, unchanged except that it logs
+        // why a request failed. Capacitor shows the same offline page for
+        // a missing network and for a page the site refused, and logs
+        // neither. The lines carry the error and whether it was the page
+        // or something inside it: no address, no user data.
+        bridge.setWebViewClient(
+            new BridgeWebViewClient(bridge) {
+                @Override
+                public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                    Log.w(
+                        TAG,
+                        (request.isForMainFrame() ? "page" : "resource") + " failed: " + error.getErrorCode() + " " + error.getDescription()
+                    );
+                    super.onReceivedError(view, request, error);
+                }
+
+                @Override
+                public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                    if (request.isForMainFrame()) {
+                        Log.w(TAG, "page answered HTTP " + errorResponse.getStatusCode());
+                    }
+                    super.onReceivedHttpError(view, request, errorResponse);
                 }
             }
         );

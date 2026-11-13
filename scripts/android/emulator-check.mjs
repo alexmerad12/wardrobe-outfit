@@ -49,10 +49,17 @@ const appPid = () => {
   const pid = sh(`pidof ${PKG}`).trim().split(/\s+/)[0];
   return /^\d+$/.test(pid ?? "") ? pid : null;
 };
+/** A screenshot, saved when it has a name. Null when the emulator can't
+ *  take one (screencap crashed on the Android 17 image, 2026-11-13). */
 function capture(name) {
-  const png = execFileSync("adb", ["exec-out", "screencap", "-p"], { maxBuffer: 256 * 1024 * 1024, timeout: 60_000 });
-  if (name) fs.writeFileSync(path.join(outDir, `${name}.png`), png);
-  return png;
+  try {
+    const png = execFileSync("adb", ["exec-out", "screencap", "-p"], { maxBuffer: 256 * 1024 * 1024, timeout: 60_000 });
+    if (png.length < 1000) return null;
+    if (name) fs.writeFileSync(path.join(outDir, `${name}.png`), png);
+    return png;
+  } catch {
+    return null;
+  }
 }
 
 // ---------- results ----------
@@ -117,6 +124,7 @@ function decodePng(buffer) {
 }
 /** Mean brightness (0 black, 255 white) of a horizontal band of a frame. */
 function brightness(png, from = 0, to = 1) {
+  if (!png) return -1;
   const { width, height, channels, pixels } = decodePng(png);
   let sum = 0, count = 0;
   for (let y = Math.floor(height * from); y < Math.floor(height * to); y += 4) {
@@ -273,8 +281,12 @@ try {
       installed = `${error.stdout ?? ""}${error.stderr ?? ""}` || String(error.message);
     }
   }
-  const installLine = installed.split("\n").find((line) => /Success|Failure|Exception|Error/i.test(line)) ?? installed.trim().split("\n")[0] ?? "";
-  if (!check("the app installs", /Success/.test(installed), installLine.trim().slice(0, 300))) throw new Error("install failed");
+  // The reason is on the line that says Failure or Exception and the few
+  // after it.
+  const installLines = installed.split("\n").map((line) => line.trim()).filter(Boolean);
+  const reasonAt = Math.max(0, installLines.findIndex((line) => /Success|Failure|Exception|Error/i.test(line)));
+  const installDetail = installLines.slice(reasonAt, reasonAt + 5).join(" | ").slice(0, 600);
+  if (!check("the app installs", /Success/.test(installed), installDetail)) throw new Error("install failed");
 
   // A freshly booted emulator says "boot completed" before its network is
   // up: the first run opened the app straight into its offline page. Wait
@@ -290,20 +302,22 @@ try {
   const frames = [];
   for (let i = 0; i < 9; i++) {
     const png = capture(i === 1 ? "01-launch-first-second" : null);
-    frames.push({ at: ((Date.now() - started) / 1000).toFixed(1), light: brightness(png) });
+    // A frame counts once the app's own window (launch screen included)
+    // is the one in front: before that it is still the home screen.
+    frames.push({ at: ((Date.now() - started) / 1000).toFixed(1), light: brightness(png), app: focusedWindow().includes(PKG) });
     await sleep(250);
   }
-  note("launch frames (seconds: brightness 0-255)", frames.map((f) => `${f.at}s:${f.light}`).join(" "));
+  note(
+    "launch frames (seconds: brightness 0-255, * = the app is in front)",
+    frames.map((f) => `${f.at}s:${f.light}${f.app ? "*" : ""}`).join(" "),
+  );
   check("the app starts", appPid() !== null && !/Error|Exception/.test(startOutput), startOutput.trim().split("\n").pop());
   // The phone is in light mode. The system launch screen, then the site's
-  // own, are both black: a bright frame in the first two seconds would be
-  // an empty white window between them.
-  const early = frames.filter((f) => Number(f.at) <= 2.5);
-  check(
-    "no white flash in the first seconds of a launch",
-    early.length > 0 && early.every((f) => f.light >= 0 && f.light < 90),
-    early.map((f) => f.light).join(","),
-  );
+  // own, are both black: a bright frame of the app in its first seconds
+  // would be an empty white window between them.
+  const early = frames.filter((f) => f.app && f.light >= 0).slice(0, 3);
+  if (early.length === 0) note("launch flash", "not checked: no screenshot of the app's first seconds on this emulator");
+  else check("no white flash in the first frames of a launch", early.every((f) => f.light < 90), early.map((f) => `${f.at}s:${f.light}`).join(" "));
 
   // --- 2. The site inside the app ---
   page = await connect();
@@ -316,10 +330,11 @@ try {
     .map((line) => line.replace(/^.*?Linette\s*:\s*/, "").trim())
     .slice(0, 8)
     .join(" / ");
+  note("what the app logged during its first launch", appLog || "nothing");
   check(
-    "the first launch opens the site's launch page (signed out)",
+    "the first launch reaches the site's launch page by itself (signed out)",
     landed,
-    `${await page.run("location.href").catch((e) => e.message)} | app log: ${appLog || "nothing"}`,
+    await page.run("location.href").catch((e) => e.message),
   );
   // If the launch ended on the offline page, carry on from there so the
   // rest still gets checked.
@@ -501,9 +516,12 @@ try {
   check("switching the phone to dark turns the open page dark", wentDark, `frame brightness ${brightness(darkFrame)}`);
   // The clock and icons must contrast with what is behind them. Android's
   // own record of the focused window says which colour they have.
+  // (The line lists the "light bar" flags and is missing or empty when
+  // there are none, so the dump is only trusted if it is the real one.)
   const barIcons = () => {
-    const line = /mLastAppearance=([^\n]*)/.exec(sh("dumpsys window"))?.[1];
-    return line === undefined ? null : /LIGHT_STATUS_BARS/.test(line) ? "dark" : "light";
+    const dump = sh("dumpsys window");
+    if (!/mCurrentFocus/.test(dump)) return null;
+    return /mLastAppearance=[^\n]*LIGHT_STATUS_BARS/.test(dump) ? "dark" : "light";
   };
   if (barIcons() === null) note("status bar icons", "not readable on this Android version");
   else check("in dark mode the status bar icons are light", await waitUntil(() => barIcons() === "light", 6000), `icons: ${barIcons()}`);
