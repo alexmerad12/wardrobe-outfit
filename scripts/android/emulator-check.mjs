@@ -277,8 +277,24 @@ async function waitUntil(test, timeoutMs = 15_000, everyMs = 500) {
 const pagePath = (page) => page.run("location.pathname").catch(() => "");
 const splashGone = "!document.querySelector('.launch-splash') && document.readyState === 'complete'";
 
+// The newer images can run the person's session as a user other than the
+// system's (user 0): the app is started for whoever is in front.
+let foregroundUser = "0";
 function launch() {
-  return sh(`am start -n ${ACTIVITY}`);
+  return sh(`am start --user ${foregroundUser} -n ${ACTIVITY}`);
+}
+/** Who is in front, which users exist, and what Android knows about the
+ *  app for each of them. */
+function packageState() {
+  const state = sh(`dumpsys package ${PKG}`)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^User \d+:|^versionName=|^Package \[/.test(line))
+    .map((line) => line.replace(/ceDataInode=\S+\s*/, "").slice(0, 150))
+    .slice(0, 6)
+    .join(" ; ");
+  const users = sh("pm list users").split("\n").map((line) => line.trim()).filter((line) => line.startsWith("UserInfo")).join(" ");
+  return `in front: user ${foregroundUser}; ${users || "no user list"}; ${state || `Android does not know ${PKG}`}; path: ${sh(`pm path ${PKG}`).trim() || "none"}`.slice(0, 900);
 }
 
 // ---------- the run ----------
@@ -330,6 +346,9 @@ try {
   const reasonAt = Math.max(0, installLines.findIndex((line) => /Success|Failure|Exception|Error/i.test(line)));
   const installDetail = installLines.slice(reasonAt, reasonAt + 5).join(" | ").slice(0, 600);
   if (!check("the app installs", /Success/.test(installed), installDetail)) throw new Error("install failed");
+  const current = sh("am get-current-user").trim();
+  if (/^\d+$/.test(current)) foregroundUser = current;
+  note("users and the installed app", packageState());
 
   // A freshly booted emulator says "boot completed" before its network is
   // up: the first run opened the app straight into its offline page. Wait
@@ -362,6 +381,8 @@ try {
   check("the app starts and stays up", running && !/Error|Exception/.test(startOutput), startOutput.trim().split("\n").pop());
   if (!running) {
     note("why the app is not running", whyTheAppDied());
+    note("users and the installed app, after the failed start", packageState());
+    note("what Android says about starting it", sh(`am start -W --user ${foregroundUser} -n ${ACTIVITY}`).replace(/\s+/g, " ").trim().slice(0, 400));
     throw new Error("the app's process ended during its first seconds");
   }
   // The phone is in light mode. The system launch screen, then the site's

@@ -30,7 +30,7 @@ Day-to-day rules for working on it are in `CLAUDE.md` (Android app). This file i
 what `CLAUDE.md` lists. Nothing changes in a browser.
 
 **The build** (`.github/workflows/android.yml`): debug APK (about 4 MB) and an unsigned release bundle, then the app
-on two emulators. No secret is involved.
+on emulators (Android 15 with an older system WebView, Android 16 and 17 with current ones). No secret is involved.
 
 **The store listing** (`docs/play-store-listing.md`, `store/android/`): texts in English and French, the icon, the
 feature graphic, the declarations and data safety answers. Screenshots wait on the owner (they show a wardrobe).
