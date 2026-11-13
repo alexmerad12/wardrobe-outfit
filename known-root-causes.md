@@ -211,6 +211,31 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** the pricing launch changed the paywall, the code and the translations, and nobody grepped the long-form pages (`src/app/faq/page.tsx`, `src/app/terms/page.tsx`), which carry their text in JSX, not in the dictionaries.
 - **Fix:** both now describe the weekly plan and its 7-day trial, the annual plan, renewal, cancellation, store purchases, price changes, the beta accounts and the limits. They name no price: the paywall shows it. When pricing, plans or limits change, grep `src/app/faq`, `src/app/terms`, `src/app/privacy` and `src/app/delete-account` as well as the dictionaries.
 
+### Android app: sharing an outfit and the data export would have done nothing (2026-11-13, before the first build)
+- **Symptom:** none seen by a user: found by reading what the site does when it is loaded in the app's WebView.
+- **Cause:** an Android WebView has neither the Web Share API (`navigator.share` is undefined) nor downloads (a click on `<a download>` with a blob URL goes nowhere without a download listener). `shareOutfitImage` tried the first and fell back to the second; the data export used the second. Same family: Google refuses its web sign-in inside a WebView, and the "install the app" card gave browser-menu steps.
+- **Fix:** `shareFileThroughShell` (`src/lib/native-shell.ts`): the file goes to the app's cache folder (Filesystem plugin) and to Android's share sheet (Share plugin). Google's button is hidden in the app (`.web-only`), the install card too. Checked with a stand-in bridge in a browser (`tests/e2e/native-shell.spec.ts`) and on the emulator (the share sheet opens for a file written from the page).
+
+### Android app: status bar icons stayed dark after the phone switched to dark (2026-11-13, first emulator run)
+- **Symptom:** Android 15 emulator, app open, `cmd uimode night yes`: the page turned dark and Android's record of the window still said `LIGHT_STATUS_BARS` (dark icons), now on a dark strip.
+- **Cause:** Capacitor's `SystemBars` resolves the style "DEFAULT" to light or dark once, at start, stores the resolved value and re-applies that same value on every configuration change.
+- **Fix:** the site sets the icons itself (`src/components/native-shell.tsx`): from the page's own mode where the page draws under the bars (WebView 140+), from the phone's mode where Capacitor pads the page instead, and again on every switch.
+
+### Android app: Back on the site's first page returned to the offline page (2026-11-13, second emulator run)
+- **Symptom:** after the offline page and "Try again", Back on `/launch` showed the offline page again instead of putting the app in the background.
+- **Cause:** "Try again" was a plain link, so the offline page stayed in the WebView's history behind the site, and the site's Back handler saw "can go back".
+- **Fix:** `native-shell/offline.html` goes to the site with `location.replace`.
+
+### Android app icon: the letter would have been cut by round launchers (2026-11-13, before the first build)
+- **Symptom:** none shipped. The first icon set scaled the web tile (the letter at 1.2x) onto the adaptive icon's 108dp canvas.
+- **Cause:** launchers show the central 72dp of that canvas under their own mask and promise only the central 66dp circle. Measured on a render, the letter reached 137.8 units from the centre of a 400-unit canvas: past the 133.3 a round mask shows.
+- **Fix:** `scripts/android-icons.mjs` measures the letter and scales it to stay inside the safe zone (1.02x), as a vector used by the icon, its themed layer and the system launch screen.
+
+### Privacy policy named six of the nine providers; account deletion left Redis keys (2026-11-13)
+- **Symptom:** none reported: found while filling Google Play's data form from the code.
+- **Cause:** the provider list was written from memory of the big services. The code also calls Open-Meteo (weather on the server; the city search from the browser), BigDataCloud (reverse geocoding, from the browser, with the rounded position) and Upstash (counters keyed by user id, a week of recent outfits). Account deletion removed the database rows and the photos but not those keys, and `items_uploaded:<user>` never expires.
+- **Fix:** the policy names all nine and says what the weather and city services receive (both languages); `deleteUserKeys` (`src/lib/user-keys.ts`) removes every key under the user's id when the account is deleted. `tests/e2e/public-pages.spec.ts` fails if the policy stops naming one of them: grep `https://` in `src` when adding a provider.
+
 ## Debunked
 
 - **"The fp16 model file halves memory"** (2026-10-15): no. The fp16 and fp32 stock exports both peaked near 6 GB. Activations dominate, not weights.

@@ -121,6 +121,11 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          # The Android 17 image left no room on the default data
+          # partition: "adb install" answered "not enough space" and system
+          # apps could not create their own files.
+          disk-size: 6000M
+          ram-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: node scripts/android/emulator-check.mjs "${{ runner.temp }}/apk/app-debug.apk" "${{ runner.temp }}/android-check"
       - name: Show the result on the run page
