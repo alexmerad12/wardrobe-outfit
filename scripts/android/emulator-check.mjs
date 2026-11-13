@@ -383,6 +383,17 @@ try {
     note("why the app is not running", whyTheAppDied());
     note("users and the installed app, after the failed start", packageState());
     note("what Android says about starting it", sh(`am start -W --user ${foregroundUser} -n ${ACTIVITY}`).replace(/\s+/g, " ").trim().slice(0, 400));
+    // A control, to tell the app from the emulator: can this Android start
+    // one of its own apps and stay up? ("Can't find service" means the
+    // system itself restarted.)
+    const servicesUp = () => /^package:/m.test(sh("pm path android"));
+    await waitUntil(servicesUp, 90_000, 3000);
+    const settings = sh("am start -W -a android.settings.SETTINGS").replace(/\s+/g, " ").trim();
+    await sleep(6000);
+    note(
+      "control: Android's own Settings app on this emulator",
+      `${/Status: ok/.test(settings) && servicesUp() ? "starts and the system stays up" : "does NOT start cleanly, so the emulator is at fault, not the app"} (${settings.slice(0, 220)}; system services after 6 s: ${servicesUp() ? "up" : "down"})`,
+    );
     throw new Error("the app's process ended during its first seconds");
   }
   // The phone is in light mode. The system launch screen, then the site's
