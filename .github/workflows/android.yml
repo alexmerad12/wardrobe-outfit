@@ -133,9 +133,9 @@ jobs:
           # report before trusting a failure.
           - android: "17"
             api-level: "37.0"
-            # Same trouble as Android 16's image, tried here with ANGLE
-            # on the software Vulkan renderer.
-            gpu: swangle_indirect
+            # Same trouble as Android 16's image. With swangle_indirect the
+            # emulator did not boot at all on the runner.
+            gpu: auto
             experimental: true
             # This image leaves no room on the default data partition:
             # "adb install" answered "not enough space".

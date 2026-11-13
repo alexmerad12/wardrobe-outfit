@@ -102,6 +102,18 @@ function whyTheAppDied() {
   return `${exits || "no exit record"} || ${excerpt}`.slice(0, 2600);
 }
 
+/** The first crash of Android's own processes in the crash log, or what
+ *  the main log says about the system being restarted. */
+function systemCrash() {
+  const crashLog = sh("logcat -d -b crash");
+  const at = crashLog.search(/FATAL EXCEPTION IN SYSTEM PROCESS|>>> system_server <<<|>>> \/system\/bin\/surfaceflinger <<<|>>> com\.android\.systemui <<</);
+  const crash = at === -1 ? "no crash of a system process in the crash log" : crashLog.slice(at, at + 1700).replace(/\s*\n\s*/g, " | ");
+  const restarts = sh("logcat -d -b main,system | grep -m 4 -iE 'WATCHDOG KILLING SYSTEM PROCESS|Exit zygote because system server|system_server.*(died|crashed)|Boot is finished'")
+    .replace(/\s*\n\s*/g, " | ")
+    .trim();
+  return `${crash} || main log: ${restarts || "nothing about a restart"}`.slice(0, 2600);
+}
+
 // ---------- results ----------
 const results = [];
 function check(name, ok, detail = "") {
@@ -355,6 +367,11 @@ try {
   // until Android itself has validated the connection.
   const online = await waitUntil(() => /Capabilities:[^\n]*\bVALIDATED\b/.test(sh("dumpsys connectivity")), 120_000, 2000);
   note("network", online ? "validated before the first launch" : "NOT validated after 2 minutes: the launch may end on the offline page");
+  // "Validated" is not enough: the emulator's lookup of a name it has
+  // never resolved can still fail for some seconds (three runs opened on
+  // the offline page with net::ERR_NAME_NOT_RESOLVED). Wait for the name.
+  const resolves = await waitUntil(() => /^PING \S+ \([0-9a-f.:]+\)/m.test(sh("ping -c 1 -W 2 linette.app")), 90_000, 2000);
+  note("name lookup", resolves ? "linette.app resolves before the first launch" : "linette.app did NOT resolve within 90 seconds");
 
   // Let the home screen come up and settle before the app is started.
   await waitUntil(() => /launcher/i.test(focusedWindow()), 90_000, 2000);
@@ -388,11 +405,13 @@ try {
     // system itself restarted.)
     const servicesUp = () => /^package:/m.test(sh("pm path android"));
     await waitUntil(servicesUp, 90_000, 3000);
-    const settings = sh("am start -W -a android.settings.SETTINGS").replace(/\s+/g, " ").trim();
+    note("what crashed in Android itself", systemCrash());
+    sh("am force-stop com.android.settings");
+    const settings = sh("am start -W -n com.android.settings/.Settings").replace(/\s+/g, " ").trim();
     await sleep(6000);
     note(
       "control: Android's own Settings app on this emulator",
-      `${/Status: ok/.test(settings) && servicesUp() ? "starts and the system stays up" : "does NOT start cleanly, so the emulator is at fault, not the app"} (${settings.slice(0, 220)}; system services after 6 s: ${servicesUp() ? "up" : "down"})`,
+      `${/Status: ok/.test(settings) && servicesUp() ? "starts and the system stays up" : "does NOT start cleanly, so the emulator is at fault, not the app"} (${settings.slice(0, 220)}; Settings running: ${/^\d+/.test(sh("pidof com.android.settings").trim()) ? "yes" : "no"}; system services after 6 s: ${servicesUp() ? "up" : "down"})`,
     );
     throw new Error("the app's process ended during its first seconds");
   }
@@ -680,6 +699,16 @@ try {
     back = Boolean(await waitFor(page, `location.pathname === "/launch" && !!document.documentElement.getAttribute("data-locale")`, 12_000));
   }
   check("Try again loads the site once the connection is back", back, await page.run("location.href").catch((e) => e.message));
+  // The offline page must not be left behind the site: Back on the first
+  // page has to leave the app, not return to "can't be reached".
+  if (back) {
+    await dismissSystemDialogs();
+    await waitFor(page, "document.readyState === 'complete'", 20_000);
+    await sleep(2500);
+    sh("input keyevent KEYCODE_BACK");
+    const gone = await waitUntil(() => !focusedWindow().includes(PKG), 10_000);
+    check("after the offline page, Back on the site's first page leaves the app", gone, gone ? "" : await page.run("location.href").catch((e) => e.message));
+  }
 } catch (error) {
   check("the check ran to the end", false, error?.stack?.split("\n").slice(0, 3).join(" | ") ?? String(error));
   try {

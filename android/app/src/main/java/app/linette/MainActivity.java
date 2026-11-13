@@ -18,7 +18,8 @@ import com.getcapacitor.WebViewListener;
 // The whole app is the site (https://linette.app) in the phone's WebView:
 // see capacitor.config.ts at the repo root. This class only smooths the
 // first second of a launch, saves the session when the app is left, and
-// writes down why a page failed to load.
+// writes down why a page failed to load, and keeps the offline page out of
+// the history.
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "Linette";
@@ -75,7 +76,8 @@ public class MainActivity extends BridgeActivity {
             }
         );
 
-        // Capacitor's own page-load client, unchanged except that it logs
+        // Capacitor's own page-load client, with two additions: it keeps the
+        // offline page out of the history (further down), and it logs
         // why a request failed. Capacitor shows the same offline page for
         // a missing network and for a page the site refused, and logs
         // neither. The lines carry the error and whether it was the page
@@ -97,6 +99,26 @@ public class MainActivity extends BridgeActivity {
                         Log.w(TAG, "page answered HTTP " + errorResponse.getStatusCode());
                     }
                     super.onReceivedHttpError(view, request, errorResponse);
+                }
+
+                // The offline page must not stay in the history behind the
+                // site. Each failed load adds a copy of it, and Back on the
+                // site's first page then returned to "can't be reached"
+                // instead of leaving the app (seen on the emulator after
+                // two failed loads in a row). When the site comes back
+                // after the offline page, everything before it is dropped.
+                private boolean offlinePageShown = false;
+
+                @Override
+                public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+                    super.doUpdateVisitedHistory(view, url, isReload);
+                    if (url == null) return;
+                    if (url.contains("/offline.html")) {
+                        offlinePageShown = true;
+                    } else if (offlinePageShown && url.startsWith(bridge.getAppUrl())) {
+                        offlinePageShown = false;
+                        view.clearHistory();
+                    }
                 }
             }
         );
