@@ -75,7 +75,18 @@ jobs:
         shell: bash
         run: |
           apk=android/app/build/outputs/apk/debug/app-debug.apk
-          echo "::notice title=Android build::app-debug.apk, $(du -k "$apk" | cut -f1) KB, version code $VERSION_CODE, commit ${GITHUB_SHA::7}"
+          bundle=android/app/build/outputs/bundle/release/app-release.aab
+          # What Google Play's forms ask about, read from the built app
+          # itself: the permissions after every library's manifest is
+          # merged in, and whether it carries native code (which would
+          # have to support 16 KB memory pages).
+          # (Every lookup ends in "|| true": a report must never fail a
+          # build that succeeded.)
+          manifest=$(find android/app/build/intermediates -path '*merged_manifest*' -name AndroidManifest.xml 2>/dev/null | grep -i release | head -1 || true)
+          permissions=$([ -n "$manifest" ] && grep -o 'uses-permission[^>]*android:name="[^"]*"' "$manifest" | sed 's/.*android:name="//; s/"$//; s/android.permission.//' | sort -u | tr '\n' ' ' || true)
+          libraries=$(unzip -l "$apk" | grep -c '\.so$' || true)
+          kb() { (du -k "$1" 2>/dev/null || echo "?") | cut -f1; }
+          echo "::notice title=Android build::app-debug.apk $(kb "$apk") KB, release bundle $(kb "$bundle") KB, version code $VERSION_CODE, commit ${GITHUB_SHA::7}. Permissions in the release app: ${permissions:-not read}. Native libraries: ${libraries:-?}"
       - uses: actions/upload-artifact@v7
         with:
           name: linette-debug-apk
