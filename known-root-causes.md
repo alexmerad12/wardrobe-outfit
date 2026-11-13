@@ -236,7 +236,15 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** the provider list was written from memory of the big services. The code also calls Open-Meteo (weather on the server; the city search from the browser), BigDataCloud (reverse geocoding, from the browser, with the rounded position) and Upstash (counters keyed by user id, a week of recent outfits). Account deletion removed the database rows and the photos but not those keys, and `items_uploaded:<user>` never expires.
 - **Fix:** the policy names all nine and says what the weather and city services receive (both languages); `deleteUserKeys` (`src/lib/user-keys.ts`) removes every key under the user's id when the account is deleted. `tests/e2e/public-pages.spec.ts` fails if the policy stops naming one of them: grep `https://` in `src` when adding a provider.
 
+### Android app: the first page load after an install fails once (2026-11-13, cause NOT identified)
+- **Symptom:** on the Android 15 emulator, the first launch after `adb install` ended on the offline page in runs 1 and 2 (the app's log: two requests failed with a network error, about 7 s after the launch) and loaded straight away in run 3. Every later load in the same runs worked.
+- **Known:** it is not the app's code path for a refused page (no HTTP error was logged), and it is not the network being down (see Debunked: Android had validated the connection in run 2). Not seen on a real phone yet: no real phone has run the app.
+- **Handled, not solved:** the offline page stays black the first time it appears in a session and tries the site again after 1.5 s (`native-shell/offline.html`), so a launch that stumbles once is not seen. `MainActivity` now logs the error code of a failed request (logcat tag `Linette`), and the emulator check prints that log: the next occurrence names the cause. Suspect to test first: the emulator's first DNS lookup of a new name timing out.
+
 ## Debunked
+
+- **"The app's first launch landed on the offline page because the emulator's network was not up yet"** (2026-11-13): not the explanation. The second run waited until Android reported the connection as validated before launching, and the first load still failed with a network error. See the entry above.
+- **"A white flash at the start of the Android launch"** (2026-11-13): not found. One bright frame (brightness 218 of 255 at 1.1 s, run 2) came before any window of the app was up, which makes it the home screen; the emulator check now also measures the home screen so the next run can confirm the number. Every frame of the app itself was black until the page showed (run 3: brightness 2 to 3 from 1.4 s to 8.7 s).
 
 - **"The fp16 model file halves memory"** (2026-10-15): no. The fp16 and fp32 stock exports both peaked near 6 GB. Activations dominate, not weights.
 - **"The ONNX Runtime CPU arena causes the OOM"** (2026-10-15): no. Peak RSS stayed ~6 GB with the arena off.

@@ -107,10 +107,21 @@ jobs:
           # system bars.
           - android: "15"
             api-level: "35"
-          # A current one: the page draws under the bars (edge to edge),
-          # which is what almost every phone gets.
+            disk: ""
+          # Android 16 with a current system WebView: the page draws under
+          # the bars (edge to edge), the layout almost every phone gets.
+          - android: "16"
+            api-level: "36.1"
+            disk: 6000M
+          # The newest image. Its own screenshot tool crashes in the
+          # graphics layer under the software renderer used here, so this
+          # job says more about the emulator than about the app: read its
+          # report before trusting a failure.
           - android: "17"
             api-level: "37.0"
+            # This image leaves no room on the default data partition:
+            # "adb install" answered "not enough space".
+            disk: 6000M
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -135,8 +146,10 @@ jobs:
           # The Android 17 image left no room on the default data
           # partition: "adb install" answered "not enough space" and system
           # apps could not create their own files.
-          disk-size: 6000M
-          ram-size: 4096M
+          disk-size: ${{ matrix.disk }}
+          # Memory stays at the image's default: with 4 GB and the larger
+          # disk the Android 15 emulator raised "isn't responding" dialogs
+          # over the app.
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: node scripts/android/emulator-check.mjs "${{ runner.temp }}/apk/app-debug.apk" "${{ runner.temp }}/android-check"
       - name: Show the result on the run page

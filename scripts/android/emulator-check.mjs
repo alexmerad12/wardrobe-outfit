@@ -45,21 +45,61 @@ function sh(command) {
   }
 }
 const focusedWindow = () => sh("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'").replace(/\s+/g, " ").trim();
+// A busy emulator can raise "Pixel Launcher isn't responding" over the
+// app. The dialog takes the keys meant for the app (in one run Back went
+// to it and three checks failed for that reason alone). Tap "Wait" until
+// none is left, and keep the names for the report.
+const closedDialogs = [];
+async function dismissSystemDialogs() {
+  for (let i = 0; i < 6; i++) {
+    const dialog = /Application (?:Not Responding|Error): ([\w.]+)/.exec(sh("dumpsys window | grep mCurrentFocus"));
+    if (!dialog) return;
+    closedDialogs.push(dialog[1]);
+    const tree = sh("uiautomator dump /sdcard/ci-ui.xml >/dev/null 2>&1; cat /sdcard/ci-ui.xml");
+    const button =
+      /text="Wait"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(tree) ??
+      /text="Close app"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(tree);
+    if (button) sh(`input tap ${(Number(button[1]) + Number(button[3])) >> 1} ${(Number(button[2]) + Number(button[4])) >> 1}`);
+    else sh("input keyevent KEYCODE_ESCAPE");
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+}
 const appPid = () => {
   const pid = sh(`pidof ${PKG}`).trim().split(/\s+/)[0];
   return /^\d+$/.test(pid ?? "") ? pid : null;
 };
 /** A screenshot, saved when it has a name. Null when the emulator can't
  *  take one (screencap crashed on the Android 17 image, 2026-11-13). */
+let screenshotFailures = 0;
 function capture(name) {
+  // After two failures in a row, stop asking: each failed try is a native
+  // crash of the tool, which fills the crash log the report quotes.
+  if (screenshotFailures >= 2) return null;
   try {
     const png = execFileSync("adb", ["exec-out", "screencap", "-p"], { maxBuffer: 256 * 1024 * 1024, timeout: 60_000 });
-    if (png.length < 1000) return null;
+    if (png.length < 1000) throw new Error("empty screenshot");
     if (name) fs.writeFileSync(path.join(outDir, `${name}.png`), png);
+    screenshotFailures = 0;
     return png;
   } catch {
+    screenshotFailures++;
     return null;
   }
+}
+
+/** Why the app's process ended, in Android's own words, and the part of
+ *  the crash log that names the app. */
+function whyTheAppDied() {
+  const exits = sh(`dumpsys activity exit-info ${PKG}`)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /reason=|description=|subreason=|importance=/.test(line))
+    .slice(0, 4)
+    .join(" ; ");
+  const crashLog = sh("logcat -d -b crash");
+  const at = crashLog.indexOf(PKG);
+  const excerpt = at === -1 ? "the crash log has no entry for the app" : crashLog.slice(Math.max(0, at - 400), at + 1400).replace(/\s*\n\s*/g, " | ");
+  return `${exits || "no exit record"} || ${excerpt}`.slice(0, 2600);
 }
 
 // ---------- results ----------
@@ -254,6 +294,9 @@ try {
 
   // The soft keyboard must open although the emulator has a hardware one.
   sh("settings put secure show_ime_with_hard_keyboard 1");
+  // Ask Android not to show "isn't responding" dialogs at all (the helper
+  // above closes any that still come).
+  sh("settings put global hide_error_dialogs 1");
   sh("cmd uimode night no");
 
   // "Boot completed" comes before the system can install anything (on the
@@ -294,6 +337,10 @@ try {
   const online = await waitUntil(() => /Capabilities:[^\n]*\bVALIDATED\b/.test(sh("dumpsys connectivity")), 120_000, 2000);
   note("network", online ? "validated before the first launch" : "NOT validated after 2 minutes: the launch may end on the offline page");
 
+  // Let the home screen come up and settle before the app is started.
+  await waitUntil(() => /launcher/i.test(focusedWindow()), 90_000, 2000);
+  await dismissSystemDialogs();
+
   // --- 1. Cold start: what the first seconds look like ---
   sh("logcat -c");
   sh(`am force-stop ${PKG}`);
@@ -311,7 +358,12 @@ try {
     "launch frames (seconds: brightness 0-255, * = the app is in front)",
     frames.map((f) => `${f.at}s:${f.light}${f.app ? "*" : ""}`).join(" "),
   );
-  check("the app starts", appPid() !== null && !/Error|Exception/.test(startOutput), startOutput.trim().split("\n").pop());
+  const running = appPid() !== null;
+  check("the app starts and stays up", running && !/Error|Exception/.test(startOutput), startOutput.trim().split("\n").pop());
+  if (!running) {
+    note("why the app is not running", whyTheAppDied());
+    throw new Error("the app's process ended during its first seconds");
+  }
   // The phone is in light mode. The system launch screen, then the site's
   // own, are both black: a bright frame of the app in its first seconds
   // would be an empty white window between them.
@@ -410,6 +462,7 @@ try {
 
   // --- 3. The sign-in page: no Google button in the app ---
   if (siteReady) {
+    await dismissSystemDialogs();
     await page.run("document.querySelector('a[href=\"/login\"]').click()");
     check("a link opens the sign-in page", await waitFor(page, "location.pathname === '/login' && !!document.querySelector('input[type=email]')", 30_000));
     await sleep(600);
@@ -425,6 +478,7 @@ try {
     // --- 4. The keyboard must not cover the field being typed in ---
     await page.run("document.querySelector('input[type=email]').scrollIntoView({ block: 'center' })");
     const box = await page.run("(() => { const r = document.querySelector('input[type=email]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+    await dismissSystemDialogs();
     // A real tap needs screen pixels: ask Android where the WebView sits
     // (on an old WebView the page starts below the status bar).
     const tree = sh("uiautomator dump /sdcard/ci-ui.xml >/dev/null 2>&1; cat /sdcard/ci-ui.xml");
@@ -460,6 +514,7 @@ try {
 
     // --- 5. Back ---
     // Leave the field first: with a keyboard up, Back would only close it.
+    await dismissSystemDialogs();
     await page.run("document.activeElement && document.activeElement.blur()").catch(() => {});
     await sleep(800);
     await page.run("window.__ciSamePage = true");
@@ -468,6 +523,11 @@ try {
     sh("input keyevent KEYCODE_BACK");
     const left = await waitUntil(() => !focusedWindow().includes(PKG), 10_000);
     check("Back on the first page puts the app in the background, still running", left && appPid() !== null, focusedWindow());
+    // For reading the launch frames above: what the home screen measures.
+    if (left) {
+      await sleep(700);
+      note("home screen brightness", brightness(capture(null)));
+    }
     launch();
     const returned = await waitUntil(() => focusedWindow().includes(PKG), 10_000);
     check(
@@ -491,6 +551,8 @@ try {
   check("a cookie set a second before the app was closed is still there at the next launch", kept);
   await page.run('document.cookie = "ci_probe=; path=/; max-age=0; secure; samesite=lax"');
   await waitFor(page, splashGone, 30_000);
+
+  await dismissSystemDialogs();
 
   // --- 7. Sharing a file: the app's cache folder to Android's share sheet ---
   const written = await page.run(
@@ -563,6 +625,7 @@ try {
 }
 
 // ---------- report ----------
+if (closedDialogs.length) note("system dialogs closed during the run (\"isn't responding\")", closedDialogs.join(", "));
 const failed = results.filter((r) => r.ok === false);
 const crash = failed.length ? sh("logcat -d -b crash -t 40").trim() : "";
 const lines = results.map((r) => `${r.ok === null ? "note" : r.ok ? "ok  " : "FAIL"}  ${r.name}${r.detail ? `: ${r.detail}` : ""}`);
@@ -575,7 +638,9 @@ const annotations = [
 if (failed.length) {
   annotations.push(
     `::error title=Android emulator: ${failed.length} check(s) failed::${escape(
-      `${failed.map((r) => `${r.name}${r.detail ? `: ${r.detail}` : ""}`).join("\n")}${crash ? `\n${crash.slice(-1500)}` : ""}`.slice(0, 6000),
+      // The tail of the crash log only when it is about the app: on one
+      // image it was nothing but the screenshot tool crashing.
+      `${failed.map((r) => `${r.name}${r.detail ? `: ${r.detail}` : ""}`).join("\n")}${crash.includes(PKG) ? `\n${crash.slice(-1500)}` : ""}`.slice(0, 6000),
     )}`,
   );
 }
