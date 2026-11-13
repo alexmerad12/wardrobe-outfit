@@ -43,10 +43,18 @@ function isoOrNull(unixSeconds: number | null | undefined): string | null {
   return new Date(unixSeconds * 1000).toISOString();
 }
 
-function planFromPriceId(priceId: string | null | undefined): PlanKey | null {
-  if (!priceId) return null;
-  if (priceId === process.env.STRIPE_PRICE_WEEKLY) return "weekly";
-  if (priceId === process.env.STRIPE_PRICE_ANNUAL) return "annual";
+// Which plan a subscription's price is. The price on sale changes (the
+// annual plan went from CA$59.99 to CA$79.99 on 2026-11-13, a new price
+// id): a subscription bought on an earlier price must still read as its
+// plan, so the billing period decides when the id is not the current one.
+function planFromPrice(
+  price: { id: string; recurring?: { interval: string } | null } | null | undefined
+): PlanKey | null {
+  if (!price) return null;
+  if (price.id === process.env.STRIPE_PRICE_WEEKLY) return "weekly";
+  if (price.id === process.env.STRIPE_PRICE_ANNUAL) return "annual";
+  if (price.recurring?.interval === "week") return "weekly";
+  if (price.recurring?.interval === "year") return "annual";
   return null;
 }
 
@@ -83,13 +91,13 @@ async function upsertFromSubscription(
     return;
   }
 
-  const priceId = subscription.items.data[0]?.price.id;
+  const price = subscription.items.data[0]?.price;
   const { error } = await admin.from("user_subscriptions").upsert(
     {
       user_id: userId,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscription.id,
-      plan: planFromPriceId(priceId),
+      plan: planFromPrice(price),
       status: subscription.status,
       trial_end: isoOrNull(subscription.trial_end),
       current_period_end: isoOrNull(

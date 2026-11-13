@@ -3,7 +3,8 @@
 // Brand framing matches /login and /signup: damask backdrop, ivory
 // card, Bodoni headings, black ink CTA. Two plan cards stacked
 // vertically (mobile-first). Annual is pre-selected with the
-// "Save 84%" badge so the default click pushes users to the
+// "Save 78%" badge (CA$79.99 a year against 52 weeks at CA$6.99, since
+// 2026-11-13; it was CA$59.99 and 84%) so the default click pushes users to the
 // commit-anchor — per the deep-research recommendation that
 // weekly+trial maximises Year-1 LTV but annual buys retention.
 //
