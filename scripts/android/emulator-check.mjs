@@ -241,21 +241,40 @@ try {
   const release = sh("getprop ro.build.version.release").trim();
   const size = /(\d+)x(\d+)/.exec(sh("wm size")) ?? [];
   const screen = { width: Number(size[1]), height: Number(size[2]), density: Number(/(\d+)/.exec(sh("wm density"))?.[1]) };
-  const webview = /\(([^,]+),\s*([^)]+)\)/.exec(sh("dumpsys webviewupdate | grep 'Current WebView package'"));
+  const webview = /Current WebView package[^:]*:\s*\(([^,]+),\s*([^)]+)\)/.exec(sh("dumpsys webviewupdate"));
   note("device", `Android ${release} (API ${sdk}), ${screen.width}x${screen.height} at ${screen.density} dpi, WebView ${webview ? `${webview[2]} (${webview[1]})` : "unknown"}`);
 
   // The soft keyboard must open although the emulator has a hardware one.
   sh("settings put secure show_ime_with_hard_keyboard 1");
   sh("cmd uimode night no");
 
-  const installed = (() => {
+  // "Boot completed" comes before the system can install anything (on the
+  // Android 17 image the first install failed inside the package
+  // manager): wait for it, then give the install a few tries.
+  await waitUntil(
+    () => sh("getprop sys.boot_completed").trim() === "1" && /^package:/m.test(sh("pm path android")) && /package:/.test(sh("pm list packages com.android.shell")),
+    120_000,
+    2000,
+  );
+  const firstInstall = (() => {
     try {
       return adb(["install", "-r", "-g", apk]);
     } catch (error) {
       return `${error.stdout ?? ""}${error.stderr ?? ""}`;
     }
   })();
-  if (!check("the app installs", /Success/.test(installed), installed.trim().split("\n").pop())) throw new Error("install failed");
+  let installed = firstInstall;
+  for (let attempt = 2; attempt <= 6 && !/Success/.test(installed); attempt++) {
+    console.log(`install, try ${attempt - 1}: ${installed.trim().split("\n")[0]}`);
+    await sleep(10_000);
+    try {
+      installed = adb(["install", "-r", "-g", apk]);
+    } catch (error) {
+      installed = `${error.stdout ?? ""}${error.stderr ?? ""}` || String(error.message);
+    }
+  }
+  const installLine = installed.split("\n").find((line) => /Success|Failure|Exception|Error/i.test(line)) ?? installed.trim().split("\n")[0] ?? "";
+  if (!check("the app installs", /Success/.test(installed), installLine.trim().slice(0, 300))) throw new Error("install failed");
 
   // --- 1. Cold start: what the first seconds look like ---
   sh(`am force-stop ${PKG}`);
