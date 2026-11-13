@@ -134,7 +134,8 @@ are published, or a demo wardrobe of other photos.
 | Target audience | 18 and over only. Not designed for children | terms and sign-up line (18+), consent screen |
 | News app | No | |
 | Data safety | section 5 | |
-| Advertising ID | Not used | no `AD_ID` permission in the merged manifest (check it in the build's merged manifest before answering) |
+| Advertising ID | Not used | the build's own report lists the permissions of the release app after every library is merged in: `INTERNET`, `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION` and nothing else a person would see (run of 2026-11-13). No `AD_ID`. Read the "Android build" notice of the latest run again before answering |
+| 16 KB memory pages | Nothing to do | the same report counts 0 native libraries in the app |
 | Government app, financial features, health | No, none, none | |
 | Generative AI | AI output can be reported in the app without leaving it | `ReportAiButton` under the outfit, the try-on and the packing results |
 | Account deletion | In the app (Profile, gear icon, Account & security) and at https://linette.app/delete-account | the page lists what is deleted and kept |

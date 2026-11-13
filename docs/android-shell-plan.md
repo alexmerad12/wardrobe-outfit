@@ -47,8 +47,15 @@ feature graphic, the declarations and data safety answers. Screenshots wait on t
   "Try again" brings the site back.
 - Found by those runs and fixed the same day: the status bar icons stayed dark after a switch to dark (Capacitor
   works its default out once); Back returned to the offline page after "Try again"; the very first load after an
-  install failed once with a network error (the offline page now retries once by itself).
-- Android 17 image (API 37, WebView 145, the edge-to-edge layout almost every phone gets): see `HANDOFF.md` for
+  install can fail once on the emulator (`net::ERR_NAME_NOT_RESOLVED`, its DNS not answering yet), which the
+  offline page now covers by retrying once by itself, in black, before it says anything.
+- The build's own report (the "Android build" notice of each run): the release app asks for `INTERNET` and the
+  two location permissions only, and carries no native library.
+- Android 16 and 17 images (API 36.1 with WebView 134, API 37 with WebView 145): the app installs and then cannot
+  be started, with no crash and no exit record. The Android 17 image needs a 6 GB data partition to install
+  anything, and its own screenshot tool crashes in the graphics layer. They report without failing the run.
+  The edge-to-edge layout of WebView 140+, which almost every phone gets, is therefore NOT verified on Android
+  yet, only in a browser with a stand-in bridge: a real phone is the missing check. See `HANDOFF.md` for
   where that run stands.
 
 ## What only the owner can open
