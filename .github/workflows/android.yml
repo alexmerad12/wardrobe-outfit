@@ -121,10 +121,14 @@ jobs:
           # (edge to edge), needs WebView 140+: only the Android 17 image has it.
           - android: "16"
             api-level: "36.1"
-            # Under swiftshader_indirect this image's system services
-            # restart as soon as anything is started. Trying the
-            # emulator's own choice for a windowless run.
-            gpu: auto
+            # On this image and the next one, Android's display service
+            # aborts inside the emulator's own graphics driver when the app's
+            # window comes up (mapper.ranchu.so, "Assertion failed:
+            # !rcEnc->featureInfo()->hasReadColorBufferDma"), and the whole
+            # system restarts. Tried here with that emulator feature off.
+            # The emulator's own renderer choice (-gpu auto) changed nothing.
+            # A real phone has no such driver.
+            gpu: swiftshader_indirect -feature -ReadColorBufferDma
             experimental: true
             disk: 6000M
           # The newest image. Its own screenshot tool crashes in the
@@ -135,7 +139,7 @@ jobs:
             api-level: "37.0"
             # Same trouble as Android 16's image. With swangle_indirect the
             # emulator did not boot at all on the runner.
-            gpu: auto
+            gpu: swiftshader_indirect -feature -ReadColorBufferDma
             experimental: true
             # This image leaves no room on the default data partition:
             # "adb install" answered "not enough space".
