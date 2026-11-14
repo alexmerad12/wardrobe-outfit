@@ -21,6 +21,7 @@ npm run test:stress      # everything (CRUD + suggest + try-on + packing + wear-
 npm run test:stress:fast # CRUD + wear-today only
 npm run test:stress:ai   # AI endpoints only (suggest, try-on, packing)
 npm run test:rules       # rule-compliance harness: HARD-fails on any rule-breaking outfit
+npm run test:paywall     # the Android app's paywall (Google Play), with a stand-in store: needs an account the paywall stops
 # Single spec: npx playwright test tests/e2e/<file>.spec.ts
 ```
 
@@ -132,6 +133,20 @@ Init lives in `src/instrumentation.ts` (node + edge) and `src/instrumentation-cl
 ### Billing (Stripe)
 
 Web billing is live: `src/app/api/checkout/route.ts`, `src/app/api/stripe/webhook/route.ts`, `src/app/api/billing-portal/route.ts`, gates in `src/lib/subscription.ts` (grandfather cutoff), `src/lib/require-subscription.ts` (API 402) and `src/lib/supabase/proxy.ts` (pages). The webhook re-reads the live subscription from Stripe instead of trusting the event body. Checkout refuses a second subscription while one is active or trialing, and the 7-day trial applies to a FIRST subscription only. Account deletion cancels any billable subscription first and refuses to delete the account if Stripe fails. Stripe traps: `customer_creation` / `customer_update` are payment-mode only (passing them in subscription mode is a 500), and cancelling a trialing subscription in the Customer Portal sets `cancel_at`, not `cancel_at_period_end` (the webhook treats either as "won't renew"). Prices: CA$6.99 a week and CA$79.99 a year (the annual plan was CA$59.99 until 2026-11-13: the June research meant US dollars, Stripe charges Canadian). Changing a price means a NEW Stripe Price on the same product (same tax behaviour), `STRIPE_PRICE_ANNUAL` / `STRIPE_PRICE_WEEKLY` in Vercel for production and preview (add them with `--value <id> --no-sensitive --force`: a sensitive variable can't be read back, and a piped value could not be verified) and in `.env.local`, then the paywall strings in both dictionaries (price, "Save N%", the per-week line). The FAQ and terms name no price. The webhook reads an older price's plan from its billing period (`planFromPrice`). Prove it with a real checkout session read back from Stripe and expired, never by trusting the settings.
+
+### Billing (Google Play, in the Android app)
+
+The owner's decision of 2026-11-13: the app sells the subscription through Google Play, with RevenueCat in between (Google forbids any other payment in an app). Full record, the names to create in the Console and the test that must pass: `docs/play-billing.md`. **Nothing of it has talked to a real RevenueCat project or to Google Play yet.**
+
+- In the app the paywall shows Google Play's own prices and buys through `window.Capacitor.Plugins.Purchases` (`src/lib/play-purchases.ts`); the customer id at RevenueCat is always the Supabase user id. Every price and note on the paywall exists twice, `.web-only` and `.shell-only`: a new line of price text needs both, or the app shows the website's offer.
+- `POST /api/play/sync` (after a purchase or a restore) and `POST /api/revenuecat/webhook` (public in the proxy, checks RevenueCat's Authorization value) both re-read the account at RevenueCat and rewrite its row (`src/lib/play-billing-server.ts`). The event is never trusted and no event id is stored.
+- One `user_subscriptions` row per account, `source` = `stripe` or `play`. A writer leaves the other seller's row alone unless its own subscription grants access: `mayOverwrite` (`src/lib/play-billing.ts`), used by both webhooks. A new writer must use it too.
+- Never open another payment page from the app: `/api/checkout` answers 403 to the app's user agent, and a Stripe subscription seen in the app gets one line of text, no link.
+- Account deletion cancels at Stripe OR at Google Play (through RevenueCat) before deleting anything.
+- Environment: `REVENUECAT_SECRET_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `NEXT_PUBLIC_REVENUECAT_ANDROID_KEY` (public, read at build time), optional `REVENUECAT_ENTITLEMENT` (default `premium`). Without them the webhook answers 500 and the app's paywall says subscriptions are unavailable.
+- `npm run test:paywall` plays the app's paywall with a stand-in for the plugin. It needs an account the paywall stops (the standing e2e account was created before the paywall, so it never is) and a build with the public key: the top of `tests/e2e/play-paywall.spec.ts`.
+
+Two sessions on this machine: set `E2E_BASE_URL=http://localhost:<port>` and start your own `next start -p <port>`. Port 3000 is shared, and a session that stops "its" server by command line stops yours (2026-11-13).
 
 ## Deploy
 
