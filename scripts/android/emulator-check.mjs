@@ -550,8 +550,21 @@ try {
     const keyboardUp = focused && (await waitUntil(() => /mInputShown=true/.test(sh("dumpsys input_method | grep mInputShown")), 8000));
     if (keyboardUp) {
       await sleep(1200);
+      // The page shrinks when the keyboard's slide-in ends, which can take
+      // more than the second above on a busy runner: wait for it, up to 8 s.
+      await waitFor(page, `visualViewport.height < ${before} - 100`, 8000);
+      await sleep(400);
       const after = await page.run("(() => { const r = document.activeElement.getBoundingClientRect(); return { viewport: visualViewport.height, fieldBottom: r.bottom, fieldTop: r.top }; })()");
       capture("04-keyboard");
+      // What Android itself says, for the day the page does not shrink:
+      // where the WebView sits with the keyboard up, and the window's mode.
+      const withKeyboard = sh("uiautomator dump /sdcard/ci-ui-ime.xml >/dev/null 2>&1; cat /sdcard/ci-ui-ime.xml");
+      const webViewNow = /class="android\.webkit\.WebView"[^>]*?bounds="(\[\d+,\d+\]\[\d+,\d+\])"/.exec(withKeyboard);
+      const softInput = sh("dumpsys window windows | grep -m 3 -iE 'softInputMode|sim='").replace(/\s+/g, " ");
+      note(
+        "keyboard",
+        `WebView ${bounds ? `[${bounds[1]},${bounds[2]}][${bounds[3]},${bounds[4]}]` : "?"} -> ${webViewNow ? webViewNow[1] : "?"}; ${softInput.slice(0, 300)}`,
+      );
       check(
         "with the keyboard open the page shrinks and the field stays in view",
         after.viewport < before - 100 && after.fieldTop >= 0 && after.fieldBottom <= after.viewport + 1,
