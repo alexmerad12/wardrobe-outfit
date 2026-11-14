@@ -259,6 +259,13 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** three things at once. `NODE_OPTIONS=--require <absolute path>` is split on spaces and this repo's folder name has one, so `next start` exited at once (hidden window, no output). The run waited for "port 3000 answers", and another session's checkout started ITS server on 3000 a minute later: same port, same command line, different build and no Sentry redirect, so two deliberate test errors went through that server's real tunnel. The cleanup then stopped every node process whose command line matched `start -p 3000`, which was that other server, twice.
 - **Fix:** `scripts/sentry-envelopes/run.mjs` owns its run: ports 3111 / 3112 and a refusal when either is taken, a relative `--require`, waiting for its own child's "Ready" line, stopping only the process ids it spawned, and failing when the recorder got nothing from the server. CLAUDE.md, Commands, has the general rule.
 
+- **Seen from the other side (the Google Play billing session):** its `next start -p 3000` exited with code 127 and no error in the middle of a Playwright run, twice, and the tests failed with `net::ERR_CONNECTION_REFUSED`. Not a crash. `playwright.config.ts` now reads `E2E_BASE_URL`, so a session can test its own `next start -p <its port>`.
+
+### Every paywall test skipped itself (2026-11-13, a cause already in this file)
+- **Symptom:** `tests/e2e/play-paywall.spec.ts` (branch `play-billing`) reported 7 skipped on a server started without `CAP_BYPASS_EMAILS`.
+- **Cause:** the one recorded on 2026-10-24 above ("The paywall was never in a design capture"): the standing e2e account was created on 2026-06-11, before the paywall cutoff, so it never reaches `/paywall`, bypass or not. It was not looked up before the run.
+- **Fix:** to test what happens ON the paywall, use an account created after the cutoff: that day's run made a throwaway account through the admin API (confirmed, a `user_preferences` row with both consent dates, no password) and deleted it at the end.
+
 ## Debunked
 
 - **"The app crashes on Android 16 and 17"** (2026-11-13): no. On those emulator images the app's process never starts, and there is no crash or exit record for it: the system's own services are what goes away (entry above).
