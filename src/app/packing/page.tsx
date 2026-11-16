@@ -98,6 +98,9 @@ export default function PackingPage() {
   // Results
   const [loading, setLoading] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
+  // The list could not be made (the server gives the use back): say so,
+  // the form used to just stop spinning.
+  const [buildFailed, setBuildFailed] = useState<false | "failed" | "too_small">(false);
   const [packingList, setPackingList] = useState<PackingItem[]>([]);
   const [outfitSuggestions, setOutfitSuggestions] = useState<OutfitDay[]>([]);
   const [weatherSummary, setWeatherSummary] = useState<string | null>(null);
@@ -176,6 +179,7 @@ export default function PackingPage() {
     setLoading(true);
     setSaved(false);
     setLimitReached(false);
+    setBuildFailed(false);
 
     try {
       const res = await fetch("/api/packing", {
@@ -193,9 +197,13 @@ export default function PackingPage() {
         setWeatherSummary(data.weather_summary ?? null);
         setPackingTips(data.packing_tips ?? null);
         setStep("results");
+      } else {
+        const data = (await res.json().catch(() => ({}))) as { code?: string };
+        setBuildFailed(data.code === "wardrobe_too_small" ? "too_small" : "failed");
       }
     } catch (err) {
       console.error("Failed to generate packing list:", err);
+      setBuildFailed("failed");
     } finally {
       setLoading(false);
     }
@@ -365,6 +373,11 @@ export default function PackingPage() {
             <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
               <p className="font-medium">{t("packing.limitTitle")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{t("packing.limitHint")}</p>
+            </div>
+          )}
+          {buildFailed && (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
+              {t(buildFailed === "too_small" ? "packing.needMoreItems" : "packing.buildFailed")}
             </div>
           )}
 

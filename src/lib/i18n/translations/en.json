@@ -1036,7 +1036,9 @@
     "pastTrips": "Past trips",
     "deleteTrip": "Delete trip",
     "limitTitle": "You've reached today's limit.",
-    "limitHint": "Packing lists are capped at 2 per day. Try again tomorrow."
+    "limitHint": "Packing lists are capped at 2 per day. Try again tomorrow.",
+    "buildFailed": "Couldn't build your list this time. Try again: this one didn't count toward your daily limit.",
+    "needMoreItems": "Add at least 3 pieces to your wardrobe first, then build your list."
   },
   "profile": {
     "title": "Profile",

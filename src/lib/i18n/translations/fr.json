@@ -1041,7 +1041,9 @@
     "pastTrips": "Voyages passés",
     "deleteTrip": "Supprimer le voyage",
     "limitTitle": "Tu as atteint la limite quotidienne.",
-    "limitHint": "Les listes de valise sont limitées à 2 par jour. Réessaie demain."
+    "limitHint": "Les listes de valise sont limitées à 2 par jour. Réessaie demain.",
+    "buildFailed": "Impossible de créer ta liste cette fois. Réessaie : celle-ci ne compte pas dans ta limite du jour.",
+    "needMoreItems": "Ajoute au moins 3 pièces à ton dressing, puis crée ta liste."
   },
   "profile": {
     "title": "Profil",

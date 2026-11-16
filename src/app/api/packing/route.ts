@@ -9,6 +9,7 @@ import { genAI, FAST_MODELS, thinkingFor } from "@/lib/gemini";
 import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
+import { matchPackingAnswer, packingAnswerUsable, type PackingAnswer } from "@/lib/packing-answer";
 
 // Packing list: one text call on the fast tier (FAST_MODELS in
 // src/lib/gemini.ts: Flash-Lite, the quality model when it is down).
@@ -141,7 +142,10 @@ export async function POST(request: NextRequest) {
   }
   const items = (allItems ?? []) as ClothingItem[];
   if (items.length < 3) {
-    return NextResponse.json({ error: "Add more items to your wardrobe first" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Add more items to your wardrobe first", code: "wardrobe_too_small" },
+      { status: 400 }
+    );
   }
 
   // Daily-cap gate: consumed only after the free validation exits (so a
@@ -217,14 +221,11 @@ Respond with ONLY valid JSON:
 
 Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardrobe.`;
 
-    type PackingShape = {
-      packing_list?: { item_id: string; reason: string }[];
-      outfit_suggestions?: { day: string; item_ids: string[]; note: string }[];
-      weather_summary?: string;
-      packing_tips?: string;
-    };
     // An unparseable answer is asked again once (withParseRetry): 1 of ~6
     // production packing answers on 2026-10-16 stopped being JSON partway.
+    // So is an answer that names no piece of this wardrobe: 1 of ~15 on
+    // 2026-11-16 showed "0 items to pack" and spent the use
+    // (src/lib/packing-answer.ts).
     const {
       answer: { result, model },
       parsed,
@@ -244,7 +245,19 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
             }),
           { tag: "packing" }
         ),
-      ({ result }) => parseJsonObject<PackingShape>(result.text),
+      ({ result }) => {
+        const answer = parseJsonObject<PackingAnswer>(result.text);
+        if (!answer) return null;
+        const matched = matchPackingAnswer(answer, items);
+        if (!packingAnswerUsable(matched)) {
+          console.error(
+            `[packing] the answer names no piece of the wardrobe (${matched.unknownIds.length} unknown ids):`,
+            matched.unknownIds.slice(0, 3)
+          );
+          return null;
+        }
+        return matched;
+      },
       { tag: "packing" }
     );
     if (!parsed) {
@@ -256,16 +269,7 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
       return NextResponse.json({ error: "Failed to generate packing list" }, { status: 502 });
     }
 
-    const packingList = (parsed.packing_list ?? [])
-      .map((p) => ({ item: items.find((i) => i.id === p.item_id), reason: p.reason }))
-      .filter((p) => p.item);
-    const outfitSuggestions = (parsed.outfit_suggestions ?? []).map((o) => ({
-      day: o.day,
-      items: (Array.isArray(o.item_ids) ? o.item_ids : [])
-        .map((id) => items.find((i) => i.id === id))
-        .filter(Boolean),
-      note: o.note,
-    }));
+    const { packingList, outfitSuggestions } = parsed;
 
     logAiCall(supabase, userId, "packing", {
       metadata: {
@@ -278,8 +282,8 @@ Use ONLY item IDs from the wardrobe. Be selective - don't pack the entire wardro
     return NextResponse.json({
       packing_list: packingList,
       outfit_suggestions: outfitSuggestions,
-      weather_summary: parsed.weather_summary ?? null,
-      packing_tips: parsed.packing_tips ?? null,
+      weather_summary: parsed.weatherSummary,
+      packing_tips: parsed.packingTips,
     });
   } catch (error) {
     console.error("Packing list error:", error);

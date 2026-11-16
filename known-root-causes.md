@@ -271,9 +271,21 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** timing on the runner, by every sign (not proven for that one run, which kept no more data). The next run of the same commit waited for the page instead of sleeping: 842 -> 530 again, and Android's own layout shows the WebView going from `[0,128][1080,2337]` to `[0,128][1080,1517]`. Neither the plugin nor the launch mode changes it.
 - **Fix:** the check waits up to 8 s for the page to shrink and notes the WebView's bounds with the keyboard up (`scripts/android/emulator-check.mjs`, on the branch).
 
+### The trip planner said "0 items to pack" and spent the use (2026-11-16)
+- **Symptom:** a 5-day Lisbon trip for the demo wardrobe (23 pieces) showed "0 items to pack" with an empty "What to pack", while the weather line and the tip were there; `ai_calls` logged the call as succeeded with `item_count: 0`.
+- **Cause:** one model answer named no piece of the wardrobe (its list was empty or its ids matched nothing; the raw answer was not kept). Not reproduced: 11 replays of the exact prompt and 5 calls of the route all came back with 11 to 16 matching pieces, and the 41 production calls before had none empty. The route used to show whatever matched, even nothing.
+- **Fix:** `src/lib/packing-answer.ts` (tests beside it): ids are compared without brackets, spaces or case, a piece named twice is shown once, and an answer naming no piece counts as unusable, so `withParseRetry` asks once more and then the route answers 502 with the use given back (logging the unknown ids). The trip page now says when a list could not be made (it used to stop spinning silently on any error) and when the wardrobe has fewer than 3 pieces (`code: "wardrobe_too_small"`).
+
+### The first photo of a bulk upload on a freshly started LOCAL server kept its raw photo (2026-11-15, local only)
+- **Symptom:** of 23 demo pieces uploaded through `/wardrobe/bulk` on `next start`, only the first kept the original photo (background and all); the other 22 got cutouts.
+- **Cause:** the server did make that cutout, after about 157 s (model download 48 s, session 6 s, first run 103 s on this PC), but the page had already given up on the request and saved the raw photo (the fallback in `pending-uploads-context.tsx`). Why the request ended early on the client side was not identified. Production's cold start is a same-region download plus a run of about 12-20 s.
+- **Fix:** none needed in the app. To redo one piece: `POST /api/items/normalize` with its storage path as that account, then save the returned URL on the piece (the upload page's own steps).
+
 ## Debunked
 
-- **"RevenueCat's library stopped the page from shrinking under the keyboard"** (2026-11-13): no, see the entry above: timing on the runner, 27 of 27 on the next run.
+- **"The try-on result shows blank tiles for some pieces"** (2026-11-16): no. In a full-page screenshot the photos below the fold had not lazy-loaded yet; scrolled through, all 13 photos of the same result load.
+
+- **"RevenueCat's library stopped the page from shrinking under the keyboard"** (2026-11-13): no, see the entry above: the same build passed all 27 checks on the next run, the page shrinking from 842 to 530 px.
 
 - **"The app crashes on Android 16 and 17"** (2026-11-13): no. On those emulator images the app's process never starts, and there is no crash or exit record for it: the system's own services are what goes away (entry above).
 - **"The app's first launch landed on the offline page because the emulator's network was not up yet"** (2026-11-13): not quite. The second run waited until Android reported the connection as validated before launching, and the first load still failed. The connection was up; the name lookup was not answering yet (entry above).
