@@ -298,7 +298,7 @@ function BulkCard({
         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-white">
           <p className="truncate text-xs font-medium">{item.name}</p>
           {item.category && (
-            <p className="truncate text-[10px] opacity-80 capitalize">{item.category}</p>
+            <p className="truncate text-[10px] opacity-80">{t(`category.${item.category}`)}</p>
           )}
         </div>
       )}

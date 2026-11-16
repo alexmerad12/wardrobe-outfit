@@ -544,7 +544,7 @@ export default function PackingPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.name}</p>
-                      <Badge variant="secondary" className="text-[10px] mt-0.5">{item.category}</Badge>
+                      <Badge variant="secondary" className="text-[10px] mt-0.5">{t(`category.${item.category}`)}</Badge>
                       <p className="text-[11px] text-muted-foreground mt-0.5">{reason}</p>
                     </div>
                   </CardContent>
