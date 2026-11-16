@@ -59,12 +59,35 @@ jobs:
       # and the config and plugin lists read by the app at start.
       - name: Copy the shell's files into the Android project
         run: npx cap sync android
+      # The upload key, from the repository secrets (set once from the
+      # owner's PC: the keystore and its password live outside the repo,
+      # docs/play-billing.md). Without them the release bundle is built
+      # unsigned, as before. Secrets never reach runs started by a pull
+      # request from a fork, and this workflow has no such trigger.
+      - name: Put the upload key in place
+        id: key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Upload key::the repository has no upload key: the release bundle is built unsigned"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.p12"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/upload.p12" >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
       # The debug app is what the emulators run. The release bundle is the
-      # format Google Play takes: built here unsigned, only to know that
-      # it builds (the upload key arrives with the Play Console account).
+      # format Google Play takes, signed with the upload key when the
+      # repository has it (app/build.gradle reads the four values below).
       - name: Build the debug app and the release bundle
         shell: bash
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug :app:bundleRelease --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle.log"
@@ -87,6 +110,35 @@ jobs:
           libraries=$(unzip -l "$apk" | grep -c '\.so$' || true)
           kb() { (du -k "$1" 2>/dev/null || echo "?") | cut -f1; }
           echo "::notice title=Android build::app-debug.apk $(kb "$apk") KB, release bundle $(kb "$bundle") KB, version code $VERSION_CODE, commit ${GITHUB_SHA::7}. Permissions in the release app: ${permissions:-not read}. Native libraries: ${libraries:-?}"
+      # A signed bundle must carry the upload key's certificate and verify.
+      # Its fingerprints are public (Google Cloud's Android sign-in client
+      # takes the SHA-1, App Links the SHA-256).
+      - name: Check the release bundle's signature
+        if: steps.key.outputs.signed == 'true'
+        shell: bash
+        run: |
+          bundle=android/app/build/outputs/bundle/release/app-release.aab
+          if ! jarsigner -verify "$bundle" | grep -q "jar verified"; then
+            echo "::error title=Upload key::the release bundle does not verify"
+            exit 1
+          fi
+          cert=$(keytool -printcert -jarfile "$bundle")
+          sha1=$(printf '%s\n' "$cert" | grep -m1 "SHA1:" | sed 's/.*SHA1: *//')
+          sha256=$(printf '%s\n' "$cert" | grep -m1 "SHA256:" | sed 's/.*SHA256: *//')
+          echo "::notice title=Signed release bundle::verified, signed by the upload key SHA-1 $sha1, SHA-256 $sha256, version code $VERSION_CODE"
+      - name: Remove the upload key from the runner
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/upload.p12"
+      # The file to upload to Google Play, kept when it is signed. Not
+      # secret: it is what Google Play distributes.
+      - uses: actions/upload-artifact@v7
+        if: steps.key.outputs.signed == 'true'
+        with:
+          name: linette-release-aab-${{ github.run_number }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@v7
         with:
           name: linette-debug-apk
