@@ -266,7 +266,14 @@ Public repo: technical facts only, no keys, accounts or client details.
 - **Cause:** the one recorded on 2026-10-24 above ("The paywall was never in a design capture"): the standing e2e account was created on 2026-06-11, before the paywall cutoff, so it never reaches `/paywall`, bypass or not. It was not looked up before the run.
 - **Fix:** to test what happens ON the paywall, use an account created after the cutoff: that day's run made a throwaway account through the admin API (confirmed, a `user_preferences` row with both consent dates, no password) and deleted it at the end.
 
+### Android emulator: "the page did not shrink under the keyboard" (2026-11-13, timing)
+- **Symptom:** the first run of the branch `play-billing` (the app with RevenueCat's plugin and `launchMode="singleTop"`) failed one check of 27: 1.2 s after the keyboard opened the page was still 842 px tall. The three runs before, without the plugin, read 842 -> 530.
+- **Cause:** timing on the runner, by every sign (not proven for that one run, which kept no more data). The next run of the same commit waited for the page instead of sleeping: 842 -> 530 again, and Android's own layout shows the WebView going from `[0,128][1080,2337]` to `[0,128][1080,1517]`. Neither the plugin nor the launch mode changes it.
+- **Fix:** the check waits up to 8 s for the page to shrink and notes the WebView's bounds with the keyboard up (`scripts/android/emulator-check.mjs`, on the branch).
+
 ## Debunked
+
+- **"RevenueCat's library stopped the page from shrinking under the keyboard"** (2026-11-13): no, see the entry above: timing on the runner, 27 of 27 on the next run.
 
 - **"The app crashes on Android 16 and 17"** (2026-11-13): no. On those emulator images the app's process never starts, and there is no crash or exit record for it: the system's own services are what goes away (entry above).
 - **"The app's first launch landed on the offline page because the emulator's network was not up yet"** (2026-11-13): not quite. The second run waited until Android reported the connection as validated before launching, and the first load still failed. The connection was up; the name lookup was not answering yet (entry above).

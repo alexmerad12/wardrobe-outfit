@@ -112,6 +112,12 @@ Proven (2026-11-13, a local production build):
   without an event, 500 (so RevenueCat retries) when RevenueCat cannot be read, 500 when not configured.
 - The smoke suite still passes (21 tests), and the Android build carries the plugin (the run's "Android build"
   notice and the emulator check, which now requires `Purchases` among the plugins).
+- The Android app with the plugin, on the Android 15 emulator (run 43538533999 of the branch): all 27 checks pass,
+  `Purchases` is among the plugins the page sees, Back and "comes back where it was" still hold with `singleTop`.
+  The build: debug app 7,932 KB (it was 3,976 KB), release bundle 5,968 KB, still no native library. The release app
+  now asks for `com.android.vending.BILLING` and `ACCESS_NETWORK_STATE` on top of internet and location, and still
+  no advertising id. The first run of the branch failed one check (the page had not shrunk 1.2 s after the keyboard
+  opened): timing on the runner, the check now waits for it (`known-root-causes.md`).
 
 NOT proven, and why:
 - Anything against a real RevenueCat project: the shape of its real answers (the code follows the API v1 reference),
