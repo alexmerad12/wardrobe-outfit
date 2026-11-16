@@ -46,7 +46,10 @@ test("wardrobe: coming back from a piece lands where the grid was", async ({ pag
   await page.waitForURL(ITEM_URL);
   await page.getByRole("button", { name: /^(back|retour)$/i }).click();
   await page.waitForURL((url) => url.pathname === "/wardrobe");
-  await expect(card(page, id)).toBeVisible();
+  // The grid fetches its pieces again on the way back: give production's
+  // slower answers the same 30 s as the first load (the default 5 s failed
+  // one run of five against linette.app).
+  await expect(card(page, id)).toBeVisible({ timeout: 30_000 });
   expect(Math.abs((await cardTop(page, id)) - top)).toBeLessThanOrEqual(4);
 
   // The arrow stepped back in history: Back from the grid now leaves the
@@ -68,7 +71,7 @@ test("wardrobe: coming back from a piece lands where the grid was", async ({ pag
   await page.waitForURL(ITEM_URL);
   await page.goBack();
   await page.waitForURL((url) => url.pathname === "/wardrobe");
-  await expect(card(page, id)).toBeVisible();
+  await expect(card(page, id)).toBeVisible({ timeout: 30_000 });
   expect(Math.abs((await cardTop(page, id)) - top2)).toBeLessThanOrEqual(4);
 
   // 3. A visit that didn't come from a piece still opens at the top.
