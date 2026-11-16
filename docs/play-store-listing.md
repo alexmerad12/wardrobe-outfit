@@ -106,13 +106,18 @@ of the privacy policy. The texts say nothing about price on purpose: that senten
 |---|---|---|
 | App icon | 512 x 512, 32-bit PNG, up to 1 MB. Google rounds the corners itself: a full square, no transparency | `store/android/icon-512.png` (`node scripts/android-icons.mjs --store`) |
 | Feature graphic | 1024 x 500, JPEG or 24-bit PNG, no transparency | `store/android/feature-graphic.png` (`node scripts/android/feature-graphic.mjs`: the launch screen's three lines on black) |
-| Phone screenshots | 2 to 8, PNG or JPEG, 16:9 or 9:16, each side 320 to 3,840 px. At least 4 at 1080 px or more to be eligible for promotion | to capture once the owner agrees on the wardrobe shown |
+| Phone screenshots | 2 to 8, PNG or JPEG, 16:9 or 9:16, each side 320 to 3,840 px. At least 4 at 1080 px or more to be eligible for promotion | `store/android/screenshots/en/` (English listing) and `fr/` (fr-CA and fr-FR): 6 each, 1080 x 1920 JPEG without alpha, in listing order: outfit, home, wardrobe, try-on, trip, favorites |
 
 The launcher icon inside the app is separate (`scripts/android-icons.mjs`, `android/app/src/main/res`).
 
-Screenshots show a real wardrobe. The only complete one in a test account is the e2e account's 13 pieces, which are
-the owner's own clothes (the reference photos of the background-removal comparison). They need his yes before they
-are published, or a demo wardrobe of other photos.
+The screenshots (2026-11-16) are real screens of the app with real AI results, taken from a DEMO account
+(`e2e-demo-wardrobe@linette.app`, made through the admin API, no password): 23 generated garment photos, nobody's
+clothes (the owner chose a demo wardrobe over his own on 2026-11-13), uploaded through the app's own bulk upload and
+cut out by it, city fixed to Montreal. Seen with the Android app's user agent at 432 x 768 CSS px x 2.5, every photo
+loaded before each capture. The French set renames the pieces in French and asks the AI in French. Retake them after
+a visible change to these screens. The scripts are not in the repo (they mint the demo account's session); the method
+is: same account, same viewport, `isMobile`, the app's user agent, and scroll each page through before the shot so
+lazy photos load.
 
 ## 3. Store settings
 
