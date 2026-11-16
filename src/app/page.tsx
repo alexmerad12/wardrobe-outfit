@@ -510,7 +510,12 @@ export default function HomePage() {
                     <Thermometer className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs font-medium leading-tight">{convertTemp(todayOutfit.weather_temp, unit)}°{unit === "fahrenheit" ? "F" : "C"}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{todayOutfit.weather_condition || t("home.weatherLabel")}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{(() => {
+                        // The saved condition is weather.ts's English word: show it
+                        // in the person's language (it read "Overcast" in French).
+                        const key = weatherConditionLabelKey(todayOutfit.weather_condition);
+                        return key ? t(key) : todayOutfit.weather_condition || t("home.weatherLabel");
+                      })()}</p>
                     </div>
                   </div>
                 )}

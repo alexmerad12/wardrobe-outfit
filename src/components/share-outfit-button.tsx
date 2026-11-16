@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Share2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/i18n/use-locale";
+import { weatherConditionLabelKey } from "@/lib/weather-condition-label";
 import {
   composeOutfitImage,
   shareOutfitImage,
@@ -56,7 +57,12 @@ export function ShareOutfitButton({
         title,
         subtitle,
         weatherTemp,
-        weatherCondition,
+        // Saved as weather.ts's English word: the image speaks the
+        // person's language, like the occasion the callers translate.
+        weatherCondition: (() => {
+          const key = weatherConditionLabelKey(weatherCondition);
+          return key ? t(key) : weatherCondition;
+        })(),
         occasion,
         date,
         temperatureUnit,
