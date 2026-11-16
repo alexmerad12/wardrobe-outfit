@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Camera, Upload, Sparkles, ArrowLeft, Loader2, AlertCircle, ChevronDown, X } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ReportAiButton } from "@/components/report-ai-button";
+import { OutfitPieceTile } from "@/components/outfit-piece-tile";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { downscaleImage } from "@/lib/image-utils";
 import type { ClothingItem } from "@/lib/types";
@@ -345,46 +346,55 @@ export default function TryOnPage() {
                             phantom item keeps its primary ring in both
                             states so the user can see at a glance
                             which piece is the new one. */}
-                        <div className={isExpanded ? "grid grid-cols-2 gap-x-1.5 gap-y-3 px-2 pb-2" : "grid grid-cols-4 gap-1 px-2 pb-2"}>
-                          {outfit.items.slice(0, isExpanded ? outfit.items.length : 4).map((item) => (
-                            <div key={item.id} className="min-w-0">
-                            <div
-                              className={`relative aspect-square rounded-md overflow-hidden bg-photo ${item.id === result.phantomId ? "ring-2 ring-primary" : ""}`}
-                            >
-                              {item.id === result.phantomId ? (
-                                previewUrl ? (
-                                  <Image
-                                    src={previewUrl}
-                                    alt={item.name}
-                                    fill
-                                    className="object-contain p-1"
-                                    sizes={isExpanded ? "(max-width: 640px) 50vw, 250px" : "80px"}
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <div className="flex items-center justify-center h-full text-xs">
-                                    {t("tryOn.newItem")}
-                                  </div>
-                                )
-                              ) : (
-                                <Image
-                                  src={item.image_url}
-                                  alt={item.name}
-                                  fill
-                                  className="object-contain p-1"
-                                  sizes={isExpanded ? "(max-width: 640px) 50vw, 250px" : "80px"}
+                        <div className={isExpanded ? "grid grid-cols-2 gap-2 px-2 pb-2" : "grid grid-cols-4 gap-1 px-2 pb-2"}>
+                          {outfit.items.slice(0, isExpanded ? outfit.items.length : 4).map((item) => {
+                            const isNew = item.id === result.phantomId;
+                            const sizes = isExpanded ? "(max-width: 640px) 50vw, 250px" : "80px";
+                            // The new piece shows the shopper's own photo, or
+                            // its label until the photo is there.
+                            const newPhoto = !isNew ? undefined : previewUrl ? (
+                              <Image
+                                src={previewUrl}
+                                alt={item.name}
+                                fill
+                                className={isExpanded ? "object-contain p-2" : "object-contain p-1"}
+                                sizes={sizes}
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-xs">
+                                {t("tryOn.newItem")}
+                              </div>
+                            );
+                            return isExpanded ? (
+                              // Framed, the name under the photo (OutfitPieceTile).
+                              <div key={item.id} className="min-w-0">
+                                <OutfitPieceTile
+                                  item={item}
+                                  sizes={sizes}
+                                  photo={newPhoto}
+                                  label={isNew ? t("tryOn.newItem") : undefined}
+                                  className={isNew ? "ring-2 ring-primary" : undefined}
                                 />
-                              )}
-                            </div>
-                            {/* The name under the photo, not over it (owner's
-                                call for every outfit grid, 2026-10-24). */}
-                            {isExpanded && (
-                              <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">
-                                {item.id === result.phantomId ? t("tryOn.newItem") : item.name}
-                              </p>
-                            )}
-                            </div>
-                          ))}
+                              </div>
+                            ) : (
+                              <div key={item.id} className="min-w-0">
+                                <div
+                                  className={`relative aspect-square rounded-md overflow-hidden bg-photo ${isNew ? "ring-2 ring-primary" : ""}`}
+                                >
+                                  {newPhoto ?? (
+                                    <Image
+                                      src={item.image_url}
+                                      alt={item.name}
+                                      fill
+                                      className="object-contain p-1"
+                                      sizes={sizes}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
 
                         {outfit.reason && (

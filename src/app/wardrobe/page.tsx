@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SUBCATEGORY_OPTIONS, type ClothingItem, type Category } from "@/lib/types";
@@ -35,6 +35,13 @@ import {
   type PendingItem,
 } from "@/lib/pending-uploads-context";
 import { UploadPreviewImage } from "@/components/upload-preview-image";
+import {
+  clearWardrobeReturn,
+  readWardrobeReturn,
+  restoredScrollY,
+  saveWardrobeReturn,
+  wardrobeViewKey,
+} from "@/lib/wardrobe-return";
 
 const ALL_CATEGORIES: (Category | "all" | "favorites" | "stored")[] = [
   "all",
@@ -216,10 +223,53 @@ function WardrobePageInner() {
     });
   }, [onItemSaved, refetchItems]);
 
+  // Coming back from a piece: put the grid where it was, with that piece's
+  // card at the same height on screen (src/lib/wardrobe-return.ts). Once per
+  // visit, as soon as the pieces are on screen, and before the browser paints
+  // so the top of the grid never flashes first. A record from another tab or
+  // drill-down is dropped: that grid is a different list.
+  const returnCheckedRef = useRef(false);
+  useLayoutEffect(() => {
+    if (loading || returnCheckedRef.current) return;
+    returnCheckedRef.current = true;
+    const saved = readWardrobeReturn();
+    if (!saved) return;
+    clearWardrobeReturn();
+    if (saved.view !== wardrobeViewKey(activeCategory, activeSubcategory)) return;
+    const card = document.querySelector<HTMLElement>(
+      `[data-item-id="${CSS.escape(saved.itemId)}"]`
+    );
+    const cardPageTop = card ? card.getBoundingClientRect().top + window.scrollY : null;
+    const maxScrollY = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo({
+      top: restoredScrollY(saved, cardPageTop, maxScrollY),
+      behavior: "instant",
+    });
+  }, [loading, activeCategory, activeSubcategory]);
+
   // Auto-nav on batch-complete lives in /wardrobe/uploading now — the
   // uploading page is where the user is for the duration of processing.
   // This page keeps the "Review your N uploads" CTA in the pending strip
   // as a manual fallback if something lands here with ready items.
+
+  // A piece is being opened: remember where the grid was, so coming back
+  // lands on it (src/lib/wardrobe-return.ts). Plain clicks only: a click in
+  // select mode stays on the grid, and a modified click opens another tab.
+  function rememberOpenedPiece(e: React.MouseEvent<HTMLDivElement>) {
+    if (selectMode || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+    const card = (e.target as HTMLElement).closest<HTMLElement>("[data-item-id]");
+    const itemId = card?.dataset.itemId;
+    if (!card || !itemId) return;
+    saveWardrobeReturn({
+      view: wardrobeViewKey(activeCategory, activeSubcategory),
+      itemId,
+      cardTop: card.getBoundingClientRect().top,
+      scrollY: window.scrollY,
+      at: Date.now(),
+    });
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -776,7 +826,7 @@ function WardrobePageInner() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" onClickCapture={rememberOpenedPiece}>
           {filteredItems.map((item) => (
             <ClothingCard
               key={item.id}

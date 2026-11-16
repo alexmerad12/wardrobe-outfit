@@ -20,6 +20,7 @@ import { weatherConditionLabelKey } from "@/lib/weather-condition-label";
 import { useScrollDirection } from "@/lib/use-scroll-direction";
 import { useClientValue } from "@/lib/use-client-value";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
+import { OutfitPieceTile } from "@/components/outfit-piece-tile";
 import { cn } from "@/lib/utils";
 
 export default function FavoritesPage() {
@@ -441,22 +442,13 @@ export default function FavoritesPage() {
 
                 {/* Image strip (collapsed) or grid (expanded) */}
                 {expandedId === outfit.id ? (
-                  // Names under the photos, not over them (owner's call for
-                  // every outfit grid, 2026-10-24).
-                  <div className="grid grid-cols-2 gap-x-1 gap-y-3 p-1 pb-3">
+                  // Each piece framed with its name under the photo
+                  // (OutfitPieceTile).
+                  <div className="grid grid-cols-2 gap-2 px-3 pb-3">
                     {(outfit.items ?? []).map((item) =>
                       selectMode ? (
                         <div key={item.id} className="min-w-0">
-                          <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
-                            <Image
-                              src={item.image_url}
-                              alt={item.name}
-                              fill
-                              className="object-contain p-2"
-                              sizes="(max-width: 640px) 50vw, 250px"
-                            />
-                          </div>
-                          <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
+                          <OutfitPieceTile item={item} sizes="(max-width: 640px) 50vw, 250px" />
                         </div>
                       ) : (
                         <Link
@@ -465,16 +457,7 @@ export default function FavoritesPage() {
                           onClick={(e) => e.stopPropagation()}
                           className="block min-w-0"
                         >
-                          <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
-                            <Image
-                              src={item.image_url}
-                              alt={item.name}
-                              fill
-                              className="object-contain p-2"
-                              sizes="(max-width: 640px) 50vw, 250px"
-                            />
-                          </div>
-                          <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
+                          <OutfitPieceTile item={item} sizes="(max-width: 640px) 50vw, 250px" />
                         </Link>
                       )
                     )}

@@ -197,6 +197,11 @@ None of it is processed "ephemerally" in Google's sense except the position sent
    not subject to the 12-testers-for-14-days rule that applies to new personal accounts.
 4. Release notes, first version. English: "First version of Linette for Android." French: "Première version de
    Linette pour Android."
+5. Before the production release (the owner's ask, 2026-11-16): the developer account's public phone, set at signup,
+   is temporary. Replace it with a business line in the Console (Settings, Developer account) and verify it: it
+   shows on the store page once the app is published. The rest of the account as created that day: organization
+   account, developer name "Linette App" ("Linette" was already taken by another account, the name can be changed
+   later), payments profile 9537-1076 Québec Inc (D-U-N-S 243370174), contact email hello@linette.app.
 
 ## 7. How the first Android version charges: DECIDED, Google Play billing
 

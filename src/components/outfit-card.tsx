@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import type { ClothingItem } from "@/lib/types";
+import { OutfitPieceTile } from "@/components/outfit-piece-tile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Shirt, ChevronLeft, ChevronRight, Shuffle, type LucideIcon } from "lucide-react";
@@ -81,22 +81,14 @@ export function OutfitCard({
           <h3 className="font-heading text-lg font-medium mb-3 tracking-tight">{name}</h3>
         )}
 
-        {/* Outfit items grid. Each name sits under its photo (owner's call,
-            2026-10-24): the grey band over the photos used to hide the
-            clothes' hems. */}
-        <div className="grid grid-cols-2 gap-x-2 gap-y-3 mb-4">
+        {/* Outfit items grid: each piece framed with its name under the
+            photo (OutfitPieceTile). */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
           {items.map((item) => {
             const swappable = !!onSwapItem && !lockedItemIds?.has(item.id);
             return (
               <figure key={item.id} className="min-w-0">
-                <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
-                  <Image
-                    src={item.image_url}
-                    alt={item.name}
-                    fill
-                    className="object-contain p-2"
-                    sizes="(max-width: 640px) 45vw, 200px"
-                  />
+                <OutfitPieceTile item={item} sizes="(max-width: 640px) 45vw, 200px">
                   {swappable && (
                     // A 44 px tap area around a small visible circle.
                     <button
@@ -116,10 +108,7 @@ export function OutfitCard({
                       </span>
                     </button>
                   )}
-                </div>
-                <figcaption className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">
-                  {item.name}
-                </figcaption>
+                </OutfitPieceTile>
               </figure>
             );
           })}

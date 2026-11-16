@@ -18,6 +18,7 @@ import { getLocalDateString } from "@/lib/local-date";
 import { weatherConditionLabelKey } from "@/lib/weather-condition-label";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { ShareOutfitButton } from "@/components/share-outfit-button";
+import { OutfitPieceTile } from "@/components/outfit-piece-tile";
 import { BrandedName } from "@/components/brand/branded-name";
 import { cn } from "@/lib/utils";
 
@@ -442,7 +443,7 @@ export default function HomePage() {
                   a Link to the item's detail page; stopPropagation so
                   tapping doesn't also toggle the card. */}
               {todayExpanded ? (
-                <div className="grid grid-cols-2 gap-x-1.5 gap-y-3">
+                <div className="grid grid-cols-2 gap-2">
                   {todayItems.map((item) => (
                     <Link
                       key={item.id}
@@ -450,11 +451,7 @@ export default function HomePage() {
                       onClick={(e) => e.stopPropagation()}
                       className="block min-w-0"
                     >
-                      <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
-                        <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 45vw, 200px" />
-                      </div>
-                      {/* Under the photo, not over it (owner's call, 2026-10-24). */}
-                      <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
+                      <OutfitPieceTile item={item} sizes="(max-width: 640px) 45vw, 200px" />
                     </Link>
                   ))}
                 </div>
@@ -672,7 +669,7 @@ export default function HomePage() {
 
                     {/* Image strip (collapsed) or grid (expanded) */}
                     {isExpanded ? (
-                      <div className="grid grid-cols-2 gap-x-1 gap-y-3 p-1 pb-3">
+                      <div className="grid grid-cols-2 gap-2 px-3 pb-3">
                         {outfit.items.map((item) => (
                           <Link
                             key={item.id}
@@ -680,10 +677,7 @@ export default function HomePage() {
                             onClick={(e) => e.stopPropagation()}
                             className="block min-w-0"
                           >
-                            <div className="relative aspect-square overflow-hidden rounded-lg bg-photo">
-                              <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="(max-width: 640px) 50vw, 250px" />
-                            </div>
-                            <p className="mt-1.5 px-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{item.name}</p>
+                            <OutfitPieceTile item={item} sizes="(max-width: 640px) 50vw, 250px" />
                           </Link>
                         ))}
                       </div>

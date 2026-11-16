@@ -73,6 +73,7 @@ import { convertHeicToJpeg, isHeicFileDeep } from "@/lib/heic-convert";
 import { toColorKey } from "@/lib/color-label";
 import { getPreferences } from "@/lib/preferences-client";
 import { hideBottomNav } from "@/lib/bottom-nav-visibility";
+import { moveWardrobeReturn, readWardrobeReturn } from "@/lib/wardrobe-return";
 
 export default function ItemDetailPage() {
   const { t, locale } = useLocale();
@@ -236,6 +237,33 @@ export default function ItemDetailPage() {
     // replace (not push) so the back button returns to the wardrobe grid
     // the user came from, not through every sibling they swiped past.
     router.replace(`/wardrobe/${targetId}${suffix}`);
+    // ...and lands on the piece they swiped to, the one on screen now.
+    moveWardrobeReturn(targetId);
+  };
+
+  // Back to the grid this piece was opened from. Opened from the wardrobe in
+  // this tab: step back in history, so the grid comes back on the same tab
+  // and at the same spot (src/lib/wardrobe-return.ts), and the phone's Back
+  // button doesn't reopen this piece afterwards (the old push did). Otherwise
+  // (a reload, a link from elsewhere) rebuild the tab from ?from= / ?sub=,
+  // else go back in history, or to the grid after a delete.
+  const leaveToWardrobe = (afterDelete: boolean) => {
+    const opened = readWardrobeReturn();
+    if (opened && opened.itemId === params.id) {
+      router.back();
+      return;
+    }
+    const from = searchParams.get("from");
+    const sub = searchParams.get("sub");
+    if (from) {
+      const qs = new URLSearchParams({ category: from });
+      if (sub) qs.set("subcategory", sub);
+      router.push(`/wardrobe?${qs.toString()}`);
+    } else if (afterDelete) {
+      router.push("/wardrobe");
+    } else {
+      router.back();
+    }
   };
 
   // Desktop keyboard: arrow-left/arrow-right navigate siblings.
@@ -553,7 +581,7 @@ export default function ItemDetailPage() {
       // Navigating on failure made the item look deleted until the
       // grid refetched it (audit P2).
       if (!res.ok) throw new Error(`/api/items ${res.status}`);
-      router.push("/wardrobe");
+      leaveToWardrobe(true);
     } catch (err) {
       console.error("[item-delete] failed:", err);
       alert(t("common.saveFailed"));
@@ -716,19 +744,9 @@ export default function ItemDetailPage() {
               setEditing(false);
               return;
             }
-            // Return to the wardrobe tab the user came from (passed via
-            // ?from= when they tapped the item) and the subcategory
-            // drill-down (?sub=) so they land exactly where they were.
-            // Falls back to history.
-            const from = searchParams.get("from");
-            const sub = searchParams.get("sub");
-            if (from) {
-              const qs = new URLSearchParams({ category: from });
-              if (sub) qs.set("subcategory", sub);
-              router.push(`/wardrobe?${qs.toString()}`);
-            } else {
-              router.back();
-            }
+            // Return to the wardrobe tab the user came from, at the same
+            // spot in the grid.
+            leaveToWardrobe(false);
           }}
         >
           {editing ? <X className="h-5 w-5" /> : <ArrowLeft className="h-5 w-5" />}

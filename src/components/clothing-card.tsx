@@ -32,6 +32,9 @@ export function ClothingCard({
   const { t } = useLocale();
   const content = (
     <div
+      // The wardrobe finds the card by this to bring the person back to it
+      // after they open the piece (src/lib/wardrobe-return.ts).
+      data-item-id={item.id}
       className={cn(
         "group relative overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md",
         isSelected && "ring-2 ring-primary",
