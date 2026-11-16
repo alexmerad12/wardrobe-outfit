@@ -163,7 +163,13 @@ lazy photos load.
 ## 5. Data safety form
 
 First three questions: the app collects user data (yes), all of it is encrypted in transit (yes, HTTPS only), and
-users can ask for deletion (yes, https://linette.app/delete-account).
+users can ask for deletion (yes, https://linette.app/delete-account). The optional fourth, deleting some data without
+deleting the account: yes (a piece, an outfit or a trip can each be deleted in the app, and deleting a piece removes
+its photos from storage too). Account creation: username and password only (Google's web sign-in is hidden in the
+app).
+
+The Console enforces an order: App access (the reviewer sign-in) must be saved before Target audience opens, and
+the Data safety form cannot be submitted before Target audience is done (seen 2026-11-16).
 
 "Collected" means it leaves the phone. "Shared" means handed to another company for its own use: none is. Every
 company that touches the data works for Linette as a service provider (privacy policy, section 5), which Google's
