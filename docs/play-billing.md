@@ -4,8 +4,12 @@ Decided by the owner on 2026-11-13: the Android app sells the subscription itsel
 RevenueCat in between. Google forbids any other payment inside an app, so in the app the website's Stripe checkout
 never opens.
 
-The code is on the branch `play-billing`. **It is not on main and must not be merged before a real test purchase
-passes on a phone** (section 5): nothing here has talked to a real RevenueCat project or to Google Play yet.
+The code is on main since 2026-11-16 (it was built on the branch `play-billing`) and is **switched off until three
+settings exist** (section 4, step 5): without them the app's paywall says subscriptions are not available in this
+version, with no way to pay at all (better than Stripe, which Google forbids in the app), the webhook answers 500 and
+the sync route 503. Nothing changes on the website. Turn the settings on while the app is only in internal testing,
+then the phone test of section 5 must pass before the first production release. **Not yet proven: a real test purchase
+on a phone** (section 5): nothing here has talked to a real RevenueCat project or to Google Play yet.
 
 ## 1. How it works
 

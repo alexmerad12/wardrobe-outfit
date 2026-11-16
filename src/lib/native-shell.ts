@@ -57,6 +57,26 @@ export function safeFileName(name: string): string {
 
 type ListenerHandle = { remove?: () => unknown };
 
+/** One plan as Google Play sells it, in RevenueCat's shape. Handed back to
+ *  the plugin untouched to buy it, so unknown fields are kept. */
+export type PlayPackage = {
+  identifier?: string;
+  product?: {
+    price?: number;
+    priceString?: string;
+    pricePerWeekString?: string | null;
+    defaultOption?: {
+      freePhase?: { billingPeriod?: { iso8601?: string } | null } | null;
+    } | null;
+  };
+  [key: string]: unknown;
+};
+
+export type PlayOffering = {
+  weekly?: PlayPackage | null;
+  annual?: PlayPackage | null;
+};
+
 export type ShellPlugins = {
   App?: {
     addListener?: (
@@ -79,6 +99,16 @@ export type ShellPlugins = {
   };
   Share?: {
     share?: (options: { files: string[]; dialogTitle?: string }) => Promise<unknown>;
+  };
+  /** RevenueCat's plugin: Google Play purchases (src/lib/play-purchases.ts). */
+  Purchases?: {
+    configure?: (options: { apiKey: string; appUserID: string }) => Promise<unknown>;
+    isConfigured?: () => Promise<{ isConfigured?: boolean }>;
+    getAppUserID?: () => Promise<{ appUserID?: string }>;
+    logIn?: (options: { appUserID: string }) => Promise<unknown>;
+    getOfferings?: () => Promise<{ current?: PlayOffering | null }>;
+    purchasePackage?: (options: { aPackage: PlayPackage }) => Promise<unknown>;
+    restorePurchases?: () => Promise<unknown>;
   };
 };
 

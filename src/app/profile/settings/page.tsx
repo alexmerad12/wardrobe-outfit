@@ -45,7 +45,20 @@ type Sub = {
   plan: "weekly" | "annual" | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  // Who sold it: Stripe on linette.app, Google Play in the Android app.
+  source: "stripe" | "play" | null;
+  store_product_id: string | null;
 };
+
+// Google Play's own page for one subscription of one app. In the Android
+// app the link leaves the WebView and Google Play opens it.
+function googlePlaySubscriptionUrl(storeProductId: string | null): string {
+  const url = new URL("https://play.google.com/store/account/subscriptions");
+  url.searchParams.set("package", "app.linette");
+  const product = storeProductId?.split(":")[0];
+  if (product) url.searchParams.set("sku", product);
+  return url.toString();
+}
 
 interface CityResult {
   name: string;
@@ -110,7 +123,7 @@ export default function SettingsPage() {
       if (data.user?.id) {
         const { data: subRow } = await supabase
           .from("user_subscriptions")
-          .select("status, plan, current_period_end, cancel_at_period_end")
+          .select("status, plan, current_period_end, cancel_at_period_end, source, store_product_id")
           .eq("user_id", data.user.id)
           .maybeSingle();
         setSub((subRow as Sub | null) ?? null);
@@ -645,21 +658,43 @@ export default function SettingsPage() {
                 </span>
               </div>
             )}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleManageBilling}
-              disabled={openingPortal}
-            >
-              {openingPortal ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("paywall.openingCheckout")}
-                </>
-              ) : (
-                t("profile.manageBilling")
-              )}
-            </Button>
+            {sub.source === "play" ? (
+              // Bought in the Android app: Google Play bills it, and only
+              // Google Play can change or cancel it.
+              <a
+                href={googlePlaySubscriptionUrl(sub.store_product_id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tap-h flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                {t("profile.manageInGooglePlay")}
+              </a>
+            ) : (
+              <>
+                {/* Stripe's portal is a payment page of another seller:
+                    never opened from inside the Android app. */}
+                <div className="web-only">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleManageBilling}
+                    disabled={openingPortal}
+                  >
+                    {openingPortal ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("paywall.openingCheckout")}
+                      </>
+                    ) : (
+                      t("profile.manageBilling")
+                    )}
+                  </Button>
+                </div>
+                <p className="shell-only text-sm text-muted-foreground">
+                  {t("profile.manageOnWebsite")}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

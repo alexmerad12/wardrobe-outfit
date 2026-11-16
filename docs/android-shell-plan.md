@@ -88,7 +88,8 @@ as the keystore.
 ### The paywall inside the app
 A link to another host opens the phone's browser, so the paywall's Stripe checkout would leave the app, and Google
 Play forbids it for a subscription sold in an app anyway. The owner decided on 2026-11-13: Google Play billing,
-built on the branch `play-billing` and described in `docs/play-billing.md`. Until its phone test passes (and before
+on main since 2026-11-16, switched off until its settings exist, described in `docs/play-billing.md`. Until its phone
+test passes (and before
 his decision: `docs/play-store-listing.md`,
 section 7) the app must not be published: a new account would reach that paywall.
 
@@ -117,7 +118,8 @@ the file does not exist yet (`public/.well-known/`). It must answer without a re
 link over when it arrives through a redirect.
 
 ### Billing (Google Play requires Play Billing for subscriptions sold in the app)
-**Built on 2026-11-13 on the branch `play-billing`: `docs/play-billing.md` is the current record.** What follows is
+**Built on 2026-11-13 on the branch `play-billing`, on main since 2026-11-16: `docs/play-billing.md` is the current
+record.** What follows is
 the research of 2026-11-09 it was built from. Two things changed on the way: no event id is stored (every write
 re-reads RevenueCat, so a repeated event is harmless), and the subscription is one product `linette_premium` with
 the base plans `weekly` and `annual`.

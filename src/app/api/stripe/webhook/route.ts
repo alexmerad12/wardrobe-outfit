@@ -30,6 +30,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PlanKey } from "@/lib/subscription";
+import { mayOverwrite } from "@/lib/play-billing";
 
 export const runtime = "nodejs";
 
@@ -91,10 +92,31 @@ async function upsertFromSubscription(
     return;
   }
 
+  // The Android app sells the same subscription through Google Play, and
+  // the row belongs to whichever seller grants access. An event for an
+  // ended Stripe subscription (a late "deleted", a retry) must not end a
+  // Google Play subscriber's access: leave their row alone.
+  const { data: onFile, error: onFileError } = await admin
+    .from("user_subscriptions")
+    .select("source, status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (onFileError) throw new Error(`row lookup failed: ${onFileError.message}`);
+  const grantsAccess =
+    subscription.status === "trialing" || subscription.status === "active";
+  if (!mayOverwrite(onFile, { source: "stripe", active: grantsAccess })) {
+    console.warn(
+      "[stripe-webhook] Google Play owns this account's row, Stripe state not written:",
+      subscription.status
+    );
+    return;
+  }
+
   const price = subscription.items.data[0]?.price;
   const { error } = await admin.from("user_subscriptions").upsert(
     {
       user_id: userId,
+      source: "stripe",
       stripe_customer_id: customerId,
       stripe_subscription_id: subscription.id,
       plan: planFromPrice(price),

@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { stripe, priceIdForPlan, type PlanKey } from "@/lib/stripe";
 import { getSubscription, hasActiveAccess } from "@/lib/subscription";
+import { isShellUserAgent } from "@/lib/native-shell";
 
 function siteOrigin(req: NextRequest): string {
   // Vercel + local both honor x-forwarded-host; fall back to the
@@ -30,6 +31,14 @@ export async function POST(request: NextRequest) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
   const { supabase, userId, userEmail } = ctx;
+
+  // Inside the Android app the subscription is sold by Google Play only
+  // (Google forbids another payment in an app). The paywall there never
+  // calls this route; refuse anyway, so no version of the app can open
+  // Stripe.
+  if (isShellUserAgent(request.headers.get("user-agent"))) {
+    return NextResponse.json({ error: "not_in_app" }, { status: 403 });
+  }
 
   let body: { plan?: string };
   try {

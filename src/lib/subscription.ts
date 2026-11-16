@@ -24,6 +24,8 @@ export type UserSubscription = {
   cancel_at_period_end: boolean;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  /** Who sold it: "stripe" (linette.app) or "play" (the Android app). */
+  source: "stripe" | "play";
 };
 
 // Statuses that grant paid access. past_due intentionally excluded —
@@ -57,7 +59,7 @@ export async function getSubscription(
   const { data } = await supabase
     .from("user_subscriptions")
     .select(
-      "status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id"
+      "status, plan, trial_end, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, source"
     )
     .eq("user_id", userId)
     .maybeSingle();

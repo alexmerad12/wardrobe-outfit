@@ -22,6 +22,29 @@ import { PatternRoseDamask, type Palette } from "@/components/brand/patterns";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { createClient } from "@/lib/supabase/client";
 import { invalidatePreferences } from "@/lib/preferences-client";
+import { isShellUserAgent } from "@/lib/native-shell";
+import {
+  buyPlayPlan,
+  loadPlayPlans,
+  restorePlayPurchases,
+  syncPlayAccess,
+  type PlayPlans,
+} from "@/lib/play-purchases";
+
+// Inside the Android app the subscription is sold by Google Play, never by
+// Stripe (Google forbids another payment in an app). The page renders both
+// versions of every price and note: `.web-only` and `.shell-only`
+// (globals.css) show the right one before the first frame, so the app
+// never flashes the website's prices. Google Play's own prices replace the
+// placeholders once the store has answered.
+type PlayStore =
+  // No answer yet (in a browser it stays here: the parts that read it are
+  // hidden there).
+  | { state: "waiting" }
+  | { state: "ready"; userId: string; plans: PlayPlans }
+  | { state: "unavailable" };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const BRAND_PALETTE: Palette = [
   "#ffffff",
@@ -39,6 +62,93 @@ export default function PaywallPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [signingOut, setSigningOut] = React.useState(false);
+  const [play, setPlay] = React.useState<PlayStore>({ state: "waiting" });
+  const [restoring, setRestoring] = React.useState(false);
+
+  // In the app: ask Google Play for the plans and their prices.
+  React.useEffect(() => {
+    if (!isShellUserAgent(navigator.userAgent)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await createClient().auth.getUser();
+        const userId = data.user?.id;
+        if (!userId) throw new Error("no signed-in account");
+        const plans = await loadPlayPlans(userId);
+        if (cancelled) return;
+        setPlay({ state: "ready", userId, plans });
+        // The annual plan is the default; fall back when Google has only one.
+        if (!plans.annual && plans.weekly) setSelected("weekly");
+      } catch (err) {
+        console.error("[paywall] Google Play plans not loaded:", err);
+        if (!cancelled) setPlay({ state: "unavailable" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The server reads the purchase from RevenueCat, which can lag Google
+  // Play by a few seconds: ask a few times before saying it is pending.
+  async function enterOncePaid(): Promise<boolean> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (attempt > 0) await sleep(2000);
+      if (await syncPlayAccess().catch(() => false)) {
+        // Full navigation so the proxy re-checks access on the way.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/";
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function onBuyInApp() {
+    if (play.state !== "ready") return;
+    const plan = selected === "annual" ? play.plans.annual : play.plans.weekly;
+    if (!plan) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const outcome = await buyPlayPlan(play.userId, plan);
+      if (outcome === "cancelled") {
+        setSubmitting(false);
+        return;
+      }
+      if (!(await enterOncePaid())) {
+        setError(t("paywall.playPending"));
+        setSubmitting(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(t("paywall.playError"));
+      setSubmitting(false);
+    }
+  }
+
+  async function onRestore() {
+    if (play.state !== "ready") return;
+    setRestoring(true);
+    setError(null);
+    try {
+      await restorePlayPurchases(play.userId);
+      if (!(await syncPlayAccess())) setError(t("paywall.restoreNone"));
+      else {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/";
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+      setError(t("paywall.playError"));
+    }
+    setRestoring(false);
+  }
+
+  const playPlans = play.state === "ready" ? play.plans : null;
+  // What a price reads while Google Play has not answered yet.
+  const pending = play.state === "unavailable" ? "–" : "…";
 
   // Escape hatch — the paywall is a dead end by design (hard gate),
   // but "I signed up with the wrong email / I already have an
@@ -113,14 +223,28 @@ export default function PaywallPage() {
               >
                 <div className="pw-plan-head">
                   <span className="pw-plan-label">{t("paywall.annualLabel")}</span>
-                  <span className="pw-badge">{t("paywall.annualBadge")}</span>
+                  <span className="pw-badge web-only">{t("paywall.annualBadge")}</span>
+                  {playPlans?.savePercent != null && (
+                    <span className="pw-badge shell-only">
+                      {t("paywall.playSaveBadge", { percent: playPlans.savePercent })}
+                    </span>
+                  )}
                 </div>
                 <div className="pw-price">
-                  <span className="pw-price-main">{t("paywall.annualPrice")}</span>
+                  <span className="pw-price-main web-only">{t("paywall.annualPrice")}</span>
+                  <span className="pw-price-main shell-only" data-play-price="annual">
+                    {playPlans?.annual?.price ?? pending}
+                  </span>
                   <span className="pw-price-per">{t("paywall.annualPer")}</span>
                 </div>
-                <div className="pw-equiv">{t("paywall.annualEquiv")}</div>
-                <div className="pw-note">{t("paywall.annualNote")}</div>
+                <div className="pw-equiv web-only">{t("paywall.annualEquiv")}</div>
+                {playPlans?.annual?.perWeek && (
+                  <div className="pw-equiv shell-only">
+                    {t("paywall.playAnnualEquiv", { price: playPlans.annual.perWeek })}
+                  </div>
+                )}
+                <div className="pw-note web-only">{t("paywall.annualNote")}</div>
+                <div className="pw-note shell-only">{t("paywall.playAnnualNote")}</div>
               </button>
 
               {/* Weekly — 7-day trial */}
@@ -132,13 +256,33 @@ export default function PaywallPage() {
               >
                 <div className="pw-plan-head">
                   <span className="pw-plan-label">{t("paywall.weeklyLabel")}</span>
-                  <span className="pw-trial-pill">{t("paywall.weeklyTrial")}</span>
+                  <span className="pw-trial-pill web-only">{t("paywall.weeklyTrial")}</span>
+                  {/* Google decides who still gets the free week: the pill
+                      shows only when the offer comes back for this person. */}
+                  {playPlans?.weekly?.trialDays != null && (
+                    <span className="pw-trial-pill shell-only">
+                      {t("paywall.playTrial", { days: playPlans.weekly.trialDays })}
+                    </span>
+                  )}
                 </div>
                 <div className="pw-price">
-                  <span className="pw-price-main">{t("paywall.weeklyPrice")}</span>
+                  <span className="pw-price-main web-only">{t("paywall.weeklyPrice")}</span>
+                  <span className="pw-price-main shell-only" data-play-price="weekly">
+                    {playPlans?.weekly?.price ?? pending}
+                  </span>
                   <span className="pw-price-per">{t("paywall.weeklyPer")}</span>
                 </div>
-                <div className="pw-note">{t("paywall.weeklyNote")}</div>
+                <div className="pw-note web-only">{t("paywall.weeklyNote")}</div>
+                {playPlans?.weekly && (
+                  <div className="pw-note shell-only">
+                    {playPlans.weekly.trialDays != null
+                      ? t("paywall.playWeeklyNoteTrial", {
+                          days: playPlans.weekly.trialDays,
+                          price: playPlans.weekly.price,
+                        })
+                      : t("paywall.playWeeklyNote", { price: playPlans.weekly.price })}
+                  </div>
+                )}
               </button>
             </div>
 
@@ -151,17 +295,44 @@ export default function PaywallPage() {
             </ul>
 
             {error && <div className="pw-error">{error}</div>}
+            {play.state === "unavailable" && (
+              <div className="pw-error shell-only">{t("paywall.playUnavailable")}</div>
+            )}
 
             <button
               type="button"
-              className="pw-cta"
+              className="pw-cta web-only"
               onClick={onContinue}
               disabled={submitting}
             >
               {submitting ? t("paywall.openingCheckout") : t("paywall.continueCta")}
             </button>
+            <button
+              type="button"
+              className="pw-cta shell-only"
+              onClick={onBuyInApp}
+              disabled={
+                submitting ||
+                restoring ||
+                !(selected === "annual" ? playPlans?.annual : playPlans?.weekly)
+              }
+            >
+              {submitting ? t("paywall.playOpening") : t("paywall.continueCta")}
+            </button>
 
-            <p className="pw-disclosure">{t("paywall.disclosure")}</p>
+            <p className="pw-disclosure web-only">{t("paywall.disclosure")}</p>
+            <p className="pw-disclosure shell-only">{t("paywall.playDisclosure")}</p>
+
+            {/* Google Play asks for a way to get back a subscription already
+                paid for with this Google account (a new phone, a reinstall). */}
+            <button
+              type="button"
+              className="pw-signout shell-only"
+              onClick={onRestore}
+              disabled={restoring || submitting || play.state !== "ready"}
+            >
+              {restoring ? t("paywall.restoring") : t("paywall.restore")}
+            </button>
 
             <div className="pw-foot">
               <Link href="/terms" className="pw-foot-link">

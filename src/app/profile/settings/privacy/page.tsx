@@ -156,6 +156,13 @@ export default function AccountSecurityPage() {
       const res = await fetch("/api/account/delete", { method: "DELETE" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        // A Google Play subscription that could not be cancelled: say
+        // where to cancel it, the generic message would send them in circles.
+        if (body?.code === "play_cancel_failed") {
+          setDeleting(false);
+          setDeleteError(t("profile.deleteAccountPlayFailed"));
+          return;
+        }
         throw new Error(body?.error || "Delete failed");
       }
       // Full reload on purpose: the account no longer exists, drop all
