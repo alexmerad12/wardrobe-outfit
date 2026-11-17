@@ -105,8 +105,17 @@ of the privacy policy. The texts say nothing about price on purpose: that senten
 | Asset | Requirement | Where it is |
 |---|---|---|
 | App icon | 512 x 512, 32-bit PNG, up to 1 MB. Google rounds the corners itself: a full square, no transparency | `store/android/icon-512.png` (`node scripts/android-icons.mjs --store`) |
-| Feature graphic | 1024 x 500, JPEG or 24-bit PNG, no transparency | `store/android/feature-graphic.png` (`node scripts/android/feature-graphic.mjs`: the launch screen's three lines on black) |
-| Phone screenshots | 2 to 8, PNG or JPEG, 16:9 or 9:16, each side 320 to 3,840 px. At least 4 at 1080 px or more to be eligible for promotion | `store/android/screenshots/en/` (English listing) and `fr/` (fr-CA and fr-FR): 6 each, 1080 x 1920 JPEG without alpha, in listing order: outfit, home, wardrobe, try-on, trip, favorites |
+| Feature graphic | 1024 x 500, JPEG or 24-bit PNG, no transparency | `store/android/feature-graphic.png` (English listing) and `feature-graphic-fr.png` (fr-CA and fr-FR), both from `node scripts/android/feature-graphic.mjs`: the launch screen's three lines on black, taken from the app's own dictionaries |
+| Phone screenshots | 2 to 8, PNG or JPEG, 16:9 or 9:16, each side 320 to 3,840 px. At least 4 at 1080 px or more to be eligible for promotion | `store/android/screenshots/en/` (English listing) and `fr/` (fr-CA and fr-FR): 6 each, 1080 x 1920 JPEG without alpha, in listing order: outfit, home, wardrobe, try-on, trip, favorites. The same 6 fill the 7-inch and 10-inch tablet slots |
+
+How the Console handles them (checked 2026-11-16): a translation shows the default language's graphics until it
+gets one of its own, and its "delete" buttons do nothing on those inherited ones. Its first own phone screenshot
+replaces the whole inherited set, and from then on its tablet slots are EMPTY rather than inherited, so they need
+filling too. Uploading several files at once puts them in the order the uploads finish (the English slots came out
+shuffled that way, favorites first): upload one at a time, or pick from the library, which keeps the order the
+images are clicked in. The French files went up as `fr-1-outfit.jpg` and so on, so the library never mixes the two
+sets. Every screenshot carries the "made or edited with AI" label (the demo wardrobe's photos are generated); the
+icon and the two feature graphics do not.
 
 The launcher icon inside the app is separate (`scripts/android-icons.mjs`, `android/app/src/main/res`).
 

@@ -2,11 +2,15 @@
 // brand as the app's own launch screen shows it. Black, the small caps
 // line, "Linette" in the script face, the italic line under it.
 //
-//   node scripts/android/feature-graphic.mjs
+//   node scripts/android/feature-graphic.mjs        (English and French)
+//   node scripts/android/feature-graphic.mjs fr     (one language only)
 //
-// It draws a small page with the app's three typefaces (loaded from
-// Google Fonts, so it needs a connection) in the headless browser the
-// e2e tests already use, and saves store/android/feature-graphic.png.
+// One graphic per store language, with the launch screen's own lines from
+// the app's dictionaries: English for the default listing
+// (store/android/feature-graphic.png), French for fr-CA and fr-FR
+// (store/android/feature-graphic-fr.png). It draws a small page with the
+// app's three typefaces (loaded from Google Fonts, so it needs a
+// connection) in the headless browser the e2e tests already use.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,11 +18,15 @@ import { chromium } from "@playwright/test";
 import sharp from "sharp";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const out = path.join(root, "store", "android", "feature-graphic.png");
-const strings = JSON.parse(fs.readFileSync(path.join(root, "src", "lib", "i18n", "translations", "en.json"), "utf8")).splash;
+const files = { en: "feature-graphic.png", fr: "feature-graphic-fr.png" };
+const wanted = process.argv.slice(2);
+const langs = wanted.length > 0 ? wanted : Object.keys(files);
+for (const lang of langs) {
+  if (!files[lang]) throw new Error(`no feature graphic is set up for "${lang}" (known: ${Object.keys(files).join(", ")})`);
+}
 
-const page = `<!doctype html>
-<html lang="en">
+const pageFor = (lang, strings) => `<!doctype html>
+<html lang="${lang}">
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@1,400&family=DM+Sans:wght@500&family=Parisienne&display=block" />
@@ -43,17 +51,21 @@ try {
   // smooths small text with coloured sub-pixels, which show as fringes at
   // the final size. Scaling down turns them back into grey.
   const tab = await browser.newPage({ viewport: { width: 1024, height: 500 }, deviceScaleFactor: 2 });
-  await tab.setContent(page, { waitUntil: "networkidle" });
-  await tab.evaluate(() => document.fonts.ready);
-  const loaded = await tab.evaluate(() =>
-    ["Parisienne", "DM Sans", "Bodoni Moda"].map((family) => `${family}: ${[...document.fonts].some((face) => face.family.replace(/"/g, "") === family && face.status === "loaded")}`),
-  );
-  console.log("fonts loaded:", loaded.join(", "));
-  if (loaded.some((line) => line.endsWith("false"))) throw new Error("a typeface did not load: check the connection");
-  fs.mkdirSync(path.dirname(out), { recursive: true });
-  const large = await tab.screenshot({ type: "png", omitBackground: false });
-  await sharp(large).resize(1024, 500).flatten({ background: "#000000" }).png().toFile(out);
-  console.log(`wrote ${path.relative(root, out)}`);
+  for (const lang of langs) {
+    const strings = JSON.parse(fs.readFileSync(path.join(root, "src", "lib", "i18n", "translations", `${lang}.json`), "utf8")).splash;
+    const out = path.join(root, "store", "android", files[lang]);
+    await tab.setContent(pageFor(lang, strings), { waitUntil: "networkidle" });
+    await tab.evaluate(() => document.fonts.ready);
+    const loaded = await tab.evaluate(() =>
+      ["Parisienne", "DM Sans", "Bodoni Moda"].map((family) => `${family}: ${[...document.fonts].some((face) => face.family.replace(/"/g, "") === family && face.status === "loaded")}`),
+    );
+    console.log(`${lang} fonts loaded:`, loaded.join(", "));
+    if (loaded.some((line) => line.endsWith("false"))) throw new Error("a typeface did not load: check the connection");
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const large = await tab.screenshot({ type: "png", omitBackground: false });
+    await sharp(large).resize(1024, 500).flatten({ background: "#000000" }).png().toFile(out);
+    console.log(`wrote ${path.relative(root, out)}`);
+  }
 } finally {
   await browser.close();
 }
