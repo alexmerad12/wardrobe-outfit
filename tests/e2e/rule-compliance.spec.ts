@@ -1,4 +1,5 @@
 import { test, expect, type APIResponse, type Browser, type Page } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 import { mintSessionCookies } from "./harness-session";
 
 // RULE-COMPLIANCE HARNESS (audit Phase 6).
@@ -12,7 +13,8 @@ import { mintSessionCookies } from "./harness-session";
 // regenerate pass and the fallback ladder.
 //
 // Requirements:
-//  - A DEDICATED test user (it wipes + reseeds the wardrobe!). The
+//  - A DEDICATED test user (it sets the wardrobe aside, seeds its
+//    fixtures, then puts the same pieces back: SUPABASE_SECRET_KEY). The
 //    email must contain "e2e" or "harness" as a tripwire against
 //    pointing this at a real account. Set HARNESS_EMAIL in .env.local.
 //    HARNESS_PASSWORD is optional: without it the harness signs in
@@ -215,19 +217,34 @@ const BASE_PREFS = {
 test.describe.configure({ mode: "serial" });
 
 let seededIds: string[] = [];
+// The account's own pieces, set aside as rows while the fixtures run and put
+// back afterwards. Until 2026-11-16 the harness deleted them through the API,
+// which also deletes each piece's photos, and left the account EMPTY: the
+// smoke suite, which signs in as the same HARNESS_EMAIL, then failed on a
+// wardrobe with no pieces. Deleting the rows directly leaves the photos where
+// they are, so the same rows (same ids) come back intact.
+let setAside: Record<string, unknown>[] = [];
+const admin = () =>
+  createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } });
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(180_000 + RETRY_MS);
   const page = await signedInPage(browser);
   await putPrefs(page, BASE_PREFS);
 
-  // Wipe + reseed the fixture wardrobe.
-  const existing = await page.request.get("/api/items");
-  expect(existing.ok()).toBe(true);
-  const items = (await existing.json()) as { id: string }[];
-  expect(items.length, "tripwire: refusing to wipe a wardrobe this large").toBeLessThan(60);
-  for (const it of items) {
-    await page.request.delete(`/api/items/${it.id}`);
+  // Set the wardrobe aside, then seed the fixtures.
+  const db = admin();
+  const { data: users, error: usersError } = await db.auth.admin.listUsers({ page: 1, perPage: 500 });
+  expect(usersError).toBeNull();
+  const ownerId = users.users.find((u) => u.email === EMAIL)?.id;
+  expect(ownerId, `the harness account ${EMAIL}`).toBeTruthy();
+  const { data: rows, error: rowsError } = await db.from("clothing_items").select("*").eq("user_id", ownerId!);
+  expect(rowsError).toBeNull();
+  expect(rows!.length, "tripwire: refusing to set aside a wardrobe this large").toBeLessThan(60);
+  setAside = rows!;
+  if (setAside.length > 0) {
+    const removed = await db.from("clothing_items").delete().in("id", setAside.map((r) => r.id as string));
+    expect(removed.error).toBeNull();
   }
 
   seededIds = [];
@@ -243,13 +260,19 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async ({ browser }) => {
-  if (seededIds.length === 0) return;
-  const page = await signedInPage(browser);
-  for (const id of seededIds) {
-    await page.request.delete(`/api/items/${id}`);
+  if (seededIds.length > 0) {
+    const page = await signedInPage(browser);
+    for (const id of seededIds) {
+      await page.request.delete(`/api/items/${id}`);
+    }
+    await putPrefs(page, BASE_PREFS);
+    await page.context().close();
   }
-  await putPrefs(page, BASE_PREFS);
-  await page.context().close();
+  // The account's own pieces come back, whatever happened above.
+  if (setAside.length > 0) {
+    const restored = await admin().from("clothing_items").insert(setAside);
+    expect(restored.error, "the harness account's wardrobe is put back").toBeNull();
+  }
 });
 
 async function fixtureId(page: Page, name: string): Promise<string> {
