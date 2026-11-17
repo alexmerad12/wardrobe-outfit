@@ -21,8 +21,29 @@ async function cardTop(page: Page, id: string): Promise<number> {
   return card(page, id).evaluate((el) => el.getBoundingClientRect().top);
 }
 
+// What a tap on the middle of the card would hit, when it isn't the card.
+// Playwright's click waits out anything covering the card by scrolling the
+// page to new spots, so the tap would land somewhere else than where the card
+// was measured (the launch splash did, 2026-11-16: known-root-causes.md).
+async function coveringTheCard(page: Page, id: string): Promise<string | null> {
+  return card(page, id).evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    if (hit && el.contains(hit)) return null;
+    return hit ? hit.outerHTML.slice(0, 160) : "nothing (off screen)";
+  });
+}
+
 test("wardrobe: coming back from a piece lands where the grid was", async ({ page }) => {
   test.setTimeout(3 * 60 * 1000);
+  // The launch splash plays once per session and only counts as seen when it
+  // ends, ~3.9 s in: signing in on "/" and opening the wardrobe at once played
+  // it again over the grid. The grid under it is what's tested.
+  await page.addInitScript(() => {
+    try {
+      sessionStorage.setItem("linette_splash_seen", "1");
+    } catch {}
+  });
   await signIn(page);
   await page.goto("/wardrobe");
   const cards = page.locator("[data-item-id]");
@@ -42,6 +63,7 @@ test("wardrobe: coming back from a piece lands where the grid was", async ({ pag
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(400);
 
   // 1. The app's back arrow.
+  expect(await coveringTheCard(page, id), "something covers the card when it is tapped").toBeNull();
   await card(page, id).click();
   await page.waitForURL(ITEM_URL);
   await page.getByRole("button", { name: /^(back|retour)$/i }).click();
@@ -67,6 +89,7 @@ test("wardrobe: coming back from a piece lands where the grid was", async ({ pag
   }, id);
   await page.waitForTimeout(400);
   const top2 = await cardTop(page, id);
+  expect(await coveringTheCard(page, id), "something covers the card when it is tapped").toBeNull();
   await card(page, id).click();
   await page.waitForURL(ITEM_URL);
   await page.goBack();
