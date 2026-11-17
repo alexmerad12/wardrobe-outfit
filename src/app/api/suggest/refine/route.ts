@@ -12,6 +12,9 @@ import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localDayKey } from "@/lib/daily-cap";
 import { hasStrippedAccents, hasVousForm, oneSentence, textGuardReason } from "@/lib/suggest-text-guards";
+import { stylingTipVoice, type Wearer } from "@/lib/suggest-prompt";
+import { cleanStyleWishes } from "@/lib/style-wishes";
+import { tidyTip } from "@/lib/tip-notes";
 
 // Refine endpoint — re-writes reasoning + styling_tip for an outfit
 // the user has edited (swapped items) before they save it. Cheaper
@@ -48,6 +51,8 @@ type RefineBody = {
   weather_temp?: unknown;
   weather_condition?: unknown;
   locale?: unknown;
+  /** What step 2 held when the outfit was styled (chips + typed line). */
+  styleWishes?: unknown;
 };
 
 export async function POST(request: NextRequest) {
@@ -82,14 +87,19 @@ export async function POST(request: NextRequest) {
     typeof body.weather_condition === "string" ? body.weather_condition.slice(0, 60) : null;
   const locale: "en" | "fr" = body.locale === "fr" ? "fr" : "en";
   const languageName = locale === "fr" ? "French" : "English";
+  // The tip names the person's situation in their words, as suggest's did.
+  const styleWishes = cleanStyleWishes(body.styleWishes);
 
   // Hydrate items from Supabase. RLS scopes to the current user — if
   // any item_id isn't owned by them, we just won't find it and it
-  // gets dropped from the prompt.
-  const { data: items, error: itemsErr } = await supabase
-    .from("clothing_items")
-    .select("*")
-    .in("id", item_ids);
+  // gets dropped from the prompt. The gender makes French adjectives
+  // agree in the tip ("sûre de toi"), mapped as the suggest route does.
+  const [{ data: items, error: itemsErr }, { data: prefs }] = await Promise.all([
+    supabase.from("clothing_items").select("*").in("id", item_ids),
+    supabase.from("user_preferences").select("gender").eq("user_id", userId).maybeSingle(),
+  ]);
+  const wearer: Wearer =
+    prefs?.gender === "man" ? "man" : prefs?.gender === "not-specified" ? "not-specified" : "woman";
   if (itemsErr || !items || items.length === 0) {
     return NextResponse.json({ error: "Could not load items" }, { status: 502 });
   }
@@ -133,13 +143,13 @@ ${itemsList}
 CONTEXT:
 - Occasion: ${occasionLabel}
 - Mood: ${moodInfo ? `${moodInfo.label} — ${moodInfo.description}` : "Unspecified"}
-- Weather: ${weatherLine}
+- Weather: ${weatherLine}${styleWishes.length > 0 ? `\n- STYLE DIRECTION (what the user typed): ${styleWishes.join(", ")}` : ""}
 
 Write in ${languageName}. Both fields are short editorial sentences — no filler like "perfect for" or "this outfit works because".
 
 Respond with ONLY:
 - reasoning: ONE editorial sentence citing one specific styling principle at play (color harmony, silhouette balance, texture play, or occasion fit). Refer to pieces by broad category only (the dress, the bottoms, the jacket).
-- styling_tip: ONE short sentence with a concrete styling action applied to items in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, knot hem). Or null if nothing useful fits.`;
+- styling_tip: ${stylingTipVoice({ languageName, wearer })} Or null if nothing useful fits.`;
 
     // An unparseable answer is asked again once (withParseRetry).
     type RefineAnswer = { reasoning?: string; styling_tip?: string | null };
@@ -211,7 +221,7 @@ Respond with ONLY:
     // gets PERSISTED on the saved outfit, so a bad string here is worse
     // than in suggest — null lets the client keep the previous text.
     const rawReasoning = oneSentence(parsed.reasoning);
-    const rawTip = oneSentence(parsed.styling_tip);
+    const rawTip = tidyTip(oneSentence(parsed.styling_tip), locale);
     const cleanItems = items as ClothingItem[];
     const reasoningGuard = rawReasoning ? textGuardReason(cleanItems, rawReasoning, locale) : "empty";
     const tipGuard = rawTip ? textGuardReason(cleanItems, rawTip, locale) : "empty";

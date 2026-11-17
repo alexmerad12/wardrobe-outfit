@@ -3,20 +3,65 @@
 // ONE place rule text lives (audit Group B4).
 //
 // CACHE CONTRACT: everything returned here must be byte-stable for a
-// given (isMensTrack, languageName) pair. Gemini's implicit prompt
+// given (isMensTrack, languageName, wearer). Gemini's implicit prompt
 // caching matches on longest common byte prefix — this block sits in
 // the CACHED PREFIX, before the wardrobe and all per-request context.
 // Never interpolate anything that varies per request (weather, mood,
 // occasion, nonce, recent lists) into these strings; that content
 // belongs in the route's dynamicSuffix.
 
+// Who wears the outfit, as the person set it in onboarding or Settings.
+// French adjectives agree with it in the styling tip ("sûre de toi").
+export type Wearer = "woman" | "man" | "not-specified";
+
+// How Linette's styling tip sounds: ONE text for suggest and for refine
+// (the tip rewritten when a piece is swapped before saving). The owner's ask
+// of 2026-11-16: a stylist who is a close friend, unique to every outfit.
+// Tuned on sample requests on 2026-11-17: with step 2 empty the model
+// invented a moment to talk about ("Sunday brunch" on a Tuesday, "your
+// walk") while both examples answered a STYLE DIRECTION; the second example
+// now has none.
+export function stylingTipVoice({
+  languageName,
+  wearer = "woman",
+}: {
+  languageName: string;
+  wearer?: Wearer;
+}): string {
+  const fr = languageName === "French";
+  const examples = fr
+    ? `"Laisse le trench ouvert et noue la ceinture dans le dos : de l'allure et de l'aisance pour ce premier rendez-vous." / "Roule une fois le bas du jean au-dessus des bottines : à l'aise pour le brunch, et au chaud malgré le froid."`
+    : `"Leave the blazer open and push the sleeves up: you'll look sharp and still like yourself at the interview." / "Cuff the jeans once above the boots: easy for brunch, and warm enough for the cold."`;
+  const agreement = !fr
+    ? ""
+    : wearer === "man"
+      ? ` Agree adjectives in the masculine ("sûr de toi", "prêt", "détendu").`
+      : wearer === "woman"
+        ? ` Agree adjectives in the feminine ("sûre de toi", "prête", "détendue").`
+        : ` Prefer words that don't change with gender ("à l'aise", "de l'allure", "au chaud") over adjectives that do.`;
+  return [
+    `ONE sentence in ${languageName}, 22 words at most, ending with a period (no question, no exclamation), that Linette says straight to the user${fr ? ' in "tu", never "vous"' : ""}, like a stylist who is also a close friend.`,
+    `Two short parts joined by a comma or a colon, in either order: ONE concrete styling ACTION on items already in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar, or another precise move), and what it does for the user in THEIR moment, how they will look or feel there, in one or two words, never a list of three (relaxed, sure of themselves, polished, warm, like themselves).${agreement}`,
+    `When there is a STYLE DIRECTION, you MUST name their situation in their own terms (the first date, the interview, his parents, the movie marathon); with no STYLE DIRECTION, name the OCCASION as given, the mood or today's weather, in plain words ("for brunch", "at work", "on a cold grey day").`,
+    `Use only what the request tells you: never invent a day, a time, a place, an activity or company it doesn't give ("Sunday", "weekend", "afternoon", "your walk", "with friends").`,
+    `Never promise how other people will react (no "irresistible", "head-turning", "all eyes on you", in any language).`,
+    `Say the effect directly ("you'll look…", "sharp for…", "easy for…"), never through "keeping you…", "making you feel…", "letting you…", "giving you…" or "feeling … by …ing".`,
+    `Two shapes to learn from (the first answers a STYLE DIRECTION, the second has none: brunch on a cold day), never to copy word for word: ${examples}`,
+    `Plain, warm words: no intensifiers ("completely", "entirely", "totally", "utterly", "effortlessly", "strikingly"), no clichés ("chic", "elevate", "effortless", "perfect for", "this outfit works because"), no emoji, no semicolon.`,
+    `Never open with "For your…", "For this…", "Pour ton…", "Pour ce…".`,
+  ].join(" ");
+}
+
 export interface PromptTrackOptions {
   isMensTrack: boolean;
+  /** Defaults to the track's gender. Changes the French tip text only. */
+  wearer?: Wearer;
   languageName: string;
 }
 
 export function buildStaticRulesBlock({
   isMensTrack,
+  wearer,
   languageName,
 }: PromptTrackOptions): string {
   return `HARD RULES — do not violate:
@@ -174,7 +219,7 @@ Return exactly 1 outfit in the "outfits" array (single-item array). For the outf
 - item_ids: 3-6 item IDs from the WARDROBE (use [id] values verbatim).
 - name: Short 2-4 word look name in ${languageName}.${languageName === "French" ? ' French words only, with only the first word capitalized, as French titles are written ("Bohème assumé", "Douceur texturée"), never English title case.' : ""}
 - reasoning: ONE short editorial sentence in ${languageName}. Cite ONE specific styling principle at play — color harmony (warm/cool contrast, monochrome, analogous), silhouette balance (${isMensTrack ? "structured + relaxed" : "fitted + loose, long + cropped"}), texture play (smooth + nubby, matte + sheen), or occasion fit. Refer to pieces by broad category only (the dress, the bottoms, the jacket, the shoes, the belt). Write like ${isMensTrack ? "GQ" : "Vogue"} — ${isMensTrack ? 'use masculine-coded language: "sharp", "crisp", "clean line", "intentional", "grounded". Avoid "chic", "feminine", "flowy".' : "use editorial fashion language."} Skip filler like "perfect for" or "this outfit works because".
-- styling_tip: ONE sentence in ${languageName}, 22 words at most, ending with a period (no question, no exclamation), that Linette says straight to the user${languageName === "French" ? ' in "tu", never "vous"' : ""}, like a stylist who is also a close friend. Two short parts joined by a comma or a colon, in either order: ONE concrete styling ACTION on items already in this outfit (tuck, half-tuck, cuff, roll sleeves, layer open, cinch, push sleeves, knot hem, pop collar, or another precise move), and what it does for the user in THEIR moment, how they will look or feel there (relaxed, sure of themselves, polished, warm, like themselves). When there is a STYLE DIRECTION, you MUST name their situation in their own terms (the first date, the interview, his parents, the movie marathon); otherwise speak to the occasion, the mood or the weather. Never promise how other people will react. Say the effect directly ("you'll look…", "sharp for…", "easy for…"), never through "keeping you…", "making you feel…", "letting you…", "giving you…" or "feeling … by …ing". Two shapes to learn from, never to copy word for word: ${languageName === "French" ? '"Laisse le trench ouvert et noue la ceinture dans le dos : tu seras à l\'aise et sûre de toi pour ce premier rendez-vous." / "Roule les manches du pull deux fois, simple et chaud pour ton dimanche canapé."' : '"Leave the blazer open and push the sleeves up: you\'ll look sharp and still like yourself at the interview." / "Half-tuck the knit so the waist shows, easy and warm for the movie marathon."'} Plain, warm words: no intensifiers ("completely", "entirely", "totally", "utterly", "effortlessly"), no clichés ("chic", "elevate", "perfect for", "this outfit works because"), no emoji. Never open with "For your…", "For this…", "Pour ton…", "Pour ce…". Never reuse the opening words or the styling action of a line under RECENT TIPS. The ONLY allowed mention of items NOT in the outfit is naming a missing staple per rules 8-11 (e.g. "A pointed-toe pump would finish this"). NEVER suggest items that physically conflict with the existing outfit — tights NEVER pair with pants of any kind (jeans / trousers / leggings / sweatpants / shorts); tights are for under skirts and dresses only. If occasion is at-home, NEVER suggest weather-protection layers (no "add a coat", "throw on a scarf", "pair with thick tights") — the user is indoors. If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
+- styling_tip: ${stylingTipVoice({ languageName, wearer: wearer ?? (isMensTrack ? "man" : "woman") })} Never reuse the opening words or the styling action of a line under RECENT TIPS. The ONLY allowed mention of items NOT in the outfit is naming a missing staple per rules 8-11 (e.g. "A pointed-toe pump would finish this"). NEVER suggest items that physically conflict with the existing outfit — tights NEVER pair with pants of any kind (jeans / trousers / leggings / sweatpants / shorts); tights are for under skirts and dresses only. If occasion is at-home, NEVER suggest weather-protection layers (no "add a coat", "throw on a scarf", "pair with thick tights") — the user is indoors. If the outfit is best-effort because the wardrobe lacks the ideal staple called for by rules 8-11, use this field to name the gap. null if nothing useful fits.
 
 wardrobe_gap: One short sentence in ${languageName} about a missing staple, or null if the wardrobe is covered.`;
 }

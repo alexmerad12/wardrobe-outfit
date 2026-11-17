@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { Type, type Schema } from "@google/genai";
 import { withModelFallback } from "@/lib/gemini-retry";
 import { cleanStyleWishes } from "@/lib/style-wishes";
-import { TIGHTS_NOTE, appendTipNote, dropIntensifiers, lightForWeatherNote, mentionsTights } from "@/lib/tip-notes";
+import { TIGHTS_NOTE, appendTipNote, dressyFabricNote, lightForWeatherNote, mentionsTights, tidyTip } from "@/lib/tip-notes";
 import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { kv } from "@/lib/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
@@ -1205,7 +1205,7 @@ export async function POST(request: NextRequest) {
     // the largest static block now caches across every request on the
     // same track+locale, and the wardrobe segment caches across taps
     // whenever the pool didn't change.
-    const staticRulesBlock = buildStaticRulesBlock({ isMensTrack, languageName });
+    const staticRulesBlock = buildStaticRulesBlock({ isMensTrack, languageName, wearer: gender });
     const cachedPrefix = `You are Linette, a sharp personal stylist with a strong point of view. Your job is to MAKE OUTFITS INTERESTING, not just compliant.
 
 PRIMARY DIRECTIVES (read before any rule):
@@ -2512,7 +2512,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // word into the text (the "moto jacket" bug). Keeps creative voice
       // where it's safe, guarantees consistency where it isn't.
       const aiReasoning = oneSentence(s.reasoning);
-      const aiTip = dropIntensifiers(oneSentence(s.styling_tip));
+      const aiTip = tidyTip(oneSentence(s.styling_tip), locale === "fr" ? "fr" : "en");
       const guardLocale = locale === "fr" ? "fr" : "en";
       // A sentence that still describes a piece the repairs swapped out
       // ("the leather boots" over sneakers) gets the template too.
@@ -3547,13 +3547,11 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           occasion === "formal")
       ) {
         const hasDressy = s.items.some(isDressyMaterial);
-        // Names no occasion: until 2026-11-17 it printed the key itself
-        // ("For dinner-out, … would elevate the look", known-root-causes.md).
         if (!hasDressy) {
           const dressyTip =
             locale === "fr"
-              ? "Une pièce en soie, en satin, en dentelle ou en velours rendrait la tenue plus habillée."
-              : "A silk, satin, lace or velvet piece would dress it up.";
+              ? dressyFabricNote("fr")
+              : dressyFabricNote("en");
           if (!pendingSoft) pendingSoft = { tip: dressyTip };
         }
       }

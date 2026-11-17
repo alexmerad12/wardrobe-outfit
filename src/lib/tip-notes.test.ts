@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { TIGHTS_NOTE, appendTipNote, dropIntensifiers, lightForWeatherNote, mentionsTights } from "./tip-notes";
+import {
+  TIGHTS_NOTE,
+  appendTipNote,
+  dressyFabricNote,
+  dropIntensifiers,
+  lightForWeatherNote,
+  mentionsTights,
+  tidyTip,
+} from "./tip-notes";
 
 describe("mentionsTights", () => {
   it("finds tights in English and French, as whole words only", () => {
@@ -25,11 +33,41 @@ describe("dropIntensifiers", () => {
       "Tuck the blouse in, you will look commanding and composed.",
     );
     expect(dropIntensifiers("Rentre le pull, tu seras parfaitement à l'aise.")).toBe("Rentre le pull, tu seras à l'aise.");
+    expect(dropIntensifiers("Drape the blazer over your shoulders: you'll look strikingly confident for date night.")).toBe(
+      "Drape the blazer over your shoulders: you'll look confident for date night.",
+    );
+    expect(dropIntensifiers("Roule les manches, tu seras vraiment à l'aise.")).toBe("Roule les manches, tu seras à l'aise.");
   });
 
   it("leaves other words alone", () => {
     const tip = "Roll the sleeves twice, easy and warm for the movie marathon.";
     expect(dropIntensifiers(tip)).toBe(tip);
+  });
+});
+
+describe("tidyTip", () => {
+  it("joins the two parts with a colon instead of a semicolon", () => {
+    expect(tidyTip("Cuff the coat's sleeves once; the shirt peeks, the structure softens.", "en")).toBe(
+      "Cuff the coat's sleeves once: the shirt peeks, the structure softens.",
+    );
+    expect(tidyTip("Roule les manches une fois ; tu seras à l'aise pour le brunch.", "fr")).toBe(
+      "Roule les manches une fois : tu seras à l'aise pour le brunch.",
+    );
+  });
+
+  it("puts the French space before a colon, and nowhere else", () => {
+    expect(tidyTip("Ceins le trench sans le boutonner entièrement: une allure affirmée pour ton rendez-vous.", "fr")).toBe(
+      "Ceins le trench sans le boutonner entièrement : une allure affirmée pour ton rendez-vous.",
+    );
+    const french = "Laisse la veste ouverte : de l'allure pour ton rendez-vous de 18:30.";
+    expect(tidyTip(french, "fr")).toBe(french);
+    expect(tidyTip("Knot the scarf: you'll look sharp for date night.", "en")).toBe("Knot the scarf: you'll look sharp for date night.");
+  });
+
+  it("drops intensifiers too, and leaves a clean tip as it is", () => {
+    expect(tidyTip("Half-tuck the knit, totally relaxed at home.", "en")).toBe("Half-tuck the knit, relaxed at home.");
+    const tip = "Cuff the jeans once above the boots: easy for brunch, and warm enough for the cold.";
+    expect(tidyTip(tip, "en")).toBe(tip);
   });
 });
 
@@ -81,5 +119,15 @@ describe("lightForWeatherNote", () => {
     expect(lightForWeatherNote("en", false)).not.toMatch(/tights/);
     expect(lightForWeatherNote("fr", true)).toMatch(/collants/);
     for (const note of [lightForWeatherNote("en", true), lightForWeatherNote("fr", false)]) expect(note).not.toMatch(/[—–]/);
+  });
+});
+
+describe("dressyFabricNote", () => {
+  it("is a plain sentence: no occasion key, no cliché", () => {
+    expect(dressyFabricNote("en")).toBe("A silk, satin, lace or velvet piece would dress it up.");
+    expect(dressyFabricNote("fr")).toBe("Une pièce en soie, en satin, en dentelle ou en velours rendrait la tenue plus habillée.");
+    for (const note of [dressyFabricNote("en"), dressyFabricNote("fr")]) {
+      expect(note).not.toMatch(/dinner-out|elevate|rehausser/);
+    }
   });
 });

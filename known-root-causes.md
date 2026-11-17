@@ -6,10 +6,17 @@ Public repo: technical facts only, no keys, accounts or client details.
 
 ## Confirmed
 
+### Styling tips invented a moment when step 2 was empty (2026-11-17, before the new tips shipped)
+- **Symptom:** the new tips (written to name the person's situation) made one up when nothing was typed in step 2: "weekend brunch" and "your Sunday brunch" on a Tuesday, "your crisp afternoon outdoors", "on your walk" for a casual outfit. Two sample runs of 8 requests with step 2 empty: 10 of 16 tips had a flaw (an invented detail, "keeping you…", a list of three adjectives, "effortless", "irrésistible").
+- **Cause:** both examples in the tip instruction answered a STYLE DIRECTION (an interview, a movie marathon), so with none the model filled the slot with a moment of its own. A ban line alone ("never invent a day, a time…") did not hold: the next run still wrote "Sunday brunch".
+- **Fix:** the second example has no STYLE DIRECTION (brunch on a cold day) and the instruction says what to name instead: the occasion as given, the mood or today's weather. 40 answers after the fix (24 with step 2 empty): 39 speak to the person's moment, 4 kept a small flaw (two three-adjective lists, one "keeping you", one tip a word over 22). Semicolons, a missing French space before a colon and a few more intensifiers are cleaned in code (`tidyTip`, `src/lib/tip-notes.ts`). The instruction is one text, `stylingTipVoice` (`src/lib/suggest-prompt.ts`), used by suggest and by refine, which still asked for the old one-line action tip. It tells French adjectives to agree with the wearer's gender, since the tips now say how the person will feel ("sûre de toi").
+- **Not a bug:** "date night" in a tip is the occasion's own label (`OCCASION_LABELS.date` is "Date Night").
+- **Measured with:** sample scripts that call a local production build with the demo account (8 requests with step 2 filled, 8 empty) and a checker that flags invented days and times, banned phrasings, lists of three, clichés and length. Today's live tips scored 0 of 16 speaking to the moment, with nothing to flag.
+
 ### Raw occasion key in the dressy-fabric note (live until 2026-11-17)
 - **Symptom:** under a date or dinner outfit with nothing dressy: "For dinner-out, a silk, satin, lace or velvet piece would elevate the look." In French: "Pour dinner-out, …".
 - **Cause:** the R8 soft note in `suggest/route.ts` put the `occasion` key itself into the sentence, the same kind of bug as the raw category words fixed on 2026-11-16.
-- **Fix:** one plain sentence per language that names no occasion ("A silk, satin, lace or velvet piece would dress it up."), since the stylist's sentence just before it already does. The route's other `${occasion}` strings are drop reasons for logs and `?debug=rules`, never shown to anyone. Found while testing the new styling tips (branch `tips-voice`, which moves the sentence into `dressyFabricNote`, `src/lib/tip-notes.ts`).
+- **Fix:** `dressyFabricNote` (`src/lib/tip-notes.ts`): one plain sentence per language that names no occasion, since the stylist's sentence just before it already does. The route's other `${occasion}` strings are drop reasons for logs and `?debug=rules`, never shown to anyone.
 
 ### Text under the phone's status and navigation bars in the Android app (found on real phones 2026-11-16, fixed the same day)
 - **Symptom:** on the owner's two phones the welcome page's top line ("Your AI stylist") sat under the clock and battery, and its Privacy · Terms links under the back and menu buttons.

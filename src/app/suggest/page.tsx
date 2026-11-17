@@ -156,12 +156,21 @@ function SuggestContent() {
     );
   }
 
+  // What step 2 holds: the chips plus the typed line. Sent with the outfit
+  // request, and again when an edited outfit is saved, so the rewritten tip
+  // still names the person's situation (refine).
+  function currentWishes(): string[] {
+    const wishes = [...styleWishes];
+    if (customWish.trim()) wishes.push(customWish.trim());
+    return wishes;
+  }
+
   async function generateSuggestions() {
     setLoading(true);
 
     try {
-      const allWishes = [...styleWishes];
-      if (customWish.trim()) allWishes.push(customWish.trim());
+      // Step 2's chips and typed line.
+      const allWishes = currentWishes();
 
       const res = await fetch("/api/suggest", {
         method: "POST",
@@ -299,6 +308,7 @@ function SuggestContent() {
           weather_temp: suggestion.weather_temp,
           weather_condition: suggestion.weather_condition,
           locale,
+          styleWishes: currentWishes(),
         }),
       });
       if (!res.ok) {
