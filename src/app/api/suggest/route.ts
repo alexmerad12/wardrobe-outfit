@@ -3539,11 +3539,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           occasion === "formal")
       ) {
         const hasDressy = s.items.some(isDressyMaterial);
+        // Names no occasion: until 2026-11-17 it printed the key itself
+        // ("For dinner-out, … would elevate the look", known-root-causes.md).
         if (!hasDressy) {
           const dressyTip =
             locale === "fr"
-              ? `Pour ${occasion}, une pièce en soie, satin, dentelle ou velours rehausserait l'ensemble.`
-              : `For ${occasion}, a silk, satin, lace or velvet piece would elevate the look.`;
+              ? "Une pièce en soie, en satin, en dentelle ou en velours rendrait la tenue plus habillée."
+              : "A silk, satin, lace or velvet piece would dress it up.";
           if (!pendingSoft) pendingSoft = { tip: dressyTip };
         }
       }

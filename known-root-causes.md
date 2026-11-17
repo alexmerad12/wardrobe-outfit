@@ -6,6 +6,11 @@ Public repo: technical facts only, no keys, accounts or client details.
 
 ## Confirmed
 
+### Raw occasion key in the dressy-fabric note (live until 2026-11-17)
+- **Symptom:** under a date or dinner outfit with nothing dressy: "For dinner-out, a silk, satin, lace or velvet piece would elevate the look." In French: "Pour dinner-out, …".
+- **Cause:** the R8 soft note in `suggest/route.ts` put the `occasion` key itself into the sentence, the same kind of bug as the raw category words fixed on 2026-11-16.
+- **Fix:** one plain sentence per language that names no occasion ("A silk, satin, lace or velvet piece would dress it up."), since the stylist's sentence just before it already does. The route's other `${occasion}` strings are drop reasons for logs and `?debug=rules`, never shown to anyone. Found while testing the new styling tips (branch `tips-voice`, which moves the sentence into `dressyFabricNote`, `src/lib/tip-notes.ts`).
+
 ### Text under the phone's status and navigation bars in the Android app (found on real phones 2026-11-16, fixed the same day)
 - **Symptom:** on the owner's two phones the welcome page's top line ("Your AI stylist") sat under the clock and battery, and its Privacy · Terms links under the back and menu buttons.
 - **Cause:** on a WebView 140+ Capacitor draws the page edge to edge, under both bars, and passes their height to `env(safe-area-inset-*)` (`capacitor.config.ts`, `insetsHandling: "css"`). `<main>` in `layout.tsx` pads by the insets, but every screen that covers the viewport itself (`position: fixed; inset: 0`: launch, `auth-shell.tsx`, onboarding, paywall, paywall/success) skipped that padding and used a flat 20 to 48 px. A notice on a piece's page sat `top-4` from the edge.
