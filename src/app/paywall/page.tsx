@@ -397,7 +397,12 @@ const PAYWALL_CSS = `
     min-height: 100%;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    padding: clamp(28px, 5vw, 56px) 18px;
+    /* Clear of the phone's bars when the Android app draws edge to edge
+       (tests/e2e/safe-area.spec.ts). */
+    padding:
+      calc(clamp(28px, 5vw, 56px) + env(safe-area-inset-top, 0px))
+      18px
+      calc(clamp(28px, 5vw, 56px) + env(safe-area-inset-bottom, 0px));
     z-index: 2;
   }
 

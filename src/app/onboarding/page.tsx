@@ -218,7 +218,12 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden px-6 py-12">
+    // Clear of the phone's bars when the Android app draws edge to edge
+    // (tests/e2e/safe-area.spec.ts), and scrollable: the insets take room,
+    // and on a short phone a step taller than the screen was cut off by
+    // overflow-hidden. The card centers itself with m-auto, which still
+    // lets the top of a tall step scroll into view.
+    <div className="fixed inset-0 flex overflow-y-auto px-6 pt-[calc(3rem+env(safe-area-inset-top))] pb-[calc(3rem+env(safe-area-inset-bottom))]">
       {/* Damask wallpaper — same Rose & Damask textile that backs the
           launch page and splash, so the brand entry stays cohesive
           from first paint through onboarding. Slightly desaturated +
@@ -246,7 +251,7 @@ export default function OnboardingPage() {
         }}
       />
 
-      <div className="relative w-full max-w-sm">
+      <div className="relative m-auto w-full max-w-sm">
         <div className="mb-6 text-center">
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">
             <BrandedName template={t("onboarding.welcome")} scriptClassName="text-4xl leading-none" />

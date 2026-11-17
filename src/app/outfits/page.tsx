@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Outfit, ClothingItem, Occasion } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
+import { orderChipsByContent } from "@/lib/filter-chips";
 import { MOOD_ICONS } from "@/lib/mood-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -266,21 +267,28 @@ export default function FavoritesPage() {
             scrollDir === "down" ? "-translate-y-full" : "translate-y-0"
           )}
         >
-          {(
-            [
-              { key: "all", label: t("category.all") },
-              { key: "custom", label: t("favorites.custom") },
-              ...(Object.keys(OCCASION_LABELS) as Occasion[]).map((key) => ({ key, label: t(`occasion.${key}`) })),
-            ] as { key: string; label: string }[]
-          ).map(({ key, label }) => (
+          {/* The occasions with favorites come first, the empty ones last
+              and greyed (src/lib/filter-chips.ts). */}
+          {orderChipsByContent([
+            { key: "all", label: t("category.all"), count: outfits.length },
+            { key: "custom", label: t("favorites.custom"), count: outfits.filter((o) => o.source === "manual").length },
+            ...(Object.keys(OCCASION_LABELS) as Occasion[]).map((key) => ({
+              key,
+              label: t(`occasion.${key}`),
+              count: outfits.filter((o) => o.occasions.includes(key)).length,
+            })),
+          ]).map(({ key, label, empty }) => (
             <button
               key={key}
               onClick={() => setActiveFilter(key as Occasion | "all" | "custom")}
+              data-empty={empty || undefined}
               className={cn(
                 "tap-h whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
                 activeFilter === key
                   ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  : empty
+                    ? "bg-muted/50 text-muted-foreground/50 hover:bg-muted/70"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
               {label}

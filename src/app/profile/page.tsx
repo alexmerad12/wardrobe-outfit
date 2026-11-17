@@ -23,6 +23,10 @@ export default function ProfilePage() {
   // Failure used to render "0 articles / 0 tenues" as if true (audit P2).
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // Until the counts arrive they show a placeholder, not 0: a full wardrobe
+  // read "0 pieces, 0 outfits" for a moment on every visit, and the insights
+  // card popped in afterwards (the owner, 2026-11-16).
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -55,6 +59,7 @@ export default function ProfilePage() {
           );
           setOutfitCount(logs.filter((l) => aiOutfitIds.has(l.outfit_id)).length);
         }
+        setLoaded(true);
       } catch (err) {
         console.error("Failed to load profile:", err);
         setLoadFailed(true);
@@ -150,17 +155,36 @@ export default function ProfilePage() {
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="font-heading text-4xl font-medium leading-tight">{itemCount}</p>
+            <p className="font-heading text-4xl font-medium leading-tight">{loaded ? itemCount : <CountPlaceholder label={t("common.loading")} />}</p>
             <p className="editorial-label mt-1">{t("profile.wardrobeItems")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="font-heading text-4xl font-medium leading-tight">{outfitCount}</p>
+            <p className="font-heading text-4xl font-medium leading-tight">{loaded ? outfitCount : <CountPlaceholder label={t("common.loading")} />}</p>
             <p className="editorial-label mt-1">{t("profile.savedOutfits")}</p>
           </CardContent>
         </Card>
       </div>
+      )}
+
+      {/* Wardrobe Insights: its place is held while the pieces load, so the
+          page doesn't jump when the card arrives. */}
+      {!loaded && !loadFailed && (
+        <Card className="mb-6" aria-hidden="true" data-testid="insights-placeholder">
+          <CardHeader>
+            <CardTitle className="text-base">{t("profile.wardrobeInsights")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+            {[88, 66, 48, 30].map((width) => (
+              <div key={width} className="flex items-center gap-2">
+                <div className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-muted" />
+                <div className="h-3 animate-pulse rounded bg-muted" style={{ width: `${width}%` }} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* Wardrobe Insights */}
@@ -346,5 +370,17 @@ export default function ProfilePage() {
 
       <InstallPrompt />
     </div>
+  );
+}
+
+// Holds a count's place in the stat card while it loads: about two digits
+// of the card's type, inside the line's own height, so nothing moves when
+// the number replaces it.
+function CountPlaceholder({ label }: { label: string }) {
+  return (
+    <>
+      <span aria-hidden="true" className="inline-block h-9 w-12 animate-pulse rounded-md bg-muted align-middle" />
+      <span className="sr-only">{label}</span>
+    </>
   );
 }

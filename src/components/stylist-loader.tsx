@@ -61,18 +61,24 @@ export function StylistLoader({ className, size = "md", label, phases }: Stylist
   const Icon = TOOLS[index];
   const iconSize = size === "sm" ? "h-4 w-4" : size === "lg" ? "h-8 w-8" : "h-5 w-5";
 
+  // In a tight spot (a half-width button, a phone set to large text) the
+  // phrase gives way, never the icon: until 2026-11-16 a centred row wider
+  // than its button was clipped at both ends, the tool icon cut in half
+  // ("Reading weather" at 360 px). The phrase ends in "…" only when it
+  // cannot fit at all.
+
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex min-w-0 items-center gap-2", className)}>
       <Icon
         className={cn(
           iconSize,
-          "transition-all duration-150 ease-in-out",
+          "shrink-0 transition-all duration-150 ease-in-out",
           entering ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-75 -rotate-12"
         )}
       />
-      <span className="text-sm inline-flex items-baseline">
-        {effectiveLabel}
-        <span className="inline-flex ml-0.5">
+      <span className="text-sm inline-flex min-w-0 items-baseline">
+        <span className="truncate">{effectiveLabel}</span>
+        <span className="inline-flex ml-0.5 shrink-0">
           <span className="animate-[fade_1.5s_ease-in-out_infinite]">.</span>
           <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.25s]">.</span>
           <span className="animate-[fade_1.5s_ease-in-out_infinite] [animation-delay:0.5s]">.</span>

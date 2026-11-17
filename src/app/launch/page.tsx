@@ -142,7 +142,14 @@ const LAUNCH_CSS = `
     justify-content: space-between;
     align-items: stretch;
     gap: 24px;
-    padding: clamp(20px, 4vw, 56px) clamp(20px, 5vw, 72px);
+    /* The page covers the whole screen, under the phone's status and
+       navigation bars when the Android app draws edge to edge: the insets
+       keep the top line and the Privacy · Terms links clear of them
+       (tests/e2e/safe-area.spec.ts). */
+    padding:
+      calc(clamp(20px, 4vw, 56px) + env(safe-area-inset-top, 0px))
+      clamp(20px, 5vw, 72px)
+      calc(clamp(20px, 4vw, 56px) + env(safe-area-inset-bottom, 0px));
     z-index: 2;
   }
   .launch-hero {

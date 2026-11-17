@@ -48,9 +48,12 @@ export function OutfitPieceTile({
         )}
         {children}
       </div>
-      <p className="line-clamp-2 px-2.5 py-2 text-xs font-medium leading-snug">
-        {label ?? item.name}
-      </p>
+      {/* Two lines at most, then "…". The padding sits on a wrapper: on the
+          clamped line itself, the third line of a long name showed through
+          its bottom padding (8 px of "leopard print strap", 2026-11-16). */}
+      <div className="px-2.5 py-2">
+        <p className="line-clamp-2 text-xs font-medium leading-snug">{label ?? item.name}</p>
+      </div>
     </div>
   );
 }

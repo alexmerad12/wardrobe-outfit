@@ -682,23 +682,31 @@ function SuggestContent() {
           </div>
 
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1 h-12"
-              onClick={() => setStep("style")}
-            >
-              {t("common.back")}
-            </Button>
+            {/* While the outfit is being styled, Back steps aside and the
+                button takes the whole row: at half the row the loader's
+                longest phrase ("Reading weather") overflowed a 360 px phone
+                and its icon was cut in half (2026-11-16), and a large font
+                setting needs even more room. Going back mid-request did
+                nothing useful anyway: the outfit landed a moment later. */}
+            {!loading && (
+              <Button
+                variant="outline"
+                className="flex-1 h-12"
+                onClick={() => setStep("style")}
+              >
+                {t("common.back")}
+              </Button>
+            )}
             <Button
               className="flex-1 h-12 gap-2 min-w-0 overflow-hidden"
               disabled={!occasion || loading}
               onClick={generateSuggestions}
             >
               {loading ? (
-                // Inner span fills the flex-1 slot exactly — no min-w
-                // forcing the button to grow when the loader cycles
-                // through longer phrases. Phrase strings are kept short
-                // (~13-15 chars each) so they fit naturally.
+                // Inner span fills the button exactly — no min-w forcing
+                // it to grow when the loader cycles through longer
+                // phrases; the loader shortens its phrase before it lets
+                // anything be clipped (stylist-loader.tsx).
                 <span className="inline-flex items-center justify-center w-full overflow-hidden">
                   <StylistLoader
                     size="sm"
