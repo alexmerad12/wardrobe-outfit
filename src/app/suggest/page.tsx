@@ -12,6 +12,7 @@ import type { Mood, Occasion, ClothingItem } from "@/lib/types";
 import { OCCASION_LABELS } from "@/lib/types";
 import { Sparkles, Loader2, ArrowLeft, Pin, Plus } from "lucide-react";
 import { MOOD_ICONS } from "@/lib/mood-icons";
+import { STYLE_WISH_MAX_CHARS } from "@/lib/style-wishes";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StylistLoader } from "@/components/stylist-loader";
@@ -629,6 +630,7 @@ function SuggestContent() {
               type="text"
               placeholder={t("suggest.customWishPlaceholder")}
               value={customWish}
+              maxLength={STYLE_WISH_MAX_CHARS}
               onChange={(e) => setCustomWish(e.target.value)}
               className="tap-h mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />

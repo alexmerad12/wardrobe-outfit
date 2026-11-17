@@ -2,6 +2,8 @@ import { NextRequest, NextResponse, after } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { Type, type Schema } from "@google/genai";
 import { withModelFallback } from "@/lib/gemini-retry";
+import { cleanStyleWishes } from "@/lib/style-wishes";
+import { TIGHTS_NOTE, appendTipNote, dropIntensifiers, lightForWeatherNote, mentionsTights } from "@/lib/tip-notes";
 import { genAI, QUALITY_MODELS, thinkingFor } from "@/lib/gemini";
 import { kv } from "@/lib/kv";
 import type { ClothingItem, Mood, Occasion, WeatherData } from "@/lib/types";
@@ -618,7 +620,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { mood, occasion, styleWishes = [], anchorItemId = null, locale = "en" } = body;
+    const { mood, occasion, anchorItemId = null, locale = "en" } = body;
+    // What the person typed reaches the prompt as STYLE DIRECTION: text
+    // only, tidied, 300 characters at most (src/lib/style-wishes.ts).
+    const styleWishes = cleanStyleWishes(body.styleWishes);
 
     const languageName = locale === "fr" ? "French" : "English";
 
@@ -628,6 +633,17 @@ export async function POST(request: NextRequest) {
     // same three looks each time. We cap at 40 remembered sets with a 7d
     // TTL so the anti-repetition window covers a normal usage cadence
     // (few-times-per-week) without ossifying forever.
+    // The stylist tips shown lately: the prompt lists them so a new tip
+    // never opens or moves the same way (the owner, 2026-11-16: "the more I
+    // read them, the more they look like they're saying the same thing").
+    const tipsKey = `recent-tips:${userId}`;
+    const kvRecentTips = (
+      (await Promise.resolve()
+        .then(() => kv().get<string[]>(tipsKey))
+        .catch(() => null)) ?? []
+    )
+      .filter((tip): tip is string => typeof tip === "string" && tip.trim() !== "")
+      .slice(0, 4);
     const suggestionsKey = `recent-suggestions:${userId}`;
     const kvRecentSuggestions =
       (await Promise.resolve()
@@ -1241,7 +1257,7 @@ ${wardrobeList}`;
 WEATHER: ${weatherDesc}
 SEASON: ${currentSeason}
 MOOD (apply Rule 13 — every outfit must visibly express this): ${moodInfo.label} — ${moodInfo.description}
-OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}${favoritesSection}${recentSection}
+OCCASION: ${occasionLabel}${styleWishes.length > 0 ? `\nSTYLE DIRECTION: ${styleWishes.join(", ")}` : ""}${anchorItemId ? `\nANCHOR ITEM: Every outfit MUST include item id [${anchorItemId}].` : ""}${sensitivityLine ? `\n${sensitivityLine}` : ""}${favoritesSection}${recentSection}${kvRecentTips.length > 0 ? `\nRECENT TIPS (already shown to this user; never reuse their opening words or their styling action):\n${kvRecentTips.map((tip) => `- ${tip}`).join("\n")}` : ""}
 ITERATION: ${iterationNonce}
 
 Return ONE deliberate complete outfit from the wardrobe, following the HARD RULES and output format defined above. It must differ from every set in RECENTLY SHOWN OR WORN by at least 2 items. Spend your full reasoning on this single composition — focal point, color story, texture interplay, finishing touches. No throwaway picks. This is the user's only outfit for this tap; if it's mediocre they'll feel it.`;
@@ -2496,7 +2512,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // word into the text (the "moto jacket" bug). Keeps creative voice
       // where it's safe, guarantees consistency where it isn't.
       const aiReasoning = oneSentence(s.reasoning);
-      const aiTip = oneSentence(s.styling_tip);
+      const aiTip = dropIntensifiers(oneSentence(s.styling_tip));
       const guardLocale = locale === "fr" ? "fr" : "en";
       // A sentence that still describes a piece the repairs swapped out
       // ("the leather boots" over sneakers) gets the template too.
@@ -2533,11 +2549,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           return false;
         });
         if (hasExposedLegPiece) {
-          const tightsTip =
-            locale === "fr"
-              ? "Ajoute des collants opaques pour tenir le froid."
-              : "Layer opaque tights underneath for warmth.";
-          styling_tip = styling_tip ? `${styling_tip} ${tightsTip}` : tightsTip;
+          // Skipped when the stylist already talked about tights; one
+          // tights line per tip at most (src/lib/tip-notes.ts).
+          styling_tip = appendTipNote(styling_tip, TIGHTS_NOTE[guardLocale], guardLocale);
         }
       }
 
@@ -3484,14 +3498,8 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
                 (i.category === "bottom" &&
                   (i.subcategory === "skirt" || i.subcategory === "skort"))
             );
-          const weatherTip =
-            locale === "fr"
-              ? showsLegs
-                ? "Cette pièce est légère pour le temps — ajoute des collants épais et un manteau chaud."
-                : "Cette pièce est légère pour le temps — ajoute une couche chaude et un manteau."
-              : showsLegs
-                ? "This piece runs light for the weather — pair with thick tights and a warm coat."
-                : "This piece runs light for the weather — add a warm layer and a coat.";
+          // No tights in the warning when the tip already asks for them.
+          const weatherTip = lightForWeatherNote(locale === "fr" ? "fr" : "en", showsLegs && !mentionsTights(s.styling_tip));
           if (!pendingSoft) pendingSoft = { tip: weatherTip };
         }
       }
@@ -3710,11 +3718,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
         seenSets.add(key);
         const tipped = {
           ...s,
-          styling_tip: tip
-            ? s.styling_tip
-              ? `${s.styling_tip} ${tip}`
-              : tip
-            : s.styling_tip,
+          // The warning replaces a tights line already there when it names
+          // tights itself (src/lib/tip-notes.ts).
+          styling_tip: tip ? appendTipNote(s.styling_tip, tip, locale === "fr" ? "fr" : "en") : s.styling_tip,
           relaxed: true,
         };
         final.push(tipped);
@@ -4205,6 +4211,13 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       // after(): a plain fire-and-forget write could be dropped by the
       // serverless freeze, losing the "recently shown" memory.
       after(() => kv().set(suggestionsKey, merged, { ex: 60 * 60 * 24 * 7 }).catch(() => {}));
+      const shownTips = suggestions
+        .map((s) => s.styling_tip)
+        .filter((tip): tip is string => typeof tip === "string" && tip.trim() !== "");
+      if (shownTips.length > 0) {
+        const tips = [...shownTips, ...kvRecentTips].slice(0, 4);
+        after(() => kv().set(tipsKey, tips, { ex: 60 * 60 * 24 * 7 }).catch(() => {}));
+      }
     }
 
     // If we've got nothing to ship AND the wardrobe ISN'T thin (the
