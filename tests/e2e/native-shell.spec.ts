@@ -14,13 +14,19 @@ const APP_UA =
 const OLD_WEBVIEW_UA = APP_UA.replace("Chrome/141.", "Chrome/120.");
 
 type Call = { plugin: string; method: string; options?: Record<string, unknown> };
-type ShellProbe = { calls: Call[]; back: ((event: { canGoBack?: boolean }) => void) | null };
+type ShellProbe = {
+  calls: Call[];
+  back: ((event: { canGoBack?: boolean }) => void) | null;
+  urlOpen: ((event: { url?: string }) => void) | null;
+};
 const probe = (page: Page) => page.evaluate(() => (window as unknown as { __shell: ShellProbe }).__shell.calls);
 const barStyles = async (page: Page) =>
   (await probe(page)).filter((c) => c.plugin === "SystemBars").map((c) => c.options?.style);
 
-function installFakeBridge() {
-  const state: ShellProbe = { calls: [], back: null };
+// `browser`: the app build has the browser plugin (Google's sign-in in a
+// Chrome tab); version 15 has not.
+function installFakeBridge(options?: { browser?: boolean }) {
+  const state: ShellProbe = { calls: [], back: null, urlOpen: null };
   const record = (plugin: string, method: string) => async (options?: Record<string, unknown>) => {
     state.calls.push({ plugin, method, options });
     return method === "writeFile" ? { uri: `file:///data/user/0/app.linette/cache/${String(options?.path)}` } : {};
@@ -31,7 +37,8 @@ function installFakeBridge() {
     isNativePlatform: () => true,
     Plugins: {
       App: {
-        addListener: (event: string, listener: ShellProbe["back"]) => {
+        addListener: (event: string, listener: (event: { canGoBack?: boolean; url?: string }) => void) => {
+          if (event === "appUrlOpen") state.urlOpen = listener;
           if (event === "backButton") state.back = listener;
           return { remove: async () => {} };
         },
@@ -40,20 +47,23 @@ function installFakeBridge() {
       SystemBars: { setStyle: record("SystemBars", "setStyle") },
       Filesystem: { writeFile: record("Filesystem", "writeFile") },
       Share: { share: record("Share", "share") },
+      ...(options?.browser
+        ? { Browser: { open: record("Browser", "open"), addListener: () => ({ remove: async () => {} }) } }
+        : {}),
     },
   };
 }
 
 async function appPage(
   browser: Browser,
-  options: { userAgent?: string; splash?: boolean; colorScheme?: "light" | "dark" } = {},
+  options: { userAgent?: string; splash?: boolean; colorScheme?: "light" | "dark"; browser?: boolean } = {},
 ): Promise<Page> {
   const context = await browser.newContext({
     userAgent: options.userAgent ?? APP_UA,
     colorScheme: options.colorScheme ?? "light",
     viewport: { width: 412, height: 915 },
   });
-  await context.addInitScript(installFakeBridge);
+  await context.addInitScript(installFakeBridge, { browser: options.browser ?? false });
   if (!options.splash) {
     await context.addInitScript(() => {
       try {
@@ -101,6 +111,49 @@ test("the app shows no Google button and tells Google accounts how to get in; a 
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await context.close();
   }
+});
+
+test("an app build with the browser plugin opens Google's sign-in in a Chrome tab, and its return link finishes on the site", async ({
+  browser,
+}) => {
+  const page = await appPage(browser, { browser: true });
+  await page.goto("/login");
+  const google = page.getByRole("button", { name: /Continue with Google|Continuer avec Google/ });
+  await expect(google).toBeVisible();
+  await expect(page.getByText(/Account created with Google\?|Compte créé avec Google/)).toBeHidden();
+
+  await google.click();
+  await expect.poll(async () => (await probe(page)).filter((c) => c.plugin === "Browser").length).toBe(1);
+  const opened = new URL(String((await probe(page)).find((c) => c.plugin === "Browser")?.options?.url));
+  // Supabase's own Google sign-in, the one the website uses, coming back to
+  // the site's own /auth/app-return (never a custom scheme), with a PKCE challenge.
+  expect(opened.pathname).toBe("/auth/v1/authorize");
+  expect(opened.searchParams.get("provider")).toBe("google");
+  expect(opened.searchParams.get("redirect_to")).toBe(new URL("/auth/app-return?next=%2F", page.url()).toString());
+  expect(opened.searchParams.get("code_challenge")).toBeTruthy();
+  // Its verifier stays in the page's cookies, where /auth/callback reads it.
+  expect((await page.context().cookies()).some((c) => c.name.endsWith("-auth-token-code-verifier"))).toBe(true);
+
+  // Android hands the return link to the open page: a made-up code goes to
+  // the site's callback, fails the exchange and lands on the sign-in page
+  // with its error line.
+  await page.evaluate(() =>
+    (window as unknown as { __shell: ShellProbe }).__shell.urlOpen?.({ url: "app.linette://auth/callback?code=e2e-made-up&next=%2F" }),
+  );
+  await expect(page).toHaveURL(/\/login\?error=/);
+  // The sign-in page's own error line (Next's route announcer is a second role="alert").
+  await expect(page.locator("p.auth-error[role=alert]")).toBeVisible();
+  await page.context().close();
+});
+
+test("the page Supabase returns to hands the code to the app's own package only", async ({ request }) => {
+  const res = await request.get("/auth/app-return?next=%2Fwardrobe&code=e2e-made-up&utm_source=x", { maxRedirects: 0 });
+  expect(res.status()).toBe(302);
+  expect(res.headers()["cache-control"]).toContain("no-store");
+  const location = res.headers()["location"] ?? "";
+  expect(location).toMatch(/^intent:\/\/auth\/callback\?code=e2e-made-up&next=%2Fwardrobe#Intent;scheme=app\.linette;package=app\.linette;/);
+  expect(location).toContain("S.browser_fallback_url=");
+  expect(location).not.toContain("utm_source");
 });
 
 test("Back goes back one page, then puts the app in the background", async ({ browser }) => {

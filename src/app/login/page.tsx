@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleSignInButton } from "@/components/google-signin-button";
+import { AppGoogleSignInButton, useAppGoogleSignIn } from "@/components/app-google-sign-in";
 import { AuthShell } from "@/components/auth-shell";
 import { PasswordInput } from "@/components/password-input";
 import { BrandedName } from "@/components/brand/branded-name";
@@ -17,6 +18,9 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = safeNextPath(searchParams.get("next"));
   const { t } = useLocale();
+  // Google in the Android app: true in a build with the browser plugin,
+  // false otherwise, null while hydrating (src/components/app-google-sign-in.tsx).
+  const appGoogle = useAppGoogleSignIn();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,14 +65,24 @@ function LoginForm() {
         <BrandedName template={t("auth.signInToLinette")} scriptClassName="text-lg" />
       </p>
 
-      {/* Not in the Android app: Google refuses its web sign-in inside an
-          app's WebView. The line under the form tells Google accounts how
-          to get in there (src/lib/native-shell.ts, .web-only). */}
+      {/* The website's Google button. In the Android app Google refuses its
+          web sign-in inside the WebView: an app build with the browser plugin
+          opens it in a Chrome tab (next block); version 15 of the app has no
+          plugin, and the line under the form tells Google accounts how to
+          get in there (src/lib/native-shell.ts, .web-only / .shell-only). */}
       <div className="web-only">
         <GoogleSignInButton next={next} variant="brand" />
 
         <div className="auth-divider">{t("auth.or")}</div>
       </div>
+
+      {appGoogle && (
+        <div className="shell-only">
+          <AppGoogleSignInButton next={next} />
+
+          <div className="auth-divider">{t("auth.or")}</div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
@@ -115,7 +129,7 @@ function LoginForm() {
         <Link href="/signup" className="auth-link-subtle">{t("auth.signUp")}</Link>
       </p>
 
-      <p className="auth-foot-note shell-only">{t("auth.googleAccountInApp")}</p>
+      {appGoogle === false && <p className="auth-foot-note shell-only">{t("auth.googleAccountInApp")}</p>}
 
       <p className="auth-terms">
         {t("auth.termsPrefix")}

@@ -174,7 +174,8 @@ lazy photos load.
 First three questions: the app collects user data (yes), all of it is encrypted in transit (yes, HTTPS only), and
 users can ask for deletion (yes, https://linette.app/delete-account). The optional fourth, deleting some data without
 deleting the account: yes (a piece, an outfit or a trip can each be deleted in the app, and deleting a piece removes
-its photos from storage too). Account creation: username and password only (Google's web sign-in is hidden in the
+its photos from storage too). Account creation: username and password, or Google sign-in from an app build with the
+browser plugin (built 2026-11-19; version 15 hides Google's web sign-in in the
 app).
 
 The Console enforces an order: App access (the reviewer sign-in) must be saved before Target audience opens, and
@@ -191,7 +192,7 @@ form does not count as sharing.
 | Email address | Yes | No | Required | App functionality, Account management | The account |
 | User IDs | Yes | No | Required | App functionality, Account management | The account's internal id |
 | Other personal info | Yes | No | Optional | App functionality, Personalization | Gender, if the person gives it (default "not specified"): it picks the French wording and the styling track |
-| Name | No | | | | Not asked. It would come with native Google sign-in: change this row the day that ships |
+| Name | Yes, once the Google sign-in version ships | No | Optional | Account management | Not asked by the app. Google sign-in hands Supabase the Google account's name (saved with the account). The Console form still says No: change it when the version with the button is released beyond internal testing |
 | Photos | Yes | No | Required | App functionality | Photos of clothes the person adds, and a photo of a piece tried on |
 | Other user-generated content | Yes | No | Required | App functionality, Personalization | Wardrobe details, outfits, favorites, wear history, trips, style preferences, typed styling requests, notes on a report |
 | App interactions | Yes | No | Required | App functionality, Analytics | A log line for each AI request (which feature, when, how long, tokens): the usage limits and cost tracking |

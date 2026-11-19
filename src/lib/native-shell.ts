@@ -80,11 +80,18 @@ export type PlayOffering = {
 export type ShellPlugins = {
   App?: {
     addListener?: (
-      event: "backButton",
-      listener: (event: { canGoBack?: boolean }) => void,
+      event: "backButton" | "appUrlOpen",
+      listener: (event: { canGoBack?: boolean; url?: string }) => void,
     ) => ListenerHandle | Promise<ListenerHandle>;
     minimizeApp?: () => Promise<unknown>;
     exitApp?: () => Promise<unknown>;
+    /** The link that started the app, when one did (the way back from Google's sign-in). */
+    getLaunchUrl?: () => Promise<{ url?: string } | undefined>;
+  };
+  /** A Chrome tab over the app, for Google's sign-in (src/lib/app-google-sign-in.ts). Not in version 15 of the app. */
+  Browser?: {
+    open?: (options: { url: string; toolbarColor?: string }) => Promise<unknown>;
+    addListener?: (event: "browserFinished", listener: () => void) => ListenerHandle | Promise<ListenerHandle>;
   };
   SystemBars?: {
     setStyle?: (options: { style: BarStyle }) => Promise<unknown>;

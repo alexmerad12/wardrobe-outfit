@@ -2,6 +2,10 @@
 
 import { useEffect } from "react";
 import { barStyleFor, drawsUnderSystemBars, shellPlugins, type BarStyle } from "@/lib/native-shell";
+import { appAuthReturnPath } from "@/lib/app-google-sign-in";
+
+// The last return link from Google's sign-in sent on to /auth/callback.
+const SIGN_IN_RETURN_KEY = "linette_sign_in_return";
 
 /**
  * What the site does for the Android app (src/lib/native-shell.ts). It
@@ -20,6 +24,8 @@ import { barStyleFor, drawsUnderSystemBars, shellPlugins, type BarStyle } from "
  *   the phone's mode decides. Capacitor works the icons out once, at
  *   start: left alone they stayed dark when the phone switched to dark
  *   with the app open (seen on the Android 15 emulator, 2026-11-13).
+ * - Google's sign-in: the return link from its Chrome tab
+ *   (app.linette://auth/callback) goes on to the site's /auth/callback.
  */
 export function NativeShell() {
   useEffect(() => {
@@ -42,6 +48,35 @@ export function NativeShell() {
           .then((listener) => listener?.remove?.())
           .catch(() => {});
       });
+    }
+
+    // Back from Google's sign-in in a Chrome tab (src/lib/app-google-sign-in.ts):
+    // the site finishes it on its own /auth/callback. A link that started the
+    // app (when Android had closed it meanwhile) comes through getLaunchUrl,
+    // which keeps answering with it on every page: its code works once, so a
+    // link already sent on isn't sent again.
+    const finishSignIn = (link?: string) => {
+      const path = appAuthReturnPath(link);
+      if (!path || !link) return;
+      try {
+        if (sessionStorage.getItem(SIGN_IN_RETURN_KEY) === link) return;
+        sessionStorage.setItem(SIGN_IN_RETURN_KEY, link);
+      } catch {}
+      window.location.assign(path);
+    };
+    if (app?.addListener) {
+      const handle = app.addListener("appUrlOpen", ({ url }) => finishSignIn(url));
+      cleanups.push(() => {
+        void Promise.resolve(handle)
+          .then((listener) => listener?.remove?.())
+          .catch(() => {});
+      });
+    }
+    if (app?.getLaunchUrl) {
+      void app
+        .getLaunchUrl()
+        .then((launch) => finishSignIn(launch?.url))
+        .catch(() => {});
     }
 
     const setStyle = plugins.SystemBars?.setStyle;

@@ -40,6 +40,27 @@
 
         </activity>
 
+        <!-- Back from Google's sign-in, which runs in a Chrome tab: linette.app
+             sends app.linette://auth/callback?code=… through an intent pinned to
+             this package (/auth/app-return), and this screen hands it
+             to MainActivity (AuthReturnActivity.java says why it can't go
+             there directly). Any app could send such a link: the code in it is
+             useless without the PKCE verifier the site keeps in the WebView.
+             No app.linette:// address is ever in Supabase's allow list. -->
+        <activity
+            android:name=".AuthReturnActivity"
+            android:exported="true"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="app.linette" android:host="auth" android:path="/callback" />
+            </intent-filter>
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

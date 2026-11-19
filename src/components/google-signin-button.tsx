@@ -79,7 +79,7 @@ export function GoogleSignInButton({
   );
 }
 
-function GoogleLogo() {
+export function GoogleLogo() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
       <path

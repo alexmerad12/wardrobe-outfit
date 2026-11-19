@@ -73,7 +73,9 @@ feature graphic, the declarations and data safety answers. Screenshots wait on t
 2. A RevenueCat account (free up to US$2,500 of monthly tracked revenue, then 1%), only if the app sells the
    subscription itself.
 3. The Google Cloud project behind Google sign-in (project number 797306386794): an Android OAuth client per signing
-   certificate has to be created there, for native Google sign-in.
+   certificate has to be created there, for native Google sign-in. Not needed for the Chrome-tab sign-in built
+   2026-11-19 (below). The account that owns the project is unknown: on 2026-11-19 two of the owner's accounts were
+   checked and have no access (probably the Closette-era business Gmail, which is not signed in to his Chrome).
 
 ## Still to build
 
@@ -94,7 +96,20 @@ his decision: `docs/play-store-listing.md`,
 section 7) the app must not be published: a new account would reach that paywall.
 
 ### Google sign-in in the app
-Hidden in the app today: Google refuses its web sign-in inside a WebView, and the round trip through the phone's
+**Built 2026-11-19, through a Chrome tab.** The app's button (`src/components/app-google-sign-in.tsx`) opens
+Supabase's Google sign-in with `@capacitor/browser`. Supabase returns to `https://linette.app/auth/app-return`, an
+address its allow list already held, which redirects to an intent link pinned to `package=app.linette`
+(`appReturnIntent` in `src/lib/app-google-sign-in.ts`). `AuthReturnActivity` hands `app.linette://auth/callback?code=…`
+to the MainActivity already open (CLEAR_TOP + SINGLE_TOP, because MainActivity is singleTop for Play purchases), the App
+plugin's `appUrlOpen` reaches `native-shell.tsx`, and the WebView finishes on `/auth/callback` with its own PKCE
+verifier. Version 15 has no browser plugin, so its sign-in page keeps the "choose a password" line. Checked: unit tests,
+the browser test with a stand-in bridge, and on the emulator the return link sent by hand (same app window, the code is
+tried). Not checked yet, a real phone only: Google's own pages in the Chrome tab, and Chrome following the redirect to
+the intent link after Google's consent (the same mechanism as a redirect to a custom scheme). On 2026-11-19 an
+`app.linette://` entry sat in Supabase's allow list for about 20 minutes, then was removed (the bullet on custom
+schemes below says why).
+
+Before that the button was hidden: Google refuses its web sign-in inside a WebView, and the round trip through the phone's
 browser would end in the browser, which does not hold the app's session. Two ways to bring it back:
 
 - Native: `@capgo/capacitor-social-login` (Credential Manager) and Supabase's `signInWithIdToken`:
@@ -109,6 +124,9 @@ browser would end in the browser, which does not hold the app's session. Two way
 - Through the browser with App Links: only with a VERIFIED `https://linette.app/...` link that Android hands to
   the app. Never with a custom scheme (`app.linette://`): any other app can claim a scheme, start the sign-in
   itself and receive the code together with its own verifier, which is an account takeover.
+- What was built (above) is neither: the return address is an https page of the site, and it hands the code on
+  through an intent pinned to the package, which no other app receives. A code another app sends to Linette's own
+  scheme is useless without Linette's verifier.
 
 ### App Links
 An `autoVerify` intent filter for `linette.app`, and `https://linette.app/.well-known/assetlinks.json` with the

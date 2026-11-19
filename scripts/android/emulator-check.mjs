@@ -511,7 +511,7 @@ try {
   }
   check("light phone, light page", !layout.darkPhone && !layout.darkPage);
 
-  // --- 3. The sign-in page: no Google button in the app ---
+  // --- 3. The sign-in page: Google's button opens a Chrome tab in the app ---
   if (siteReady) {
     await dismissSystemDialogs();
     await page.run("document.querySelector('a[href=\"/login\"]').click()");
@@ -523,7 +523,10 @@ try {
       const hint = [...document.querySelectorAll("p")].find((p) => /Account created with Google|Compte créé avec Google/.test(p.textContent));
       return { google: google ? shown(google) : "missing", hint: shown(hint), email: shown(document.querySelector("input[type=email]")) };
     })()`);
-    check("Google's button is hidden in the app, the hint and the email form show", signIn.google === false && signIn.hint && signIn.email, JSON.stringify(signIn));
+    // Since the browser plugin is in the app (Google's sign-in in a Chrome
+    // tab, src/lib/app-google-sign-in.ts): the button shows and the line
+    // that sends Google accounts to "Forgot password" doesn't.
+    check("Google's button shows in the app, the email form too, no password hint", signIn.google === true && !signIn.hint && signIn.email, JSON.stringify(signIn));
     capture("03-sign-in");
 
     // --- 4. The keyboard must not cover the field being typed in ---
@@ -691,6 +694,33 @@ try {
   const wentLight = await waitFor(page, "!matchMedia('(prefers-color-scheme: dark)').matches && !document.documentElement.classList.contains('dark')", 15_000);
   check("and back to light", wentLight);
   if (barIcons() !== null) check("in light mode they are dark", await waitUntil(() => barIcons() === "dark", 6000), `icons: ${barIcons()}`);
+
+  // --- 8b. The way back from Google's sign-in (a Chrome tab) ---
+  // In the app Google's sign-in opens in a Chrome tab; Supabase returns to
+  // linette.app/auth/app-return, which hands app.linette://auth/callback?code=…
+  // to this package only (AuthReturnActivity,
+  // src/lib/app-google-sign-in.ts). The emulator has no Google account, so
+  // the link is sent by hand with a made-up code: the app already open must
+  // take it (no second copy of the app on top), and the site must try the
+  // code, which fails and lands on the sign-in page with its error line.
+  await dismissSystemDialogs();
+  const pidBeforeReturn = appPid();
+  sh(`am start --user ${foregroundUser} -a android.intent.action.VIEW -d 'app.linette://auth/callback?code=ci-made-up-code&next=%2F'`);
+  const tried = await waitFor(
+    page,
+    "location.pathname === '/login' && new URLSearchParams(location.search).has('error') && !!document.querySelector('p.auth-error[role=alert]')",
+    30_000,
+  );
+  capture("06b-sign-in-return");
+  check(
+    "the return link from Google's sign-in reaches the open app, which tries the code on the site",
+    Boolean(tried) && appPid() === pidBeforeReturn,
+    await page.run("location.href").catch((e) => e.message),
+  );
+  const copies = new Set(
+    [...sh("dumpsys activity activities").matchAll(/ActivityRecord\{(\w+) [^}]*app\.linette\/\.MainActivity/g)].map((m) => m[1]),
+  ).size;
+  check("the return link opens no second copy of the app", copies === 1, `${copies} MainActivity record(s)`);
 
   // --- 9. No connection: the page that ships inside the app ---
   sh(`am force-stop ${PKG}`);
