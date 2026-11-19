@@ -91,7 +91,8 @@ Running list of what's done and what remains before full public launch (vs. frie
 
 ### Data hygiene
 - [ ] Once wife's migration is clearly stable (≥1 week), delete the legacy Vercel KV blob at key `wardrobe-data`.
-- [ ] Delete legacy Vercel Blob images once all items have been re-uploaded to Supabase Storage. The `wardrobe-images` Blob store holds 47 photos from April 2026 (317 MB, public URLs), and 10 real `clothing_items` rows still point at them (checked 2026-10-16): migrate those 10 into Supabase Storage first, then delete. Keep `models/` (the background-removal model).
+- [ ] Delete legacy Vercel Blob images once all items have been re-uploaded to Supabase Storage. The `wardrobe-images` Blob store holds 47 photos from April 2026 (317 MB, public URLs), and 2 real `clothing_items` rows still point at them (10 on 2026-10-16, 2 on 2026-11-17): migrate those 2 into Supabase Storage first, then delete. Keep `models/` (the background-removal model).
+- [x] Unreferenced photos in `clothing-images`: the 817 files no piece pointed at (644.1 MB) were deleted on 2026-11-19, the bucket is 188.5 MB of 1 GB (`known-root-causes.md`). Still open: the app fix so a replaced photo, an unsaved pick or a failed bulk tile stops leaving its file (proposed, not built).
 
 ### Polish
 - [x] ~~First-run UX for empty accounts~~ — done: 4-step onboarding wizard + dedicated empty-wardrobe home state with add-item CTAs.
