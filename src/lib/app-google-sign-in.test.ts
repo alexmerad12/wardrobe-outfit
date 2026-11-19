@@ -46,6 +46,23 @@ describe("appAuthReturnPath", () => {
     expect(appAuthReturnPath(APP_AUTH_RETURN)).toBe("/login?error=cancelled");
   });
 
+  it("doesn't depend on the WebView parsing a host in a non-special URL", () => {
+    // Chromium before 130 parsed "app.linette://auth/callback" with an empty
+    // host; the helper must read the link itself.
+    const realURL = globalThis.URL;
+    class OldWebViewURL extends realURL {
+      get host() {
+        return this.protocol === "app.linette:" ? "" : super.host;
+      }
+    }
+    globalThis.URL = OldWebViewURL as typeof URL;
+    try {
+      expect(appAuthReturnPath(`${APP_AUTH_RETURN}?code=abc&next=%2F`)).toBe("/auth/callback?code=abc&next=%2F");
+    } finally {
+      globalThis.URL = realURL;
+    }
+  });
+
   it("ignores every other link", () => {
     for (const link of [
       null,

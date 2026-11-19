@@ -54,16 +54,19 @@ export function appReturnIntent(search: URLSearchParams, fallback: string): stri
  */
 export function appAuthReturnPath(link: string | null | undefined): string | null {
   if (!link) return null;
-  let url: URL;
-  try {
-    url = new URL(link);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "app.linette:" || url.host !== "auth" || url.pathname !== "/callback") return null;
+  // Read by hand, not with new URL(): WebViews before Chromium 130 give a
+  // non-special URL no host ("app.linette://auth/callback" had host "" and
+  // pathname "//auth/callback"), so a host check never matched on the
+  // Android 15 emulator's WebView 124 (Android run #17, 2026-11-19).
+  const hashAt = link.indexOf("#");
+  const beforeHash = hashAt >= 0 ? link.slice(0, hashAt) : link;
+  const queryAt = beforeHash.indexOf("?");
+  const address = queryAt >= 0 ? beforeHash.slice(0, queryAt) : beforeHash;
+  if (address !== APP_AUTH_RETURN && address !== `${APP_AUTH_RETURN}/`) return null;
+  const query = new URLSearchParams(queryAt >= 0 ? beforeHash.slice(queryAt + 1) : "");
   // Supabase puts an error in the query, or in the fragment for some errors.
-  const fragment = new URLSearchParams(url.hash.replace(/^#/, ""));
-  const read = (name: string) => url.searchParams.get(name) ?? fragment.get(name);
+  const fragment = new URLSearchParams(hashAt >= 0 ? link.slice(hashAt + 1) : "");
+  const read = (name: string) => query.get(name) ?? fragment.get(name);
   const next = read("next") ?? "/";
   const code = read("code");
   if (code) return `/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`;

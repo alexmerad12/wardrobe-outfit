@@ -6,6 +6,12 @@ Public repo: technical facts only, no keys, accounts or client details.
 
 ## Confirmed
 
+### The app ignored its own sign-in return link on an older WebView (2026-11-19, caught by the emulator before any phone)
+- **Symptom:** Android run #17: `am start -d 'app.linette://auth/callback?code=…'` reached the app, and the page stayed on `/launch` instead of going on to `/auth/callback`.
+- **Cause:** `appAuthReturnPath` checked `new URL(link).host === "auth"`. Chromium before version 130 parses no host in a non-special URL: `app.linette://auth/callback` gave host `""` and pathname `//auth/callback`. The Android 15 emulator's WebView is 124. The unit tests run in Node, whose URL parser is standard, so they passed.
+- **Fix:** the link is read by hand (prefix, then the query and the fragment through `URLSearchParams`), and a unit test swaps in a URL class with the old behaviour. Any other code that reads an `app.linette://` link must not trust `URL.host` either.
+- **Same run, a fault in the check itself:** its "Google's button" check took the FIRST button mentioning Google, which is the website's, hidden in the app (`.web-only`), and read it as "no button". It now looks for a visible one, after the page has hydrated.
+
 ### The packing stress sweep never tested a trip, and passed anyway (2026-04-24 to 2026-11-19)
 - **Symptom:** none: `test:stress` and `test:stress:ai` showed `stress-packing.spec.ts` green.
 - **Cause:** the spec sent `start_date` / `end_date` and the occasions as a list. The route has read `startDate` / `endDate` since it was written, and since 2026-10-15 takes the activities only as text (`asText`). Until 2026-10-15 the calls went through with no dates; since then the route refuses them before any AI call (HTTP 400 `{"error":"Valid startDate and endDate required"}`, reproduced on a local production build 2026-11-19). The sweep only printed what it found, so a run where every request failed still passed. Its trips also lasted a day longer than their scenarios said (the route counts both ends).

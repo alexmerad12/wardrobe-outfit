@@ -517,11 +517,15 @@ try {
     await page.run("document.querySelector('a[href=\"/login\"]').click()");
     check("a link opens the sign-in page", await waitFor(page, "location.pathname === '/login' && !!document.querySelector('input[type=email]')", 30_000));
     await sleep(600);
+    // The app's button appears once the page has hydrated (it checks for the browser plugin).
+    await waitFor(page, "[...document.querySelectorAll('button')].some((b) => /Google/.test(b.textContent) && b.offsetParent !== null)", 10_000);
     const signIn = await page.run(`(() => {
       const shown = (el) => !!el && el.offsetParent !== null;
-      const google = [...document.querySelectorAll("button")].find((b) => /Google/.test(b.textContent));
+      // The website's own Google button is in the page too, hidden in the app
+      // (.web-only): look at every Google button, the app's must be visible.
+      const google = [...document.querySelectorAll("button")].filter((b) => /Google/.test(b.textContent));
       const hint = [...document.querySelectorAll("p")].find((p) => /Account created with Google|Compte créé avec Google/.test(p.textContent));
-      return { google: google ? shown(google) : "missing", hint: shown(hint), email: shown(document.querySelector("input[type=email]")) };
+      return { google: google.length ? google.some(shown) : "missing", hint: shown(hint), email: shown(document.querySelector("input[type=email]")) };
     })()`);
     // Since the browser plugin is in the app (Google's sign-in in a Chrome
     // tab, src/lib/app-google-sign-in.ts): the button shows and the line
@@ -705,7 +709,8 @@ try {
   // code, which fails and lands on the sign-in page with its error line.
   await dismissSystemDialogs();
   const pidBeforeReturn = appPid();
-  sh(`am start --user ${foregroundUser} -a android.intent.action.VIEW -d 'app.linette://auth/callback?code=ci-made-up-code&next=%2F'`);
+  const returnStart = sh(`am start --user ${foregroundUser} -a android.intent.action.VIEW -d 'app.linette://auth/callback?code=ci-made-up-code&next=%2F'`);
+  note("what Android answered to the return link", returnStart.replace(/\s+/g, " ").trim().slice(0, 300));
   const tried = await waitFor(
     page,
     "location.pathname === '/login' && new URLSearchParams(location.search).has('error') && !!document.querySelector('p.auth-error[role=alert]')",
