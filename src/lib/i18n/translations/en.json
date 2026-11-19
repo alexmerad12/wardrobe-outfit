@@ -1006,7 +1006,7 @@
     "outfitsCount": "{count} possible outfit",
     "outfitsCountPlural": "{count} possible outfits",
     "newItem": "New",
-    "limitTitle": "You've reached today's limit.",
+    "limitTitle": "You've reached this month's limit.",
     "limitHint": "Try-ons are capped at 15 per month. They come back on the 1st."
   },
   "packing": {

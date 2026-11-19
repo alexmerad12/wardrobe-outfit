@@ -1,10 +1,19 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { assertE2EAccount, signIn } from "./auth";
 
 // Stress-test the /api/packing endpoint with various trips. Validates
 // that the AI builds reasonable packing lists, suggests outfits, picks
 // items only from the user's wardrobe, doesn't duplicate single-piece
 // categories, and surfaces a weather summary.
+//
+// A report, like stress-suggest: the model-quality flags are printed, not
+// failed. A request the endpoint refuses, or an answer the route should
+// never return (empty list, malformed or duplicate piece), fails the run,
+// since then nothing was tested. Until 2026-11-19 this spec sent fields
+// the route never read (start_date / end_date, a list of occasions):
+// every call since 2026-10-15 came back 400 and the run still passed
+// (known-root-causes.md).
+const BROKEN_RULES = new Set(["API", "empty-packing-list", "packing-item-shape", "packing-duplicate"]);
 
 assertE2EAccount();
 
@@ -28,8 +37,8 @@ const TRIP_SCENARIOS: Array<{
   lat: number;
   lng: number;
   daysOut: number; // start = today + daysOut
-  duration: number; // days
-  occasions: string[];
+  duration: number; // days, first and last included (the route counts both)
+  occasions: string[]; // sent as one line of text, like the page's activities field
 }> = [
   {
     name: "Paris weekend",
@@ -87,16 +96,19 @@ test("stress-packing sweep", async ({ page }) => {
   for (const trip of TRIP_SCENARIOS) {
     totalCalls++;
     const startDate = isoDate(trip.daysOut);
-    const endDate = isoDate(trip.daysOut + trip.duration);
+    const endDate = isoDate(trip.daysOut + trip.duration - 1);
 
+    // Exactly what the packing page sends (src/app/packing/page.tsx).
     const res = await page.request.post("/api/packing", {
       data: {
         destination: trip.destination,
         lat: trip.lat,
         lng: trip.lng,
-        start_date: startDate,
-        end_date: endDate,
-        occasions: trip.occasions,
+        startDate,
+        endDate,
+        occasions: trip.occasions.join(", "),
+        notes: "",
+        locale: "en",
       },
       timeout: 90_000,
     });
@@ -198,4 +210,7 @@ test("stress-packing sweep", async ({ page }) => {
     }
   }
   console.log(lines.join("\n"));
+
+  const broken = failures.filter((f) => BROKEN_RULES.has(f.rule));
+  expect(broken, "packing requests refused, or answers the route should never return").toEqual([]);
 });

@@ -16,25 +16,18 @@ import { logAiCall } from "@/lib/log-ai-call";
 import { isCapBypassed } from "@/lib/admin-bypass";
 import { consumeDailyCap, refundDailyCap, localMonthKey, MONTH_CAP_TTL_SECONDS } from "@/lib/daily-cap";
 
-// Two Gemini calls per use (about 2-3 cents), so 3/day caps worst case
-// at roughly $2/mo per user. Tier presets to keep in mind:
-//   - Conservative: 2/day
-//   - Balanced:     3/day  ← current beta cap
-//   - Generous:     5/day  ← future Atelier tier
-// Tighter caps risk breaking a real store-run scenario (user pinging
-// 5-8 items in one outing); 3/day is the floor where it still works
-// for casual shopping. Beta matches the eventual Linette tier so the
-// constraint reads as the real launch experience.
-// Per calendar month, not per day (the owner's call, 2026-11-09): try-ons
-// happen in bursts on the day someone shops, and 3 a day stopped them at
-// the third piece. 15 covers two shopping trips and bounds a month at
-// 15 calls where 3 a day allowed 90.
+// Two Gemini calls per use. Per calendar month, not per day (the owner's
+// call, 2026-11-09): try-ons happen in bursts on the day someone shops, and
+// the old cap of 3 a day (the Balanced band) stopped them at the third
+// piece. 15 covers two shopping trips and bounds a month at 15 uses where
+// 3 a day allowed 90. The screen's title and hint say "this month"
+// (`tryOn.limitTitle`, `tryOn.limitHint`).
 const TRY_ON_MONTHLY_CAP = 15;
 
 // Vision read + wardrobe query + outfit call; well past the default on a
 // slow upstream. 120 s (like suggest) since 2026-10-16: two Gemini calls
 // plus the quality tier's fallback can outlast 60 s while Google is under
-// load, and a function killed at the limit never refunds the daily cap.
+// load, and a function killed at the limit never refunds the use.
 export const maxDuration = 120;
 
 // Shop-with-me / "fitting room" endpoint.
@@ -94,9 +87,10 @@ export async function POST(request: NextRequest) {
   const locale: "en" | "fr" = formData?.get("locale") === "fr" ? "fr" : "en";
   const languageName = locale === "fr" ? "French" : "English";
 
-  // Daily-cap gate. Same pattern as /api/suggest: consumed after the
-  // free validation exits, refunded when the request delivers nothing,
-  // admin/tester bypass like every other AI route.
+  // Monthly cap gate (a month key through consumeDailyCap). Same pattern
+  // as /api/suggest: consumed after the free validation exits, refunded
+  // when the request delivers nothing, admin/tester bypass like every
+  // other AI route.
   const isAdmin = isCapBypassed(ctx.userEmail, ctx.userEmailConfirmed);
   const countKey = `tryon_count:${userId}:${localMonthKey(request)}`;
   const capCount = await consumeDailyCap(countKey, MONTH_CAP_TTL_SECONDS);

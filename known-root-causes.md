@@ -6,6 +6,17 @@ Public repo: technical facts only, no keys, accounts or client details.
 
 ## Confirmed
 
+### The packing stress sweep never tested a trip, and passed anyway (2026-04-24 to 2026-11-19)
+- **Symptom:** none: `test:stress` and `test:stress:ai` showed `stress-packing.spec.ts` green.
+- **Cause:** the spec sent `start_date` / `end_date` and the occasions as a list. The route has read `startDate` / `endDate` since it was written, and since 2026-10-15 takes the activities only as text (`asText`). Until 2026-10-15 the calls went through with no dates; since then the route refuses them before any AI call (HTTP 400 `{"error":"Valid startDate and endDate required"}`, reproduced on a local production build 2026-11-19). The sweep only printed what it found, so a run where every request failed still passed. Its trips also lasted a day longer than their scenarios said (the route counts both ends).
+- **Fix:** the spec sends what the packing page sends (camelCase dates, the activities as one line of text, `notes`, `locale`), each trip lasts the days it names, and the run fails on a refused request or an answer the route should never return (an empty list, a malformed or duplicate piece). Model-quality flags stay a printed report. First run after the fix, e2e account on a local production build: 4 trips of 3, 4, 5 and 4 days, 9 to 12 pieces each, all checks passed in 25 s.
+- **Same blind spot, not changed:** `stress-suggest.spec.ts` and `stress-tryon.spec.ts` also record a refused call as a finding and only print their findings, so a run where every call failed would still pass.
+
+### The try-on limit said "today's limit" for a monthly cap (2026-11-09 to 2026-11-19)
+- **Symptom:** at the 16th try-on of a month: "You've reached today's limit." above "Try-ons are capped at 15 per month. They come back on the 1st." In French: "Tu as atteint la limite quotidienne." above "… 15 par mois".
+- **Cause:** when try-ons moved to a monthly cap on 2026-11-09, the FAQ and `tryOn.limitHint` changed and the title didn't: CLAUDE.md named only the `limitHint` strings. The route's comments still described a 3-a-day cap.
+- **Fix:** `tryOn.limitTitle` is "You've reached this month's limit." / "Tu as atteint la limite du mois.", CLAUDE.md names both strings, and the comments say monthly. Checked on a local production build with the route's 429 played back in the browser, in both languages. The other limit titles (Style Me, packing) belong to daily caps and say so.
+
 ### Styling tips invented a moment when step 2 was empty (2026-11-17, before the new tips shipped)
 - **Symptom:** the new tips (written to name the person's situation) made one up when nothing was typed in step 2: "weekend brunch" and "your Sunday brunch" on a Tuesday, "your crisp afternoon outdoors", "on your walk" for a casual outfit. Two sample runs of 8 requests with step 2 empty: 10 of 16 tips had a flaw (an invented detail, "keeping you…", a list of three adjectives, "effortless", "irrésistible").
 - **Cause:** both examples in the tip instruction answered a STYLE DIRECTION (an interview, a movie marathon), so with none the model filled the slot with a moment of its own. A ban line alone ("never invent a day, a time…") did not hold: the next run still wrote "Sunday brunch".

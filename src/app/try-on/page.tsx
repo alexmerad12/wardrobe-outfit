@@ -125,7 +125,7 @@ export default function TryOnPage() {
         </div>
       </div>
 
-      {/* Daily limit reached */}
+      {/* Monthly limit reached */}
       {limitReached && (
         <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm flex items-start gap-2">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
