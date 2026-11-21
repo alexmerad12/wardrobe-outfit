@@ -6,6 +6,7 @@
 // one run and not in the other (what a Sentry upgrade added or dropped).
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { isFromBrowser, VISITOR_HEADERS } from "./from-browser.mjs";
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -88,7 +89,7 @@ function analyze(runTag) {
         const rec = JSON.parse(line);
         // Browser headers on a record = a browser envelope that came through
         // the app's /monitoring rewrite: what the rewrite hands to Sentry.
-        const viaTunnel = "x-forwarded-host" in rec.headers || "sec-fetch-site" in rec.headers || "sec-ch-ua" in rec.headers;
+        const viaTunnel = isFromBrowser(rec.headers);
         sources.push({ source: viaTunnel ? "tunnel" : "server", mode, transport: { url: rec.url, headers: rec.headers }, raw: rec.body, envelope: parseEnvelope(rec.body) });
       }
     }
@@ -141,6 +142,8 @@ function analyze(runTag) {
   for (const s of sources) {
     const where = s.source;
     for (const h of Object.keys(s.transport.headers ?? {})) put("transportHeaders", where, h.toLowerCase());
+    // Sentry never keeps the IP, but it derives a city from whatever address the delivery names.
+    if (where === "tunnel") for (const h of VISITOR_HEADERS) if (h in (s.transport.headers ?? {})) failures.add(`the tunnel hands Sentry the visitor's "${h}" header`);
     const head = s.envelope.header ?? {};
     if (head.sdk) sdk.add(`${where}: ${head.sdk.name}@${head.sdk.version}`);
     const everything = `${JSON.stringify(s.transport)}\n${s.raw}`;

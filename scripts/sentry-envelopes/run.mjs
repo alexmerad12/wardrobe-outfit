@@ -17,6 +17,8 @@ import { existsSync, readFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 
+import { isFromBrowser } from "./from-browser.mjs";
+
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > -1 ? process.argv[i + 1] : fallback;
@@ -58,6 +60,7 @@ let failed = false;
 for (const mode of modes) {
   console.log(`\n===== ${tag} / ${mode}`);
   const serverFile = path.join(dir, `server-${tag}-${mode}.jsonl`);
+  let out = ""; // everything the server prints: shown when the capture fails
   const recorder = spawn(process.execPath, ["scripts/sentry-envelopes/recorder.mjs", String(recorderPort), serverFile], { stdio: "inherit" });
   const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], {
     stdio: ["ignore", "pipe", "pipe"],
@@ -73,7 +76,7 @@ for (const mode of modes) {
   });
   try {
     await new Promise((resolve, reject) => {
-      let out = "";
+      // `out` keeps filling after Ready.
       const timer = setTimeout(() => reject(new Error(`the server printed no Ready line in 90 s:\n${out}`)), 90_000);
       const onData = (chunk) => {
         out += chunk;
@@ -91,7 +94,10 @@ for (const mode of modes) {
       ["node_modules/tsx/dist/cli.mjs", "scripts/sentry-envelopes/capture.mts", "--tag", tag, "--mode", mode, "--out", dir, "--base", `http://localhost:${port}`],
       { stdio: "inherit" }
     );
-    if ((await exitOf(capture)) !== 0) failed = true;
+    if ((await exitOf(capture)) !== 0) {
+      failed = true;
+      console.error(`--- the server's last lines:\n${out.split("\n").slice(-30).join("\n")}`);
+    }
   } finally {
     await stop(server);
     await stop(recorder);
@@ -99,7 +105,7 @@ for (const mode of modes) {
   if (await listening(port)) throw new Error(`Port ${port} still answers after this script stopped its server.`);
 
   const records = readFileSync(serverFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
-  const fromBrowser = records.filter((r) => "sec-ch-ua" in r.headers || "x-forwarded-host" in r.headers).length;
+  const fromBrowser = records.filter((r) => isFromBrowser(r.headers)).length;
   console.log(`recorded: ${records.length - fromBrowser} envelopes from the server SDK, ${fromBrowser} from the browser through the tunnel`);
   if (records.length - fromBrowser === 0 || fromBrowser === 0) {
     console.error("The recorder is missing one side: the redirect did not take, and envelopes may have gone to the real Sentry project.");

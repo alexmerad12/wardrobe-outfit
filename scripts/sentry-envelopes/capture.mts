@@ -85,7 +85,8 @@ const note = async (route: Route) => {
 // rewrite hands it to "Sentry" (the recorder). Shows what the rewrite forwards.
 await context.route(/\/monitoring(\?|$)/, async (route) => {
   await note(route);
-  await route.continue();
+  // In production Vercel puts the visitor's address on every request before it reaches the app. Plant one here: it must not come out the other side.
+  await route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": MARKS.forwardedFor, "x-vercel-forwarded-for": MARKS.forwardedFor, "x-real-ip": MARKS.realIp } });
 });
 // Anything the page sends to Sentry directly never leaves this machine.
 await context.route(/sentry\.io\//, async (route) => {
@@ -94,6 +95,7 @@ await context.route(/sentry\.io\//, async (route) => {
 });
 
 const page = await context.newPage();
+page.setDefaultNavigationTimeout(90_000); // other sessions build and test on this machine too
 const consoleErrors: string[] = [];
 page.on("pageerror", (error) => consoleErrors.push(`pageerror: ${error.message}`));
 

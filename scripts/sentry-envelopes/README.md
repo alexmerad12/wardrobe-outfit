@@ -34,8 +34,13 @@ which is how a field nobody thought to search for shows up.
 ## What it covers
 
 - A signed-in browser session with an uncaught error. The envelopes go through the
-  `/monitoring` tunnel and the app's rewrite, as in production, so the headers the
-  rewrite forwards are recorded too.
+  `/monitoring` tunnel and the app's own route (`src/app/sentry-tunnel/route.ts`),
+  as in production, with a visitor address planted on them the way Vercel adds one
+  (`x-forwarded-for`, `x-vercel-forwarded-for`, `x-real-ip`), so the headers the
+  tunnel passes on are recorded too. The check fails when a delivery names the
+  visitor (`from-browser.mjs` lists the headers): Sentry keeps no IP but derives
+  a city from it. On 2026-11-21 it failed on the plain rewrite and on Sentry's own
+  `@sentry/nextjs/tunnel` handler, and passed on our route.
 - A signed-in server request that succeeds with a real Gemini call (`ok`: packing,
   the cheap model, under one cent) and one that throws and is reported through
   `Sentry.captureException` (`fail`: a broken `GOOGLE_API_KEY`).
@@ -46,7 +51,8 @@ which is how a field nobody thought to search for shows up.
 
 Not covered: the `onRequestError` hook (no route throws uncaught), the edge init
 (nothing runs on the edge runtime), try-on and photo tagging (same SDK path as
-packing, other payloads), and how Vercel itself handles the rewrite.
+packing, other payloads), and what Vercel's own network adds in front of the app
+(the planted headers stand in for it).
 
 ## What a clean run still contains (2026-11-13, 11.12.0)
 
@@ -56,6 +62,9 @@ packing, other payloads), and how Vercel itself handles the rewrite.
 - The text of `console.*` calls made before an error, as breadcrumbs. Never log
   anything personal with `console.*`.
 - Paths, without their query strings.
+- On the delivery itself: the envelope, its content type, and the trace headers
+  Sentry's own fetch adds (`sentry-trace`, `baggage`). Nothing from the visitor's
+  request.
 
 The output folder `.sentry-envelopes/` holds a live session token of the test
 account while it exists. It is gitignored: delete it when done.

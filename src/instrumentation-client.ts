@@ -13,6 +13,10 @@ Sentry.init({
   tracesSampleRate: 1.0,
   dataCollection: SENTRY_DATA_COLLECTION,
   beforeSendSpan: sentryBeforeSendSpan,
+  // Reports go to our own tunnel route (`src/app/sentry-tunnel/route.ts`),
+  // which needs no session: keep the cookies off the request. The SDK only
+  // sets this itself when the tunnel is a plain rewrite.
+  transportOptions: { fetchOptions: { credentials: "omit" } },
   debug: false,
 });
 
