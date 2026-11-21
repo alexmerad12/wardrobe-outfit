@@ -24,7 +24,7 @@ export function pendingErrorLabel(
   return error.startsWith("i18n:") ? t(error.slice(5)) : error;
 }
 import { sanitizeAutoFill } from "@/lib/sanitize-autofill";
-import { uploadToSupabase, cancelAllActiveUploads } from "@/lib/upload-to-supabase";
+import { uploadToSupabase, cancelAllActiveUploads, discardUpload } from "@/lib/upload-to-supabase";
 
 // Global background-processing queue for item uploads.
 //
@@ -125,8 +125,8 @@ const CONCURRENCY = 3;
 
 // Serializes raw uploads across concurrently-processing items.
 let uploadChain: Promise<unknown> = Promise.resolve();
-function uploadOneAtATime(file: File): Promise<string> {
-  const run = () => uploadToSupabase(file);
+function uploadOneAtATime(file: File, onPath: (path: string) => void): Promise<string> {
+  const run = () => uploadToSupabase(file, onPath);
   const result = uploadChain.then(run, run);
   uploadChain = result.catch(() => undefined);
   return result;
@@ -141,6 +141,19 @@ function uploadOneAtATime(file: File): Promise<string> {
 // it off sooner was turning retryable failures (attempt 4 would
 // have worked) into permanent red tiles.
 const PER_ITEM_TIMEOUT_MS = 10 * 60 * 1000;
+
+// The cutout and the AI read, both settled before the run goes on. An
+// analyze that can't be reached falls back to the defaults (as an analyze
+// error already did), so nothing rejects here while the cutout may still be
+// writing over the upload: a failed run removes its photo afterwards
+// (processItem), and removing it any earlier would let the cutout land again.
+async function bothServerSteps<N>(
+  steps: [Promise<N>, Promise<AutoFillResult>]
+): Promise<[N, AutoFillResult]> {
+  const [normalize, analyze] = await Promise.allSettled(steps);
+  if (normalize.status === "rejected") throw normalize.reason;
+  return [normalize.value, analyze.status === "fulfilled" ? analyze.value : ({} as AutoFillResult)];
+}
 
 
 
@@ -242,7 +255,7 @@ export function PendingUploadsProvider({
   }, []);
 
   const processItemOnce = useCallback(
-    async (item: PendingItem): Promise<void> => {
+    async (item: PendingItem, onUploadPath: (path: string) => void): Promise<void> => {
       // 0. HEIC → JPEG if needed. Samsung "High Efficiency" mode and
       //    iPhone defaults produce HEIC files that Chrome's canvas /
       //    createImageBitmap can't decode. Without this conversion the
@@ -287,8 +300,14 @@ export function PendingUploadsProvider({
       //    50 MB so any phone photo fits.
       bgLog("uploading raw to Supabase");
       const rawUploadT0 = performance.now();
-      const rawUrl = await uploadOneAtATime(sourceFile);
+      const rawUrl = await uploadOneAtATime(sourceFile, onUploadPath);
       bgLog(`raw upload done in ${Math.round(performance.now() - rawUploadT0)}ms`);
+
+      // Cancelled or timed out while uploading: skip the cutout and the AI
+      // call. The photo is removed (processItem).
+      if (abandonedRef.current.has(item.id)) {
+        throw new Error("abandoned during upload — skipping the server steps");
+      }
 
       const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
       if (!pathMatch) {
@@ -307,7 +326,7 @@ export function PendingUploadsProvider({
       //    folder. None of the canvas / GPU / heap limits that bite mobile.
       bgLog("starting parallel server normalize + analyze");
       const serverT0 = performance.now();
-      const [normalizeResult, attrsRaw] = await Promise.all([
+      const [normalizeResult, attrsRaw] = await bothServerSteps([
         fetch("/api/items/normalize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -487,8 +506,19 @@ export function PendingUploadsProvider({
       // This run is the live one — clear any abandonment from a prior
       // timed-out attempt so the retry can save normally.
       abandonedRef.current.delete(item.id);
+      // When the run fails, or the timeout or Cancel cuts it off, its photo
+      // never became a piece: once the run has really stopped (a timed-out
+      // run goes on until its save step), its upload is removed. A retry
+      // uploads a fresh copy. The server keeps the file if a save did land.
+      let uploadPath: string | null = null;
+      const run = processItemOnce(item, (path) => {
+        uploadPath = path;
+      });
+      void run.catch(() => {
+        if (uploadPath) void discardUpload(uploadPath);
+      });
       try {
-        await withTimeout(processItemOnce(item), "Item");
+        await withTimeout(run, "Item");
       } catch (err) {
         // Single attempt. If it fails, mark the tile error immediately.
         // The user taps Retry to try again — that's clearer than silent
@@ -769,7 +799,13 @@ export function PendingUploadsProvider({
     // thought they'd thrown away.
     cancelAllActiveUploads();
     setItems((prev) => {
-      for (const i of prev) URL.revokeObjectURL(i.previewUrl);
+      for (const i of prev) {
+        // A run still going must not save after Cancel (it used to): it
+        // stops before its server steps or its save, and its photo is
+        // removed (processItem).
+        if (i.stage === "queued" || i.stage === "processing") abandonedRef.current.add(i.id);
+        URL.revokeObjectURL(i.previewUrl);
+      }
       return [];
     });
     kickedOffRef.current.clear();

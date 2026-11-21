@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { readJsonObject } from "@/lib/read-json";
 import { dbErrorResponse } from "@/lib/db-error";
+import { photosLeftBehind } from "@/lib/item-photos";
+import { removeUnusedPhotos } from "@/lib/remove-photos";
 
 export async function GET(
   _request: NextRequest,
@@ -33,7 +35,7 @@ export async function PATCH(
 ) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase } = ctx;
+  const { supabase, userId } = ctx;
   const { id } = await params;
 
   const updates = await readJsonObject(request);
@@ -41,6 +43,20 @@ export async function PATCH(
   delete updates.id;
   delete updates.user_id;
   delete updates.created_at;
+
+  // A new photo replaces the file the piece showed: read which one that is,
+  // so it can be removed once the update went through ("Change photo" left
+  // the old file in storage for good until 2026-11-21).
+  const touchesPhoto = "image_url" in updates || "thumbnail_url" in updates;
+  const before = touchesPhoto
+    ? (
+        await supabase
+          .from("clothing_items")
+          .select("image_url, thumbnail_url")
+          .eq("id", id)
+          .maybeSingle()
+      ).data
+    : null;
 
   const { data, error } = await supabase
     .from("clothing_items")
@@ -55,15 +71,10 @@ export async function PATCH(
   if (!data) {
     return NextResponse.json({ error: "Item not found" }, { status: 404 });
   }
+  if (touchesPhoto) {
+    await removeUnusedPhotos(supabase, userId, photosLeftBehind(userId, before, data));
+  }
   return NextResponse.json(data);
-}
-
-// Extract the bucket-relative path from a public clothing-images URL
-// (strips the ?v= cache-buster the normalize endpoint appends).
-function storagePathFromUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  const m = url.match(/\/object\/public\/clothing-images\/([^?]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
 }
 
 export async function DELETE(
@@ -72,12 +83,12 @@ export async function DELETE(
 ) {
   const ctx = await requireUser();
   if (isNextResponse(ctx)) return ctx;
-  const { supabase } = ctx;
+  const { supabase, userId } = ctx;
   const { id } = await params;
 
-  // Read the image URLs BEFORE deleting the row — deleting an item
-  // used to leave its photo in the clothing-images bucket forever
-  // (audit P2: every delete orphaned a storage object).
+  // Read the image URLs BEFORE deleting the row: deleting an item used to
+  // leave its photo in the clothing-images bucket forever (audit P2: every
+  // delete orphaned a storage object).
   const { data: row } = await supabase
     .from("clothing_items")
     .select("image_url, thumbnail_url")
@@ -93,21 +104,9 @@ export async function DELETE(
     return dbErrorResponse(error);
   }
 
-  // Best-effort storage cleanup — a failure here must not undo the
-  // delete the user asked for. Storage RLS scopes removal to the
-  // user's own folder.
-  const paths = [
-    storagePathFromUrl(row?.image_url),
-    storagePathFromUrl(row?.thumbnail_url),
-  ].filter((p): p is string => !!p);
-  if (paths.length > 0) {
-    const { error: storageError } = await supabase.storage
-      .from("clothing-images")
-      .remove(paths);
-    if (storageError) {
-      console.warn("[items] storage cleanup failed:", storageError.message);
-    }
-  }
+  // Best effort, after the delete the user asked for: the piece's own
+  // files, unless another of their pieces still points at one of them.
+  await removeUnusedPhotos(supabase, userId, photosLeftBehind(userId, row, null));
 
   return NextResponse.json({ ok: true });
 }

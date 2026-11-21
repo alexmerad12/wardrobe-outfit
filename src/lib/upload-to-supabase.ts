@@ -15,6 +15,11 @@
 //     direct throws TypeError, proxy succeeds.
 //   - Anything that wedges Supabase's REST endpoint mid-flight: proxy
 //     succeeds.
+//
+// Every attempt of one upload writes the SAME file (named once, upsert), so
+// an attempt that landed but reported a failure is overwritten by the retry
+// instead of staying in storage as a second copy (2026-11-21).
+import { PHOTO_BUCKET, newUploadPath } from "@/lib/item-photos";
 
 // Conservative ceiling per attempt. A 200-400 KB POST + Supabase
 // re-upload usually completes in under 3 s; 60 s tolerates a
@@ -50,6 +55,23 @@ export function cancelAllActiveUploads(): void {
   activeControllers.clear();
 }
 
+/**
+ * Ask the server to remove an upload this screen won't save (replaced by
+ * another pick, left behind, a bulk photo that failed or was cancelled). The
+ * server keeps it if a piece points at it by then. keepalive lets the request
+ * finish while the page goes away; a failure only leaves the file behind.
+ */
+export async function discardUpload(path: string): Promise<void> {
+  try {
+    await fetch("/api/upload", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+      keepalive: true,
+    });
+  } catch {}
+}
+
 function isRetryable(err: unknown): boolean {
   if (err instanceof TypeError) return true;
   if (err instanceof DOMException && err.name === "AbortError") return true;
@@ -70,8 +92,12 @@ function isRetryable(err: unknown): boolean {
 // handles timeouts via xhr.timeout in a way that's consistent with
 // abort(), and has better mobile-browser track record for multipart
 // POSTs than fetch.
-function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+function postViaXhr(
+  file: File,
+  path: string | null,
+  abortSignal: AbortSignal
+): Promise<{ url: string; path: string | null }> {
+  return new Promise<{ url: string; path: string | null }>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const onAbort = () => {
       try {
@@ -82,6 +108,9 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
 
     const body = new FormData();
     body.append("file", file);
+    // The name every attempt shares (see the top of this file). Without a
+    // session in the browser there is none, and the server names the file.
+    if (path) body.append("path", path);
 
     xhr.open("POST", "/api/upload", true);
     xhr.timeout = ATTEMPT_TIMEOUT_MS;
@@ -97,12 +126,15 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
       abortSignal.removeEventListener("abort", onAbort);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const { url } = JSON.parse(xhr.responseText) as { url: string };
+          const { url, path: savedPath } = JSON.parse(xhr.responseText) as {
+            url: string;
+            path?: string;
+          };
           if (!url) {
             reject(new Error("Upload: server returned no URL"));
             return;
           }
-          resolve(url);
+          resolve({ url, path: savedPath ?? path });
         } catch {
           reject(new Error("Upload: malformed server response"));
         }
@@ -143,6 +175,17 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
   });
 }
 
+// The upload's name, made once so every attempt writes the same file. Null
+// without a session in the browser: the proxy, which reads the session
+// cookie, names the file then.
+async function uploadPathFor(file: File): Promise<string | null> {
+  const { createClient } = await import("@/lib/supabase/client");
+  const {
+    data: { session },
+  } = await createClient().auth.getSession();
+  return session?.user?.id ? newUploadPath(session.user.id, file.name, Date.now()) : null;
+}
+
 // Direct upload to Supabase Storage via the SDK. Mirrors the exact
 // call /wardrobe/add (single-add) makes — proven to work on the
 // user's Samsung. POST (not PUT).
@@ -156,17 +199,9 @@ function postViaXhr(file: File, abortSignal: AbortSignal): Promise<string> {
 // fetch implementation has its own ~5-minute timeout, which is the
 // real ceiling. Better to let one upload run to completion (or
 // natural failure) than to start three.
-async function uploadDirect(file: File): Promise<string> {
+async function uploadDirect(file: File, path: string): Promise<string> {
   const { createClient } = await import("@/lib/supabase/client");
   const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user?.id) throw new Error("Upload 401: not signed in");
-
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "item.jpg";
-  const path = `${session.user.id}/${Date.now()}-${safeName}`;
-  const BUCKET = "clothing-images";
 
   // Always send a non-empty contentType. Some files (HEIC variants
   // off Samsung's share sheet, certain camera-roll exports) arrive
@@ -176,8 +211,8 @@ async function uploadDirect(file: File): Promise<string> {
   const contentType = file.type || "application/octet-stream";
 
   const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { contentType });
+    .from(PHOTO_BUCKET)
+    .upload(path, file, { contentType, upsert: true });
   if (error) {
     // Distinguish network-level failure (no statusCode — fetch threw
     // before any HTTP response came back) from a real server error.
@@ -192,7 +227,7 @@ async function uploadDirect(file: File): Promise<string> {
     }
     throw new TypeError(`Upload network error: ${error.message} [${tag}]`);
   }
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 // Vercel functions cap request bodies at 4.5 MB at the edge layer —
@@ -202,7 +237,10 @@ async function uploadDirect(file: File): Promise<string> {
 // confusing error. Skip the proxy when the file is too big for it.
 const PROXY_BODY_LIMIT = 4_000_000;
 
-async function attemptUpload(file: File): Promise<string> {
+async function attemptUpload(
+  file: File,
+  path: string | null
+): Promise<{ url: string; path: string | null }> {
   const controller = new AbortController();
   activeControllers.add(controller);
   try {
@@ -211,14 +249,15 @@ async function attemptUpload(file: File): Promise<string> {
     // Samsung). Now wrapped in a 120 s timeout so we don't hang
     // forever on a stalled cellular connection.
     try {
-      return await uploadDirect(file);
+      if (!path) throw new Error("Upload 401: not signed in");
+      return { url: await uploadDirect(file, path), path };
     } catch (directErr) {
       // Step 2: file is small enough to fit Vercel's body cap → fall
       // back to /api/upload proxy. Same-origin POST, immune to CORS
       // edge cases.
       if (file.size <= PROXY_BODY_LIMIT) {
         console.warn("[upload] direct failed, falling back to proxy:", directErr);
-        return await postViaXhr(file, controller.signal);
+        return await postViaXhr(file, path, controller.signal);
       }
       // File is too big for the proxy too — re-throw the direct error
       // (rather than the proxy's misleading "no bytes sent") so retries
@@ -246,13 +285,24 @@ function describeError(err: unknown): Record<string, unknown> {
   return { value: String(err) };
 }
 
-export async function uploadToSupabase(file: File): Promise<string> {
+/**
+ * Upload a photo to the caller's folder and resolve to its public URL.
+ * `onPath` hears the file's bucket path before the first byte goes out, so a
+ * screen can remove the file if it won't save it, even when the last attempt
+ * reported a failure after landing.
+ */
+export async function uploadToSupabase(
+  file: File,
+  onPath?: (path: string) => void
+): Promise<string> {
   const fileSummary = {
     name: file.name,
     size: file.size,
     type: file.type || "(empty)",
     lastModified: file.lastModified,
   };
+  const path = await uploadPathFor(file);
+  if (path) onPath?.(path);
   let lastErr: unknown = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     // If the device went offline since the last attempt, wait for it
@@ -276,11 +326,12 @@ export async function uploadToSupabase(file: File): Promise<string> {
       });
     }
     try {
-      const result = await attemptUpload(file);
+      const result = await attemptUpload(file, path);
+      if (!path && result.path) onPath?.(result.path);
       if (attempt > 1) {
         console.log(`[upload] attempt ${attempt} succeeded`, fileSummary);
       }
-      return result;
+      return result.url;
     } catch (err) {
       lastErr = err;
       const errInfo = describeError(err);

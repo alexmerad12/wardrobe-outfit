@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { uploadToSupabase } from "@/lib/upload-to-supabase";
+import { discardUpload, uploadToSupabase } from "@/lib/upload-to-supabase";
+import { photoPathFromUrl } from "@/lib/item-photos";
+import { createUploadTracker } from "@/lib/unsaved-uploads";
 import { usePendingUploads } from "@/lib/pending-uploads-context";
 import type {
   ClothingItem,
@@ -104,6 +106,24 @@ export default function ItemDetailPage() {
   // startImageProcessing); bumped per photo so stale results are ignored.
   const imagePromiseRef = useRef<Promise<string> | null>(null);
   const imageGenerationRef = useRef(0);
+  // Every new photo uploads a file: one that is replaced, or dropped when the
+  // editor closes or the person leaves without saving, is removed from storage
+  // (src/lib/unsaved-uploads.ts). The photo it replaces on Save is removed by
+  // the PATCH itself.
+  const [uploads] = useState(() => createUploadTracker(discardUpload));
+  // A page kept in the back-forward cache may come back with the editor as
+  // it was, so only a real unload lets go of the photo; leaving within the
+  // app unmounts the page.
+  useEffect(() => {
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (!e.persisted) uploads.abandonCurrent();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      uploads.abandonCurrent();
+    };
+  }, [uploads]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
@@ -438,6 +458,21 @@ export default function ItemDetailPage() {
     if (!item) return;
     setSaving(true);
     setSaveError(null);
+    // The new photo is kept while the save is on its way, and for good once
+    // it went through (see `uploads`).
+    let settleSave: (saved: boolean) => void = () => {};
+    const keepWhileSaving = (url: string) => {
+      const path = photoPathFromUrl(url);
+      if (path) {
+        uploads.saving(
+          path,
+          new Promise<boolean>((resolve) => {
+            settleSave = resolve;
+          })
+        );
+      }
+      return url;
+    };
     try {
       // New photo: the upload + server cutout started when it was picked
       // (startImageProcessing), so this usually resolves immediately. Same
@@ -447,9 +482,11 @@ export default function ItemDetailPage() {
       let imageUrl = item.image_url;
       if (newImageFile) {
         try {
-          imageUrl = await (imagePromiseRef.current ?? startImageProcessing(newImageFile));
+          imageUrl = keepWhileSaving(
+            await (imagePromiseRef.current ?? startImageProcessing(newImageFile))
+          );
         } catch {
-          imageUrl = await startImageProcessing(newImageFile);
+          imageUrl = keepWhileSaving(await startImageProcessing(newImageFile));
         }
       }
 
@@ -516,6 +553,7 @@ export default function ItemDetailPage() {
         }),
       });
       if (res.ok) {
+        settleSave(true);
         const saved = await res.json();
         setItem(saved);
         setNewImageFile(null);
@@ -542,6 +580,7 @@ export default function ItemDetailPage() {
         setEditing(false);
       } else {
         const text = await res.text().catch(() => "");
+        settleSave(false);
         console.error("[edit] PATCH failed", res.status, text);
         setSaveError(
           text
@@ -550,6 +589,7 @@ export default function ItemDetailPage() {
         );
       }
     } catch (err) {
+      settleSave(false);
       console.error("Failed to save:", err);
       setSaveError(err instanceof Error ? err.message : t("itemDetail.saveFailed"));
     } finally {
@@ -588,6 +628,20 @@ export default function ItemDetailPage() {
     }
   }
 
+  // Closing the editor without saving: a photo picked in it is dropped and
+  // its upload removed. Until 2026-11-21 it stayed in storage, and on screen
+  // after the editor closed.
+  function closeEditor() {
+    uploads.abandonCurrent();
+    imageGenerationRef.current++;
+    imagePromiseRef.current = null;
+    setNewImageFile(null);
+    setNewImagePreview(null);
+    setRemovingBg(false);
+    setBgError(null);
+    setEditing(false);
+  }
+
   // New photo while editing: upload it and cut out the background on the
   // server right away (/api/items/normalize), so the clean version shows
   // before Save. Resolves to the URL to save: the cutout, or the raw upload
@@ -597,8 +651,11 @@ export default function ItemDetailPage() {
     const isCurrent = () => generation === imageGenerationRef.current;
     setRemovingBg(true);
     setBgError(null);
+    let uploadPath: string | null = null;
     const promise = (async () => {
-      const rawUrl = await uploadToSupabase(file);
+      const rawUrl = await uploadToSupabase(file, (path) => {
+        uploadPath = path;
+      });
       const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
       if (!pathMatch) return rawUrl;
       try {
@@ -626,6 +683,14 @@ export default function ItemDetailPage() {
       .finally(() => {
         if (isCurrent()) setRemovingBg(false);
       });
+    // This photo is now the one Save uses; the one picked before it is
+    // removed once its own upload and cutout have settled.
+    uploads.track(
+      promise.then(
+        () => uploadPath,
+        () => uploadPath
+      )
+    );
     imagePromiseRef.current = promise;
     return promise;
   }
@@ -741,7 +806,7 @@ export default function ItemDetailPage() {
               return;
             }
             if (editing) {
-              setEditing(false);
+              closeEditor();
               return;
             }
             // Return to the wardrobe tab the user came from, at the same

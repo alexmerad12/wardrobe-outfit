@@ -36,6 +36,9 @@ import type {
   Occasion,
 } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
+import { newUploadPath, photoPathFromUrl } from "@/lib/item-photos";
+import { createUploadTracker } from "@/lib/unsaved-uploads";
+import { discardUpload } from "@/lib/upload-to-supabase";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
 import { hexToHSL, isNeutralColor, getColorName, dedupeColors } from "@/lib/color-engine";
@@ -145,6 +148,22 @@ export default function AddItemPage() {
   const imagePromiseRef = useRef<Promise<string> | null>(null);
   // Bumped per photo so a slow result for a replaced photo is ignored.
   const imageGenerationRef = useRef(0);
+  // Every pick uploads a file: one that is replaced, or left when the person
+  // goes without saving, is removed from storage (src/lib/unsaved-uploads.ts).
+  const [uploads] = useState(() => createUploadTracker(discardUpload));
+  // A page kept in the back-forward cache may come back with the form as it
+  // was, so only a real unload lets go of the photo; leaving within the app
+  // unmounts the page.
+  useEffect(() => {
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (!e.persisted) uploads.abandonCurrent();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      uploads.abandonCurrent();
+    };
+  }, [uploads]);
 
   // Pull the user's gender preference once on mount. Used to gate
   // feminine-specific fields (skirt_length, dress_silhouette) when the
@@ -159,15 +178,15 @@ export default function AddItemPage() {
       .catch(() => {});
   }, []);
 
-  async function uploadImage(file: File): Promise<string> {
+  async function uploadImage(file: File, onPath: (path: string) => void): Promise<string> {
     const supabase = createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.user?.id) throw new Error("Not signed in");
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${session.user.id}/${Date.now()}-${safeName}`;
+    const path = newUploadPath(session.user.id, file.name, Date.now());
+    onPath(path);
     const { error: uploadError } = await supabase.storage
       .from("clothing-images")
       .upload(path, file, { contentType: file.type });
@@ -181,8 +200,11 @@ export default function AddItemPage() {
     const isCurrent = () => generation === imageGenerationRef.current;
     setRemovingBg(true);
     setBgError(null);
+    let uploadPath: string | null = null;
     const promise = (async () => {
-      const rawUrl = await uploadImage(file);
+      const rawUrl = await uploadImage(file, (path) => {
+        uploadPath = path;
+      });
       const pathMatch = rawUrl.match(/\/object\/public\/clothing-images\/(.+)$/);
       if (!pathMatch) return rawUrl;
       try {
@@ -211,6 +233,7 @@ export default function AddItemPage() {
         return url;
       } catch (err) {
         console.warn("[add-item] background removal failed, keeping the original photo:", err);
+        // Saved as the raw upload instead: the same file and path.
         if (isCurrent()) setBgError(t("addItem.bgRemovalFailed"));
         return rawUrl;
       }
@@ -220,6 +243,14 @@ export default function AddItemPage() {
       .finally(() => {
         if (isCurrent()) setRemovingBg(false);
       });
+    // This pick is now the photo the form saves; the one before it is
+    // removed once its own upload and cutout have settled.
+    uploads.track(
+      promise.then(
+        () => uploadPath,
+        () => uploadPath
+      )
+    );
     imagePromiseRef.current = promise;
     return promise;
   }
@@ -586,6 +617,8 @@ export default function AddItemPage() {
     }
 
     setSaving(true);
+    // Answers whether the piece was saved with its photo (see `uploads`).
+    let settleSave: (saved: boolean) => void = () => {};
     setError(null);
 
     try {
@@ -597,6 +630,18 @@ export default function AddItemPage() {
         imageUrl = await (imagePromiseRef.current ?? startImageProcessing(imageFile));
       } catch {
         imageUrl = await startImageProcessing(imageFile);
+      }
+
+      // The photo is kept while the save is on its way, and for good once
+      // it went through.
+      const photoPath = photoPathFromUrl(imageUrl);
+      if (photoPath) {
+        uploads.saving(
+          photoPath,
+          new Promise<boolean>((resolve) => {
+            settleSave = resolve;
+          })
+        );
       }
 
       const allColors = [...manualColors, ...detectedColors];
@@ -657,10 +702,12 @@ export default function AddItemPage() {
         }),
       });
 
+      settleSave(itemRes.ok);
       if (!itemRes.ok) throw new Error("Failed to save item");
 
       router.push("/wardrobe");
     } catch (err) {
+      settleSave(false);
       setError(err instanceof Error ? err.message : t("addItem.somethingWentWrong"));
       setSaving(false);
     }

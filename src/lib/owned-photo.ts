@@ -5,8 +5,9 @@
 // Now they resolve the request to a storage path inside the caller's own
 // folder and read it through the storage API, with a size ceiling.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PHOTO_BUCKET, isOwnPhotoPath } from "@/lib/item-photos";
 
-export const PHOTO_BUCKET = "clothing-images";
+export { PHOTO_BUCKET };
 export const MAX_PHOTO_BYTES = 30 * 1024 * 1024;
 
 /**
@@ -31,7 +32,7 @@ export function ownedPhotoPath(
       }
     }
   }
-  if (!path || !path.startsWith(`${userId}/`) || path.includes("..")) return null;
+  if (!path || !isOwnPhotoPath(userId, path)) return null;
   return path;
 }
 
