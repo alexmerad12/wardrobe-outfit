@@ -209,6 +209,11 @@ test("Edit: closing the editor drops the new photo; Change photo + Save removes 
     await input.setInputFiles(await photo("e", "#aa8833"));
     await done;
     await page.getByRole("button", { name: "Close" }).first().click();
+    // The page shows the piece's own photo again, not the dropped one (it
+    // kept showing the dropped photo until 2026-11-21).
+    const shown = page.locator(`img[alt="${name}"]`).first();
+    await expect(shown).toHaveAttribute("src", new RegExp(`${RUN}-d\\.jpg`));
+    await page.screenshot({ path: test.info().outputPath("editor-closed.png") });
     await expect.poll(async () => named(await runFiles(), "e").length, { timeout: 30_000 }).toBe(0);
     expect(named(await runFiles(), "d"), "the piece keeps its photo").toHaveLength(1);
 
