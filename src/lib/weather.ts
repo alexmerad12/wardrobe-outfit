@@ -27,6 +27,32 @@ const WEATHER_CODES: Record<number, { condition: string; icon: string }> = {
   99: { condition: "Thunderstorm with heavy hail", icon: "⛈️" },
 };
 
+/**
+ * Open-Meteo moves its `current` reading every 15 minutes, so a fresh answer
+ * is at most about 15 minutes old. An older one is a leftover of Next's data
+ * cache: it hands back its last copy first, however old, and only refreshes
+ * it in the background. On 2026-11-21 production answered Montreal at 1 PM
+ * with the 9 AM reading (7°C, partly cloudy, instead of 11°C and clear), and
+ * Style Me styles with whatever this returns (known-root-causes.md).
+ */
+export const MAX_READING_AGE_MS = 30 * 60_000;
+
+/**
+ * How old an Open-Meteo answer's `current` reading is, in milliseconds, or
+ * null when the answer doesn't say. With `timezone=auto`, `current.time` is
+ * the place's local wall time ("2026-11-21T13:00") and `utc_offset_seconds`
+ * turns it back into an instant.
+ */
+export function readingAgeMs(answer: unknown, now: number = Date.now()): number | null {
+  const a = answer as { current?: { time?: unknown }; utc_offset_seconds?: unknown } | null | undefined;
+  const time = a?.current?.time;
+  const offset = a?.utc_offset_seconds;
+  if (typeof time !== "string" || typeof offset !== "number") return null;
+  const wallTimeAsUtc = Date.parse(`${time}Z`);
+  if (!Number.isFinite(wallTimeAsUtc)) return null;
+  return now - (wallTimeAsUtc - offset * 1000);
+}
+
 export async function getWeather(lat: number, lng: number): Promise<WeatherData> {
   // Round to 2 decimals (~1.1 km precision) so nearby users share the cache key
   const roundedLat = Math.round(lat * 100) / 100;
@@ -52,22 +78,16 @@ export async function getWeather(lat: number, lng: number): Promise<WeatherData>
 }
 
 async function fetchWeather(url: string, timeoutMs: number): Promise<WeatherData> {
-  // Revalidate every 5 min — Open-Meteo's `current` updates hourly,
-  // so shorter is technically wasted, BUT Next's edge cache can lag
-  // and keeping it tight catches the hourly rollover sooner. Free
-  // tier handles this load easily.
-  // Timeout per attempt (5 s, then 4 s): a stalled upstream used to hold
-  // the caller (the weather route, or suggest mid-request) until the
-  // platform timeout.
-  const response = await fetch(url, {
-    next: { revalidate: 300 },
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch weather data (HTTP ${response.status})`);
+  // Kept 5 min in Next's data cache, so a burst of requests for one place
+  // asks Open-Meteo once. That cache answers with its last copy even when
+  // it is hours old, so a reading past MAX_READING_AGE_MS is asked for
+  // again, uncached (the cache still refreshes itself in the background).
+  let data = await fetchOpenMeteo(url, { next: { revalidate: 300 } }, timeoutMs);
+  const age = readingAgeMs(data);
+  if (age !== null && age > MAX_READING_AGE_MS) {
+    data = await fetchOpenMeteo(url, { cache: "no-store" }, timeoutMs);
   }
 
-  const data = await response.json();
   const current = data?.current;
   const daily = data?.daily;
   if (!current || typeof current.temperature_2m !== "number") {
@@ -88,6 +108,18 @@ async function fetchWeather(url: string, timeoutMs: number): Promise<WeatherData
     uv_index: daily?.uv_index_max?.[0] ?? 0,
     location: "",
   };
+}
+
+// Timeout per attempt (5 s, then 4 s): a stalled upstream used to hold the
+// caller (the weather route, or suggest mid-request) until the platform
+// timeout.
+// The JSON is checked field by field by the caller.
+async function fetchOpenMeteo(url: string, init: RequestInit, timeoutMs: number) {
+  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch weather data (HTTP ${response.status})`);
+  }
+  return response.json();
 }
 
 export function getSeasonFromMonth(month: number): "spring" | "summer" | "fall" | "winter" {

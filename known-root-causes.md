@@ -6,6 +6,12 @@ Public repo: technical facts only, no keys, accounts or client details.
 
 ## Confirmed
 
+### The weather was hours old for the first person after a quiet spell (found 2026-11-19, fixed 2026-11-21)
+- **Symptom:** retaking the French store screenshots on a local production build, the weather card read 3°C, humidity 96%, while the outfit under it said 10°C, and the English pass three minutes later read 10°C everywhere. Montreal's hourly readings that day never went below 4.3°C: the 3°C card was days old. On production, 2026-11-21 at 1 PM: `/api/weather` for Montreal's cell answered 7°C, partly cloudy, humidity 83%, wind 17 (the 9 AM reading) while Open-Meteo's live reading was 11°C and clear; the same call 6 s later answered 11°C.
+- **Cause:** `getWeather` (`src/lib/weather.ts`) fetched Open-Meteo with `next: { revalidate: 300 }`. Past those 5 minutes Next's data cache still answers with its last copy, however old, and only refreshes it in the background (`entry.isStale` in `next/dist/server/lib/patch-fetch.js`). With few visitors per place, most first requests landed on an old copy: the weather card showed it, and Style Me styled with it when it asked first (its rain and warmth rules run on that reading). The 5-minute comment assumed the cache expired.
+- **Fix:** Open-Meteo's answer carries its reading's local time and the place's UTC offset; a reading older than 30 minutes (`MAX_READING_AGE_MS`, the provider moves every 15) is asked for again with `cache: "no-store"`, while the data cache still spares Open-Meteo a burst of requests for one place. Unit tests: the age across time zones, a 4-hour-old cached answer re-asked, a 10-minute-old one kept.
+- **Not changed:** the weather route's own CDN header (`s-maxage=600, stale-while-revalidate=1800`) can still serve a copy up to 40 minutes old: bounded, and the CDN drops it after that. Packing's forecast and climate calls never used the data cache.
+
 ### The app ignored its own sign-in return link on an older WebView (2026-11-19, caught by the emulator before any phone)
 - **Symptom:** Android run #17: `am start -d 'app.linette://auth/callback?code=…'` reached the app, and the page stayed on `/launch` instead of going on to `/auth/callback`.
 - **Cause:** `appAuthReturnPath` checked `new URL(link).host === "auth"`. Chromium before version 130 parses no host in a non-special URL: `app.linette://auth/callback` gave host `""` and pathname `//auth/callback`. The Android 15 emulator's WebView is 124. The unit tests run in Node, whose URL parser is standard, so they passed.

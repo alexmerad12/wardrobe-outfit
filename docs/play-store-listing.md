@@ -119,7 +119,10 @@ icon and the two feature graphics do not.
 
 The launcher icon inside the app is separate (`scripts/android-icons.mjs`, `android/app/src/main/res`).
 
-The screenshots (2026-11-16) are real screens of the app with real AI results, taken from a DEMO account
+Retaken 2026-11-21: the 4 screens with outfit pieces (outfit, home, try-on, favorites) in both languages, for the
+framed pieces and the Favorites chip order of 2026-11-16 (the old home screen also said "Overcast" on its card and
+"Partly cloudy" under the outfit, a stale weather copy: `known-root-causes.md`). Wardrobe and trip are the 2026-11-16
+captures. The screenshots (2026-11-16) are real screens of the app with real AI results, taken from a DEMO account
 (`e2e-demo-wardrobe@linette.app`, made through the admin API, no password): 23 generated garment photos, nobody's
 clothes (the owner chose a demo wardrobe over his own on 2026-11-13), uploaded through the app's own bulk upload and
 cut out by it, city fixed to Montreal. Seen with the Android app's user agent at 432 x 768 CSS px x 2.5, every photo
