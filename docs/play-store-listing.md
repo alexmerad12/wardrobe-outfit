@@ -117,6 +117,16 @@ images are clicked in. The French files went up as `fr-1-outfit.jpg` and so on, 
 sets. Every screenshot carries the "made or edited with AI" label (the demo wardrobe's photos are generated); the
 icon and the two feature graphics do not.
 
+Replacing screenshots (done this way on 2026-11-21, all 9 slots): each slot's "Ajouter des composants" opens the
+asset library panel, and the panel stays tied to the slot it was opened from, so close it (its X) before opening
+another slot's. A file uploaded through the panel goes straight into that slot, at the end. Library images go in by
+selecting them (a real click on the thumbnail; a script click does not select) in the order wanted, then "Ajouter":
+they land in click order. Delete buttons are labelled "Supprimer <file name>" and need no confirmation. The tablet
+slots sit in a collapsed "Éléments pour tablette" section, and the language selector at the top switches between
+en-US, fr-CA and fr-FR. The AI label is set at the save step: "Suivant", then "Signaler les éléments générés par IA",
+tick the screenshots, "Ajouter les libellés et envoyer" (this sends nothing to Google: the changes stay unsent), then
+"Enregistrer".
+
 The launcher icon inside the app is separate (`scripts/android-icons.mjs`, `android/app/src/main/res`).
 
 Retaken 2026-11-21: the 4 screens with outfit pieces (outfit, home, try-on, favorites) in both languages, for the
@@ -195,13 +205,13 @@ form does not count as sharing.
 | Email address | Yes | No | Required | App functionality, Account management | The account |
 | User IDs | Yes | No | Required | App functionality, Account management | The account's internal id |
 | Other personal info | Yes | No | Optional | App functionality, Personalization | Gender, if the person gives it (default "not specified"): it picks the French wording and the styling track |
-| Name | Yes, once the Google sign-in version ships | No | Optional | Account management | Not asked by the app. Google sign-in hands Supabase the Google account's name (saved with the account). The Console form still says No: change it when the version with the button is released beyond internal testing |
+| Name | Yes | No | Optional | Account management | Not asked by the app. Google sign-in hands Supabase the Google account's name (saved with the account). In the Console since 2026-11-21 (with "OAuth" ticked as an account-creation method), pending with the other unsent changes |
 | Photos | Yes | No | Required | App functionality | Photos of clothes the person adds, and a photo of a piece tried on |
 | Other user-generated content | Yes | No | Required | App functionality, Personalization | Wardrobe details, outfits, favorites, wear history, trips, style preferences, typed styling requests, notes on a report |
 | App interactions | Yes | No | Required | App functionality, Analytics | A log line for each AI request (which feature, when, how long, tokens): the usage limits and cost tracking |
 | Crash logs | Yes | No | Required | App functionality, Analytics | Errors, through Sentry, with the privacy baseline of `src/lib/sentry-data-collection.ts` |
 | Diagnostics | Yes | No | Required | App functionality, Analytics | Page and request timings, through Sentry (`tracesSampleRate: 1.0`) |
-| Purchase history | Yes | No | Required | App functionality | The Google Play subscription, checked by RevenueCat (a service provider) under the account's internal id. Set when Play billing ships (section 7) |
+| Purchase history | Yes | No | Required | App functionality | The Google Play subscription, checked by RevenueCat (a service provider) under the account's internal id. Already declared in the Console (seen 2026-11-21) |
 | Everything else (contacts, messages, audio, files, calendar, health, web history, device IDs, financial info) | No | | | | |
 
 None of it is processed "ephemerally" in Google's sense except the position sent for the weather forecast itself.
