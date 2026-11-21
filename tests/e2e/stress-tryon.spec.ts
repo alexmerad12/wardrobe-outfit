@@ -6,6 +6,14 @@ import { assertE2EAccount, signIn } from "./auth";
 // duplicate detector finds it. Self-consistency check: if the system
 // can't identify your own item as similar to itself, the matching
 // logic is broken.
+//
+// A report: what the model gets wrong (the category it reads, the
+// self-match, an outfit of one piece) is printed, not failed. A photo the
+// test can't download, a request the endpoint refuses, or an outfit
+// without the tried-on piece (the route keeps only outfits that have it)
+// fails the run, since then nothing was tested or the code broke. Until
+// 2026-11-21 a run where every call failed still passed (known-root-causes.md).
+const BROKEN_RULES = new Set(["fetch-image", "API", "phantom-missing"]);
 
 assertE2EAccount();
 
@@ -77,7 +85,8 @@ test("stress-tryon: self-similarity + outfit shape", async ({ page }) => {
     }
     const buf = await imgRes.body();
 
-    // POST it to /api/try-on as a multipart upload.
+    // POST it to /api/try-on as a multipart upload, with the fields the
+    // try-on page sends (src/app/try-on/page.tsx).
     const tryOnRes = await page.request.post("/api/try-on", {
       multipart: {
         image: {
@@ -85,6 +94,7 @@ test("stress-tryon: self-similarity + outfit shape", async ({ page }) => {
           mimeType: "image/jpeg",
           buffer: buf,
         },
+        locale: "en",
       },
       timeout: 90_000,
     });
@@ -169,4 +179,7 @@ test("stress-tryon: self-similarity + outfit shape", async ({ page }) => {
     }
   }
   console.log(lines.join("\n"));
+
+  const broken = failures.filter((f) => BROKEN_RULES.has(f.rule));
+  expect(broken, "try-on requests refused, or answers the route should never return").toEqual([]);
 });

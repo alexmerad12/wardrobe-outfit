@@ -6,7 +6,7 @@ import { assertE2EAccount, signIn } from "./auth";
 // items only from the user's wardrobe, doesn't duplicate single-piece
 // categories, and surfaces a weather summary.
 //
-// A report, like stress-suggest: the model-quality flags are printed, not
+// A report, like the other stress sweeps: the model-quality flags are printed, not
 // failed. A request the endpoint refuses, or an answer the route should
 // never return (empty list, malformed or duplicate piece), fails the run,
 // since then nothing was tested. Until 2026-11-19 this spec sent fields

@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { assertE2EAccount, signIn } from "./auth";
 
 // COMPREHENSIVE STYLIST RULE VALIDATOR (Phase A of the deploy-readiness
@@ -10,12 +10,25 @@ import { assertE2EAccount, signIn } from "./auth";
 // directly via page.request — much faster than driving each suggestion
 // through the UI.
 //
-// Cost: each suggest call burns Gemini Flash tokens (~$0.005-0.02 per
-// call). A full sweep is ~80 calls, so ~$1-2 per cycle.
+// Cost: 47 requests on the quality model (19 scenarios twice, 3 three
+// times), 51 Gemini calls with the regenerates: 90 US cents at list price
+// and about 7 minutes on 2026-11-21.
 
 import type { ClothingItem, Mood, Occasion } from "@/lib/types";
 // The owner-decided rules (2026-10-17), same functions the route runs.
 import { heelTooDressy, metalMixProblem, shoeBottomClash, workDressProblem } from "../../src/lib/outfit-rules";
+
+// A report: the stylist-rule findings are printed with a pass rate per
+// rule, not failed. A request the endpoint refuses fails the run, since
+// then nothing was tested. So do answers with no outfit and no reason
+// ("shape-empty") on more than 10% of the calls: the route sends one, with
+// "try again" and the use given back, when every outfit it built was
+// filtered out or the AI's answer was unreadable twice. That happened on
+// 3 of 483 requests from 2026-10-17 to 2026-11-21 (0.6%), so one in a
+// sweep is a finding and many are a break. Until 2026-11-21 a run where
+// every call failed still passed (known-root-causes.md).
+const BROKEN_RULES = new Set(["API"]);
+const MAX_EMPTY_SHARE = 0.1;
 
 assertE2EAccount();
 
@@ -716,4 +729,11 @@ test("stress-suggest comprehensive sweep", async ({ page }) => {
   }
 
   console.log(lines.join("\n"));
+
+  const broken = allFailures.filter((f) => BROKEN_RULES.has(f.rule));
+  expect(broken, "suggest requests refused").toEqual([]);
+  const empty = allFailures.filter((f) => f.rule === "shape-empty").length;
+  expect(empty, `answers with no outfit and no reason, of ${totalCalls} calls`).toBeLessThanOrEqual(
+    Math.floor(totalCalls * MAX_EMPTY_SHARE)
+  );
 });
