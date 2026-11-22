@@ -3,6 +3,7 @@ import type { ClothingItem } from "@/lib/types";
 import {
   chroma,
   cozyPaletteClash,
+  genuinelyTailored,
   heelTooDressy,
   layersOverOversized,
   metalMixProblem,
@@ -150,5 +151,37 @@ describe("R4b layering proportions", () => {
     expect(layersOverOversized(item({ category: "outerwear", subcategory: "puffer", fit: "slim" }))).toBe(false);
     expect(layersOverOversized(item({ category: "outerwear", subcategory: "vest", fit: "regular" }))).toBe(false);
     expect(layersOverOversized(item({ category: "outerwear", subcategory: "blazer", fit: "oversized" }))).toBe(false);
+  });
+});
+
+describe("genuinelyTailored (Comfort Day's ban, Confident's structured piece)", () => {
+  it("counts a blazer, a sheath dress and trousers with a plain waist and fit", () => {
+    expect(genuinelyTailored(item({ category: "outerwear", subcategory: "blazer", fit: "oversized" }))).toBe(true);
+    expect(genuinelyTailored(item({ category: "dress", subcategory: "midi-dress", dress_silhouette: "sheath" }))).toBe(true);
+    // The e2e wardrobe's "Black wool trousers", the piece of the 2026-11-21 empty answer.
+    expect(
+      genuinelyTailored(item({ category: "bottom", subcategory: "trousers", waist_closure: "button-zip", bottom_fit: "straight" }))
+    ).toBe(true);
+  });
+
+  it("leaves out trousers with a soft waist or a relaxed fit", () => {
+    const soft: Partial<ClothingItem>[] = [
+      { waist_style: "elastic" },
+      { waist_closure: "elastic" },
+      { waist_closure: "drawstring" },
+      { waist_closure: "pull-on" },
+      { fit: "loose" },
+      { fit: "oversized" },
+      { bottom_fit: "wide-leg" },
+    ];
+    for (const p of soft) {
+      expect(genuinelyTailored(item({ category: "bottom", subcategory: "trousers", ...p }))).toBe(false);
+    }
+  });
+
+  it("leaves out jeans, skirts and other dresses", () => {
+    expect(genuinelyTailored(item({ category: "bottom", subcategory: "jeans", waist_closure: "button-zip" }))).toBe(false);
+    expect(genuinelyTailored(item({ category: "bottom", subcategory: "skirt", waist_style: "fitted" }))).toBe(false);
+    expect(genuinelyTailored(item({ category: "dress", subcategory: "midi-dress", dress_silhouette: "wrap" }))).toBe(false);
   });
 });

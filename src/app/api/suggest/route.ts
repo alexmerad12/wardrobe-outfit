@@ -26,6 +26,7 @@ import { buildStaticRulesBlock } from "@/lib/suggest-prompt";
 import { toSentenceCase } from "@/lib/name-case";
 import {
   cozyPaletteClash,
+  genuinelyTailored,
   heelTooDressy,
   layersOverOversized,
   metalFamily,
@@ -985,6 +986,20 @@ export async function POST(request: NextRequest) {
     };
     const casualWearHasAlternative = (category: string): boolean =>
       items.some((w) => !w.is_stored && w.category === category && !casualWearBan(w) && passesWarmth(w));
+    // Comfort Day never wears a tailored piece (`genuinelyTailored`: a
+    // blazer, a sheath dress, trousers with no soft waist or relaxed fit).
+    // Hidden from the prompt like the casual-wear bans whenever the
+    // category holds another piece; the validator and the fallback gate
+    // still drop one. Shown, it was picked: when the freshness ban below
+    // hid the jeans and the skirt, "Black wool trousers" were the only
+    // bottom left, the first answer took them 8 times in 8, every such
+    // request paid the regenerate call, and one in the 2026-11-21 sweep
+    // shipped nothing when the regenerate took them again. Hidden before
+    // the freshness ban, an emptied bottom row is restored with the pieces
+    // the mood allows.
+    const comfortDayBan = (it: ClothingItem): boolean => mood === "period" && genuinelyTailored(it);
+    const comfortDayHasAlternative = (category: string): boolean =>
+      items.some((w) => !w.is_stored && w.category === category && !comfortDayBan(w) && passesWarmth(w));
     // Base-layer warmth floor (Rule 5): base warmth >= 2 under 10°C and
     // >= 2.5 under 5°C, except at home. ONE predicate for the validator's
     // soft drop and the prompt pre-filter. A bottom under the floor is
@@ -1037,6 +1052,8 @@ export async function POST(request: NextRequest) {
       // an allowed piece. Shown, the model picked them and each pick cost
       // the regenerate call (2026-10-16: summer shorts for a 9°C date).
       if (casualWearBan(it) && casualWearHasAlternative(it.category)) return false;
+      // Tailored pieces on Comfort Day, same pattern (comfortDayBan above).
+      if (comfortDayBan(it) && comfortDayHasAlternative(it.category)) return false;
       // Bottoms under the cold-weather warmth floor, same pattern.
       if (lightBottom(it) && hasWarmEnoughBottom) return false;
       // Hot (≥25°C): never outerwear (Rule 5). The richness gate below
@@ -2674,30 +2691,9 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
       it.subcategory === "blazer" ||
       it.dress_silhouette === "sheath" ||
       (it.category === "bottom" && it.subcategory === "trousers");
-    // Comfort Day's "NEVER tailored" ban needs a NARROWER predicate than
-    // itemIsStructured: that one counts every `trousers` subcategory as
-    // structured, which is fine for Confident's require-side (false
-    // positives are harmless) but wrong for a ban — elastic-waist
-    // wide-leg pull-on trousers are exactly comfort-day wear, and the
-    // blunt version was hard-dropping them ("Elastic band extra wide
-    // thin jeans" → rejected → honest-empty, found in beta testing).
-    const itemIsTailoredForComfortBan = (it: ClothingItem) => {
-      if (it.subcategory === "blazer") return true;
-      if (it.dress_silhouette === "sheath") return true;
-      if (it.category === "bottom" && it.subcategory === "trousers") {
-        const softWaist =
-          it.waist_style === "elastic" ||
-          it.waist_closure === "elastic" ||
-          it.waist_closure === "drawstring" ||
-          it.waist_closure === "pull-on";
-        const relaxedFit =
-          it.fit === "loose" ||
-          it.fit === "oversized" ||
-          it.bottom_fit === "wide-leg";
-        return !softWaist && !relaxedFit;
-      }
-      return false;
-    };
+    // Comfort Day's "NEVER tailored" ban and Confident's structured piece
+    // use the NARROWER `genuinelyTailored` (src/lib/outfit-rules.ts), not
+    // itemIsStructured above, which counts every `trousers` subcategory.
 
     // Wardrobe-aware capabilities: each mood validator only fires when
     // the outfit could actually include a compliant item, so a user with
@@ -2744,7 +2740,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
     // existed as casual drawstring trousers, and the user got nothing.
     const moodPool = fullPool.filter(wearableHere);
     const wardrobeHasStructured =
-      occasion !== "outdoor" && moodPool.some(itemIsTailoredForComfortBan);
+      occasion !== "outdoor" && moodPool.some(genuinelyTailored);
     const wardrobeHasBright = moodPool.some(itemHasBright);
     const wardrobeHasStatement = moodPool.some(itemHasStatement);
     // R8 evening dressy material counts the same way, and only on Track A:
@@ -3429,7 +3425,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           });
           return false;
         }
-        const tailored = s.items.find(itemIsTailoredForComfortBan);
+        const tailored = s.items.find(genuinelyTailored);
         if (tailored) {
           drops.push({
             ids: s._ids,
@@ -3924,7 +3920,7 @@ Return ONE deliberate complete outfit from the wardrobe, following the HARD RULE
           (i) => i.category === "shoes" &&
             (i.heel_type === "high-heel" || i.heel_type === "mid-heel")
         )) return false;
-        if (mood === "period" && s.items.some(itemIsTailoredForComfortBan)) return false;
+        if (mood === "period" && s.items.some(genuinelyTailored)) return false;
         if (mood === "sad" && s.items.some(
           (i) => i.category === "shoes" && i.toe_shape === "pointed"
         )) return false;

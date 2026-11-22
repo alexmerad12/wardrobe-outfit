@@ -188,3 +188,31 @@ export function layersOverOversized(outer: ClothingItem): boolean {
   if (LONG_COATS.has(outer.subcategory ?? "")) return true;
   return outer.subcategory === "puffer" && (outer.fit === "oversized" || outer.fit === "loose");
 }
+
+// ——— Tailored pieces: Comfort Day's ban, Confident's structured piece ————
+//
+// A blazer, a sheath dress, or trousers with neither a soft waist (elastic,
+// drawstring, pull-on) nor a relaxed fit (loose, oversized, wide-leg).
+// Narrower than "every trousers subcategory": elastic-waist wide-leg pull-on
+// trousers are exactly comfort-day wear, and the blunt version hard-dropped
+// them ("Elastic band extra wide thin jeans", beta testing). Comfort Day never
+// wears one: the suggest route hides them from the prompt whenever the
+// category holds another piece, and the validator and the fallback gate drop
+// them. Confident counts one as its structured piece.
+
+/** Whether this piece is tailored in the sense Comfort Day bans and
+ *  Confident asks for. */
+export function genuinelyTailored(i: ClothingItem): boolean {
+  if (i.subcategory === "blazer") return true;
+  if (i.dress_silhouette === "sheath") return true;
+  if (i.category === "bottom" && i.subcategory === "trousers") {
+    const softWaist =
+      i.waist_style === "elastic" ||
+      i.waist_closure === "elastic" ||
+      i.waist_closure === "drawstring" ||
+      i.waist_closure === "pull-on";
+    const relaxedFit = i.fit === "loose" || i.fit === "oversized" || i.bottom_fit === "wide-leg";
+    return !softWaist && !relaxedFit;
+  }
+  return false;
+}
