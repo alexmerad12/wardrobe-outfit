@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { ClothingItem, Category } from "@/lib/types";
-import { ChevronRight, Settings as SettingsIcon } from "lucide-react";
+import {
+  Archive,
+  ChevronRight,
+  Combine,
+  ImageIcon,
+  Settings as SettingsIcon,
+  ShoppingBag,
+  type LucideIcon,
+} from "lucide-react";
 import { InstallPrompt } from "@/components/install-prompt";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useLabels } from "@/lib/i18n/use-labels";
@@ -317,12 +325,12 @@ export default function ProfilePage() {
 
       {/* Discovery hub — editorial typographic list. No numbers (those
           read as steps and these are independent features). Each row is
-          a full-width tap target with a Bodoni title + Inter caption,
-          a chevron on the right, and hairline dividers between rows.
-          Restraint is the design statement — like a luxury magazine
-          ToC. Below the list, a small "Build an outfit" block holds
-          the two contextual outfit-creation paths that don't have
-          their own destinations. */}
+          a full-width tap target with a title + caption, a chevron on
+          the right, and hairline dividers between rows. Each row starts
+          with the icon of the button it stands for, drawn like that
+          button, so the list also teaches the app's icon-only buttons
+          (the wardrobe's outfit and box buttons: the owner's ask,
+          2026-11-22). */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-base">{t("profile.whatYouCanDo")}</CardTitle>
@@ -333,36 +341,38 @@ export default function ProfilePage() {
               per-Separator rendering drift). The wrapper is full-bleed
               via no horizontal padding on CardContent + per-child px-6. */}
           <div className="divide-y divide-border">
-            <Link
+            {/* The + button's "Choose from library" (several photos = bulk). */}
+            <DiscoverRow
               href="/wardrobe/bulk"
-              className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-tight">{t("profile.discoverBulkTitle")}</p>
-                <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverBulkDesc")}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            </Link>
-            <Link
+              icon={ImageIcon}
+              look="outline"
+              title={t("profile.discoverBulkTitle")}
+              desc={t("profile.discoverBulkDesc")}
+            />
+            {/* The wardrobe's outfit button, shown once pieces are picked. */}
+            <DiscoverRow
+              href="/wardrobe?select=1"
+              icon={Combine}
+              look="primary"
+              title={t("profile.discoverOutfitTitle")}
+              desc={t("profile.discoverOutfitDesc")}
+            />
+            {/* Home's Try-on button. */}
+            <DiscoverRow
               href="/try-on"
-              className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-tight">{t("profile.discoverTryOnTitle")}</p>
-                <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverTryOnDesc")}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            </Link>
-            <Link
+              icon={ShoppingBag}
+              look="outline"
+              title={t("profile.discoverTryOnTitle")}
+              desc={t("profile.discoverTryOnDesc")}
+            />
+            {/* The wardrobe's box button (store / bring back). */}
+            <DiscoverRow
               href="/wardrobe?category=stored"
-              className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-tight">{t("profile.discoverStorageTitle")}</p>
-                <p className="text-xs text-muted-foreground leading-snug mt-0.5">{t("profile.discoverStorageDesc")}</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            </Link>
+              icon={Archive}
+              look="secondary"
+              title={t("profile.discoverStorageTitle")}
+              desc={t("profile.discoverStorageDesc")}
+            />
           </div>
         </CardContent>
       </Card>
@@ -370,6 +380,47 @@ export default function ProfilePage() {
 
       <InstallPrompt />
     </div>
+  );
+}
+
+// The icon square takes the look of the button it stands for (the shared
+// Button's variants), so the row and the button read as the same thing.
+const ICON_LOOK = {
+  primary: "bg-primary text-primary-foreground",
+  secondary: "bg-secondary text-secondary-foreground",
+  outline: "border border-input bg-background text-foreground",
+} as const;
+
+function DiscoverRow({
+  href,
+  icon: Icon,
+  look,
+  title,
+  desc,
+}: {
+  href: string;
+  icon: LucideIcon;
+  look: keyof typeof ICON_LOOK;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-4 px-6 py-3 transition-colors hover:bg-muted/40 active:bg-muted"
+    >
+      <span
+        aria-hidden="true"
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${ICON_LOOK[look]}`}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium leading-tight">{title}</p>
+        <p className="text-xs text-muted-foreground leading-snug mt-0.5">{desc}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+    </Link>
   );
 }
 

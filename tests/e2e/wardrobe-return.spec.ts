@@ -70,6 +70,39 @@ test.describe("on a touch phone", () => {
   });
 });
 
+// Profile's "Build your own outfit" row opens the wardrobe ready to pick
+// pieces; the count stays readable next to the three action buttons on a
+// 375 px phone, French included ("Tout sélectionner" used to push it out).
+// Nothing is saved: two pieces are picked and the picking is closed.
+test.describe("on a touch phone, picking", () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+
+  test("wardrobe: Profile's Build-your-own-outfit row opens the wardrobe ready to pick", async ({ page }) => {
+    test.setTimeout(2 * 60 * 1000);
+    await page.addInitScript(() => {
+      try {
+        sessionStorage.setItem("linette_splash_seen", "1");
+      } catch {}
+    });
+    await signIn(page);
+    await page.goto("/profile");
+    await page.locator('a[href="/wardrobe?select=1"]').click();
+    await expect(page).toHaveURL(/\/wardrobe$/);
+    const count = page.getByText(/^\d+ (selected|sélectionné)/);
+    await expect(count).toHaveText(/^0 /, { timeout: 30_000 });
+    const cards = page.locator("[data-item-id]");
+    await cards.nth(0).click();
+    await cards.nth(1).click();
+    await expect(count).toHaveText(/^2 /);
+    const outfit = page.getByRole("button", { name: /^(Outfit|Tenue)$/ });
+    await expect(outfit).toBeEnabled();
+    const [countBox, outfitBox] = await Promise.all([count.boundingBox(), outfit.boundingBox()]);
+    expect(countBox && outfitBox && countBox.x + countBox.width <= outfitBox.x, "the count ends before the outfit button").toBe(true);
+    await page.getByRole("button", { name: /^(Close|Fermer)$/ }).click();
+    await expect(count).toBeHidden();
+  });
+});
+
 test("wardrobe: coming back from a piece lands where the grid was", async ({ page }) => {
   test.setTimeout(3 * 60 * 1000);
   // The launch splash plays once per session and only counts as seen when it

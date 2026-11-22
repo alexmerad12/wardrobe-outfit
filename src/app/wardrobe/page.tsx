@@ -88,7 +88,9 @@ function WardrobePageInner() {
   // so switching tabs gives a clean view, but persisted on first mount
   // so back-nav from item detail keeps the drill-down.
   const [activeSubcategory, setActiveSubcategory] = useState<string>(initialSubcategory);
-  const [selectMode, setSelectMode] = useState(false);
+  // Profile's "Build your own outfit" row opens the wardrobe ready to pick
+  // pieces (`?select=1`, dropped from the address right after).
+  const [selectMode, setSelectMode] = useState(() => searchParams.get("select") === "1");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [creatingOutfit, setCreatingOutfit] = useState(false);
@@ -215,7 +217,7 @@ function WardrobePageInner() {
     const next = qs.toString() ? `/wardrobe?${qs.toString()}` : "/wardrobe";
     const currentCat = searchParams.get("category") ?? "all";
     const currentSub = searchParams.get("subcategory") ?? "all";
-    if (currentCat !== activeCategory || currentSub !== activeSubcategory) {
+    if (currentCat !== activeCategory || currentSub !== activeSubcategory || searchParams.has("select")) {
       router.replace(next, { scroll: false });
     }
   }, [activeCategory, activeSubcategory, router, searchParams]);
@@ -454,7 +456,7 @@ function WardrobePageInner() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6">
       {/* Header */}
-      {selectMode ? (
+      {selectMode && items.length > 0 ? (
         // Stick the select-mode bar to the top so the bulk actions stay
         // reachable while scrolling through the grid. Negative -mx-4 + px-4
         // makes the frosted background extend to the viewport edges within
@@ -476,17 +478,21 @@ function WardrobePageInner() {
                 all"); with it they're clearly two separate UI roles
                 sitting on the same line. */}
             <div className="flex items-center gap-2 min-w-0">
-              <Button size="icon" variant="ghost" onClick={exitSelectMode}>
+              <Button size="icon" variant="ghost" onClick={exitSelectMode} aria-label={t("common.close")}>
                 <X className="h-4 w-4" />
               </Button>
-              <span className="text-sm text-muted-foreground truncate">
+              {/* The count never shrinks: on a 390 px phone the French
+                  "Tout sélectionner" squeezed it to nothing (2026-11-22).
+                  On a phone Select-all keeps only its double-check icon
+                  (the word stays for screen readers); a wider screen shows it. */}
+              <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">
                 {t("wardrobe.nSelected", { count: selected.size })}
               </span>
               {filteredItems.length > 0 && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="ml-2 gap-1.5"
+                  className="ml-2 min-w-0 shrink gap-1.5"
                   onClick={() => {
                     const visibleIds = filteredItems.map((i) => i.id);
                     const allVisibleSelected = visibleIds.every((id) =>
@@ -504,9 +510,9 @@ function WardrobePageInner() {
                   }}
                 >
                   <CheckCheck className="h-4 w-4" />
-                  {filteredItems.every((i) => selected.has(i.id))
+                  <span className="max-[440px]:sr-only">{filteredItems.every((i) => selected.has(i.id))
                     ? t("wardrobe.deselectAll")
-                    : t("wardrobe.selectAll")}
+                    : t("wardrobe.selectAll")}</span>
                 </Button>
               )}
             </div>
