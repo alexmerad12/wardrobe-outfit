@@ -34,6 +34,42 @@ async function coveringTheCard(page: Page, id: string): Promise<string | null> {
   });
 }
 
+// Profile's Storage row opens the wardrobe on "Stored", the last chip of the
+// row. On a phone the row scrolls sideways and the chip used to stay out of
+// view: the strip appears only once the pieces have loaded, after the page
+// had already tried to scroll to it (the owner, 2026-11-22). A touch phone,
+// since a computer's mouse makes the row wrap instead of scroll.
+test.describe("on a touch phone", () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+
+  test("wardrobe: Profile's Storage row opens on the Stored chip, in view", async ({ page }) => {
+    test.setTimeout(2 * 60 * 1000);
+    await page.addInitScript(() => {
+      try {
+        sessionStorage.setItem("linette_splash_seen", "1");
+      } catch {}
+    });
+    await signIn(page);
+    await page.goto("/profile");
+    await page.locator('a[href="/wardrobe?category=stored"]').click();
+    await expect(page).toHaveURL(/\/wardrobe\?category=stored$/);
+    const stored = page.getByRole("button", { name: /^(Stored|Rangés)( \(\d+\))?$/ });
+    await expect(stored).toBeVisible({ timeout: 30_000 });
+    const row = stored.locator("xpath=..");
+    expect(await row.evaluate((el) => el.scrollWidth > el.clientWidth), "the chip row scrolls sideways on a phone").toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const [chip, strip] = await Promise.all([stored.boundingBox(), row.boundingBox()]);
+          if (!chip || !strip) return "not measured";
+          return chip.x >= strip.x && chip.x + chip.width <= strip.x + strip.width ? "in view" : `at ${Math.round(chip.x)} px of a ${Math.round(strip.width)} px row`;
+        },
+        { message: "the Stored chip is inside the visible part of its row" },
+      )
+      .toBe("in view");
+  });
+});
+
 test("wardrobe: coming back from a piece lands where the grid was", async ({ page }) => {
   test.setTimeout(3 * 60 * 1000);
   // The launch splash plays once per session and only counts as seen when it

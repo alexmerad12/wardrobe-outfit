@@ -49,7 +49,7 @@ test.describe("on a dark phone", () => {
 
   test("Light and Dark override the phone, Same as device follows it again", async ({ page }) => {
     await signIn(page);
-    await page.goto("/profile/settings");
+    await page.goto("/profile/settings/preferences");
     await expect(page.getByText(/^(Appearance|Apparence)$/)).toBeVisible();
     expect(await isDark(page), "no choice yet: the phone's mode").toBe(true);
 
@@ -60,7 +60,7 @@ test.describe("on a dark phone", () => {
     await page.goto("/");
     expect(await isDark(page), "Light holds on the next screen").toBe(false);
 
-    await page.goto("/profile/settings");
+    await page.goto("/profile/settings/preferences");
     await choose(page, /^(Dark|Sombre)$/);
     expect(await isDark(page)).toBe(true);
     await page.emulateMedia({ colorScheme: "light" });

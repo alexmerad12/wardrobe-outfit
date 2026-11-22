@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { useScrollDirection } from "@/lib/use-scroll-direction";
+import { centerChipInRow } from "@/lib/chip-scroll";
 import { useClientValue } from "@/lib/use-client-value";
 import { cn } from "@/lib/utils";
 import {
@@ -181,14 +182,18 @@ function WardrobePageInner() {
 
   // Bring the active category pill into view whenever it changes (mount
   // with a non-default category, tapping a different tab, etc.) so the
-  // user doesn't have to scroll the filter bar by hand.
+  // user doesn't have to scroll the filter bar by hand. The strip only
+  // exists once the pieces have loaded, so this also runs when it first
+  // appears: Profile's Storage row opened the wardrobe on "Stored", the
+  // last chip, out of view on a phone (the owner, 2026-11-22). Only the
+  // chip row scrolls, never the page (src/lib/chip-scroll.ts).
+  const chipsShown = items.length > 0;
+  const chipsCentredOnce = useRef(false);
   useEffect(() => {
-    activeCategoryRef.current?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
-  }, [activeCategory]);
+    if (!chipsShown) return;
+    centerChipInRow(activeCategoryRef.current, chipsCentredOnce.current);
+    chipsCentredOnce.current = true;
+  }, [activeCategory, chipsShown]);
 
   // User-driven category switch — reset subcategory to "all" so they
   // land on a clean view of the new tab. Kept off the effect so a

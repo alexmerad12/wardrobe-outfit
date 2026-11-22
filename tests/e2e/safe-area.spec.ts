@@ -124,7 +124,7 @@ test.describe("screens keep clear of the phone's bars (edge to edge)", () => {
     for (const [size, viewport] of [["tall", TALL], ["short", SHORT]] as const) {
       const page = await phone(browser, viewport);
       await signIn(page);
-      for (const path of ["/", "/wardrobe", "/suggest", "/outfits", "/profile", "/profile/settings"]) {
+      for (const path of ["/", "/wardrobe", "/suggest", "/outfits", "/profile", "/profile/settings", "/profile/settings/preferences"]) {
         await page.goto(path);
         await expect(page).toHaveURL(new RegExp(`${path === "/" ? "/$" : `${path}$`}`));
         await expectClearOfTheBars(page, path, size);

@@ -1,0 +1,481 @@
+// Preferences: weather location, temperature, language, appearance and
+// gender, on a page of their own behind a "Preferences" row in Settings,
+// like "Account & security" (the owner's ask, 2026-11-22: the form used to
+// open in full at the top of Settings). The gates treat it as part of
+// /profile/settings (consent.ts and proxy.ts match the prefix), so someone
+// stopped at the paywall can still switch language or sign out.
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import type { TemperatureSensitivity, TemperatureUnit, Language, Gender } from "@/lib/types";
+import { ArrowLeft, MapPin, Thermometer, Loader2, Languages, User, Check, SunMoon } from "lucide-react";
+import type { ThemeChoice } from "@/lib/theme";
+import { setThemeChoice, useThemeChoice } from "@/lib/use-theme";
+import { useLocale } from "@/lib/i18n/use-locale";
+import { reverseGeocode } from "@/lib/reverse-geocode";
+import { coarseCoords } from "@/lib/coarse-location";
+import { applySavedPreferences } from "@/lib/saved-preferences";
+
+interface CityResult {
+  name: string;
+  country: string;
+  admin1?: string;
+  latitude: number;
+  longitude: number;
+}
+
+export default function PreferencesPage() {
+  const { t, locale } = useLocale();
+  const [city, setCity] = useState("");
+  const [cityLat, setCityLat] = useState(0);
+  const [cityLng, setCityLng] = useState(0);
+  // Toggle for whether the weather widget follows the user's device
+  // location (true) or stays fixed to the city above (false). Default
+  // true matches legacy behavior — the widget always asked for GPS.
+  const [useDeviceLocation, setUseDeviceLocation] = useState(true);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [tempSensitivity, setTempSensitivity] = useState<TemperatureSensitivity>("normal");
+  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("auto");
+  const [language, setLanguage] = useState<Language>("auto");
+  const themeChoice = useThemeChoice();
+  const [gender, setGender] = useState<Gender>("not-specified");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  // City search
+  const [cityQuery, setCityQuery] = useState("");
+  const [cityResults, setCityResults] = useState<CityResult[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function loadPrefs() {
+      try {
+        const res = await fetch("/api/preferences");
+        if (res.ok) {
+          const prefs = await res.json();
+          if (prefs) {
+            setCity(prefs.location?.city ?? "");
+            setCityQuery(prefs.location?.city ?? "");
+            setCityLat(prefs.location?.lat ?? 0);
+            setCityLng(prefs.location?.lng ?? 0);
+            setTempSensitivity(prefs.temperature_sensitivity ?? "normal");
+            setTempUnit(prefs.temperature_unit ?? "auto");
+            setLanguage(prefs.language ?? "auto");
+            setGender(prefs.gender ?? "not-specified");
+            // ?? true rather than ?? false — preserves legacy behavior
+            // (always-on GPS) for rows created before this column.
+            setUseDeviceLocation(prefs.use_device_location ?? true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load preferences:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPrefs();
+  }, []);
+
+  // Close dropdown on outside click.
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function handleCityInput(value: string) {
+    setCityQuery(value);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (value.length < 2) {
+      setCityResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    // Debounce 300ms
+    searchTimeout.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(value)}&count=6&language=en&format=json`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setCityResults(data.results ?? []);
+          setShowDropdown(true);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }
+
+  function selectCity(result: CityResult) {
+    const label = result.admin1
+      ? `${result.name}, ${result.admin1}, ${result.country}`
+      : `${result.name}, ${result.country}`;
+    setCity(label);
+    setCityQuery(label);
+    setCityLat(result.latitude);
+    setCityLng(result.longitude);
+    setShowDropdown(false);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveFailed(false);
+    try {
+      const res = await fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "default",
+          location: city ? { city, lat: cityLat, lng: cityLng } : null,
+          use_device_location: useDeviceLocation,
+          temperature_sensitivity: tempSensitivity,
+          temperature_unit: tempUnit,
+          language,
+          gender,
+          preferred_styles: [],
+          favorite_colors: [],
+          avoided_colors: [],
+        }),
+      });
+      // A non-2xx used to flash the "Saved" confirmation anyway —
+      // the settings silently never persisted (audit P1).
+      if (!res.ok) throw new Error(`/api/preferences ${res.status}`);
+      // Every mounted screen (this page, the bottom nav) switches language,
+      // gendered wording and temperature unit now. Clearing the caches
+      // used to change nothing on screen until a reload.
+      applySavedPreferences({
+        language,
+        gender,
+        temperature_unit: tempUnit,
+        location: city ? { city, lat: cityLat, lng: cityLng } : null,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("Failed to save preferences:", err);
+      setSaveFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // When the location toggle flips ON, fire the geolocation prompt
+  // and reverse-geocode the result to auto-fill the city picker
+  // above. Matches the onboarding behavior so both surfaces feel the
+  // same. If permission is denied or detection fails, revert the
+  // toggle so the UI doesn't lie about state.
+  function handleLocationToggle(checked: boolean) {
+    setUseDeviceLocation(checked);
+    if (!checked) return;
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setUseDeviceLocation(false);
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        // The city is all we need: the geocoder gets a position rounded
+        // to about 11 km, never the exact one (coarse-location.ts).
+        const here = coarseCoords(position.coords);
+        const result = await reverseGeocode(here.lat, here.lng, locale);
+        setDetectingLocation(false);
+        if (result) {
+          setCity(result.city);
+          setCityQuery(result.city);
+          setCityLat(result.lat);
+          setCityLng(result.lng);
+        }
+      },
+      () => {
+        setDetectingLocation(false);
+        setUseDeviceLocation(false);
+      },
+      { timeout: 8000, maximumAge: 60000 },
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-md px-4 pt-6 pb-8 space-y-6">
+      {/* Same header as Account & security: back to Settings, page title. */}
+      <div className="flex items-center gap-2 mb-2">
+        <Link
+          href="/profile/settings"
+          className="tap inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
+          aria-label={t("common.back")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <h1 className="font-[family-name:var(--font-heading)] text-2xl">
+          {t("profile.preferencesTitle")}
+        </h1>
+      </div>
+
+      <Card>
+        {loading ? (
+          <CardContent className="space-y-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                <div className="h-9 w-full rounded-lg bg-muted animate-pulse" />
+              </div>
+            ))}
+          </CardContent>
+        ) : (
+          <CardContent className="space-y-4 animate-in fade-in duration-300">
+            {/* Weather location — unified section combining the
+                "follow my location" toggle and the city fallback.
+                The two settings are conceptually one decision ("where
+                does weather come from?") so they live in a single
+                block. City field stays visible but dims when the
+                toggle is ON since it's not in use in that mode. */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="use-device-location" className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {t("profile.weatherLocation")}
+                </Label>
+                <Switch
+                  id="use-device-location"
+                  checked={useDeviceLocation}
+                  onCheckedChange={handleLocationToggle}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {useDeviceLocation
+                  ? t("profile.useDeviceLocationOnHint")
+                  : t("profile.useDeviceLocationOffHint")}
+              </p>
+
+              <div
+                className={useDeviceLocation ? "opacity-50 pointer-events-none" : ""}
+                aria-disabled={useDeviceLocation}
+              >
+                <div className="relative" ref={dropdownRef}>
+                  <Input
+                    placeholder={t("profile.cityPlaceholder")}
+                    value={cityQuery}
+                    onChange={(e) => handleCityInput(e.target.value)}
+                    onFocus={() => {
+                      if (cityResults.length > 0) setShowDropdown(true);
+                    }}
+                    disabled={useDeviceLocation}
+                  />
+                  {(searching || detectingLocation) && (
+                    <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {showDropdown && cityResults.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-lg border bg-background shadow-lg max-h-48 overflow-y-auto">
+                      {cityResults.map((result, i) => (
+                        <button
+                          key={`${result.latitude}-${result.longitude}-${i}`}
+                          type="button"
+                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                          onClick={() => selectCity(result)}
+                        >
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          <span>
+                            <span className="font-medium">{result.name}</span>
+                            {result.admin1 && (
+                              <span className="text-muted-foreground">, {result.admin1}</span>
+                            )}
+                            <span className="text-muted-foreground">, {result.country}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {city && cityLat !== 0 && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {city} ({cityLat.toFixed(2)}, {cityLng.toFixed(2)})
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Temperature sensitivity */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Thermometer className="h-3.5 w-3.5" />
+                {t("profile.tempSensitivity")}
+              </Label>
+              <Select
+                value={tempSensitivity}
+                onValueChange={(v) => setTempSensitivity(v as TemperatureSensitivity)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (value === "runs-hot") return t("profile.runsHot");
+                      if (value === "normal") return t("profile.normal");
+                      if (value === "runs-cold") return t("profile.runsCold");
+                      return null;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="runs-hot">{t("profile.runsHot")}</SelectItem>
+                  <SelectItem value="normal">{t("profile.normal")}</SelectItem>
+                  <SelectItem value="runs-cold">{t("profile.runsCold")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Temperature unit */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Thermometer className="h-3.5 w-3.5" />
+                {t("profile.tempUnit")}
+              </Label>
+              <Select value={tempUnit} onValueChange={(v) => setTempUnit(v as TemperatureUnit)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (value === "auto") return t("profile.tempAuto");
+                      if (value === "celsius") return t("profile.celsius");
+                      if (value === "fahrenheit") return t("profile.fahrenheit");
+                      return null;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">{t("profile.tempAuto")}</SelectItem>
+                  <SelectItem value="celsius">{t("profile.celsius")}</SelectItem>
+                  <SelectItem value="fahrenheit">{t("profile.fahrenheit")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Language */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Languages className="h-3.5 w-3.5" />
+                {t("profile.language")}
+              </Label>
+              <Select value={language} onValueChange={(v) => setLanguage(v as Language)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (value === "auto") return t("profile.autoLang");
+                      if (value === "en") return t("profile.english");
+                      if (value === "fr") return t("profile.french");
+                      return null;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">{t("profile.autoLang")}</SelectItem>
+                  <SelectItem value="en">{t("profile.english")}</SelectItem>
+                  <SelectItem value="fr">{t("profile.french")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Appearance: this device only, and it applies at once (it is
+                not part of Save: it lives in the browser, src/lib/theme.ts) */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <SunMoon className="h-3.5 w-3.5" />
+                {t("profile.appearance")}
+              </Label>
+              <Select value={themeChoice} onValueChange={(v) => setThemeChoice(v as ThemeChoice)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (value === "system") return t("profile.appearanceSystem");
+                      if (value === "light") return t("profile.appearanceLight");
+                      if (value === "dark") return t("profile.appearanceDark");
+                      return null;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">{t("profile.appearanceSystem")}</SelectItem>
+                  <SelectItem value="light">{t("profile.appearanceLight")}</SelectItem>
+                  <SelectItem value="dark">{t("profile.appearanceDark")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{t("profile.appearanceHint")}</p>
+            </div>
+
+            {/* Gender */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                {t("profile.gender")}
+              </Label>
+              <Select value={gender} onValueChange={(v) => setGender(v as Gender)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(value) => {
+                      if (value === "woman") return t("profile.woman");
+                      if (value === "man") return t("profile.man");
+                      if (value === "not-specified") return t("profile.notSpecified");
+                      return null;
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="woman">{t("profile.woman")}</SelectItem>
+                  <SelectItem value="man">{t("profile.man")}</SelectItem>
+                  <SelectItem value="not-specified">{t("profile.notSpecified")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {saveFailed && (
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                {t("common.saveFailed")}
+              </p>
+            )}
+            <Button className="w-full" onClick={handleSave} disabled={saving || saved}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("common.saving")}
+                </>
+              ) : saved ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  {t("profile.settingsSaved")}
+                </>
+              ) : (
+                t("profile.saveSettings")
+              )}
+            </Button>
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}

@@ -110,23 +110,23 @@ function EnglishFAQ() {
       <Section title="Getting started">
         <Q q="How do I add items to my wardrobe?">
           <p>
-            Tap the camera or upload icon, snap or pick a photo of a clothing
-            piece, and Linette handles the rest — background removed, color
-            and material read automatically, and the item saved to your
-            wardrobe.
+            Tap the + button, then &quot;Take photo&quot; or &quot;Choose from
+            library&quot;, and Linette handles the rest — background removed,
+            color and material read automatically, and the piece saved to
+            your wardrobe.
           </p>
         </Q>
         <Q q="Can I add many items at once?">
           <p>
             Yes — there&apos;s a bulk upload mode. Pick up to 10 photos at a
             time; Linette processes them in the background. You can keep
-            using the app while it works, just don&apos;t close the tab.
+            using the app while it works, just keep Linette open.
             Need to add more than 10? Finish the batch, then pick another.
           </p>
         </Q>
         <Q q="Can I check if a piece would work before I buy it?">
           <p>
-            Tap &quot;Try it before buying&quot;, snap a photo of an item
+            On Home, tap &quot;Try-on&quot;, snap a photo of a piece
             you&apos;re considering, and Linette tells you if you already
             own similar pieces and how you could style it with what&apos;s
             in your wardrobe.
@@ -138,8 +138,9 @@ function EnglishFAQ() {
             &quot;Pack away&quot; near the bottom. Packed-away pieces stay
             in your wardrobe but don&apos;t appear in suggestions or the
             default grid until you bring them back. To pack away many
-            pieces at once, multi-select items in your Wardrobe and tap
-            the storage action.
+            pieces at once, tap the check-box button at the top of your
+            Wardrobe, pick the pieces, then tap the box button. Packed-away
+            pieces wait under &quot;Stored&quot;.
           </p>
         </Q>
         <Q q="What if Linette tags an item incorrectly?">
@@ -173,8 +174,8 @@ function EnglishFAQ() {
             anchor a lot of your favorites or are the only items that fit the
             weather and occasion, they&apos;ll come up more. Tap &quot;Show me
             another&quot; for a fresh combination — just know each one counts
-            toward your daily suggestion limit (see &quot;Is Linette
-            free?&quot; below).
+            toward your daily suggestion limit (see &quot;How much does
+            Linette cost?&quot; below).
           </p>
         </Q>
         <Q q="How do I save an outfit?">
@@ -218,10 +219,10 @@ function EnglishFAQ() {
         </Q>
         <Q q="Can I build my own outfit instead of asking Linette?">
           <p>
-            In your Wardrobe, tap to select two or more items, then tap
-            &quot;Outfit&quot; to compose it yourself. It&apos;s saved to
-            your Favorites, where you can wear it today or keep it for
-            later.
+            In your Wardrobe, tap the check-box button at the top, pick two
+            or more pieces, then tap the outfit button (the first one on the
+            right) to compose it yourself. It&apos;s saved to your
+            Favorites, where you can wear it today or keep it for later.
           </p>
         </Q>
         <Q q="Why does Linette never suggest some of my favorite pieces for certain occasions?">
@@ -282,9 +283,9 @@ function EnglishFAQ() {
       </Section>
 
       <Section title="Pricing & support">
-        <Q q="Is Linette free?">
+        <Q q="How much does Linette cost?">
           <p>
-            No. Linette is a paid subscription with two plans: weekly,
+            Linette is a paid subscription with two plans: weekly,
             which starts with a 7-day free trial, and annual. You see the
             current prices before you pay, and you can cancel at any time
             in Settings. If you created your account during the beta
@@ -368,8 +369,8 @@ function FrenchFAQ() {
       <Section title="Pour commencer">
         <Q q="Comment j'ajoute des pièces à mon dressing ?">
           <p>
-            Appuie sur l&apos;icône appareil photo ou téléversement, prends ou
-            choisis une photo d&apos;un vêtement, et Linette s&apos;occupe du reste —
+            Appuie sur le bouton +, puis « Prendre une photo » ou « Choisir
+            dans la galerie », et Linette s&apos;occupe du reste —
             le fond est retiré, la couleur et la matière sont lues
             automatiquement, et la pièce est enregistrée dans ton dressing.
           </p>
@@ -378,28 +379,29 @@ function FrenchFAQ() {
           <p>
             Oui — il y a un mode téléversement en lot. Choisis jusqu&apos;à
             10 photos à la fois ; Linette les traite en arrière-plan. Tu
-            peux continuer à utiliser l&apos;app pendant ce temps, ne ferme
-            juste pas l&apos;onglet. Tu en as plus de 10 ? Termine le lot,
+            peux continuer à utiliser l&apos;app pendant ce temps, garde
+            juste Linette ouverte. Tu en as plus de 10 ? Termine le lot,
             puis recommence.
           </p>
         </Q>
         <Q q="Je peux vérifier si une pièce me conviendrait avant de l'acheter ?">
           <p>
-            Tape sur « Essaie avant d&apos;acheter », prends en photo une
-            pièce qui te tente, et Linette te dit si tu as déjà des items
+            Sur l&apos;Accueil, tape sur « Essai », prends en photo une
+            pièce qui te tente, et Linette te dit si tu as déjà des pièces
             similaires et comment tu pourrais la styler avec ce que tu as
             déjà dans ton dressing.
           </p>
         </Q>
         <Q q="Je peux cacher mes pièces hors saison ?">
           <p>
-            Ouvre n&apos;importe quel item, tape sur « Modifier les
+            Ouvre n&apos;importe quelle pièce, tape sur « Modifier les
             détails », puis active « Ranger » en bas de la page. Les
             pièces rangées restent dans ton dressing mais n&apos;apparaissent
             plus dans les suggestions ni dans la grille par défaut jusqu&apos;à
             ce que tu les ressortes. Pour en ranger plusieurs d&apos;un
-            coup, sélectionne plusieurs pièces dans ton Dressing et tape
-            sur l&apos;action de rangement.
+            coup, tape sur le bouton de sélection en haut de ton Dressing,
+            choisis les pièces, puis tape sur le bouton boîte. Les pièces
+            rangées t&apos;attendent sous « Rangés ».
           </p>
         </Q>
         <Q q="Et si Linette catégorise mal une pièce ?">
@@ -435,8 +437,7 @@ function FrenchFAQ() {
             convenir à la météo et à l&apos;occasion, elles reviendront plus
             souvent. Appuie sur « Une autre suggestion » pour une nouvelle
             combinaison — chaque demande compte toutefois dans ta limite
-            quotidienne (voir « Est-ce que Linette est gratuit ? » plus
-            bas).
+            quotidienne (voir « Combien coûte Linette ? » plus bas).
           </p>
         </Q>
         <Q q="Comment enregistrer une tenue ?">
@@ -468,7 +469,7 @@ function FrenchFAQ() {
         </Q>
         <Q q="Je peux dire à Linette une envie ou un contexte particulier ?">
           <p>
-            Oui — sur l&apos;écran Suggest, en plus de l&apos;humeur et de
+            Oui — sur l&apos;écran Suggérer, en plus de l&apos;humeur et de
             l&apos;occasion, tu peux écrire une indication libre. Par
             exemple : « Je veux porter mes bottes rouges », « tout en
             noir », ou « je vais à un mariage ».
@@ -477,15 +478,16 @@ function FrenchFAQ() {
         <Q q="Je peux avoir une suggestion construite autour d'une pièce précise ?">
           <p>
             Ouvre n&apos;importe quelle pièce dans ton dressing et tape sur
-            « Styler cet item ». Linette construit une suggestion autour
+            « Styler cette pièce ». Linette construit une suggestion autour
             de cette pièce, parfait quand tu veux porter quelque chose de
             précis.
           </p>
         </Q>
         <Q q="Je peux composer ma propre tenue plutôt que demander à Linette ?">
           <p>
-            Dans ton Dressing, tape pour sélectionner deux pièces ou plus,
-            puis tape sur « Tenue » pour la composer toi-même. Elle est
+            Dans ton Dressing, tape sur le bouton de sélection en haut,
+            choisis deux pièces ou plus, puis tape sur le bouton tenue (le
+            premier à droite) pour la composer toi-même. Elle est
             enregistrée dans tes Favoris, d&apos;où tu peux la porter
             aujourd&apos;hui ou la garder pour plus tard.
           </p>
@@ -505,7 +507,7 @@ function FrenchFAQ() {
         </Q>
         <Q q="Je peux remplacer juste une pièce dans une suggestion ?">
           <p>
-            Tape l&apos;icône shuffle sur n&apos;importe quelle pièce
+            Tape l&apos;icône aux flèches croisées sur n&apos;importe quelle pièce
             d&apos;une tenue suggérée et choisis une remplaçante dans ton
             dressing — le reste du look reste intact, et Linette réécrit
             ses notes de style autour de ton échange.
@@ -550,9 +552,9 @@ function FrenchFAQ() {
       </Section>
 
       <Section title="Tarifs & support">
-        <Q q="Est-ce que Linette est gratuit ?">
+        <Q q="Combien coûte Linette ?">
           <p>
-            Non. Linette est un abonnement payant, avec deux forfaits :
+            Linette est un abonnement payant, avec deux forfaits :
             hebdomadaire, qui commence par un essai gratuit de 7 jours, et
             annuel. Tu vois les prix en vigueur avant de payer, et tu peux
             annuler à tout moment dans les Paramètres. Si tu as créé ton

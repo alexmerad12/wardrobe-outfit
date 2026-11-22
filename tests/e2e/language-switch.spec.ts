@@ -120,12 +120,17 @@ test("switching the language updates every screen at once", async ({ page }) => 
   const original = (await (await page.request.get("/api/preferences")).json()) as Prefs;
   await putPrefs(page, original, "en");
   try {
+    await page.goto("/profile/settings/preferences");
+    await expect(heading(page)).toHaveText("Preferences");
+    // Settings opens it from a row, like Account & security (2026-11-22).
     await page.goto("/profile/settings");
-    await expect(heading(page)).toHaveText("Settings");
+    await page.getByRole("link", { name: /^Preferences$/ }).click();
+    await expect(page).toHaveURL(/\/profile\/settings\/preferences$/);
+    await expect(heading(page)).toHaveText("Preferences");
     await expect(bottomNav(page)).toContainText("Home", visible);
 
     await saveLanguage(page, /^Français$/);
-    await expect(heading(page), "the settings page stayed in English").toHaveText("Paramètres");
+    await expect(heading(page), "the preferences page stayed in English").toHaveText("Préférences");
     await expect(bottomNav(page), "the bottom nav stayed in English").toContainText("Accueil", visible);
     expect(await page.evaluate(() => document.documentElement.lang)).toBe("fr");
 
@@ -135,10 +140,10 @@ test("switching the language updates every screen at once", async ({ page }) => 
     await expect(heading(page)).toHaveText("Dressing");
     await expect(bottomNav(page)).toContainText("Accueil", visible);
 
-    await page.goto("/profile/settings");
-    await expect(heading(page)).toHaveText("Paramètres");
+    await page.goto("/profile/settings/preferences");
+    await expect(heading(page)).toHaveText("Préférences");
     await saveLanguage(page, /^English$/);
-    await expect(heading(page), "the settings page stayed in French").toHaveText("Settings");
+    await expect(heading(page), "the preferences page stayed in French").toHaveText("Preferences");
     await expect(bottomNav(page), "the bottom nav stayed in French").toContainText("Home", visible);
     expect(await page.evaluate(() => document.documentElement.lang)).toBe("en");
   } finally {
