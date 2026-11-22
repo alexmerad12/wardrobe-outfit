@@ -69,6 +69,7 @@ Linette: AI wardrobe-styling PWA (Next.js 16 / Supabase / Vercel / Gemini), the 
 - After a context compaction, re-read files from disk before "fixing" what looks like a revert.
 
 ## Next steps (ordered)
+0. On his "yes ship": the 3 UI previews of 2026-11-22 from the local branch `ui-previews-nov22` (top bullet says how).
 1. His phone test of "Continue with Google" on version 18 (In progress).
 2. RevenueCat and the billing phone test with him.
 3. Open-Meteo commercial plan (his call) and its key, geocoding route and credit line (Open issues).
