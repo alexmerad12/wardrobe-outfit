@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev              # Next dev (Turbopack). Disables TLS reject — local Supabase mTLS.
+npm run dev              # Next dev (Turbopack), certificate checks on. On this PC Node needs NODE_OPTIONS=--use-system-ca (known-root-causes.md).
 npm run build            # Production build. Vercel runs this on every push to main.
 npm run lint             # ESLint (next/core-web-vitals base).
 npm run typecheck        # next typegen + tsc --noEmit (works on a fresh clone without .next)
