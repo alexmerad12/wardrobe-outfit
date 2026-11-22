@@ -104,8 +104,9 @@ to the MainActivity already open (CLEAR_TOP + SINGLE_TOP, because MainActivity i
 plugin's `appUrlOpen` reaches `native-shell.tsx`, and the WebView finishes on `/auth/callback` with its own PKCE
 verifier. Version 15 has no browser plugin, so its sign-in page keeps the "choose a password" line. Checked: unit tests,
 the browser test with a stand-in bridge, and on the emulator the return link sent by hand (same app window, the code is
-tried). Not checked yet, a real phone only: Google's own pages in the Chrome tab, and Chrome following the redirect to
-the intent link after Google's consent (the same mechanism as a redirect to a custom scheme). On 2026-11-19 an
+tried). On a real phone on 2026-11-22 (the owner's, version 18), the part no emulator could show worked too: Google's
+own pages in the Chrome tab, Chrome following the redirect to the intent link after Google's consent, and the sign-in
+finishing in the app. On 2026-11-19 an
 `app.linette://` entry sat in Supabase's allow list for about 20 minutes, then was removed (the bullet on custom
 schemes below says why).
 
