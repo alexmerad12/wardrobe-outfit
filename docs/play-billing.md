@@ -51,7 +51,7 @@ on a phone** (section 5): nothing here has talked to a real RevenueCat project o
 |---|---|
 | Subscription (Play Console) | `linette_premium` |
 | Base plans | `weekly` (1 week, auto-renewing), `annual` (1 year, auto-renewing) |
-| Offer on `weekly` | `trial-7d`: 7 days free, eligibility "new customer acquisition: never had this subscription" |
+| Offer on `annual` | `trial-7d`: 7 days free, eligibility "new customer acquisition: never had this subscription". The weekly plan has no offer: it pays from day one (the owner's call, 2026-11-26, the same rule as the website's checkout, `src/lib/checkout-trial.ts`) |
 | RevenueCat entitlement | `premium` (`REVENUECAT_ENTITLEMENT` overrides it) |
 | RevenueCat offering | the default one, with the packages "Weekly" (`$rc_weekly`) and "Annual" (`$rc_annual`) |
 
@@ -92,8 +92,10 @@ keeps 15% of subscriptions.
 
 On a real phone, with the internal-testing build installed from Google Play and a license-tester Google account:
 
-1. A new Linette account reaches the paywall: Google Play's prices show, the weekly plan offers the free week.
-2. Buy the weekly plan: Google's sheet opens, the app enters, the row reads `source = play`, `status = trialing`.
+1. A new Linette account reaches the paywall: Google Play's prices show, the annual plan offers the free week, the
+   weekly plan offers none.
+2. Buy the annual plan: Google's sheet opens with the free week, the app enters, the row reads `source = play`,
+   `status = trialing`. (A weekly purchase starts paid: `status = active`.)
 3. RevenueCat's dashboard shows the webhook delivered with a 200.
 4. Cancel in Google Play: within minutes the row reads `cancel_at_period_end = true`, Settings says "Ends on".
 5. Let it expire (test subscriptions do in minutes): the paywall comes back.

@@ -7,13 +7,17 @@
 // 2026-11-13; it was CA$59.99 and 84%) so the default click pushes users to the
 // commit-anchor — per the deep-research recommendation that
 // weekly+trial maximises Year-1 LTV but annual buys retention.
+// Since 2026-11-26 the 7-day free trial is on the annual plan as well
+// (the owner's call: the free path leads to the plan that commits,
+// src/lib/checkout-trial.ts), and the weekly plan pays from day one.
+// In the app each card shows the trial Google actually offers, if any.
 //
 // Apple-compliance bar (Cal AI precedent, April 2026): the auto-
 // renewal price must be at least as prominent as the trial price,
 // and disclosure copy must include duration + what becomes
-// inaccessible + downstream charge. We surface "$6.99/week" and the
-// "auto-renews until cancelled" line side-by-side, no toggle hiding
-// the renewal terms.
+// inaccessible + downstream charge. We surface "$79.99 per year" and
+// the "Free for 7 days, then $79.99/year, auto-renews" line together,
+// no toggle hiding the renewal terms.
 "use client";
 
 import * as React from "react";
@@ -214,21 +218,33 @@ export default function PaywallPage() {
             <p className="pw-sub">{t("paywall.chooseHow")}</p>
 
             <div className="pw-plans">
-              {/* Annual — pre-selected, savings anchor */}
+              {/* Annual: pre-selected, savings anchor, and the plan with the
+                  7-day free trial (since 2026-11-26) */}
               <button
                 type="button"
                 className={`pw-plan ${selected === "annual" ? "is-selected" : ""}`}
                 onClick={() => setSelected("annual")}
                 aria-pressed={selected === "annual"}
+                data-plan="annual"
               >
                 <div className="pw-plan-head">
                   <span className="pw-plan-label">{t("paywall.annualLabel")}</span>
-                  <span className="pw-badge web-only">{t("paywall.annualBadge")}</span>
-                  {playPlans?.savePercent != null && (
-                    <span className="pw-badge shell-only">
-                      {t("paywall.playSaveBadge", { percent: playPlans.savePercent })}
-                    </span>
-                  )}
+                  <span className="pw-pills">
+                    <span className="pw-badge web-only">{t("paywall.annualBadge")}</span>
+                    {playPlans?.savePercent != null && (
+                      <span className="pw-badge shell-only">
+                        {t("paywall.playSaveBadge", { percent: playPlans.savePercent })}
+                      </span>
+                    )}
+                    <span className="pw-trial-pill web-only">{t("paywall.annualTrial")}</span>
+                    {/* Google decides who still gets the free week: the pill
+                        shows only when the offer comes back for this person. */}
+                    {playPlans?.annual?.trialDays != null && (
+                      <span className="pw-trial-pill shell-only">
+                        {t("paywall.playTrial", { days: playPlans.annual.trialDays })}
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="pw-price">
                   <span className="pw-price-main web-only">{t("paywall.annualPrice")}</span>
@@ -244,21 +260,29 @@ export default function PaywallPage() {
                   </div>
                 )}
                 <div className="pw-note web-only">{t("paywall.annualNote")}</div>
-                <div className="pw-note shell-only">{t("paywall.playAnnualNote")}</div>
+                <div className="pw-note shell-only">
+                  {playPlans?.annual?.trialDays != null
+                    ? t("paywall.playAnnualNoteTrial", {
+                        days: playPlans.annual.trialDays,
+                        price: playPlans.annual.price,
+                      })
+                    : t("paywall.playAnnualNote")}
+                </div>
               </button>
 
-              {/* Weekly — 7-day trial */}
+              {/* Weekly: pays from its first day on the website (no trial
+                  since 2026-11-26); in the app, whatever Google offers */}
               <button
                 type="button"
                 className={`pw-plan ${selected === "weekly" ? "is-selected" : ""}`}
                 onClick={() => setSelected("weekly")}
                 aria-pressed={selected === "weekly"}
+                data-plan="weekly"
               >
                 <div className="pw-plan-head">
                   <span className="pw-plan-label">{t("paywall.weeklyLabel")}</span>
-                  <span className="pw-trial-pill web-only">{t("paywall.weeklyTrial")}</span>
-                  {/* Google decides who still gets the free week: the pill
-                      shows only when the offer comes back for this person. */}
+                  {/* No weekly trial is offered in the Console; should Google
+                      ever return one, the screen says so truthfully. */}
                   {playPlans?.weekly?.trialDays != null && (
                     <span className="pw-trial-pill shell-only">
                       {t("paywall.playTrial", { days: playPlans.weekly.trialDays })}
@@ -484,6 +508,13 @@ const PAYWALL_CSS = `
     letter-spacing: 0.14em; text-transform: uppercase;
     padding: 3px 8px;
     border-radius: 999px;
+  }
+  /* The annual card carries two pills (savings and the free trial): they
+     sit together on the right and wrap under each other on a narrow phone. */
+  .pw-pills {
+    display: flex; flex-wrap: wrap; justify-content: flex-end;
+    align-items: center; gap: 6px;
+    min-width: 0;
   }
   .pw-trial-pill {
     font-size: 11px; font-weight: 500;

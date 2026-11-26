@@ -5,18 +5,20 @@
 // /paywall/success and fires the checkout.session.completed webhook
 // (which is the source of truth for the user_subscriptions row).
 //
-// The 7-day trial is attached to the weekly plan via
-// subscription_data.trial_period_days, for a FIRST subscription only:
-// cancelling during the trial and re-subscribing used to restart it,
-// i.e. unlimited free weeks. payment_method_collection is forced to
-// "always" because the default ("if_required") skips card capture on
-// trials — and the whole point of this structure is that the card is on
-// file so the trial auto-converts.
+// The 7-day trial is attached to the YEARLY plan via
+// subscription_data.trial_period_days, for a FIRST subscription only
+// (`checkoutTrialDays`, src/lib/checkout-trial.ts; on the weekly plan
+// until 2026-11-26): cancelling during the trial and re-subscribing used
+// to restart it, i.e. unlimited free trials. payment_method_collection is
+// forced to "always" because the default ("if_required") skips card
+// capture on trials, and the whole point of this structure is that the
+// card is on file so the trial auto-converts.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, isNextResponse } from "@/lib/supabase/require-user";
 import { stripe, priceIdForPlan, type PlanKey } from "@/lib/stripe";
 import { getSubscription, hasActiveAccess } from "@/lib/subscription";
 import { isShellUserAgent } from "@/lib/native-shell";
+import { checkoutTrialDays } from "@/lib/checkout-trial";
 
 function siteOrigin(req: NextRequest): string {
   // Vercel + local both honor x-forwarded-host; fall back to the
@@ -71,14 +73,12 @@ export async function POST(request: NextRequest) {
   try {
     const priceId = priceIdForPlan(planKey);
     const metadata = { user_id: userId, plan: planKey };
+    // 7-day trial only on the yearly plan, and only once per user.
+    const trialDays = checkoutTrialDays(planKey, firstSubscription);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      // 7-day trial only on the weekly plan, and only once per user.
-      subscription_data:
-        planKey === "weekly" && firstSubscription
-          ? { trial_period_days: 7, metadata }
-          : { metadata },
+      subscription_data: trialDays ? { trial_period_days: trialDays, metadata } : { metadata },
       // Force card capture on trials so the trial auto-converts to
       // paid without the user re-entering payment info.
       payment_method_collection: "always",

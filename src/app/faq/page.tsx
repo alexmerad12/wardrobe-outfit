@@ -285,8 +285,9 @@ function EnglishFAQ() {
       <Section title="Pricing & support">
         <Q q="How much does Linette cost?">
           <p>
-            Linette is a paid subscription with two plans: weekly,
-            which starts with a 7-day free trial, and annual. You see the
+            Linette is a paid subscription with two plans: annual, which
+            starts with a 7-day free trial the first time you subscribe,
+            and weekly. You see the
             current prices before you pay, and you can cancel at any time
             in Settings. If you created your account during the beta
             (before June 12, 2026), your access stays free. To keep the
@@ -554,9 +555,10 @@ function FrenchFAQ() {
       <Section title="Tarifs & support">
         <Q q="Combien coûte Linette ?">
           <p>
-            Linette est un abonnement payant, avec deux forfaits :
-            hebdomadaire, qui commence par un essai gratuit de 7 jours, et
-            annuel. Tu vois les prix en vigueur avant de payer, et tu peux
+            Linette est un abonnement payant, avec deux forfaits : annuel,
+            qui commence par un essai gratuit de 7 jours la première fois
+            que tu t&apos;abonnes, et hebdomadaire. Tu vois les prix en
+            vigueur avant de payer, et tu peux
             annuler à tout moment dans les Paramètres. Si tu as créé ton
             compte pendant la bêta (avant le 12 juin 2026), ton accès reste
             gratuit. Pour que le service reste viable, les fonctions IA ont

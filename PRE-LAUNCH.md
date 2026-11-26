@@ -84,7 +84,7 @@ Running list of what's done and what remains before full public launch (vs. frie
 - [ ] Still needed for the stores, outside the web app: a reviewer demo account with an active entitlement, the screenshots (both wait on which wardrobe may be shown publicly), entering Play's forms from `docs/play-store-listing.md` (answers, texts, icon and feature graphic are ready), and a Mac with Xcode 26 for iOS builds.
 
 ### Subscriptions
-- [x] Web billing LIVE on Stripe (checkout, webhook, billing portal; CLAUDE.md "Billing (Stripe)"): $6.99/week with a 7-day trial on a first subscription, or $59.99/year. Accounts created before 2026-06-12 are grandfathered free. No real subscribers yet.
+- [x] Web billing LIVE on Stripe (checkout, webhook, billing portal; CLAUDE.md "Billing (Stripe)"): CA$6.99/week, or CA$79.99/year with a 7-day trial on a first subscription (the trial moved from the weekly plan to the yearly one on 2026-11-26; the yearly price was CA$59.99 until 2026-11-13). Accounts created before 2026-06-12 are grandfathered free. No real subscribers yet.
 - [ ] Store apps: RevenueCat (StoreKit / Play Billing), a platform-aware paywall and Restore Purchases (i18n key `paywall.restore` exists).
 - [x] ~~`<SubscriptionGuard>` wrapper~~: done as the middleware page gate (`src/lib/supabase/proxy.ts`), which sends non-subscribers to `/paywall`, plus the API 402 gate (`src/lib/require-subscription.ts`).
 - [x] ~~Pricing / plan selection page~~: `/paywall` (annual pre-selected).

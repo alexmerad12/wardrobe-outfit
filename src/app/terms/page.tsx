@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LegalBackArrow } from "@/components/legal-back-arrow";
 
-const EFFECTIVE_DATE_EN = "November 9, 2026";
-const EFFECTIVE_DATE_FR = "9 novembre 2026";
+const EFFECTIVE_DATE_EN = "November 26, 2026";
+const EFFECTIVE_DATE_FR = "26 novembre 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
@@ -94,12 +94,12 @@ function EnglishTerms() {
 
       <h2 className="font-semibold text-lg mt-8 mb-3">6. Subscriptions and fees</h2>
       <p className="mb-6">
-        Linette is a paid subscription. There are two plans: a weekly
+        Linette is a paid subscription. There are two plans: an annual
         plan, which starts with a 7-day free trial the first time you
-        subscribe, and an annual plan. The price of each plan, and any
+        subscribe, and a weekly plan. The price of each plan, and any
         tax, is shown before you pay. Your subscription renews
         automatically at the end of each period (each week or each year),
-        and a free trial becomes a paid weekly subscription when it ends,
+        and a free trial becomes a paid annual subscription when it ends,
         unless you cancel before then. You can cancel at any time in
         Settings: you keep access until the end of the period you have
         paid for and you are not charged again. Deleting your account
@@ -290,13 +290,13 @@ function FrenchTerms() {
       <h2 className="font-semibold text-lg mt-8 mb-3">6. Abonnements et frais</h2>
       <p className="mb-6">
         Linette est un abonnement payant. Il existe deux forfaits : un
-        forfait hebdomadaire, qui commence par un essai gratuit de 7 jours
-        la première fois que tu t&apos;abonnes, et un forfait annuel. Le
+        forfait annuel, qui commence par un essai gratuit de 7 jours la
+        première fois que tu t&apos;abonnes, et un forfait hebdomadaire. Le
         prix de chaque forfait, et les taxes s&apos;il y en a, sont
         affichés avant le paiement. Ton abonnement se renouvelle
         automatiquement à la fin de chaque période (chaque semaine ou
         chaque année), et un essai gratuit devient un abonnement
-        hebdomadaire payant quand il se termine, sauf si tu annules avant.
+        annuel payant quand il se termine, sauf si tu annules avant.
         Tu peux annuler à tout moment dans les Paramètres : tu gardes
         l&apos;accès jusqu&apos;à la fin de la période payée et tu
         n&apos;es plus facturé. Supprimer ton compte annule aussi un

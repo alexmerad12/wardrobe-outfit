@@ -59,8 +59,10 @@ function installFakeStore(options: StoreOptions) {
           current: {
             // Prices no page of the site contains, so a pass can only come
             // from the store's answer.
-            weekly: plan("$rc_weekly", 7.49, "CA$7.49", "CA$7.49", options.trial),
-            annual: plan("$rc_annual", 84.99, "CA$84.99", "CA$1.63", false),
+            // The free week is Google's offer on the annual plan only
+            // (docs/play-billing.md, since 2026-11-26): weekly never has one.
+            weekly: plan("$rc_weekly", 7.49, "CA$7.49", "CA$7.49", false),
+            annual: plan("$rc_annual", 84.99, "CA$84.99", "CA$1.63", options.trial),
           },
         }),
         purchasePackage: async (o: { aPackage: { identifier: string } }) => {
@@ -142,7 +144,18 @@ test("in the app the paywall shows Google Play's prices and terms, never the web
   // (The badge is drawn in capitals, and innerText follows the drawing.)
   await expect(body).toContainText(/Save 78%|Économise 78 %/i, { useInnerText: true });
   await expect(body).toContainText(/CA\$1\.63/, { useInnerText: true });
-  await expect(body).toContainText(/7-day free trial|7 jours d'essai gratuit/, { useInnerText: true });
+  // The free week Google offers sits on the annual card, with the renewal
+  // price beside it; the weekly card promises none.
+  const annualCard = page.locator('[data-plan="annual"]');
+  await expect(annualCard).toContainText(/7-day free trial|7 jours d'essai gratuit/, { useInnerText: true });
+  await expect(annualCard).toContainText(
+    /Free for 7 days, then CA\$84\.99\/year|Gratuit pendant 7 jours, puis CA\$84\.99\/an/,
+    { useInnerText: true },
+  );
+  await expect(page.locator('[data-plan="weekly"]')).not.toContainText(
+    /free trial|essai gratuit|Free for|Gratuit pendant/,
+    { useInnerText: true },
+  );
   await expect(body).toContainText(/Google Play/, { useInnerText: true });
   // Nothing of the website's offer is visible: its prices, its checkout.
   await expect(body).not.toContainText(/79[.,]99|6[.,]99/, { useInnerText: true });
@@ -247,6 +260,17 @@ test("in a browser the paywall is the website's: its prices, no Restore, no Goog
   const body = page.locator("body");
   await expect(body).toContainText(/79[.,]99/, { useInnerText: true });
   await expect(body).toContainText(/6[.,]99/, { useInnerText: true });
+  // The website's free week is on the annual plan (src/lib/checkout-trial.ts).
+  const annualCard = page.locator('[data-plan="annual"]');
+  await expect(annualCard).toContainText(/7-day free trial|7 jours d'essai gratuit/, { useInnerText: true });
+  await expect(annualCard).toContainText(
+    /Free for 7 days, then \$79\.99\/year|Gratuit pendant 7 jours, puis 79,99 \$\/an/,
+    { useInnerText: true },
+  );
+  await expect(page.locator('[data-plan="weekly"]')).not.toContainText(
+    /free trial|essai gratuit|Free for|Gratuit pendant/,
+    { useInnerText: true },
+  );
   await expect(body).not.toContainText(/Google Play/, { useInnerText: true });
   await expect(page.getByRole("button", { name: /Restore purchase|Restaurer l'achat/ })).toBeHidden();
 });

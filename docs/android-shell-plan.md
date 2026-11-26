@@ -146,7 +146,7 @@ the base plans `weekly` and `annual`.
 RevenueCat's Capacitor SDK 14.x ships Play Billing Library 9.1.0. `Purchases.configure({ apiKey, appUserID: <Supabase
 user id> })`, `getOfferings()`, `purchasePackage`, `restorePurchases()` (a Restore control is required). Change the
 activity's `launchMode` from `singleTask` to `singleTop` (RevenueCat's own guidance), then retest App Links.
-Play side: one subscription with a weekly and an annual base plan and a 7-day free-trial offer on the weekly plan
+Play side: one subscription with a weekly and an annual base plan and a 7-day free-trial offer on the annual plan
 (trials must be 3 days or more); ids can never be changed or reused. A service account with the Play Developer API and
 Pub/Sub roles, invited in Play Console, uploaded to RevenueCat (credentials can take up to 36 hours). Server side: a
 webhook (`INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, `EXPIRATION`, `BILLING_ISSUE`, `PRODUCT_CHANGE`) that writes
