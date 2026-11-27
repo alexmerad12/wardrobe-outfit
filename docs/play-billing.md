@@ -77,7 +77,11 @@ keeps 15% of subscriptions.
 
 1. Upload a first build to internal testing (a subscription cannot be created before the app has a build with the
    billing library). Needs the upload key (`docs/play-store-listing.md`, section 6).
-2. Create the subscription, the two base plans and the trial offer of section 2. Activate them.
+2. Create the subscription, the two base plans and the trial offer of section 2. Activate them. DONE 2026-11-27, all
+   active, 175 countries/regions: `weekly` CA$6.99 (grace 3 days), `annual` CA$79.99 and US$59.99 (grace 14 days),
+   `trial-7d` on `annual`; the other countries' prices are Google's conversions (US weekly US$4.89). Step 1 was
+   already done: version 18 carries RevenueCat's plugin and its billing library. In the Console in French, price
+   fields want a decimal comma ("6,99").
 3. RevenueCat: add the two products, the entitlement `premium` attached to both, the default offering with the two
    packages. Customers > transfer behaviour: keep the default (a restore moves the purchase to the account that
    restores it).
