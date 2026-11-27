@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/use-locale";
 import { LegalBackArrow } from "@/components/legal-back-arrow";
 
-const EFFECTIVE_DATE_EN = "November 26, 2026";
-const EFFECTIVE_DATE_FR = "26 novembre 2026";
+const EFFECTIVE_DATE_EN = "November 27, 2026";
+const EFFECTIVE_DATE_FR = "27 novembre 2026";
 const OPERATOR = "9537-1076 Quebec Inc.";
 const CONTACT_EMAIL = "hello@linette.app";
 
